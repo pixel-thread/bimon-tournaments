@@ -96,8 +96,14 @@ export function Header() {
         return initial;
     });
 
+    // Defaults for public menu sections (Connect/Account start collapsed)
+    const publicDefaults: Record<string, boolean> = { Play: false, Connect: true, Account: true };
+
     const toggleMobileSection = (sectionName: string) => {
-        setMobileCollapsed((prev) => ({ ...prev, [sectionName]: !prev[sectionName] }));
+        setMobileCollapsed((prev) => {
+            const current = prev[sectionName] ?? publicDefaults[sectionName] ?? false;
+            return { ...prev, [sectionName]: !current };
+        });
     };
 
     // Clear loading spinner and close menu when pathname changes
