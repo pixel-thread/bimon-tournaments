@@ -24,7 +24,7 @@ const GAME_OPTIONS: { mode: GameMode; name: string; gameName: string; icon: stri
     { mode: "bgmi" as const, name: "PUBGMI", gameName: "BGMI", icon: "/icons/bgmi/icon-192x192.png", gradient: "from-amber-500/20 to-orange-500/20", border: "border-amber-500/30" },
     { mode: "pes" as const, name: "KICKOFF", gameName: "eFootball", icon: "/icons/pes/icon-192x192.png", gradient: "from-emerald-500/20 to-teal-500/20", border: "border-emerald-500/30" },
     { mode: "freefire" as const, name: "BOOYAH", gameName: "Free Fire", icon: "/icons/freefire/icon-192x192.png", gradient: "from-violet-500/20 to-purple-500/20", border: "border-violet-500/30" },
-    { mode: "mlbb" as const, name: "Mobai Legen", gameName: "Mobile Legends", icon: "/icons/mlbb/icon-192x192.png", gradient: "from-rose-500/20 to-pink-500/20", border: "border-rose-500/30" },
+    { mode: "mlbb" as const, name: "Mobai Legend", gameName: "Mobile Legends", icon: "/icons/mlbb/icon-192x192.png", gradient: "from-rose-500/20 to-pink-500/20", border: "border-rose-500/30" },
 ]).filter((g) => g.mode !== GAME_MODE);
 
 // ─── Component ──────────────────────────────────────────────

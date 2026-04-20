@@ -353,9 +353,9 @@ function PesLogo({ className }: PubgmiLogoProps) {
     );
 }
 
-// ─── MLBB Logo — Mobai Legen ↔ ML:BB alternating cascade ───
+// ─── MLBB Logo — Mobai Legend ↔ ML:BB alternating cascade ───
 const MLBB_WORDS = [
-    ["M", "o", "b", "a", "i", " ", "L", "e", "g", "e", "n"],
+    ["M", "o", "b", "a", "i", " ", "L", "e", "g", "e", "n", "d"],
     ["M", "L", ":", "B", "B"],
 ];
 

@@ -212,7 +212,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
     },
     mlbb: {
         mode: "mlbb",
-        name: "Mobai Legen",
+        name: "Mobai Legend",
         fullName: "Mobile Legends Tournament Platform",
         gameName: "Mobile Legends",
         currency: "Diamond",
