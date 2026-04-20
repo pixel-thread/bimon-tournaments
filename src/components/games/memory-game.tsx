@@ -23,8 +23,9 @@ const HEART_REGEN_MS = 10 * 60 * 1000;
 interface Card { id: number; emoji: string; isFlipped: boolean; isMatched: boolean; }
 
 interface ServerScore {
-    rank: number; score: number;
+    rank: number | null; score: number;
     displayName: string; imageUrl: string | null; playerId: string;
+    blocked?: boolean;
 }
 
 function calcScore(moves: number, time: number): number {
@@ -209,23 +210,27 @@ function Leaderboard() {
                 <div
                     key={entry.playerId}
                     className={`flex items-center gap-3 rounded-lg px-4 py-2.5 transition-colors ${
-                        entry.rank === 1
-                            ? "bg-amber-500/15 border border-amber-500/25 shadow-sm"
-                            : entry.rank <= 3
-                                ? "bg-amber-500/5"
-                                : "hover:bg-default-100"
+                        entry.blocked
+                            ? "opacity-40"
+                            : entry.rank === 1
+                                ? "bg-amber-500/15 border border-amber-500/25 shadow-sm"
+                                : entry.rank !== null && entry.rank <= 3
+                                    ? "bg-amber-500/5"
+                                    : "hover:bg-default-100"
                     }`}
                 >
                     <span className={`w-8 text-center text-xs font-medium ${
-                        entry.rank === 1 ? "text-yellow-500 text-sm" : entry.rank === 2 ? "text-foreground/50" : entry.rank === 3 ? "text-orange-400" : "text-foreground/30"
+                        entry.blocked ? "text-foreground/20" : entry.rank === 1 ? "text-yellow-500 text-sm" : entry.rank === 2 ? "text-foreground/50" : entry.rank === 3 ? "text-orange-400" : "text-foreground/30"
                     }`}>
-                        {entry.rank <= 3 ? ["🥇", "🥈", "🥉"][entry.rank - 1] : entry.rank}
+                        {entry.blocked
+                            ? <Lock className="h-3.5 w-3.5 mx-auto text-foreground/20" />
+                            : entry.rank !== null && entry.rank <= 3 ? ["🥇", "🥈", "🥉"][entry.rank - 1] : entry.rank}
                     </span>
                     <div className="flex flex-1 items-center gap-2 min-w-0">
-                        <Avatar src={entry.imageUrl || undefined} name={entry.displayName} size="sm" className={`shrink-0 ${entry.rank === 1 ? "h-8 w-8 ring-2 ring-amber-500/50" : "h-7 w-7"}`} />
-                        <span className={`font-medium truncate ${entry.rank === 1 ? "text-sm text-amber-500" : "text-sm"}`}>{entry.displayName}</span>
+                        <Avatar src={entry.imageUrl || undefined} name={entry.displayName} size="sm" className={`shrink-0 ${entry.blocked ? "h-7 w-7 grayscale" : entry.rank === 1 ? "h-8 w-8 ring-2 ring-amber-500/50" : "h-7 w-7"}`} />
+                        <span className={`font-medium truncate ${entry.blocked ? "text-sm line-through" : entry.rank === 1 ? "text-sm text-amber-500" : "text-sm"}`}>{entry.displayName}</span>
                     </div>
-                    <span className={`w-16 text-right font-bold ${entry.rank === 1 ? "text-base game-text" : "text-sm game-text"}`}>{entry.score}</span>
+                    <span className={`w-16 text-right font-bold ${entry.blocked ? "text-sm text-foreground/30 line-through" : entry.rank === 1 ? "text-base game-text" : "text-sm game-text"}`}>{entry.score}</span>
                 </div>
             ))}
         </div>

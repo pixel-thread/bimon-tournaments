@@ -36,14 +36,34 @@ export async function GET(req: Request) {
     });
     const thresholdMap = new Map(thresholds.map(t => [t.playerId, t.threshold]));
 
-    // Filter out scores that are below the player's threshold
-    const filteredScores = scores.filter(s => {
+    // Mark blocked entries (below threshold) — they still show but don't count for ranking
+    let eligibleRank = 0;
+    const rankedScores = scores.map(s => {
         const minScore = thresholdMap.get(s.playerId);
-        return !minScore || s.score >= minScore;
+        const isBlocked = !!minScore && s.score < minScore;
+        if (!isBlocked) eligibleRank++;
+        return {
+            rank: isBlocked ? null : eligibleRank,
+            score: s.score,
+            displayName: s.player.displayName || s.player.user.username,
+            imageUrl: s.player.customProfileImageUrl || s.player.user.imageUrl,
+            playerId: s.playerId,
+            blocked: isBlocked,
+        };
     });
 
-    // Trim to top 10 for public view
-    const finalScores = showAll ? filteredScores : filteredScores.slice(0, 10);
+    // For public view: take enough entries to fill 10 eligible + any blocked mixed in
+    let finalScores = rankedScores;
+    if (!showAll) {
+        const result: typeof rankedScores = [];
+        let eligibleCount = 0;
+        for (const entry of rankedScores) {
+            if (eligibleCount >= 10 && !entry.blocked) break;
+            result.push(entry);
+            if (!entry.blocked) eligibleCount++;
+        }
+        finalScores = result;
+    }
 
     // Get reward config
     const rewardSettings = await prisma.appSetting.findMany({
@@ -93,13 +113,7 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({
-        scores: finalScores.map((s, i) => ({
-            rank: i + 1,
-            score: s.score,
-            displayName: s.player.displayName || s.player.user.username,
-            imageUrl: s.player.customProfileImageUrl || s.player.user.imageUrl,
-            playerId: s.playerId,
-        })),
+        scores: finalScores,
         rewards,
         myBest,
         myThreshold,
