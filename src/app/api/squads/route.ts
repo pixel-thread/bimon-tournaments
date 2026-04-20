@@ -144,13 +144,20 @@ export async function POST(request: NextRequest) {
         const entryFee = poll.tournament?.fee ?? 0;
 
         // Check available balance (must cover own entry fee after existing reservations)
+        // Trusted players can create squads even with 0 balance
         if (entryFee > 0) {
-            const { available } = await getAvailableBalance(email);
-            if (available < entryFee) {
-                return ErrorResponse({
-                    message: `${GAME.currencyEmoji} Not enough ${GAME.currency} — you need ${entryFee} ${GAME.currency} available to create a squad`,
-                    status: 403,
-                });
+            const player = await prisma.player.findUnique({
+                where: { id: playerId },
+                select: { isTrusted: true },
+            });
+            if (!player?.isTrusted) {
+                const { available } = await getAvailableBalance(email);
+                if (available < entryFee) {
+                    return ErrorResponse({
+                        message: `${GAME.currencyEmoji} Not enough ${GAME.currency} — you need ${entryFee} ${GAME.currency} available to create a squad`,
+                        status: 403,
+                    });
+                }
             }
         }
 
