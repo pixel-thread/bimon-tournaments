@@ -744,6 +744,7 @@ model Poll {
   teamType     TeamType  @default(DUO)
   isActive     Boolean   @default(true)
   allowSquads  Boolean   @default(false)
+  enableFund   Boolean   @default(true)
   startDate    DateTime  @default(now())
   endDate      DateTime?
   tournamentId String    @unique

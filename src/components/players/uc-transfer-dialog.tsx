@@ -15,6 +15,7 @@ import {
 } from "@heroui/react";
 import { ArrowUpRight, ArrowDownLeft, Loader2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
@@ -43,7 +44,7 @@ export function UCTransferDialog({
     const queryClient = useQueryClient();
     const { balance } = useAuthUser();
 
-    const { mutate: createTransfer, isPending } = useMutation({
+    const { mutate: createTransfer, isPending, error: transferError } = useMutation({
         mutationFn: async (data: {
             amount: number;
             type: string;
@@ -55,14 +56,22 @@ export function UCTransferDialog({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),
             });
-            return res.json();
+            const json = await res.json();
+            if (!res.ok) {
+                throw new Error(json.error || "Transfer failed");
+            }
+            return json;
         },
         onSuccess: (data) => {
             if (data.success) {
+                toast.success(data.message || "Transfer complete!");
                 queryClient.invalidateQueries({ queryKey: ["auth-user"] });
                 queryClient.invalidateQueries({ queryKey: ["players"] });
                 handleClose();
             }
+        },
+        onError: (err) => {
+            toast.error(err instanceof Error ? err.message : "Transfer failed", { duration: 5000 });
         },
     });
 

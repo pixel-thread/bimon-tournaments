@@ -101,6 +101,7 @@ export async function GET(request: Request) {
                 days: poll.days,
                 teamType: poll.teamType,
                 allowSquads: poll.allowSquads,
+                enableFund: poll.enableFund,
                 tournament: poll.tournament,
                 luckyVoterId: poll.luckyVoterId,
                 options: poll.options,
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads } = body;
+        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, enableFund } = body;
 
         if (!question || !tournamentId) {
             return ErrorResponse({ message: "question and tournamentId are required", status: 400 });
@@ -194,6 +195,7 @@ export async function POST(request: Request) {
                 days: days || "Monday",
                 teamType: teamType || "DUO",
                 allowSquads: allowSquads ?? false,
+                enableFund: enableFund ?? true,
                 tournamentId,
                 options: {
                     create: pollOptions,
@@ -223,7 +225,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads } = body;
+        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, enableFund } = body;
 
         if (!id) {
             return ErrorResponse({ message: "id is required", status: 400 });
@@ -235,6 +237,7 @@ export async function PATCH(request: Request) {
         if (teamType !== undefined) updateData.teamType = teamType;
         if (isActive !== undefined) updateData.isActive = isActive;
         if (allowSquads !== undefined) updateData.allowSquads = allowSquads;
+        if (enableFund !== undefined) updateData.enableFund = enableFund;
 
         // If tournamentType is provided, update the linked tournament's type
         if (tournamentType && ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT", "BR"].includes(tournamentType)) {

@@ -30,6 +30,7 @@ interface PollDTO {
     days: string;
     teamType: string;
     allowSquads?: boolean;
+    enableFund?: boolean;
     isActive: boolean;
     options?: PollOptionDTO[];
     tournament?: { id: string; name: string; fee: number; type?: string };
@@ -66,6 +67,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [tournamentId, setTournamentId] = useState("");
     const [isActive, setIsActive] = useState(true);
     const [allowSquads, setAllowSquads] = useState(false);
+    const [enableFund, setEnableFund] = useState(true);
     const [options, setOptions] = useState<PollOptionDTO[]>([]);
     const [saving, setSaving] = useState(false);
 
@@ -91,6 +93,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setTournamentFormat(poll.tournament?.type ?? GAME.defaultTournamentType ?? "BRACKET_1V1");
             setIsActive(poll.isActive);
             setAllowSquads(poll.allowSquads ?? false);
+            setEnableFund(poll.enableFund ?? true);
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
         } else {
             setQuestion("");
@@ -100,6 +103,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setTournamentId("");
             setIsActive(true);
             setAllowSquads(false);
+            setEnableFund(true);
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
                 ? [
@@ -138,13 +142,13 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         try {
             const body = isEdit
                 ? {
-                    id: poll!.id, question, days, teamType, isActive, allowSquads,
+                    id: poll!.id, question, days, teamType, isActive, allowSquads, enableFund,
                     options: options.map(o => ({ id: o.id, name: o.name })),
                     // Send tournament format on edit too (PES)
                     ...(!GAME.features.hasTeamSizes && { tournamentType: tournamentFormat }),
                 }
                 : {
-                    question, days, teamType, tournamentId, allowSquads,
+                    question, days, teamType, tournamentId, allowSquads, enableFund,
                     // For PES: send format so poll creation can update tournament type
                     ...(!GAME.features.hasTeamSizes && { tournamentType: tournamentFormat }),
                     // Send custom option names
@@ -168,7 +172,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, options, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, options, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -295,7 +299,25 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                             <Switch
                                 size="sm"
                                 isSelected={allowSquads}
-                                onValueChange={setAllowSquads}
+                                onValueChange={(v) => {
+                                    setAllowSquads(v);
+                                    if (v) setEnableFund(false); // Auto-disable fund for squad polls
+                                }}
+                            />
+                        </div>
+                    )}
+
+                    {/* Fund toggle — shown when allowSquads is on (default OFF for squads) */}
+                    {GAME.features.hasSquads && allowSquads && (
+                        <div className="flex items-center justify-between rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
+                            <div>
+                                <span className="text-sm">Enable Fund</span>
+                                <p className="text-xs text-foreground/40">Apply repeat winner tax & solo tax</p>
+                            </div>
+                            <Switch
+                                size="sm"
+                                isSelected={enableFund}
+                                onValueChange={setEnableFund}
                             />
                         </div>
                     )}

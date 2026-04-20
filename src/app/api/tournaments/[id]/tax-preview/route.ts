@@ -112,9 +112,15 @@ export async function GET(
             participationRate: number;
         }> = {};
 
-        // Check if fund is enabled
+        // Check if fund is enabled (poll-level override for squad tournaments)
         const settings = await getSettings();
-        const enableFund = settings.enableFund ?? false;
+        const pollForTournament = await prisma.poll.findUnique({
+            where: { tournamentId: id },
+            select: { allowSquads: true, enableFund: true },
+        });
+        const enableFund = pollForTournament?.allowSquads
+            ? (pollForTournament.enableFund ?? false)
+            : (settings.enableFund ?? false);
 
         for (const pid of playerIds) {
             const previousWins = recentWins.get(pid) || 0;

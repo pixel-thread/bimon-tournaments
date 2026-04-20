@@ -78,7 +78,15 @@ export async function POST(
         const settings = await getSettings();
         const orgCutMode = settings.orgCutMode ?? "fixed";
         const orgCut = orgCutMode === "percent" ? (settings.orgCutPercent ?? 0) : (settings.orgCutFixed ?? 0);
-        const enableFund = settings.enableFund ?? false;
+
+        // Check poll-level fund override (squad polls default fund OFF)
+        const pollForTournament = await prisma.poll.findUnique({
+            where: { tournamentId: id },
+            select: { allowSquads: true, enableFund: true },
+        });
+        const enableFund = pollForTournament?.allowSquads
+            ? (pollForTournament.enableFund ?? false)  // Squad polls: use poll setting (default OFF)
+            : (settings.enableFund ?? false);           // Regular polls: use global setting
 
         // ── 2. Aggregate team rankings ───────────────────────
         const teamStats = await prisma.teamStats.findMany({
@@ -567,7 +575,15 @@ async function declareBracketWinners({
     const settings = await getSettings();
     const orgCutMode = settings.orgCutMode ?? "fixed";
     const orgCut = orgCutMode === "percent" ? (settings.orgCutPercent ?? 0) : (settings.orgCutFixed ?? 0);
-    const enableFund = settings.enableFund ?? false;
+
+    // Check poll-level fund override (squad polls default fund OFF)
+    const pollForTournament = await prisma.poll.findUnique({
+        where: { tournamentId: id },
+        select: { allowSquads: true, enableFund: true },
+    });
+    const enableFund = pollForTournament?.allowSquads
+        ? (pollForTournament.enableFund ?? false)
+        : (settings.enableFund ?? false);
 
     // ── Fetch all bracket matches grouped by round ───────────────
     const allMatches = await prisma.bracketMatch.findMany({
