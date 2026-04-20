@@ -160,6 +160,17 @@ export async function GET(request: NextRequest) {
         const luckyTotal = luckyPolls.reduce((sum, p) => sum + (p.tournament?.fee ?? 0), 0);
         if (luckyTotal > 0) deductions.push({ category: "Lucky Voters", total: luckyTotal, count: luckyPolls.length });
 
+        // Game Rewards (Memory Game prizes)
+        let gameRewardTotal = 0, gameRewardCount = 0;
+        for (const tx of seasonCredits) {
+            const d = tx.description.toLowerCase();
+            if (d.includes("memory game") || d.includes("game reward")) {
+                gameRewardTotal += tx.amount;
+                gameRewardCount++;
+            }
+        }
+        if (gameRewardTotal > 0) deductions.push({ category: "Game Rewards", total: gameRewardTotal, count: gameRewardCount });
+
         // Welcome Back Coupons — org cost for returning player incentive
         const welcomeBackCoupons = await prisma.welcomeBackCoupon.findMany({
             where: {
