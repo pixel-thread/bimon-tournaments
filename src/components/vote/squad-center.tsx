@@ -327,13 +327,13 @@ function SquadCard({
                                 <Button
                                     size="sm"
                                     color="primary"
-                                    variant="flat"
+                                    variant="solid"
                                     className="w-full font-semibold"
                                     isLoading={isRequesting}
                                     onPress={() => onRequestJoin(squad.id)}
                                     startContent={!isRequesting && <UserPlus className="w-3.5 h-3.5" />}
                                 >
-                                    Request to Join
+                                    {myInvite?.status === "DECLINED" ? "Request Again" : "Request to Join"}
                                 </Button>
                             </div>
                         )}

@@ -74,7 +74,9 @@ export async function GET(request: NextRequest) {
                 myInvite: myInvite
                     ? { id: myInvite.id, status: myInvite.status, initiatedBy: myInvite.initiatedBy }
                     : null,
-                members: squad.invites.map((inv) => ({
+                members: squad.invites
+                    .filter((inv) => inv.status !== "DECLINED" || inv.playerId === currentPlayerId)
+                    .map((inv) => ({
                     inviteId: inv.id,
                     playerId: inv.player.id,
                     displayName: inv.player.displayName ?? inv.player.user.username,
