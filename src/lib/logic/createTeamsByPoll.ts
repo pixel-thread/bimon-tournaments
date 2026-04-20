@@ -577,11 +577,13 @@ export async function createTeamsByPoll({
     // ── Post-transaction: debit wallets ──────────────────────────
     // Must happen OUTSIDE the prisma transaction because central wallet
     // is a separate database (Neon). This ensures the game DB records
-    // are committed before we debit.
-    //
-    // Welcome Back Coupon: auto-applied here — covers up to coupon.amount
-    // of the entry fee. Remainder (if any) is debited from wallet.
-    if (entryFee > 0 && playersToChargeList.length > 0) {
+    // For squad tournaments, fee is per-team — random players pay their share
+    // Squad captains pay the full entryFee (handled separately below)
+    const perPlayerFee = pollAllowSquads
+        ? Math.floor(entryFee / (GAME.squadSize === 5 ? 5 : groupSize)) // MLBB always /5, BGMI/FF uses groupSize
+        : entryFee; // Regular tournaments: fee is per-player
+
+    if (perPlayerFee > 0 && playersToChargeList.length > 0) {
         await processBatches(playersToChargeList, BATCH_SIZE, async (player) => {
             const email = (player as any).user?.email || await getEmailByPlayerId(player.id);
             if (email) {
@@ -589,8 +591,8 @@ export async function createTeamsByPoll({
                     // Check for welcome back coupon
                     const coupon = await getActiveCoupon(player.id);
                     if (coupon) {
-                        const discount = Math.min(coupon.amount, entryFee);
-                        const remaining = entryFee - discount;
+                        const discount = Math.min(coupon.amount, perPlayerFee);
+                        const remaining = perPlayerFee - discount;
                         await redeemCoupon(coupon.id, tournamentId);
                         if (remaining > 0) {
                             await debitWallet(
@@ -602,7 +604,7 @@ export async function createTeamsByPoll({
                         }
                         console.log(`[createTeamsByPoll] Welcome back coupon applied for ${player.id}: ${discount} ${GAME.currency} off (${remaining} ${GAME.currency} charged)`);
                     } else {
-                        await debitWallet(email, entryFee, `Entry fee for ${tournamentName}`, "TOURNAMENT_ENTRY");
+                        await debitWallet(email, perPlayerFee, `Entry fee for ${tournamentName}`, "TOURNAMENT_ENTRY");
                     }
                 } catch (err) {
                     console.error(`[createTeamsByPoll] Failed to debit wallet for ${player.id}:`, err);

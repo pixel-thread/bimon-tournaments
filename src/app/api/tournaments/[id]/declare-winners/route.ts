@@ -213,9 +213,12 @@ export async function POST(
             select: { amount: true },
         });
         const totalDonations = donations.reduce((sum, d) => sum + d.amount, 0);
-        const prizePool = (entryFee * totalPlayers) + totalDonations;
         const teamCount = teamMap.size;
         const teamSize = teamCount > 0 ? Math.round(totalPlayers / teamCount) : 2;
+        // Squad tournaments: captain pays per team, not per player
+        const prizePool = isSquadTournament
+            ? (entryFee * teamCount) + totalDonations
+            : (entryFee * totalPlayers) + totalDonations;
 
         const placementsToUse = placements && placements.length > 0
             ? placements
@@ -318,12 +321,12 @@ export async function POST(
             }
 
             if (placement.amount > 0 && team.players.length > 0) {
-                // ─── SQUAD TOURNAMENT: Full prize to captain only ───
-                if (isSquadTournament) {
-                    const captainId = teamCaptainMap.get(team.teamId);
-                    const captain = captainId
-                        ? team.players.find(p => p.playerId === captainId)
-                        : team.players[0]; // fallback to first player
+                // ─── SQUAD TEAM: Full prize to captain only ───
+                // Only applies if this team came from a squad (has a captain)
+                const captainId = isSquadTournament ? teamCaptainMap.get(team.teamId) : undefined;
+                if (captainId) {
+                    const captain = team.players.find(p => p.playerId === captainId)
+                        || team.players[0];
 
                     if (captain) {
                         const noTax: TaxResult = { playerId: captain.playerId, originalAmount: placement.amount, taxAmount: 0, taxRate: 0, netAmount: placement.amount, winCount: 1 };
