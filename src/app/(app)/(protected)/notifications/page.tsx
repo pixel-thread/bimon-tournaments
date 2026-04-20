@@ -247,13 +247,18 @@ export default function NotificationsPage() {
             }
         },
         onSuccess: () => {
+            toast.success("Transfer approved!");
             queryClient.invalidateQueries({ queryKey: ["notifications"] });
             queryClient.invalidateQueries({ queryKey: ["notification-count"] });
             queryClient.invalidateQueries({ queryKey: ["wallet"] });
             queryClient.invalidateQueries({ queryKey: ["profile"] });
+            queryClient.invalidateQueries({ queryKey: ["auth-user"] });
             onClose();
             setSelectedRequest(null);
             setResponseMessage("");
+        },
+        onError: (err: Error) => {
+            toast.error(err.message, { duration: 5000 });
         },
     });
 
