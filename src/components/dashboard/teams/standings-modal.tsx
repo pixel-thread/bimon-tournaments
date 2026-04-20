@@ -14,6 +14,7 @@ import {
     Minus,
     Trophy,
 } from "lucide-react";
+import { GAME } from "@/lib/game-config";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -448,7 +449,7 @@ export function StandingsModal({
                         {/* Footer branding */}
                         <div className="mt-6 flex items-center justify-center gap-2 text-zinc-500 text-xs">
                             <div className="h-px w-8 bg-gradient-to-r from-transparent to-orange-500/50" />
-                            <span className="font-medium text-zinc-400">Designed by Pixel-Thread</span>
+                            <span className="font-medium text-zinc-400">{GAME.name} × Bimon Tournament</span>
                             <div className="h-px w-8 bg-gradient-to-l from-transparent to-orange-500/50" />
                         </div>
                     </div>

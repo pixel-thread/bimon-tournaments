@@ -2,6 +2,7 @@
 
 import { useRef, useLayoutEffect } from "react";
 import { Trophy } from "lucide-react";
+import { GAME } from "@/lib/game-config";
 import { CompactMatch, MatchRow, MyBracketMatch, BracketMatchData, RoundData, usePinchZoom, ZoomControls } from "./bracket-shared";
 
 export type { BracketMatchData, RoundData };
@@ -250,6 +251,13 @@ export function KOBracket({ rounds, currentPlayerId, isAdmin, winner: propWinner
                     </div>
                 </div>
             )}
+
+            {/* Branding */}
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs">
+                <div className="h-px w-6 bg-foreground/10" />
+                <span className="text-foreground/25 font-medium">{GAME.name} × Bimon Tournament</span>
+                <div className="h-px w-6 bg-foreground/10" />
+            </div>
         </div>
     );
 }
@@ -282,6 +290,13 @@ function LeagueView({ rounds, currentPlayerId, isAdmin, onSubmitResult, onConfir
                     </div>
                 );
             })}
+
+            {/* Branding */}
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs">
+                <div className="h-px w-6 bg-foreground/10" />
+                <span className="text-foreground/25 font-medium">{GAME.name} × Bimon Tournament</span>
+                <div className="h-px w-6 bg-foreground/10" />
+            </div>
         </div>
     );
 }
