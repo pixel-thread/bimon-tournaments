@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Tabs, Tab, Avatar, Skeleton, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { RotateCcw, Trophy, Timer, MousePointerClick, Gamepad2, Medal, Heart, Square } from "lucide-react";
+import { RotateCcw, Trophy, Timer, MousePointerClick, Gamepad2, Medal, Heart, Square, Lock } from "lucide-react";
 import { AdSlot } from "@/components/common/AdSlot";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 
@@ -250,6 +250,7 @@ export function MemoryGame() {
     const [hasStarted, setHasStarted] = useState(false);
     const [regenCountdown, setRegenCountdown] = useState("");
     const [personalBest, setPersonalBest] = useState(0);
+    const [myThreshold, setMyThreshold] = useState(0);
     const [gameCount, setGameCount] = useState(0);
     const [isScrambling, setIsScrambling] = useState(false);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -258,7 +259,10 @@ export function MemoryGame() {
     useEffect(() => {
         fetch("/api/games/leaderboard")
             .then(r => r.json())
-            .then(data => { if (data.myBest) setPersonalBest(data.myBest); })
+            .then(data => {
+                if (data.myBest) setPersonalBest(data.myBest);
+                if (data.myThreshold) setMyThreshold(data.myThreshold);
+            })
             .catch(() => {});
     }, []);
 
@@ -302,7 +306,12 @@ export function MemoryGame() {
                 body: JSON.stringify({ score: sc, moves: m, time: t }),
             });
             const data = await res.json();
-            if (data.isNewBest) { setIsNewBest(true); setPersonalBest(sc); }
+            if (data.blocked) {
+                // Score below threshold — won't appear on leaderboard
+                setMyThreshold(data.threshold);
+            } else if (data.isNewBest) {
+                setIsNewBest(true); setPersonalBest(sc);
+            }
             queryClient.invalidateQueries({ queryKey: ["game-leaderboard"] });
         } catch { /* silent */ }
     }, [queryClient]);
@@ -460,6 +469,16 @@ export function MemoryGame() {
                                 </div>
                             </div>
 
+                            {/* Threshold notice — only for past winners */}
+                            {myThreshold > 0 && (
+                                <div className="mb-3 flex items-center gap-2 rounded-lg bg-warning/10 border border-warning/20 px-3 py-2">
+                                    <Lock className="h-3.5 w-3.5 text-warning shrink-0" />
+                                    <p className="text-xs text-warning">
+                                        Min. score to qualify: <span className="font-bold">{myThreshold}</span>
+                                    </p>
+                                </div>
+                            )}
+
                             {/* 5×4 flip card grid */}
                             <div className={`grid ${COLS} gap-1.5 sm:gap-2`}>
                                 {cards.map((card, i) => (
@@ -522,6 +541,11 @@ export function MemoryGame() {
                                             <p className="text-lg font-bold text-success">{isNewBest ? "New Personal Best! 🏆" : "You won!"}</p>
                                             <p className="text-3xl font-black game-text mt-1">{score} pts</p>
                                             <p className="text-sm text-foreground/50 mt-1">{moves} moves • {formatTime(time)}</p>
+                                            {myThreshold > 0 && score < myThreshold && (
+                                                <p className="text-xs text-warning/80 mt-2">
+                                                    Score below {myThreshold} — not on leaderboard
+                                                </p>
+                                            )}
                                         </div>
                                         <div className="flex gap-2 justify-center">
                                             <Button color="success" variant="flat" onPress={() => { startGame(); setTab("play"); }} startContent={<RotateCcw className="h-4 w-4" />}>Play Again</Button>

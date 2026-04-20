@@ -85,6 +85,23 @@ export async function POST(req: Request) {
                     description: `Memory Game reward (#${i + 1})`,
                 },
             });
+
+            // Set 2% threshold for next round — player must beat this to reappear
+            const newThreshold = Math.ceil(score.score * 1.02);
+            await prisma.gameScoreThreshold.upsert({
+                where: { playerId_gameType: { playerId: score.playerId, gameType: "memory" } },
+                create: {
+                    playerId: score.playerId,
+                    gameType: "memory",
+                    threshold: newThreshold,
+                    lastWinningScore: score.score,
+                },
+                update: {
+                    threshold: newThreshold,
+                    lastWinningScore: score.score,
+                },
+            });
+
             distributed.push({ playerId: score.playerId, amount, position: i + 1 });
         }
 

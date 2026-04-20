@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     const scores = await prisma.gameScore.findMany({
         where: { difficulty: DIFFICULTY },
         orderBy: { score: "desc" },
-        ...(showAll ? {} : { take: 10 }),
+        ...(showAll ? {} : { take: 50 }), // fetch extra to filter below
         include: {
             player: {
                 select: {
@@ -29,6 +29,22 @@ export async function GET(req: Request) {
         },
     });
 
+    // Fetch all thresholds for players on the leaderboard
+    const playerIds = scores.map(s => s.playerId);
+    const thresholds = await prisma.gameScoreThreshold.findMany({
+        where: { playerId: { in: playerIds }, gameType: "memory" },
+    });
+    const thresholdMap = new Map(thresholds.map(t => [t.playerId, t.threshold]));
+
+    // Filter out scores that are below the player's threshold
+    const filteredScores = scores.filter(s => {
+        const minScore = thresholdMap.get(s.playerId);
+        return !minScore || s.score >= minScore;
+    });
+
+    // Trim to top 10 for public view
+    const finalScores = showAll ? filteredScores : filteredScores.slice(0, 10);
+
     // Get reward config
     const rewardSettings = await prisma.appSetting.findMany({
         where: { key: { startsWith: "game_reward_" } },
@@ -39,8 +55,9 @@ export async function GET(req: Request) {
         rewards[s.key.replace("game_reward_", "")] = parseInt(s.value) || 0;
     }
 
-    // Get current user's personal best (if logged in)
+    // Get current user's personal best + threshold (if logged in)
     let myBest = 0;
+    let myThreshold = 0;
     try {
         const email = await getAuthEmail();
         if (email) {
@@ -54,6 +71,11 @@ export async function GET(req: Request) {
                     select: { score: true },
                 });
                 myBest = myScore?.score ?? 0;
+
+                const myThresholdRecord = await prisma.gameScoreThreshold.findUnique({
+                    where: { playerId_gameType: { playerId: user.player.id, gameType: "memory" } },
+                });
+                myThreshold = myThresholdRecord?.threshold ?? 0;
             }
         }
     } catch { /* guest user — no best */ }
@@ -71,7 +93,7 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({
-        scores: scores.map((s, i) => ({
+        scores: finalScores.map((s, i) => ({
             rank: i + 1,
             score: s.score,
             displayName: s.player.displayName || s.player.user.username,
@@ -80,6 +102,7 @@ export async function GET(req: Request) {
         })),
         rewards,
         myBest,
+        myThreshold,
         gameRewardEndDate,
     });
 }
@@ -132,6 +155,16 @@ export async function POST(req: Request) {
     // 4. Score must be positive
     if (score <= 0) {
         return NextResponse.json({ error: "Score too low" }, { status: 400 });
+    }
+
+    // Check if player has a threshold from a previous win
+    const thresholdRecord = await prisma.gameScoreThreshold.findUnique({
+        where: { playerId_gameType: { playerId, gameType: "memory" } },
+    });
+
+    if (thresholdRecord && score < thresholdRecord.threshold) {
+        // Score below threshold — don't save to leaderboard
+        return NextResponse.json({ saved: false, isNewBest: false, blocked: true, threshold: thresholdRecord.threshold });
     }
 
     // Only save if new personal best

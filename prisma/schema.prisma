@@ -222,6 +222,7 @@ model Player {
   royalPasses       RoyalPass[]
   notifications     Notification[]
   gameScores        GameScore[]
+  gameScoreThresholds GameScoreThreshold[]
   jobReactions      JobListingReaction[]
   donations         PrizePoolDonation[]
   communityMessages     CommunityMessage[]
@@ -1047,6 +1048,23 @@ model GameScore {
 
   @@unique([playerId, difficulty])
   @@index([difficulty, score(sort: Desc)])
+}
+
+/// Per-player minimum score threshold for games.
+/// Set when a player receives a UC reward — persists across score resets.
+/// gameType allows separate thresholds per game (e.g. "memory", "puzzle", etc.)
+model GameScoreThreshold {
+  id               String   @id @default(uuid())
+  playerId         String
+  gameType         String   @default("memory") // "memory" | future game types
+  player           Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  threshold        Int      // Minimum score to appear on leaderboard
+  lastWinningScore Int      // Score that triggered this threshold
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([playerId, gameType])
+  @@index([playerId])
 }
 
 model Rule {
