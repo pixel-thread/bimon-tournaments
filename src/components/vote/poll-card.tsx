@@ -888,7 +888,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
 
                 {/* Note for squad-based polls */}
                 {poll.allowSquads && (
-                    <p className="px-6 -mt-1 pb-2 text-xs text-foreground/50 text-center">
+                    <p className="px-6 -mt-3 pb-2 text-xs text-foreground/50 text-center">
                         🛡 {GAME.maxSquadSize} per team ({GAME.maxSquadSize - GAME.squadSize} subs) • captain pays{entryFee > 0 ? ` ${entryFee} ${GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}` : ''}
                     </p>
                 )}
