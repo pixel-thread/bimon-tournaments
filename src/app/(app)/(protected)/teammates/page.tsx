@@ -31,15 +31,21 @@ interface TeammateHistoryData {
 /* ─── Page ──────────────────────────────────────────────────── */
 
 export default function TeammateHistoryPage() {
-    const [seasonFilter, setSeasonFilter] = useState<string>("all");
+    const [seasonFilter, setSeasonFilter] = useState<string>("");
 
     const { data, isLoading, error } = useQuery<TeammateHistoryData>({
         queryKey: ["teammate-history", seasonFilter],
         queryFn: async () => {
-            const params = seasonFilter !== "all" ? `?seasonId=${seasonFilter}` : "";
+            const params = seasonFilter && seasonFilter !== "all" ? `?seasonId=${seasonFilter}` : "";
             const res = await fetch(`/api/players/teammate-history${params}`);
             if (!res.ok) throw new Error("Failed to load");
             const json = await res.json();
+
+            // Default to latest season on first load (Season 3 and below has unreliable data)
+            if (!seasonFilter && json.data?.seasons?.length > 0) {
+                setSeasonFilter(json.data.seasons[0].id);
+            }
+
             return json.data;
         },
     });
