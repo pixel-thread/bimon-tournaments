@@ -59,7 +59,7 @@ export async function GET(req: Request) {
     } catch { /* guest user — no best */ }
 
     // Get reward end date from settings
-    const endDateSetting = await prisma.appSetting.findUnique({
+    const endDateSetting = await prisma.appConfig.findUnique({
         where: { key: "app_settings" },
     });
     let gameRewardEndDate = "";

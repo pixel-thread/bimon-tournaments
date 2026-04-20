@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Tabs, Tab, Avatar, Skeleton, Tooltip } from "@heroui/react";
+import { Button, Tabs, Tab, Avatar, Skeleton, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
 import { RotateCcw, Trophy, Timer, MousePointerClick, Gamepad2, Medal, Heart, Square } from "lucide-react";
 import { AdSlot } from "@/components/common/AdSlot";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
@@ -165,14 +165,20 @@ function Leaderboard() {
             {/* Prize banner — "Free X UC" */}
             {topPrize > 0 && (
                 <div className="flex flex-col items-center gap-1 rounded-xl bg-success/10 border border-success/20 px-4 py-3">
-                    <Tooltip content={tooltipText} placement="bottom">
-                        <div className="flex items-center gap-2 cursor-help">
-                            <Trophy className="h-5 w-5 text-success" />
-                            <span className="text-xl font-bold text-success">
-                                Free {topPrize} <CurrencyIcon size={16} />
-                            </span>
-                        </div>
-                    </Tooltip>
+                    <div className="flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-success" />
+                        <span className="text-xl font-bold text-success">
+                            Free {topPrize} <CurrencyIcon size={16} />
+                        </span>
+                        <Popover placement="bottom">
+                            <PopoverTrigger>
+                                <button className="flex h-5 w-5 items-center justify-center rounded-full bg-success/20 text-[10px] font-bold text-success">?</button>
+                            </PopoverTrigger>
+                            <PopoverContent>
+                                <p className="text-xs px-1 py-0.5">{tooltipText}</p>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
                     {(rewards["2"] > 0 || rewards["3"] > 0) && (
                         <div className="flex items-center gap-3 text-xs text-foreground/50">
                             {rewards["2"] > 0 && <span>#2: {rewards["2"]} <CurrencyIcon size={10} /></span>}
