@@ -74,11 +74,13 @@ export async function getReservedBalance(playerId: string): Promise<number> {
                 },
             },
         }),
+        // Squad reservations: only captains pay, so only reserve for captains
         prisma.squadInvite.findMany({
             where: {
                 playerId,
                 status: "ACCEPTED",
                 squad: {
+                    captainId: playerId, // Only the captain's fee is reserved
                     status: { in: ["FORMING", "FULL"] },
                     poll: {
                         isActive: true,

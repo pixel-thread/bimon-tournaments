@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
             sendPush(captainPlayerId, { title: pushTitle, body: pushBody, url: "/vote" });
 
             return SuccessResponse({
-                message: `You joined "${squadName}"! Your ${invite.squad.entryFee} ${GAME.currency} entry fee is reserved.`,
+                message: `You joined "${squadName}"!`,
             });
         }
 

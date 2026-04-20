@@ -68,19 +68,14 @@ export async function GET(request: NextRequest) {
             take: 8,
         });
 
-        // Get the tournament entry fee for balance indicator
-        const poll = await prisma.poll.findUnique({
-            where: { id: pollId },
-            select: { tournament: { select: { fee: true } } },
-        });
-        const entryFee = poll?.tournament?.fee ?? 0;
-
+        // Note: joiners don't pay — captain covers the full team fee.
+        // Balance info kept for display purposes but hasEnoughBalance is always true.
         const data = players.map((p) => ({
             id: p.id,
             displayName: p.displayName ?? p.user.username,
             imageUrl: p.customProfileImageUrl ?? p.user.imageUrl ?? "",
             balance: p.wallet?.balance ?? 0,
-            hasEnoughBalance: (p.wallet?.balance ?? 0) >= entryFee,
+            hasEnoughBalance: true,
         }));
 
         return SuccessResponse({ data });

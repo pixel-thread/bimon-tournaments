@@ -183,6 +183,12 @@ export async function createTeamsByPoll({
                 status: { in: ["FORMING", "FULL"] },
             },
             include: {
+                captain: {
+                    include: {
+                        user: true,
+                        wallet: true,
+                    },
+                },
                 invites: {
                     where: { status: "ACCEPTED" },
                     include: {
@@ -217,12 +223,14 @@ export async function createTeamsByPoll({
 
                 for (const m of members) {
                     squadPlayerIds.add(m.id);
-                    if (!m.isUCExempt) {
-                        squadPlayersToCharge.push({
-                            id: m.id,
-                            email: m.user?.email ?? undefined,
-                        });
-                    }
+                }
+
+                // Only the captain pays the full team entry fee
+                if (!squad.captain.isUCExempt) {
+                    squadPlayersToCharge.push({
+                        id: squad.captain.id,
+                        email: squad.captain.user?.email ?? undefined,
+                    });
                 }
 
                 // Mark squad as REGISTERED (skip in dry run)
@@ -632,6 +640,12 @@ export async function createTeamsByPoll({
             }
         });
     }
+
+    // Auto-deactivate the poll — voting is closed once teams are confirmed
+    await prisma.poll.update({
+        where: { id: pollId },
+        data: { isActive: false },
+    });
 
     return {
         ...result,

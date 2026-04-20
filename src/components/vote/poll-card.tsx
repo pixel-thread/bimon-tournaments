@@ -882,7 +882,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                 {/* Note for squad-based polls */}
                 {poll.allowSquads && (
                     <p className="px-6 -mt-1 pb-2 text-xs text-foreground/50 text-center">
-                        🛡 Players who vote in will be matched with random teammates into teams of {GAME.squadSize ?? 5}
+                        🛡 Captain pays {entryFee > 0 ? `${entryFee} ${GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency} for the team` : 'for the team'} • teammates join free
                     </p>
                 )}
 

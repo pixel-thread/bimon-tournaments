@@ -2,7 +2,6 @@ import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { getCurrentUser, getAuthEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
-import { getAvailableBalance } from "@/lib/wallet-service";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
 
@@ -110,16 +109,7 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "You're already in another squad for this tournament", status: 400 });
         }
 
-        // Must have enough balance
-        if (squad.entryFee > 0) {
-            const { available } = await getAvailableBalance(email);
-            if (available < squad.entryFee) {
-                return ErrorResponse({
-                    message: `${GAME.currencyEmoji} Not enough ${GAME.currency} — you need ${squad.entryFee} ${GAME.currency} to join`,
-                    status: 403,
-                });
-            }
-        }
+        // Note: No balance check for joiners. The captain pays the full team entry fee.
 
         const playerName = user.player.displayName;
         const tournamentName = squad.poll.tournament?.name ?? "tournament";
