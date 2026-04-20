@@ -893,9 +893,6 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     </p>
                 )}
 
-
-
-
                 {/* ─── Footer ─── */}
                 <div
                     className={`px-6 pb-5 transition-all duration-700 ease-in-out ${theme ? theme.footer : ""}`}
@@ -955,18 +952,6 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     🛡 View Teams
                                 </span>
                             </button>
-                            {poll.isActive && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowCreateSquad(true)}
-                                    className="w-full text-center font-semibold py-3 px-4 rounded-xl transition-all border shadow-sm cursor-pointer text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:shadow-md"
-                                >
-                                    <span className="flex items-center justify-center gap-2">
-                                        <Shield className="w-4 h-4" />
-                                        ➕ Create Team
-                                    </span>
-                                </button>
-                            )}
                         </div>
                     )}
                 </div>
