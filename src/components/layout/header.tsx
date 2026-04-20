@@ -530,6 +530,11 @@ export function Header() {
                                                     >
                                                         {navigatingTo === item.href && !isActive ? <Loader2 className="h-4 w-4 animate-spin" /> : <item.icon className="h-4 w-4" />}
                                                         {item.label}
+                                                        {item.label === "Wallet" && balance != null && (
+                                                            <span className={`ml-auto text-xs font-bold ${balance > 0 ? "text-success" : balance < 0 ? "text-danger" : "text-foreground/50"}`}>
+                                                                {balance.toLocaleString()} <CurrencyIcon size={10} />
+                                                            </span>
+                                                        )}
                                                         {item.label === "Notifications" && notifActionCount > 0 && (
                                                             <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
                                                                 {notifActionCount}
