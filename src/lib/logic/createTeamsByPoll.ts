@@ -349,6 +349,7 @@ export async function createTeamsByPoll({
         }
 
         // Handle leftovers when player count isn't perfectly divisible by team size.
+        // Squad polls: exclude leftovers entirely (can't play with incomplete team)
         // BR games (BGMI/FF): late voters play solo (they still participate).
         // Non-BR games (PES/MLBB): exclude late voters to prevent friends gaming the system.
         if (groupSize > 1 && playersForTeams.length % groupSize !== 0) {
@@ -366,7 +367,12 @@ export async function createTeamsByPoll({
             // Remove the last N players (latest voters)
             const lateVoters = playersForTeams.splice(playersForTeams.length - remainder, remainder);
 
-            if (GAME.features.hasBR) {
+            if (pollAllowSquads) {
+                // Squad polls: exclude leftovers — can't play with incomplete squad
+                console.log(
+                    `[createTeamsByPoll] Squad poll: excluded ${lateVoters.length} leftover random(s): ${lateVoters.map(p => p.displayName ?? p.id).join(", ")}`
+                );
+            } else if (GAME.features.hasBR) {
                 // BR games (BGMI/FF): late voters play as solo teams instead of being excluded
                 soloPlayers.push(...lateVoters);
                 console.log(
