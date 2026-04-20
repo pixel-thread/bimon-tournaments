@@ -449,10 +449,13 @@ function VotersDialog({
                                     cutoffSize = totalIn >= 2 ? p : 0;
                                     cutoffLabel = `⚔️ Bracket: ${cutoffSize} players`;
                                 } else if (inSoloVoters && poll.allowSquads && selectedGroup === "IN") {
-                                    // Squad-based games (MLBB 5v5): multiples of squad size
+                                    // Squad polls: only full teams from randoms
                                     const inCount = votersByVote["IN"]?.length ?? 0;
                                     const sqSize = GAME.squadSize ?? 5;
-                                    if (inCount > sqSize) {
+                                    if (inCount < sqSize) {
+                                        // Not enough for even 1 team — all show clock
+                                        cutoffSize = 0;
+                                    } else {
                                         cutoffSize = Math.floor(inCount / sqSize) * sqSize;
                                         if (cutoffSize < inCount) {
                                             cutoffLabel = `🛡 ${Math.floor(inCount / sqSize)} teams × ${sqSize} players`;
@@ -611,7 +614,11 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const participantCount = poll.inVotes + poll.soloVotes;
     const entryFee = tournament?.fee ?? 0;
     const donationTotal = poll.donations?.total ?? 0;
-    const prizePool = (entryFee * participantCount) + donationTotal;
+    // Squad polls: fee is per-team → squads + estimated random teams from IN voters
+    const estimatedTeams = poll.allowSquads && GAME.squadSize > 1
+        ? (poll.squadCount ?? 0) + Math.floor(participantCount / GAME.squadSize)
+        : participantCount; // Regular: fee × players
+    const prizePool = (entryFee * estimatedTeams) + donationTotal;
     const hasPrizePool = prizePool > 0;
     const hasEntryFee = entryFee > 0;
     const showThemedHeader = hasPrizePool || hasEntryFee;
@@ -651,8 +658,8 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const options: { label: string; vote: "IN" | "OUT" | "SOLO"; count: number }[] = [
         { label: getOptionName("IN"), vote: "IN", count: poll.inVotes },
         { label: getOptionName("OUT"), vote: "OUT", count: poll.outVotes },
-        // SOLO only exists for BR games with team sizes — hide for PES/1v1
-        ...(GAME.features.hasTeamSizes
+        // SOLO only exists for BR games with team sizes — hide for PES/1v1 and squad polls
+        ...(GAME.features.hasTeamSizes && !poll.allowSquads
             ? [{ label: getOptionName("SOLO"), vote: "SOLO" as const, count: poll.soloVotes }]
             : []),
     ];
@@ -885,6 +892,9 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         🛡 {GAME.maxSquadSize} per team ({GAME.maxSquadSize - GAME.squadSize} subs) • captain pays{entryFee > 0 ? ` ${entryFee} ${GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}` : ''} • prize to captain
                     </p>
                 )}
+
+
+
 
                 {/* ─── Footer ─── */}
                 <div

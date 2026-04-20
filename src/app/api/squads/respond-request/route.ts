@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
                     include: {
                         poll: {
                             select: {
+                                id: true,
                                 isActive: true,
                                 tournament: { select: { name: true } },
                             },
@@ -100,6 +101,11 @@ export async function POST(request: NextRequest) {
                         data: { status: "FULL" },
                     });
                 }
+
+                // Remove any existing poll vote — squad members are "on a team", not voters
+                await tx.playerPollVote.deleteMany({
+                    where: { pollId: invite.squad.poll.id, playerId: invite.playerId },
+                });
 
                 // Notify the player
                 await tx.notification.create({

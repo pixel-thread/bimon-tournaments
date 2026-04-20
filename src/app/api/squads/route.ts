@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
                 },
                 isCaptain,
                 myInvite: myInvite
-                    ? { id: myInvite.id, status: myInvite.status }
+                    ? { id: myInvite.id, status: myInvite.status, initiatedBy: myInvite.initiatedBy }
                     : null,
                 members: squad.invites.map((inv) => ({
                     inviteId: inv.id,

@@ -112,7 +112,7 @@ function SquadCard({
     const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false);
     const isCaptain = squad.captain.id === currentPlayerId;
     const myInvite = squad.myInvite;
-    const hasPendingInvite = myInvite?.status === "PENDING";
+    const hasPendingInvite = myInvite?.status === "PENDING" && myInvite?.initiatedBy === "CAPTAIN";
     const emptySlots = squad.totalSlots - squad.members.length;
 
     // Can player request to join?

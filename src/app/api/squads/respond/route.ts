@@ -107,6 +107,11 @@ export async function POST(request: NextRequest) {
                     });
                 }
 
+                // Remove any existing poll vote — squad members are "on a team", not voters
+                await tx.playerPollVote.deleteMany({
+                    where: { pollId: invite.squad.poll.id, playerId },
+                });
+
                 // Notify captain
                 await tx.notification.create({
                     data: {

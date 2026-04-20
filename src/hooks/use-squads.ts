@@ -28,7 +28,7 @@ export interface SquadDTO {
         imageUrl: string;
     };
     isCaptain: boolean;
-    myInvite: { id: string; status: string } | null;
+    myInvite: { id: string; status: string; initiatedBy: string } | null;
     members: SquadMember[];
     acceptedCount: number;
     totalSlots: number;

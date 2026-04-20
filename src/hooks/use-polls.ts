@@ -46,6 +46,7 @@ export interface PollDTO {
         total: number;
         donations: { amount: number; playerName: string | null; isAnonymous: boolean }[];
     };
+    squadCount?: number;
 }
 
 /**

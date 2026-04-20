@@ -60,6 +60,12 @@ export async function GET(request: Request) {
                     },
                     orderBy: { createdAt: "desc" },
                 },
+                // Count active squads for prize pool display
+                _count: {
+                    select: {
+                        squads: { where: { status: { in: ["FORMING", "FULL", "REGISTERED"] } } },
+                    },
+                },
             },
             orderBy: { createdAt: "desc" },
         });
@@ -116,6 +122,7 @@ export async function GET(request: Request) {
                 userVote,
                 userVoteCount,
                 hasVoted: !!userVote,
+                squadCount: (poll as any)._count?.squads ?? 0,
                 donations: tDonations ?? { total: 0, donations: [] },
                 playersVotes: poll.votes.map((v: any) => ({
                     playerId: v.playerId,
