@@ -474,7 +474,7 @@ export function MemoryGame() {
                                 <div className="mb-3 flex items-center gap-2 rounded-lg bg-warning/10 border border-warning/20 px-3 py-2">
                                     <Lock className="h-3.5 w-3.5 text-warning shrink-0" />
                                     <p className="text-xs text-warning">
-                                        Min. score to qualify: <span className="font-bold">{myThreshold}</span>
+                                        Champ, you need to beat <span className="font-bold">{myThreshold} pts</span> to get back on the leaderboard!
                                     </p>
                                 </div>
                             )}
@@ -543,7 +543,7 @@ export function MemoryGame() {
                                             <p className="text-sm text-foreground/50 mt-1">{moves} moves • {formatTime(time)}</p>
                                             {myThreshold > 0 && score < myThreshold && (
                                                 <p className="text-xs text-warning/80 mt-2">
-                                                    Score below {myThreshold} — not on leaderboard
+                                                    Champ, you need {myThreshold} pts to reclaim your spot! 💪
                                                 </p>
                                             )}
                                         </div>
