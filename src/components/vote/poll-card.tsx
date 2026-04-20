@@ -889,7 +889,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                 {/* Note for squad-based polls */}
                 {poll.allowSquads && (
                     <p className="px-6 -mt-1 pb-2 text-xs text-foreground/50 text-center">
-                        🛡 {GAME.maxSquadSize} per team ({GAME.maxSquadSize - GAME.squadSize} subs) • captain pays{entryFee > 0 ? ` ${entryFee} ${GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}` : ''} • prize to captain
+                        🛡 {GAME.maxSquadSize} per team ({GAME.maxSquadSize - GAME.squadSize} subs) • captain pays{entryFee > 0 ? ` ${entryFee} ${GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}` : ''}
                     </p>
                 )}
 
@@ -905,7 +905,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             <Users className="w-4 h-4" />
                             <span>
                                 {poll.allowSquads
-                                    ? `${poll.totalVotes} player${poll.totalVotes !== 1 ? "s" : ""}`
+                                    ? `${estimatedTeams} team${estimatedTeams !== 1 ? "s" : ""}`
                                     : `${poll.totalVotes} vote${poll.totalVotes !== 1 ? "s" : ""}`
                                 }
                             </span>
