@@ -93,7 +93,7 @@ export function CreateSquadModal({
                                     <CurrencyIcon size={16} />
                                     <div className="text-sm">
                                         <span className="font-medium">{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</span>
-                                        <span className="text-foreground/60"> per team • captain pays</span>
+                                        <span className="text-foreground/60"> per team • {GAME.maxSquadSize} players ({GAME.maxSquadSize - GAME.squadSize} subs)</span>
                                     </div>
                                 </div>
 
@@ -109,10 +109,10 @@ export function CreateSquadModal({
                                 />
 
                                 <div className="text-xs text-foreground/50 space-y-1">
-                                    <p>• You need <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> available — this covers the whole team</p>
-                                    <p>• Your fee will be <strong>reserved</strong> (charged only when admin confirms teams)</p>
-                                    <p>• Teammates join for free — no fee required for them</p>
-                                    <p>• Players can request to join, or you can invite from View Teams</p>
+                                    <p>• Captain pays <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
+                                    <p>• Roster: up to <strong>{GAME.maxSquadSize}</strong> players ({GAME.squadSize} active + {GAME.maxSquadSize - GAME.squadSize} subs)</p>
+                                    <p>• Teammates join for free — no fee required</p>
+                                    <p>• Prize goes to captain when team wins 🏆</p>
                                 </div>
                             </motion.div>
                         )}

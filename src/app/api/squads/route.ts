@@ -83,8 +83,8 @@ export async function GET(request: NextRequest) {
                     initiatedBy: inv.initiatedBy ?? "CAPTAIN",
                 })),
                 acceptedCount,
-                totalSlots: GAME.squadSize,
-                isFull: acceptedCount >= GAME.squadSize,
+                totalSlots: GAME.maxSquadSize,
+                isFull: acceptedCount >= GAME.maxSquadSize,
             };
         });
 
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
                 status: squad.status,
                 entryFee: squad.entryFee,
             },
-            message: `Squad "${trimmedName}" created! Invite ${GAME.squadSize - 1} players to complete your team.`,
+            message: `Squad "${trimmedName}" created! Invite up to ${GAME.maxSquadSize - 1} players to complete your team.`,
         });
     } catch (error) {
         return ErrorResponse({ message: "Failed to create squad", error });

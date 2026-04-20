@@ -61,6 +61,7 @@ interface GameConfig {
     disputeWindowMinutes: number; // Minutes opponent has to confirm/dispute a submitted result
     hasBR: boolean;              // Whether this game supports BR tournaments.
     squadSize: number;           // Number of players per squad (5 for MLBB, 4 for BGMI/FF)
+    maxSquadSize: number;        // Max roster size including subs (squadSize + 2 for BR games)
     // Dual currency (MLBB: BP for entry + Diamond for rewards)
     hasDualCurrency: boolean;
     entryCurrency?: string;           // e.g. "BP" — currency used for entry fees & transfers
@@ -107,6 +108,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasBR: true,
         disputeWindowMinutes: 30,
         squadSize: 4,
+        maxSquadSize: 6,           // 4 active + 2 subs
         hasDualCurrency: false,
         features: {
             hasTeamSizes: true,
@@ -150,6 +152,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasBR: true,
         disputeWindowMinutes: 30,
         squadSize: 4,
+        maxSquadSize: 6,           // 4 active + 2 subs
         hasDualCurrency: false,
         features: {
             hasTeamSizes: true,
@@ -193,6 +196,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasBR: false,
         disputeWindowMinutes: 30,
         squadSize: 1,
+        maxSquadSize: 1,           // 1v1, no subs
         hasDualCurrency: false,
         features: {
             hasTeamSizes: false,       // PES is 1v1 only
@@ -236,6 +240,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasBR: false,
         disputeWindowMinutes: 30,
         squadSize: 5,              // MLBB is 5v5
+        maxSquadSize: 7,           // 5 active + 2 subs
         hasDualCurrency: true,
         entryCurrency: "BP",
         entryCurrencyLabel: "Battle Point",

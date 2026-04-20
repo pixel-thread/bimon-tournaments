@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         if (action === "ACCEPT") {
             // Count accepted invites (including this one now)
             const acceptedCount = invite.squad.invites.filter((i) => i.status === "ACCEPTED").length + 1;
-            const isFull = acceptedCount >= GAME.squadSize;
+            const isFull = acceptedCount >= GAME.maxSquadSize;
 
             // Mark accepted + check if squad is now full
             await prisma.$transaction(async (tx) => {

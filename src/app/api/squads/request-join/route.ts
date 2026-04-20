@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
         // Squad not full
         const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
-        if (acceptedCount >= GAME.squadSize) {
+        if (acceptedCount >= GAME.maxSquadSize) {
             return ErrorResponse({ message: "Squad is already full", status: 400 });
         }
 

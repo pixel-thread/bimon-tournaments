@@ -277,7 +277,7 @@ function SquadCard({
                         {hasPendingInvite && myInvite && (
                             <div className="px-4 py-3 border-t border-divider/50 bg-primary/5">
                                 <p className="text-xs text-foreground/60 mb-2">
-                                    {squad.captain.displayName} invited you • Entry: {squad.entryFee} <CurrencyIcon size={12} />
+                                    {squad.captain.displayName} invited you • Free to join
                                 </p>
                                 <div className="flex gap-2">
                                     <Button
@@ -288,7 +288,7 @@ function SquadCard({
                                         onPress={() => onAccept(myInvite.id)}
                                         startContent={!isResponding && <Check className="w-3.5 h-3.5" />}
                                     >
-                                        Accept & Reserve {squad.entryFee} <CurrencyIcon size={12} />
+                                        Accept & Join
                                     </Button>
                                     <Button
                                         size="sm"
@@ -316,7 +316,7 @@ function SquadCard({
                                     onPress={() => onRequestJoin(squad.id)}
                                     startContent={!isRequesting && <UserPlus className="w-3.5 h-3.5" />}
                                 >
-                                    Request to Join • {squad.entryFee} <CurrencyIcon size={12} />
+                                    Request to Join
                                 </Button>
                             </div>
                         )}

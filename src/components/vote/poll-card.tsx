@@ -882,7 +882,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                 {/* Note for squad-based polls */}
                 {poll.allowSquads && (
                     <p className="px-6 -mt-1 pb-2 text-xs text-foreground/50 text-center">
-                        🛡 Captain pays {entryFee > 0 ? `${entryFee} ${GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency} for the team` : 'for the team'} • teammates join free
+                        🛡 {GAME.maxSquadSize} per team ({GAME.maxSquadSize - GAME.squadSize} subs) • captain pays{entryFee > 0 ? ` ${entryFee} ${GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}` : ''} • prize to captain
                     </p>
                 )}
 
@@ -934,7 +934,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
 
                     {/* Squad buttons — only for polls with allowSquads */}
                     {poll.allowSquads && (
-                        <div className="space-y-2">
+                        <div className="space-y-2 mt-2">
                             <button
                                 type="button"
                                 onClick={() => setShowSquads(true)}

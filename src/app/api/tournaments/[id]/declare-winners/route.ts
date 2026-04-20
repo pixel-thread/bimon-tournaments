@@ -88,6 +88,38 @@ export async function POST(
             ? (pollForTournament.enableFund ?? false)  // Squad polls: use poll setting (default OFF)
             : (settings.enableFund ?? false);           // Regular polls: use global setting
 
+        // For squad tournaments, fetch captain IDs for each team
+        const isSquadTournament = pollForTournament?.allowSquads ?? false;
+        let teamCaptainMap = new Map<string, string>(); // teamId -> captainPlayerId
+        if (isSquadTournament && pollForTournament) {
+            const poll = await prisma.poll.findUnique({
+                where: { tournamentId: id },
+                select: { id: true },
+            });
+            if (poll) {
+                const squads = await prisma.squad.findMany({
+                    where: { pollId: poll.id },
+                    select: {
+                        captainId: true,
+                        invites: {
+                            where: { status: "ACCEPTED" },
+                            select: { playerId: true },
+                        },
+                    },
+                });
+                // Build a lookup: for each player in a squad, map their team to the captain
+                // We'll resolve team membership below when we have the team data
+                // For now, store captain + their squad members
+                for (const squad of squads) {
+                    const memberIds = squad.invites.map(i => i.playerId);
+                    // Store captain for all members — we'll match by team later
+                    for (const memberId of memberIds) {
+                        teamCaptainMap.set(memberId, squad.captainId);
+                    }
+                }
+            }
+        }
+
         // ── 2. Aggregate team rankings ───────────────────────
         const teamStats = await prisma.teamStats.findMany({
             where: { tournamentId: id },
@@ -139,6 +171,21 @@ export async function POST(
                     lastMatchPosition: p,
                 });
             }
+        }
+
+        // For squad tournaments: resolve teamId -> captainId mapping
+        if (isSquadTournament) {
+            const resolvedCaptainMap = new Map<string, string>(); // teamId -> captainPlayerId
+            for (const [teamId, team] of teamMap) {
+                for (const player of team.players) {
+                    const captainId = teamCaptainMap.get(player.playerId);
+                    if (captainId) {
+                        resolvedCaptainMap.set(teamId, captainId);
+                        break;
+                    }
+                }
+            }
+            teamCaptainMap = resolvedCaptainMap; // Now it's teamId -> captainId
         }
 
         // Sort with BGMI tiebreakers
@@ -271,6 +318,45 @@ export async function POST(
             }
 
             if (placement.amount > 0 && team.players.length > 0) {
+                // ─── SQUAD TOURNAMENT: Full prize to captain only ───
+                if (isSquadTournament) {
+                    const captainId = teamCaptainMap.get(team.teamId);
+                    const captain = captainId
+                        ? team.players.find(p => p.playerId === captainId)
+                        : team.players[0]; // fallback to first player
+
+                    if (captain) {
+                        const noTax: TaxResult = { playerId: captain.playerId, originalAmount: placement.amount, taxAmount: 0, taxRate: 0, netAmount: placement.amount, winCount: 1 };
+                        const noSoloTax: SoloTaxResult = { playerId: captain.playerId, originalAmount: placement.amount, taxAmount: 0, netAmount: placement.amount, isSolo: false };
+
+                        playersData.push({
+                            playerId: captain.playerId,
+                            userId: captain.userId,
+                            finalAmount: placement.amount,
+                            message: `${getOrdinal(placement.position)} Place - ${tournament.name} (Captain Prize)`,
+                            details: {
+                                tournamentId: id,
+                                tournamentName: tournament.name,
+                                teamPrize: placement.amount,
+                                playerCount: team.players.length,
+                                captainOnly: true,
+                                baseShare: placement.amount,
+                                participationAdj: 0,
+                                matchesPlayed: 0,
+                                totalMatches,
+                                repeatTax: 0,
+                                soloTax: 0,
+                                wasRepeatWinner: false,
+                                wasSolo: false,
+                            } as Prisma.InputJsonValue,
+                            taxResult: noTax,
+                            soloTaxResult: noSoloTax,
+                        });
+
+                        allTaxResults.push(noTax);
+                    }
+                } else {
+                // ─── RANDOM TEAMS: Split among all players ───
                 const basePerPlayer = Math.floor(placement.amount / team.players.length);
 
                 // Participation adjustment (only needed when no precomputed amounts)
@@ -349,6 +435,7 @@ export async function POST(
                     allTaxResults.push(taxResult);
                     if (soloTaxResult.isSolo) allSoloTaxResults.push(soloTaxResult);
                 }
+                } // end else (random teams)
             }
 
             winnerTeamsData.push({ teamId: team.teamId, amount: placement.amount, position: placement.position, players: playersData });
