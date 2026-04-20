@@ -54,7 +54,7 @@ export function usePlayerFilters(): PlayerFilters {
     const [locationState, setLocationState] = useState("");
     const [locationDistrict, setLocationDistrict] = useState("");
     const [locationTown, setLocationTown] = useState("");
-    const [teamMode, setTeamMode] = useState<"ranked" | "casual" | "all">("all");
+    const [teamMode, setTeamMode] = useState<"ranked" | "casual" | "all">("casual");
     const [filterOpened, setFilterOpened] = useState(false);
 
     const onFilterOpen = useCallback(() => setFilterOpened(true), []);
@@ -115,7 +115,7 @@ export function usePlayerFilters(): PlayerFilters {
         setLocationState("");
         setLocationDistrict("");
         setLocationTown("");
-        setTeamMode("all");
+        setTeamMode("casual");
     }
 
     return {

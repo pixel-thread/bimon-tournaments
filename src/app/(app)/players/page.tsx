@@ -61,9 +61,8 @@ export default function PlayersPage() {
                 {GAME.features.hasRankedCasual && (
                     <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100">
                         {([
-                            { key: "all", label: "All", icon: "📊" },
-                            { key: "ranked", label: "Ranked", icon: "🏆" },
                             { key: "casual", label: "Casual", icon: "🎮" },
+                            { key: "ranked", label: "Ranked", icon: "🏆" },
                         ] as const).map(({ key, label, icon }) => (
                             <button
                                 key={key}

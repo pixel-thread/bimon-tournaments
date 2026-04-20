@@ -537,6 +537,11 @@ export function MemoryGame() {
                                 </>
                             )}
 
+                            {/* Ad below game — fills empty space for high view time */}
+                            {gameCount >= 1 && (
+                                <AdSlot format="banner" className="mt-4 rounded-lg overflow-hidden" />
+                            )}
+
                             {/* Win modal */}
                             {gameWon && (
                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
