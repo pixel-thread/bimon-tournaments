@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Block squad members from voting IN/SOLO individually
+        // Auto-leave squad if voting individually on a squad poll
         if (poll.allowSquads && (vote === "IN" || vote === "SOLO")) {
             const inSquad = await prisma.squadInvite.findFirst({
                 where: {
@@ -96,9 +96,10 @@ export async function POST(request: NextRequest) {
                 },
             });
             if (inSquad) {
-                return ErrorResponse({
-                    message: "🛡 You're already in a squad for this tournament. Leave your squad first to vote individually.",
-                    status: 400,
+                // Auto-decline/leave the squad
+                await prisma.squadInvite.update({
+                    where: { id: inSquad.id },
+                    data: { status: "DECLINED", respondedAt: new Date() },
                 });
             }
         }

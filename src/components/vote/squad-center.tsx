@@ -304,6 +304,23 @@ function SquadCard({
                             </div>
                         )}
 
+                        {/* Player: Cancel own pending request */}
+                        {myInvite?.status === "PENDING" && myInvite?.initiatedBy === "PLAYER" && (
+                            <div className="px-4 py-3 border-t border-divider/50">
+                                <Button
+                                    size="sm"
+                                    variant="flat"
+                                    color="danger"
+                                    className="w-full font-semibold"
+                                    isLoading={isResponding}
+                                    onPress={() => onDecline(myInvite.id)}
+                                    startContent={!isResponding && <X className="w-3.5 h-3.5" />}
+                                >
+                                    Cancel Request
+                                </Button>
+                            </div>
+                        )}
+
                         {/* Request to Join */}
                         {canRequestJoin && (
                             <div className="px-4 py-3 border-t border-divider/50">
