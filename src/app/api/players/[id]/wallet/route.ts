@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { creditWallet, debitWallet, getEmailByPlayerId } from "@/lib/wallet-service";
+import { creditWallet, debitWallet, creditDiamond, debitDiamond, getEmailByPlayerId } from "@/lib/wallet-service";
 
 /**
  * POST /api/players/[id]/wallet
- * Credit or debit B-Coins from a player's wallet (admin).
- * Body: { amount: number, type: "CREDIT" | "DEBIT", description: string }
+ * Credit or debit currency from a player's wallet (admin).
+ * Body: { amount: number, type: "CREDIT" | "DEBIT", description: string, currency?: "BP" | "DIAMOND" }
  *
- * The wallet service handles routing: central wallet for unified games,
- * local DB for isolated games (Free Fire).
+ * For dual-currency games (MLBB), pass currency="DIAMOND" to update the diamond balance.
+ * Default (no currency or "BP") updates the primary (entry) balance.
  */
 export async function POST(
     req: NextRequest,
@@ -15,7 +15,7 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const { amount, type, description } = await req.json();
+        const { amount, type, description, currency } = await req.json();
 
         if (!amount || !type || !description) {
             return NextResponse.json(
@@ -46,7 +46,25 @@ export async function POST(
             );
         }
 
-        // Wallet service handles central vs local routing
+        // Route to diamond wallet if currency is DIAMOND
+        if (currency === "DIAMOND") {
+            const result = type === "CREDIT"
+                ? await creditDiamond(email, amount, description)
+                : await debitDiamond(email, amount, description);
+
+            return NextResponse.json({
+                diamondBalance: result.diamondBalance,
+                transaction: result.transaction ? {
+                    id: result.transaction.id,
+                    amount: result.transaction.amount,
+                    type: result.transaction.type,
+                    description: result.transaction.description,
+                    createdAt: result.transaction.createdAt,
+                } : null,
+            });
+        }
+
+        // Default: primary (entry) balance
         const result = type === "CREDIT"
             ? await creditWallet(email, amount, description, "ADMIN_ADJUSTMENT")
             : await debitWallet(email, amount, description, "ADMIN_ADJUSTMENT");
@@ -69,3 +87,4 @@ export async function POST(
         );
     }
 }
+

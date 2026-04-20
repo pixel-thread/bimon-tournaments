@@ -85,7 +85,13 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
     const queryClient = useQueryClient();
     const [ucAmount, setUcAmount] = useState("");
     const [ucType, setUcType] = useState<"CREDIT" | "DEBIT">("CREDIT");
-    const [ucDescription, setUcDescription] = useState("UC Top-up");
+    const [ucCurrency, setUcCurrency] = useState<"BP" | "DIAMOND">("BP");
+    const [ucDescription, setUcDescription] = useState(GAME.hasDualCurrency ? "BP Top-up" : `${GAME.currency} Top-up`);
+
+    // Label for the currently selected currency
+    const activeCurrencyLabel = GAME.hasDualCurrency
+        ? (ucCurrency === "DIAMOND" ? (GAME.rewardCurrency ?? "Diamond") : (GAME.entryCurrency ?? "BP"))
+        : GAME.currency;
     const [banReason, setBanReason] = useState("");
     const [activeTab, setActiveTab] = useState<"overview" | "transactions">("overview");
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -142,7 +148,7 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
 
     // UC mutation
     const walletMutation = useMutation({
-        mutationFn: async (data: { amount: number; type: string; description: string }) => {
+        mutationFn: async (data: { amount: number; type: string; description: string; currency?: string }) => {
             const res = await fetch(`/api/players/${playerId}/wallet`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -156,7 +162,7 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
             queryClient.invalidateQueries({ queryKey: ["admin-player-transactions", playerId] });
             queryClient.invalidateQueries({ queryKey: ["admin-players"] });
             setUcAmount("");
-            setUcDescription("UC Top-up");
+            setUcDescription(GAME.hasDualCurrency ? `${activeCurrencyLabel} Top-up` : `${GAME.currency} Top-up`);
         },
     });
 
@@ -242,7 +248,12 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
     const handleUcSubmit = () => {
         const amt = parseInt(ucAmount);
         if (!amt || amt <= 0 || !ucDescription.trim()) return;
-        walletMutation.mutate({ amount: amt, type: ucType, description: ucDescription.trim() });
+        walletMutation.mutate({
+            amount: amt,
+            type: ucType,
+            description: ucDescription.trim(),
+            ...(GAME.hasDualCurrency ? { currency: ucCurrency } : {}),
+        });
     };
 
     const handleBanToggle = () => {
@@ -485,13 +496,51 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                                             </div>
                                             <h3 className="text-sm font-semibold">Wallet</h3>
                                         </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <CurrencyIcon size={14} />
-                                            <span className={`text-sm font-bold ${(player?.balance ?? 0) < 0 ? "text-danger" : "text-primary"}`}>
-                                                {player?.balance?.toLocaleString()} {GAME.currency}
-                                            </span>
+                                        <div className="flex flex-col items-end gap-0.5">
+                                            <div className="flex items-center gap-1.5">
+                                                <CurrencyIcon size={14} variant="entry" />
+                                                <span className={`text-sm font-bold ${(player?.balance ?? 0) < 0 ? "text-danger" : "text-primary"}`}>
+                                                    {player?.balance?.toLocaleString()} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}
+                                                </span>
+                                            </div>
+                                            {GAME.hasDualCurrency && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <CurrencyIcon size={14} variant="reward" />
+                                                    <span className="text-sm font-bold text-primary">
+                                                        {((player as any)?.diamondBalance ?? 0).toLocaleString()} {GAME.rewardCurrency}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
+
+                                    {/* Currency selector for dual-currency games */}
+                                    {GAME.hasDualCurrency && (
+                                        <div className="flex items-center gap-1 p-1 rounded-lg bg-default-100">
+                                            {([
+                                                { key: "BP" as const, label: GAME.entryCurrency ?? "BP", emoji: GAME.entryCurrencyEmoji ?? "⚔️" },
+                                                { key: "DIAMOND" as const, label: GAME.rewardCurrency ?? "Diamond", emoji: GAME.rewardCurrencyEmoji ?? "💎" },
+                                            ]).map(({ key, label, emoji }) => (
+                                                <button
+                                                    key={key}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setUcCurrency(key);
+                                                        setUcDescription(`${label} Top-up`);
+                                                    }}
+                                                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all duration-200 cursor-pointer ${
+                                                        ucCurrency === key
+                                                            ? "bg-background shadow-sm text-foreground"
+                                                            : "text-foreground/50 hover:text-foreground/70"
+                                                    }`}
+                                                >
+                                                    <span>{emoji}</span>
+                                                    <span>{label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     <div className="flex gap-2">
                                         <Select
                                             size="sm"
@@ -539,11 +588,11 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                                         isDisabled={!ucAmount || !ucDescription.trim()}
                                         className="w-full"
                                     >
-                                        {ucType === "CREDIT" ? "Credit" : "Debit"} {ucAmount || "0"} {GAME.currency}
+                                        {ucType === "CREDIT" ? "Credit" : "Debit"} {ucAmount || "0"} {activeCurrencyLabel}
                                     </Button>
                                     {walletMutation.isSuccess && (
                                         <p className="text-center text-xs text-success">
-                                            ✓ Balance updated successfully
+                                            ✓ {activeCurrencyLabel} balance updated successfully
                                         </p>
                                     )}
                                     {walletMutation.isError && (

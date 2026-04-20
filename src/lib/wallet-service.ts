@@ -280,6 +280,31 @@ export async function creditDiamond(
 }
 
 /**
+ * Debit Diamond from a user's wallet (admin use).
+ */
+export async function debitDiamond(
+    email: string,
+    amount: number,
+    description: string,
+): Promise<{ diamondBalance: number; transaction: any }> {
+    const user = await getLocalPlayerByEmail(email);
+    if (!user?.player) throw new Error("Player not found");
+    const currentBalance = user.player.wallet?.diamondBalance ?? 0;
+    const newBalance = currentBalance - amount;
+    const [, tx] = await prisma.$transaction([
+        prisma.wallet.upsert({
+            where: { playerId: user.player.id },
+            create: { playerId: user.player.id, balance: 0, diamondBalance: newBalance },
+            update: { diamondBalance: newBalance },
+        }),
+        prisma.transaction.create({
+            data: { playerId: user.player.id, amount, type: "DEBIT", currency: "DIAMOND", description },
+        }),
+    ]);
+    return { diamondBalance: newBalance, transaction: tx };
+}
+
+/**
  * Helper: get the display label for the primary (entry fee) currency.
  */
 export function getEntryCurrencyLabel(): string {
