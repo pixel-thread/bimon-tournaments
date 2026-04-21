@@ -677,7 +677,7 @@ export function SquadCenter({
                                 startContent={<Plus className="w-4 h-4" />}
                                 onPress={() => setShowCreate(true)}
                             >
-                                + Create Team
+                                Create Team
                             </Button>
                         )}
                         <Button variant="flat" className="w-full" onPress={onClose}>

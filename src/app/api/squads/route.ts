@@ -80,8 +80,9 @@ export async function GET(request: NextRequest) {
                     .filter((inv) => {
                         // Never show declined
                         if (inv.status === "DECLINED") return false;
-                        // Pending player-initiated requests: only visible to captain and the requester
-                        if (inv.status === "PENDING" && inv.initiatedBy === "PLAYER") {
+                        // Pending invites (both captain and player initiated):
+                        // only visible to the leader and the pending player themselves
+                        if (inv.status === "PENDING") {
                             return isCaptain || inv.playerId === currentPlayerId;
                         }
                         return true;
@@ -220,6 +221,12 @@ export async function POST(request: NextRequest) {
                         },
                     },
                 });
+
+                // Remove captain's individual vote
+                await tx.playerPollVote.deleteMany({
+                    where: { pollId, playerId },
+                });
+
                 return updated;
             }
 
@@ -255,6 +262,13 @@ export async function POST(request: NextRequest) {
             });
 
             return created;
+        });
+
+        // Remove captain's individual vote (for fresh create path — outside cancelled reuse)
+        // This is already handled inside the transaction for the reuse path.
+        // For fresh creates, we do it here:
+        await prisma.playerPollVote.deleteMany({
+            where: { pollId, playerId },
         });
 
         return SuccessResponse({
