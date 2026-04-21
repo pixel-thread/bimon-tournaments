@@ -118,7 +118,9 @@ export async function POST(request: NextRequest) {
         // USER:     must have balance >= entry fee (need coins first)
         if (vote !== "OUT") {
             const { available, reserved } = await getAvailableBalance(userId);
-            const entryFee = poll.tournament?.fee ?? 0;
+            const fullFee = poll.tournament?.fee ?? 0;
+            // For squad polls, per-player cost = fee / squadSize (e.g. 100 / 4 = 25 UC)
+            const entryFee = poll.allowSquads ? Math.ceil(fullFee / GAME.squadSize) : fullFee;
             const isPlayer = user.role === "PLAYER" || user.role === "ADMIN" || user.role === "SUPER_ADMIN";
             const reservedNote = reserved > 0 ? ` (${reserved} ${GAME.currency} reserved for tournaments)` : "";
 
