@@ -928,14 +928,13 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         </span>
                     </div>
 
-                    {/* View all votes */}
                     {poll.totalVotes > 0 && (
                         <button
                             type="button"
                             onClick={() => setShowVoters(true)}
                             className={`w-full text-center font-medium py-2.5 px-4 rounded-xl transition-all border shadow-sm cursor-pointer hover:shadow-md ${
                                 theme
-                                    ? `${theme.optionUnselected.border} ${theme.button}`
+                                    ? `${theme.optionSelected.border} ${theme.optionSelected.bg} ${theme.optionSelected.text}`
                                     : ''
                             }`}
                             style={!theme ? { color: 'var(--game-primary)', backgroundColor: 'color-mix(in srgb, var(--game-primary) 8%, transparent)', borderColor: 'color-mix(in srgb, var(--game-primary) 20%, transparent)' } : undefined}
@@ -955,7 +954,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 onClick={() => setShowSquads(true)}
                                 className={`w-full text-center font-semibold py-3 px-4 rounded-xl transition-all border shadow-sm cursor-pointer hover:shadow-md ${
                                     theme
-                                        ? `${theme.optionUnselected.border} ${theme.button}`
+                                        ? `${theme.optionSelected.border} ${theme.optionSelected.bg} ${theme.optionSelected.text}`
                                         : 'text-primary bg-primary/5 border-primary/20 hover:bg-primary/10'
                                 }`}
                             >

@@ -113,6 +113,7 @@ function SquadCard({
 }) {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false);
     const cardRef = useRef<HTMLDivElement>(null);
+    const bottomRef = useRef<HTMLDivElement>(null);
     const isCaptain = squad.captain.id === currentPlayerId;
     const myInvite = squad.myInvite;
     const hasPendingInvite = myInvite?.status === "PENDING" && myInvite?.initiatedBy === "CAPTAIN";
@@ -141,7 +142,7 @@ function SquadCard({
                     const next = !isExpanded;
                     setIsExpanded(next);
                     if (next) {
-                        setTimeout(() => cardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 200);
+                        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 350);
                     }
                 }}
                 className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-default-100/50 transition-colors"
@@ -204,7 +205,10 @@ function SquadCard({
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-sm font-medium truncate">{member.displayName}</span>
                                                 {isMemberCaptain && (
-                                                    <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                                    <>
+                                                        <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">Captain</span>
+                                                    </>
                                                 )}
                                             </div>
                                         </div>
@@ -364,6 +368,7 @@ function SquadCard({
                                 </Button>
                             </div>
                         )}
+                        <div ref={bottomRef} />
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -542,8 +547,8 @@ export function SquadCenter({
                     <ModalFooter className="flex-col gap-2">
                         {canCreateSquad && (
                             <Button
-                                color="primary"
-                                className="w-full font-semibold"
+                                className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
+                                color={theme ? undefined : "primary"}
                                 startContent={<Plus className="w-4 h-4" />}
                                 onPress={() => setShowCreate(true)}
                             >
