@@ -54,10 +54,24 @@ export default function OnboardingPage() {
     // Auto-fill username from Google name
     useEffect(() => {
         const firstName = session?.user?.name?.split(" ")[0];
-        if (firstName && !userName) {
-            let sanitized = firstName
+        if (!userName) {
+            let sanitized = (firstName || "")
                 .toLowerCase()
                 .replace(/[^a-z0-9_]/g, "");
+
+            // Fallback: use email prefix if name had no ASCII chars
+            if (sanitized.length === 0 && session?.user?.email) {
+                sanitized = session.user.email
+                    .split("@")[0]
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_]/g, "")
+                    .slice(0, 15);
+            }
+
+            // Still empty? Generate a random one
+            if (sanitized.length === 0) {
+                sanitized = "player" + Math.floor(Math.random() * 9000 + 1000);
+            }
 
             if (sanitized.length > 0 && sanitized.length < 3) {
                 const randomNum = Math.floor(Math.random() * 900) + 100;
@@ -69,7 +83,7 @@ export default function OnboardingPage() {
                 setIsUserNameAutoFilled(true);
             }
         }
-    }, [session?.user?.name, userName]);
+    }, [session?.user?.name, session?.user?.email, userName]);
 
     // Debounced duplicate IGN check
     const checkDuplicateIGN = useCallback((name: string) => {
