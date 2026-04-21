@@ -425,7 +425,7 @@ export function SquadCenter({
                 placement="center"
                 size="md"
                 scrollBehavior="inside"
-                classNames={{ body: "px-4 py-3" }}
+                classNames={{ body: "px-4 py-3 max-h-[60vh] overflow-y-auto" }}
             >
                 <ModalContent>
                     <ModalHeader className="flex items-center gap-2 text-base pb-1">

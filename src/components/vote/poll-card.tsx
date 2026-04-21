@@ -496,10 +496,12 @@ function VotersDialog({
                                             const voteNumber = sorted.length - i;
 
                                             // Check if this voter is waitlisted (beyond cutoff in FCFS order)
+                                            // For squad polls with cutoffSize=0 (not enough for 1 team), ALL are waitlisted
+                                            const allWaitlisted = cutoffSize === 0 && poll.allowSquads && selectedGroup === "IN" && allInSolo.length > 0;
                                             const globalIdx = cutoffSize > 0
                                                 ? allInSolo.findIndex(x => x.playerId === v.playerId)
                                                 : -1;
-                                            const isWaitlisted = cutoffSize > 0 && globalIdx >= cutoffSize;
+                                            const isWaitlisted = allWaitlisted || (cutoffSize > 0 && globalIdx >= cutoffSize);
 
                                             return (
                                                 <div
@@ -632,10 +634,14 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
 
     // Theme — show themed header if there's a prize pool OR an entry fee (even 0 votes)
     const isLuckyVoter = !!currentPlayerId && poll.luckyVoterId === currentPlayerId;
+    // For squad polls, compute theme based on teams × squadSize (not raw IN votes)
+    const themeParticipantCount = poll.allowSquads
+        ? estimatedTeams * (GAME.squadSize ?? 4)
+        : participantCount;
     const theme = isLuckyVoter
         ? getLuckyWinnerTheme()
         : showThemedHeader
-            ? (getPollTheme(participantCount) ?? getPollTheme(1))
+            ? (getPollTheme(themeParticipantCount) ?? getPollTheme(1))
             : null;
 
     // Multi-entry support (PES only)
@@ -925,8 +931,12 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         <button
                             type="button"
                             onClick={() => setShowVoters(true)}
-                            className="w-full text-center font-medium py-2.5 px-4 rounded-xl transition-all border shadow-sm cursor-pointer hover:shadow-md"
-                            style={{ color: 'var(--game-primary)', backgroundColor: 'color-mix(in srgb, var(--game-primary) 8%, transparent)', borderColor: 'color-mix(in srgb, var(--game-primary) 20%, transparent)' }}
+                            className={`w-full text-center font-medium py-2.5 px-4 rounded-xl transition-all border shadow-sm cursor-pointer hover:shadow-md ${
+                                theme
+                                    ? `${theme.optionUnselected.border} ${theme.button}`
+                                    : ''
+                            }`}
+                            style={!theme ? { color: 'var(--game-primary)', backgroundColor: 'color-mix(in srgb, var(--game-primary) 8%, transparent)', borderColor: 'color-mix(in srgb, var(--game-primary) 20%, transparent)' } : undefined}
                         >
                             <span className="flex items-center justify-center gap-2">
                                 <Users className="w-4 h-4" />
@@ -941,7 +951,11 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             <button
                                 type="button"
                                 onClick={() => setShowSquads(true)}
-                                className="w-full text-center font-semibold py-3 px-4 rounded-xl transition-all border shadow-sm cursor-pointer text-primary bg-primary/5 border-primary/20 hover:bg-primary/10 hover:shadow-md"
+                                className={`w-full text-center font-semibold py-3 px-4 rounded-xl transition-all border shadow-sm cursor-pointer hover:shadow-md ${
+                                    theme
+                                        ? `${theme.optionUnselected.border} ${theme.button}`
+                                        : 'text-primary bg-primary/5 border-primary/20 hover:bg-primary/10'
+                                }`}
                             >
                                 <span className="flex items-center justify-center gap-2">
                                     <Shield className="w-4 h-4" />
