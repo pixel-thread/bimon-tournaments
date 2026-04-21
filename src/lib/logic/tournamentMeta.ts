@@ -60,5 +60,12 @@ export async function getTournamentPoolMeta(tournamentId: string): Promise<Tourn
     const teamSize = teamCount > 0 ? Math.round(totalPlayers / teamCount) : 2;
     const prizePool = entryFee * totalPlayers;
 
-    return { totalPlayers, teamCount, teamSize, ucExemptCount, entryFee, prizePool };
+    // UC exempt doesn't apply in squad polls — everyone pays their share
+    const poll = await prisma.poll.findFirst({
+        where: { tournamentId },
+        select: { allowSquads: true },
+    });
+    const effectiveUcExemptCount = poll?.allowSquads ? 0 : ucExemptCount;
+
+    return { totalPlayers, teamCount, teamSize, ucExemptCount: effectiveUcExemptCount, entryFee, prizePool };
 }

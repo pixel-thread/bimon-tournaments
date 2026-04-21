@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { Chip, Avatar, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from "@heroui/react";
-import { Users, ChevronRight, ArrowLeft, Plus, Minus, Shield, Clock, Heart } from "lucide-react";
+import { Users, ChevronRight, ChevronDown, ArrowLeft, Plus, Minus, Shield, Clock, Heart, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import type { PollDTO } from "@/hooks/use-polls";
@@ -583,6 +583,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const [showVoters, setShowVoters] = useState(false);
     const [selectedVoteGroup, setSelectedVoteGroup] = useState<"IN" | "OUT" | "SOLO" | null>(null);
     const [showSquads, setShowSquads] = useState(false);
+    const [showSquadInfo, setShowSquadInfo] = useState(false);
     const [showCreateSquad, setShowCreateSquad] = useState(false);
     const [showDonate, setShowDonate] = useState(false);
     const [showDonors, setShowDonors] = useState(false);
@@ -990,6 +991,24 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 )}
                             </button>
                         </div>
+                    )}
+
+                    {/* Squad Info Note — collapsed by default */}
+                    {poll.allowSquads && (
+                        <button
+                            type="button"
+                            onClick={() => setShowSquadInfo(!showSquadInfo)}
+                            className="w-full flex items-center justify-center gap-1.5 text-[11px] text-foreground/40 hover:text-foreground/60 transition-colors mt-2 py-1"
+                        >
+                            <Info className="w-3 h-3" />
+                            How does squad voting work?
+                            <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showSquadInfo ? 'rotate-180' : ''}`} />
+                        </button>
+                    )}
+                    {showSquadInfo && poll.allowSquads && (
+                        <p className="text-[11px] text-foreground/40 text-center px-4 pb-1 animate-in fade-in duration-200">
+                            Players who vote &quot;{poll.options?.find(o => o.vote === "IN")?.name || (GAME.locale === "kha" ? "Nga Leh 😎" : "I'm In 😎")}&quot; without joining a squad will be placed in randomly assigned teams.
+                        </p>
                     )}
                 </div>
 

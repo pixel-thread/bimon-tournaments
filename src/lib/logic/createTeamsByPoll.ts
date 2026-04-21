@@ -225,13 +225,11 @@ export async function createTeamsByPoll({
                     squadPlayerIds.add(m.id);
                 }
 
-                // Only the captain pays the full team entry fee
-                if (!squad.captain.isUCExempt) {
-                    squadPlayersToCharge.push({
-                        id: squad.captain.id,
-                        email: squad.captain.user?.email ?? undefined,
-                    });
-                }
+                // Captain pays the full team entry fee (UC exempt doesn't apply in squad polls)
+                squadPlayersToCharge.push({
+                    id: squad.captain.id,
+                    email: squad.captain.user?.email ?? undefined,
+                });
 
                 // Mark squad as REGISTERED (skip in dry run)
                 if (!dryRun) {
@@ -521,7 +519,8 @@ export async function createTeamsByPoll({
 
                 playersToChargeList = allPlayers.filter(
                     (player) =>
-                        !player.isUCExempt &&
+                        // UC exempt doesn't apply in squad polls — everyone pays their share
+                        (!player.isUCExempt || pollAllowSquads) &&
                         player.id !== luckyVoterId &&
                         !birthdayPlayerIds.has(player.id),
                 );

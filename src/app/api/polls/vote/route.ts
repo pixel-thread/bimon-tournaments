@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
                     id: true,
                     isActive: true,
                     allowSquads: true,
+                    teamType: true,
                     luckyVoterId: true,
                     tournament: { select: { fee: true, seasonId: true } },
                 },
@@ -119,8 +120,10 @@ export async function POST(request: NextRequest) {
         if (vote !== "OUT") {
             const { available, reserved } = await getAvailableBalance(userId);
             const fullFee = poll.tournament?.fee ?? 0;
-            // For squad polls, per-player cost = fee / squadSize (e.g. 100 / 4 = 25 UC)
-            const entryFee = poll.allowSquads ? Math.ceil(fullFee / GAME.squadSize) : fullFee;
+            // Per-player cost based on team type: SOLO=full, DUO=÷2, TRIO=÷3, SQUAD=÷4or5
+            const teamSizeMap: Record<string, number> = { SOLO: 1, DUO: 2, TRIO: 3, SQUAD: GAME.squadSize, DYNAMIC: GAME.squadSize };
+            const teamSize = teamSizeMap[poll.teamType] ?? 1;
+            const entryFee = teamSize > 1 ? Math.ceil(fullFee / teamSize) : fullFee;
             const isPlayer = user.role === "PLAYER" || user.role === "ADMIN" || user.role === "SUPER_ADMIN";
             const reservedNote = reserved > 0 ? ` (${reserved} ${GAME.currency} reserved for tournaments)` : "";
 
