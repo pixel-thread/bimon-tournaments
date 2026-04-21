@@ -513,8 +513,11 @@ export function Header() {
                                             onClick={() => toggleMobileSection(group.section)}
                                             className={`flex w-full items-center justify-between rounded-lg px-3 py-1.5 mt-2 mb-1 transition-colors hover:bg-default-100 ${hasActive ? "text-foreground/60" : "text-foreground/40"}`}
                                         >
-                                            <span className="text-[11px] font-semibold uppercase tracking-wider">
+                                            <span className="text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5">
                                                 {group.section}
+                                                {group.section === "Account" && notifActionCount > 0 && (
+                                                    <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
+                                                )}
                                             </span>
                                             <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`} />
                                         </button>
