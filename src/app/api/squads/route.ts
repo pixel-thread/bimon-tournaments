@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
                     ? { id: myInvite.id, status: myInvite.status, initiatedBy: myInvite.initiatedBy }
                     : null,
                 members: squad.invites
-                    .filter((inv) => inv.status !== "DECLINED" || inv.playerId === currentPlayerId)
+                    .filter((inv) => inv.status !== "DECLINED")
                     .map((inv) => ({
                     inviteId: inv.id,
                     playerId: inv.player.id,

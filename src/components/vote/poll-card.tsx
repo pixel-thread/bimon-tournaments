@@ -332,6 +332,7 @@ function VotersDialog({
     selectedGroup,
     onSelectGroup,
     teamType,
+    theme,
 }: {
     isOpen: boolean;
     onClose: () => void;
@@ -340,6 +341,7 @@ function VotersDialog({
     selectedGroup: "IN" | "OUT" | "SOLO" | null;
     onSelectGroup: (g: "IN" | "OUT" | "SOLO" | null) => void;
     teamType: string;
+    theme: PollTheme | null;
 }) {
     const allVoteTypes = GAME.features.hasTeamSizes
         ? (["IN", "OUT", "SOLO"] as const)
@@ -367,7 +369,7 @@ function VotersDialog({
         <Modal isOpen={isOpen} onClose={onClose} placement="center" size="md" scrollBehavior="inside">
             <ModalContent>
                 <ModalHeader className="flex items-center gap-2 text-base pb-1">
-                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center ${theme ? `bg-gradient-to-r ${theme.header}` : 'bg-primary'}`}>
                         <Users className="w-3.5 h-3.5 text-white" />
                     </div>
                     {poll.tournament?.name || poll.question}
@@ -958,7 +960,6 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 }`}
                             >
                                 <span className="flex items-center justify-center gap-2">
-                                    <Shield className="w-4 h-4" />
                                     🛡 View Teams
                                 </span>
                             </button>
@@ -975,6 +976,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     selectedGroup={selectedVoteGroup}
                     onSelectGroup={setSelectedVoteGroup}
                     teamType={effectiveTeamType}
+                    theme={theme}
                 />
 
                 {/* Squad Center Modal */}
@@ -987,6 +989,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             tournamentName={tournament?.name || poll.question}
                             entryFee={entryFee}
                             currentPlayerId={currentPlayerId ?? ""}
+                            theme={theme}
                         />
                         <CreateSquadModal
                             isOpen={showCreateSquad}

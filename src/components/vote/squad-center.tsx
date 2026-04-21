@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
     Modal,
     ModalContent,
@@ -26,6 +26,7 @@ import {
 import { CreateSquadModal } from "./create-squad-modal";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+import type { PollTheme } from "./pollTheme";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -36,6 +37,7 @@ interface SquadCenterProps {
     tournamentName: string;
     entryFee: number;
     currentPlayerId: string;
+    theme?: PollTheme | null;
 }
 
 /* ─── Status Badge ──────────────────────────────────────────── */
@@ -110,6 +112,7 @@ function SquadCard({
     defaultExpanded?: boolean;
 }) {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false);
+    const cardRef = useRef<HTMLDivElement>(null);
     const isCaptain = squad.captain.id === currentPlayerId;
     const myInvite = squad.myInvite;
     const hasPendingInvite = myInvite?.status === "PENDING" && myInvite?.initiatedBy === "CAPTAIN";
@@ -126,6 +129,7 @@ function SquadCard({
 
     return (
         <motion.div
+            ref={cardRef}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="rounded-xl border border-divider bg-default-50 dark:bg-default-100/50 overflow-hidden"
@@ -133,7 +137,13 @@ function SquadCard({
             {/* Header — always visible, tap to expand */}
             <button
                 type="button"
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={() => {
+                    const next = !isExpanded;
+                    setIsExpanded(next);
+                    if (next) {
+                        setTimeout(() => cardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 200);
+                    }
+                }}
                 className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-default-100/50 transition-colors"
             >
                 <div className="flex items-center gap-2 min-w-0">
@@ -370,6 +380,7 @@ export function SquadCenter({
     tournamentName,
     entryFee,
     currentPlayerId,
+    theme,
 }: SquadCenterProps) {
     const [showCreate, setShowCreate] = useState(false);
     const { data: squads, isLoading, refetch } = useSquads(pollId);
@@ -429,7 +440,7 @@ export function SquadCenter({
             >
                 <ModalContent>
                     <ModalHeader className="flex items-center gap-2 text-base pb-1">
-                        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center ${theme ? `bg-gradient-to-r ${theme.header}` : 'bg-primary'}`}>
                             <Shield className="w-3.5 h-3.5 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
