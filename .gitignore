@@ -50,3 +50,4 @@ NOTES_*.md
 
 # Migration scripts (local only)
 scripts/
+.env*.local

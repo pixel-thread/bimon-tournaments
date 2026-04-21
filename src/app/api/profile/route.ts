@@ -75,12 +75,14 @@ export async function GET() {
                     _sum: { kills: true },
                 }),
                 prisma.playerStats.count({ where: { playerId: player.id, matches: { gt: 0 } } }),
-                prisma.teamStats.findMany({
-                    where: {
-                        players: { some: { id: player.id } },
-                        ...tsSeasonFilter,
+                // Use TeamPlayerStats → teamStats to get positions (more reliable than TeamStats.players relation)
+                prisma.teamPlayerStats.findMany({
+                    where: { playerId: player.id, ...tpsSeasonFilter },
+                    select: {
+                        teamStats: {
+                            select: { position: true, tournamentId: true },
+                        },
                     },
-                    select: { position: true, tournamentId: true },
                 }),
                 prisma.teamPlayerStats.findFirst({
                     where: { playerId: player.id, ...tpsSeasonFilter },
@@ -99,18 +101,20 @@ export async function GET() {
             const totalMatches = statsAgg._count.matchId;
             const kd = totalMatches > 0 ? totalKills / totalMatches : 0;
 
-            const wins = teamPlacements.filter((t) => t.position === 1).length;
-            const top10 = teamPlacements.filter((t) => t.position >= 1 && t.position <= 10).length;
-            const totalTournaments = new Set(teamPlacements.map((t) => t.tournamentId).filter(Boolean)).size;
+            // "Wins" = any UC-winning placement (positions 1–5)
+            const wins = teamPlacements.filter((t) => t.teamStats.position >= 1 && t.teamStats.position <= 5).length;
+            const top10 = teamPlacements.filter((t) => t.teamStats.position >= 1 && t.teamStats.position <= 5).length;
+            const totalTournaments = new Set(teamPlacements.map((t) => t.teamStats.tournamentId).filter(Boolean)).size;
+            // Win rate & top 10 rate are per-match (teamPlacements is now per-match via TeamPlayerStats)
             const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0;
             const top10Rate = totalMatches > 0 ? Math.round((top10 / totalMatches) * 100) : 0;
 
             const ucPlacements = {
-                first: teamPlacements.filter((t) => t.position === 1).length,
-                second: teamPlacements.filter((t) => t.position === 2).length,
-                third: teamPlacements.filter((t) => t.position === 3).length,
-                fourth: teamPlacements.filter((t) => t.position === 4).length,
-                fifth: teamPlacements.filter((t) => t.position === 5).length,
+                first: teamPlacements.filter((t) => t.teamStats.position === 1).length,
+                second: teamPlacements.filter((t) => t.teamStats.position === 2).length,
+                third: teamPlacements.filter((t) => t.teamStats.position === 3).length,
+                fourth: teamPlacements.filter((t) => t.teamStats.position === 4).length,
+                fifth: teamPlacements.filter((t) => t.teamStats.position === 5).length,
             };
 
             const bestMatchKills = bestKillRecord?.kills ?? 0;

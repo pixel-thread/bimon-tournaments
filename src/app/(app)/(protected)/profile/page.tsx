@@ -643,7 +643,7 @@ export default function ProfilePage() {
                                         <>
                                             <div>
                                                 <div className="text-2xl font-bold text-primary">{stats.top10}</div>
-                                                <p className="text-[10px] text-foreground/40 uppercase">Top 10</p>
+                                                <p className="text-[10px] text-foreground/40 uppercase">Top 5</p>
                                             </div>
                                             <div>
                                                 <div className="text-2xl font-bold text-danger">{stats.kills}</div>
@@ -722,7 +722,7 @@ export default function ProfilePage() {
                                         <>
                                             <div>
                                                 <div className="text-xl font-bold">{stats.top10Rate}<span className="text-sm text-foreground/40">%</span></div>
-                                                <p className="text-[10px] text-foreground/40 uppercase">Top 10 Rate</p>
+                                                <p className="text-[10px] text-foreground/40 uppercase">Top 5 Rate</p>
                                             </div>
                                             <div>
                                                 <div className="text-xl font-bold text-warning">{stats.bestMatchKills}</div>
