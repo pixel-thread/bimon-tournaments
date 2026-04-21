@@ -601,17 +601,6 @@ export default function ProfilePage() {
                                             ? stats.kd.toFixed(2)
                                             : stats.matches > 0 ? `${stats.winRate}%` : "—"}
                                     </span>
-                                    {GAME.features.hasBR && stats.matches > 0 && (
-                                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-medium ${stats.kdTrend === "up" ? "bg-success/10 text-success" :
-                                            stats.kdTrend === "down" ? "bg-danger/10 text-danger" :
-                                                "bg-default-100 text-foreground/50"
-                                            }`}>
-                                            {stats.kdTrend === "up" && <TrendingUp className="w-3.5 h-3.5" />}
-                                            {stats.kdTrend === "down" && <TrendingDown className="w-3.5 h-3.5" />}
-                                            {stats.kdTrend === "same" && <Minus className="w-3.5 h-3.5" />}
-                                            {stats.kdChange > 0 ? "+" : ""}{stats.kdChange.toFixed(2)}
-                                        </div>
-                                    )}
                                 </div>
                                 {GAME.features.hasBR && stats.lastMatchKills > 0 && (
                                     <p className="text-xs text-foreground/40 mt-1">
