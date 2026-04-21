@@ -132,6 +132,35 @@ export function useCreateSquad() {
 }
 
 /**
+ * Leave a squad (non-captain members only).
+ */
+export function useLeaveSquad() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (squadId: string) => {
+            const res = await fetch("/api/squads/leave", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ squadId }),
+            });
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
+                throw new Error(json.message || "Failed to leave squad");
+            }
+            return res.json();
+        },
+        onSuccess: (data) => {
+            toast.success(data.message || "Left the squad");
+            queryClient.invalidateQueries({ queryKey: ["squads"] });
+        },
+        onError: (err) => {
+            toast.error(err instanceof Error ? err.message : "Failed to leave squad");
+        },
+    });
+}
+
+/**
  * Invite a player to a squad.
  */
 export function useInvitePlayer() {

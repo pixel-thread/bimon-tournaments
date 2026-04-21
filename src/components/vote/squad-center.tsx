@@ -22,6 +22,7 @@ import {
     useRequestJoin,
     useRespondToRequest,
     useRemoveMember,
+    useLeaveSquad,
     useInvitePlayer,
     useSearchPlayers,
     type SquadDTO,
@@ -91,11 +92,13 @@ function SquadCard({
     onAcceptRequest,
     onDeclineRequest,
     onRemoveMember,
+    onLeave,
     isCancelling,
     isResponding,
     isRequesting,
     isRespondingRequest,
     isRemoving,
+    isLeaving,
     defaultExpanded,
 }: {
     squad: SquadDTO;
@@ -109,11 +112,13 @@ function SquadCard({
     onAcceptRequest: (inviteId: string) => void;
     onDeclineRequest: (inviteId: string) => void;
     onRemoveMember: (inviteId: string) => void;
+    onLeave: (squadId: string) => void;
     isCancelling: boolean;
     isResponding: boolean;
     isRequesting: boolean;
     isRespondingRequest: boolean;
     isRemoving: boolean;
+    isLeaving: boolean;
     defaultExpanded?: boolean;
 }) {
     const myInvite = squad.myInvite;
@@ -427,6 +432,23 @@ function SquadCard({
                             </div>
                         )}
 
+                        {/* Member: Leave squad (accepted, non-captain) */}
+                        {!isCaptain && myInvite?.status === "ACCEPTED" && pollIsActive && (
+                            <div className="px-4 py-3 border-t border-divider/50">
+                                <Button
+                                    size="sm"
+                                    variant="flat"
+                                    color="danger"
+                                    className="w-full font-semibold"
+                                    isLoading={isLeaving}
+                                    onPress={() => onLeave(squad.id)}
+                                    startContent={!isLeaving && <LogIn className="w-3.5 h-3.5 rotate-180" />}
+                                >
+                                    Leave Squad
+                                </Button>
+                            </div>
+                        )}
+
                         {/* Request to Join */}
                         {canRequestJoin && (
                             <div className="px-4 py-3 border-t border-divider/50">
@@ -486,6 +508,7 @@ export function SquadCenter({
     const requestJoinMutation = useRequestJoin();
     const respondRequestMutation = useRespondToRequest();
     const removeMemberMutation = useRemoveMember();
+    const leaveMutation = useLeaveSquad();
 
     const mySquad = squads?.find(
         (s) => s.isCaptain || s.myInvite?.status === "ACCEPTED" || s.myInvite?.status === "PENDING"
@@ -519,6 +542,10 @@ export function SquadCenter({
 
     function handleRemoveMember(inviteId: string) {
         removeMemberMutation.mutate(inviteId);
+    }
+
+    function handleLeave(squadId: string) {
+        leaveMutation.mutate(squadId);
     }
 
     // Check if the poll is active — we can infer from the first squad's data
@@ -577,11 +604,13 @@ export function SquadCenter({
                                                 onAcceptRequest={handleAcceptRequest}
                                                 onDeclineRequest={handleDeclineRequest}
                                                 onRemoveMember={handleRemoveMember}
+                                                onLeave={handleLeave}
                                                 isCancelling={cancelMutation.isPending}
                                                 isResponding={respondMutation.isPending}
                                                 isRequesting={requestJoinMutation.isPending}
                                                 isRespondingRequest={respondRequestMutation.isPending}
                                                 isRemoving={removeMemberMutation.isPending}
+                                                isLeaving={leaveMutation.isPending}
                                                 defaultExpanded
                                             />
                                         </div>
@@ -608,11 +637,13 @@ export function SquadCenter({
                                                         onAcceptRequest={handleAcceptRequest}
                                                         onDeclineRequest={handleDeclineRequest}
                                                         onRemoveMember={handleRemoveMember}
+                                                        onLeave={handleLeave}
                                                         isCancelling={cancelMutation.isPending}
                                                         isResponding={respondMutation.isPending}
                                                         isRequesting={requestJoinMutation.isPending}
                                                         isRespondingRequest={respondRequestMutation.isPending}
                                                         isRemoving={removeMemberMutation.isPending}
+                                                        isLeaving={leaveMutation.isPending}
                                                     />
                                                 ))}
                                             </div>
