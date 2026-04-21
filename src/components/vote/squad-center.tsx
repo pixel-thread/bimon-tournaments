@@ -116,7 +116,9 @@ function SquadCard({
     isRemoving: boolean;
     defaultExpanded?: boolean;
 }) {
-    const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false);
+    const myInvite = squad.myInvite;
+    const hasPendingInvite = myInvite?.status === "PENDING" && myInvite?.initiatedBy === "CAPTAIN";
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? hasPendingInvite ?? false);
     const [showInvite, setShowInvite] = useState(false);
     const [inviteSearch, setInviteSearch] = useState("");
     const cardRef = useRef<HTMLDivElement>(null);
@@ -128,8 +130,6 @@ function SquadCard({
         showInvite ? inviteSearch : "", pollId
     );
     const inviteMutation = useInvitePlayer();
-    const myInvite = squad.myInvite;
-    const hasPendingInvite = myInvite?.status === "PENDING" && myInvite?.initiatedBy === "CAPTAIN";
     const emptySlots = squad.totalSlots - squad.members.length;
 
     // Can player request to join?
@@ -168,6 +168,9 @@ function SquadCard({
                     )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                    {hasPendingInvite && (
+                        <span className="h-2.5 w-2.5 rounded-full bg-danger animate-pulse" />
+                    )}
                     {pendingRequests.length > 0 && isCaptain && (
                         <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-bold text-blue-500">
                             {pendingRequests.length} req

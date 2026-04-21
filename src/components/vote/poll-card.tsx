@@ -591,6 +591,11 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     // Squad data for vote warning (only fetched for squad polls)
     const { data: squadsData } = useSquads(poll.allowSquads ? poll.id : undefined);
 
+    // Check if current player has any pending captain-initiated invite
+    const hasPendingSquadInvite = !!(squadsData && currentPlayerId && squadsData.some(s =>
+        s.members.some(m => m.playerId === currentPlayerId && m.status === "PENDING" && m.initiatedBy === "CAPTAIN")
+    ));
+
     // Fetch real settings so ? tooltip shows accurate org%
     const { data: publicSettings } = useQuery({
         queryKey: ["public-settings"],
@@ -971,7 +976,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             <button
                                 type="button"
                                 onClick={() => setShowSquads(true)}
-                                className={`w-full text-center font-semibold py-3 px-4 rounded-xl transition-all border shadow-sm cursor-pointer hover:shadow-md ${
+                                className={`relative w-full text-center font-semibold py-3 px-4 rounded-xl transition-all border shadow-sm cursor-pointer hover:shadow-md ${
                                     theme
                                         ? `${theme.optionSelected.border} ${theme.optionSelected.bg} ${theme.optionSelected.text}`
                                         : 'text-primary bg-primary/5 border-primary/20 hover:bg-primary/10'
@@ -980,6 +985,9 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 <span className="flex items-center justify-center gap-2">
                                     🛡 View Teams
                                 </span>
+                                {hasPendingSquadInvite && (
+                                    <span className="absolute top-2 right-3 h-2.5 w-2.5 rounded-full bg-danger animate-pulse" />
+                                )}
                             </button>
                         </div>
                     )}

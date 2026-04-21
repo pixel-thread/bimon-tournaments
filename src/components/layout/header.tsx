@@ -155,9 +155,9 @@ export function Header() {
     const duplicateCount = dupData?.count ?? 0;
 
     // Red dot on hamburger shows for ALL actionable items
-    const totalActionCount = unclaimedRewardCount + (isAdmin ? duplicateCount : 0);
+    const totalActionCount = unreadCount + unclaimedRewardCount + (isAdmin ? duplicateCount : 0);
     // Badge on "Notifications" label only shows notification-related counts
-    const notifActionCount = unclaimedRewardCount;
+    const notifActionCount = unreadCount + unclaimedRewardCount;
 
     // Fetch runtime settings (enableElitePass toggle from dashboard)
     const { data: publicSettings } = useQuery({
