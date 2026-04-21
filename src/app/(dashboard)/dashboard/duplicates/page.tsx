@@ -176,6 +176,8 @@ export default function DuplicatesPage() {
         onSuccess: () => {
             toast.success("Player banned");
             banModal.onClose();
+            // Auto-dismiss the alert after banning
+            if (selectedAlert) dismiss.mutate({ alertId: selectedAlert.id, note: "Banned" });
             setSelectedAlert(null);
             setSelectedPlayerId(null);
             queryClient.invalidateQueries({ queryKey: ["duplicate-alerts"] });
@@ -198,6 +200,8 @@ export default function DuplicatesPage() {
         onSuccess: (data) => {
             toast.success(data.message || "Players merged successfully");
             mergeModal.onClose();
+            // Auto-dismiss the alert after merging
+            if (selectedAlert) dismiss.mutate({ alertId: selectedAlert.id, note: "Merged" });
             setSelectedAlert(null);
             setKeepPlayerId(null);
             queryClient.invalidateQueries({ queryKey: ["duplicate-alerts"] });
