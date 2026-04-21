@@ -11,8 +11,9 @@ import {
     Avatar,
     Chip,
     Spinner,
+    Input,
 } from "@heroui/react";
-import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown } from "lucide-react";
+import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, Search } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     useSquads,
@@ -21,6 +22,8 @@ import {
     useRequestJoin,
     useRespondToRequest,
     useRemoveMember,
+    useInvitePlayer,
+    useSearchPlayers,
     type SquadDTO,
 } from "@/hooks/use-squads";
 import { CreateSquadModal } from "./create-squad-modal";
@@ -80,6 +83,7 @@ function SquadCard({
     squad,
     currentPlayerId,
     pollIsActive,
+    pollId,
     onCancel,
     onAccept,
     onDecline,
@@ -97,6 +101,7 @@ function SquadCard({
     squad: SquadDTO;
     currentPlayerId: string;
     pollIsActive: boolean;
+    pollId: string;
     onCancel: (id: string) => void;
     onAccept: (inviteId: string) => void;
     onDecline: (inviteId: string) => void;
@@ -112,9 +117,17 @@ function SquadCard({
     defaultExpanded?: boolean;
 }) {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false);
+    const [showInvite, setShowInvite] = useState(false);
+    const [inviteSearch, setInviteSearch] = useState("");
     const cardRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const isCaptain = squad.captain.id === currentPlayerId;
+
+    // Invite hooks (only active when captain opens invite)
+    const { data: searchResults, isLoading: isSearching } = useSearchPlayers(
+        showInvite ? inviteSearch : "", pollId
+    );
+    const inviteMutation = useInvitePlayer();
     const myInvite = squad.myInvite;
     const hasPendingInvite = myInvite?.status === "PENDING" && myInvite?.initiatedBy === "CAPTAIN";
     const emptySlots = squad.totalSlots - squad.members.length;
@@ -242,6 +255,82 @@ function SquadCard({
                                 </div>
                             ))}
                         </div>
+
+                        {/* Captain: Invite Players */}
+                        {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
+                            <div className="px-4 py-3 border-t border-divider/50">
+                                {!showInvite ? (
+                                    <Button
+                                        size="sm"
+                                        variant="flat"
+                                        color="primary"
+                                        className="w-full font-medium"
+                                        startContent={<UserPlus className="w-3.5 h-3.5" />}
+                                        onPress={() => setShowInvite(true)}
+                                    >
+                                        Invite Players
+                                    </Button>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                placeholder="Search by name..."
+                                                value={inviteSearch}
+                                                onValueChange={setInviteSearch}
+                                                size="sm"
+                                                autoFocus
+                                                className="flex-1"
+                                                startContent={<Search className="w-3.5 h-3.5 text-default-400" />}
+                                            />
+                                            <Button
+                                                size="sm"
+                                                variant="light"
+                                                isIconOnly
+                                                onPress={() => { setShowInvite(false); setInviteSearch(""); }}
+                                                className="min-w-7 w-7 h-7"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </div>
+                                        {isSearching && (
+                                            <div className="flex justify-center py-2">
+                                                <Spinner size="sm" />
+                                            </div>
+                                        )}
+                                        {searchResults && searchResults.length > 0 && (
+                                            <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                                                {searchResults
+                                                    .filter(p => !squad.members.some(m => m.playerId === p.id))
+                                                    .map((player) => (
+                                                    <div key={player.id} className="flex items-center gap-2 py-1.5">
+                                                        <Avatar
+                                                            src={player.imageUrl}
+                                                            name={player.displayName}
+                                                            size="sm"
+                                                            className="w-7 h-7 shrink-0"
+                                                        />
+                                                        <span className="text-sm font-medium truncate flex-1">{player.displayName}</span>
+                                                        <Button
+                                                            size="sm"
+                                                            color="primary"
+                                                            variant="flat"
+                                                            className="min-w-0 px-3 h-7"
+                                                            isLoading={inviteMutation.isPending}
+                                                            onPress={() => inviteMutation.mutate({ squadId: squad.id, playerId: player.id })}
+                                                        >
+                                                            Invite
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {inviteSearch.length >= 2 && !isSearching && searchResults?.filter(p => !squad.members.some(m => m.playerId === p.id)).length === 0 && (
+                                            <p className="text-xs text-foreground/40 text-center py-2">No players found</p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Captain: Pending join requests */}
                         {isCaptain && pendingRequests.length > 0 && (
@@ -477,6 +566,7 @@ export function SquadCenter({
                                                 squad={mySquad}
                                                 currentPlayerId={currentPlayerId}
                                                 pollIsActive={pollIsActive}
+                                                pollId={pollId}
                                                 onCancel={handleCancel}
                                                 onAccept={handleAccept}
                                                 onDecline={handleDecline}
@@ -507,6 +597,7 @@ export function SquadCenter({
                                                         squad={squad}
                                                         currentPlayerId={currentPlayerId}
                                                         pollIsActive={pollIsActive}
+                                                        pollId={pollId}
                                                         onCancel={handleCancel}
                                                         onAccept={handleAccept}
                                                         onDecline={handleDecline}

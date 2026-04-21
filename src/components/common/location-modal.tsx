@@ -327,8 +327,15 @@ export function LocationModal({
                         {/* Selected town display */}
                         {step === 3 && town && !searchQuery && (
                             <div className="px-3 py-2 rounded-lg bg-success/10 border border-success/20 text-sm text-success flex items-center gap-2">
-                                <MapPin className="h-3.5 w-3.5" />
-                                {town}
+                                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                                <span className="flex-1">{town}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setTown("")}
+                                    className="w-5 h-5 rounded-full bg-success/20 hover:bg-success/30 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                                >
+                                    <span className="text-xs font-bold">✕</span>
+                                </button>
                             </div>
                         )}
                     </div>
