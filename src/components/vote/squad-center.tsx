@@ -217,11 +217,11 @@ function SquadCard({
                                         <div className="flex-1 min-w-0">
                                             <div className={`flex items-center gap-1.5 min-w-0 ${isMemberCaptain ? 'flex-wrap' : ''}`}>
                                                 <span className={`text-sm font-medium ${isMemberCaptain ? 'break-all' : 'truncate'}`}>{member.displayName}</span>
+                                                {member.hasRoyalPass && (
+                                                    <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                                )}
                                                 {isMemberCaptain && (
-                                                    <>
-                                                        <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0 whitespace-nowrap">Leader</span>
-                                                    </>
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0 whitespace-nowrap">Leader</span>
                                                 )}
                                             </div>
                                         </div>

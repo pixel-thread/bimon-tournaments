@@ -12,6 +12,7 @@ export interface SquadMember {
     playerId: string;
     displayName: string;
     imageUrl: string;
+    hasRoyalPass: boolean;
     status: "PENDING" | "ACCEPTED" | "DECLINED";
     initiatedBy: "CAPTAIN" | "PLAYER";
 }
