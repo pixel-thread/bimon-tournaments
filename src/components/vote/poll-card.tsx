@@ -14,6 +14,7 @@ import { SquadCenter } from "./squad-center";
 import { CreateSquadModal } from "./create-squad-modal";
 import { DonateModal } from "./donate-modal";
 import { DonorsModal } from "./donors-modal";
+import { useSquads } from "@/hooks/use-squads";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -585,6 +586,10 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const [showCreateSquad, setShowCreateSquad] = useState(false);
     const [showDonate, setShowDonate] = useState(false);
     const [showDonors, setShowDonors] = useState(false);
+    const [squadVoteWarning, setSquadVoteWarning] = useState<{ vote: "IN" | "OUT" | "SOLO"; squadName: string; isCaptain: boolean } | null>(null);
+
+    // Squad data for vote warning (only fetched for squad polls)
+    const { data: squadsData } = useSquads(poll.allowSquads ? poll.id : undefined);
 
     // Fetch real settings so ? tooltip shows accurate org%
     const { data: publicSettings } = useQuery({
@@ -846,6 +851,20 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 theme={theme}
                                 currentPlayerId={currentPlayerId}
                                 onClick={() => {
+                                    if (poll.userVote !== opt.vote && opt.vote !== "OUT" && poll.allowSquads && currentPlayerId && squadsData) {
+                                        // Check if player is in a squad for this poll
+                                        const mySquad = squadsData.find(s =>
+                                            s.isCaptain || s.members.some(m => m.playerId === currentPlayerId && m.status === "ACCEPTED")
+                                        );
+                                        if (mySquad) {
+                                            setSquadVoteWarning({
+                                                vote: opt.vote,
+                                                squadName: mySquad.name,
+                                                isCaptain: mySquad.isCaptain,
+                                            });
+                                            return;
+                                        }
+                                    }
                                     if (poll.userVote !== opt.vote) onVote(poll.id, opt.vote);
                                 }}
                             />
@@ -1018,6 +1037,63 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     total={donationTotal}
                     tournamentName={tournament?.name || poll.question}
                 />
+
+                {/* Squad Vote Warning Modal */}
+                <Modal
+                    isOpen={!!squadVoteWarning}
+                    onClose={() => setSquadVoteWarning(null)}
+                    size="sm"
+                    placement="center"
+                >
+                    <ModalContent>
+                        <ModalHeader className="flex items-center gap-2 pb-2">
+                            <Shield className="h-5 w-5 text-warning" />
+                            {squadVoteWarning?.isCaptain ? "You're a Squad Captain" : "Leave Squad?"}
+                        </ModalHeader>
+                        <ModalBody className="pb-2">
+                            {squadVoteWarning?.isCaptain ? (
+                                <p className="text-sm text-foreground/70">
+                                    You&apos;re the captain of <strong>&ldquo;{squadVoteWarning.squadName}&rdquo;</strong>.
+                                    Cancel your squad from the Squad Center first to vote individually.
+                                </p>
+                            ) : (
+                                <p className="text-sm text-foreground/70">
+                                    Voting individually will remove you from <strong>&ldquo;{squadVoteWarning?.squadName}&rdquo;</strong>.
+                                    Are you sure you want to leave?
+                                </p>
+                            )}
+                        </ModalBody>
+                        <ModalFooter>
+                            <Button variant="flat" size="sm" onPress={() => setSquadVoteWarning(null)}>
+                                Cancel
+                            </Button>
+                            {squadVoteWarning?.isCaptain ? (
+                                <Button
+                                    color="primary"
+                                    size="sm"
+                                    onPress={() => {
+                                        setSquadVoteWarning(null);
+                                        setShowSquads(true);
+                                    }}
+                                >
+                                    Open Squad Center
+                                </Button>
+                            ) : (
+                                <Button
+                                    color="warning"
+                                    size="sm"
+                                    className="text-white"
+                                    onPress={() => {
+                                        if (squadVoteWarning) onVote(poll.id, squadVoteWarning.vote);
+                                        setSquadVoteWarning(null);
+                                    }}
+                                >
+                                    Leave & Vote
+                                </Button>
+                            )}
+                        </ModalFooter>
+                    </ModalContent>
+                </Modal>
             </div>
         </motion.div>
     );

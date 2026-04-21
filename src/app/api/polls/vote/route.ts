@@ -94,9 +94,17 @@ export async function POST(request: NextRequest) {
                         status: { in: ["FORMING", "FULL"] },
                     },
                 },
+                include: { squad: { select: { captainId: true, name: true } } },
             });
             if (inSquad) {
-                // Auto-decline/leave the squad
+                // Captains cannot vote individually — they must cancel the squad first
+                if (inSquad.squad.captainId === user.player.id) {
+                    return ErrorResponse({
+                        message: `⚠️ You're the captain of "${inSquad.squad.name}". Cancel your squad first to vote individually.`,
+                        status: 400,
+                    });
+                }
+                // Auto-decline/leave the squad for regular members
                 await prisma.squadInvite.update({
                     where: { id: inSquad.id },
                     data: { status: "DECLINED", respondedAt: new Date() },
