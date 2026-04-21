@@ -55,10 +55,10 @@ export async function POST(request: NextRequest) {
 
         // Must be captain
         if (invite.squad.captainId !== currentPlayerId) {
-            return ErrorResponse({ message: "Only the squad captain can remove members", status: 403 });
+            return ErrorResponse({ message: "Only the squad leader can remove members", status: 403 });
         }
 
-        // Cannot remove yourself (captain)
+        // Cannot remove yourself (leader)
         if (invite.playerId === currentPlayerId) {
             return ErrorResponse({ message: "Captains cannot remove themselves — cancel the squad instead", status: 400 });
         }

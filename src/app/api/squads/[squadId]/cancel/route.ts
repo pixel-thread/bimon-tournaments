@@ -47,7 +47,7 @@ export async function POST(
         }
 
         if (squad.captainId !== user.player.id) {
-            return ErrorResponse({ message: "Only the squad captain can cancel", status: 403 });
+            return ErrorResponse({ message: "Only the squad leader can cancel", status: 403 });
         }
 
         if (squad.status === "CANCELLED" || squad.status === "REGISTERED") {

@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
         // Cannot join your own squad via request
         if (squad.captainId === playerId) {
-            return ErrorResponse({ message: "You are the captain of this squad", status: 400 });
+            return ErrorResponse({ message: "You are the leader of this squad", status: 400 });
         }
 
         // Poll must be active and allow squads
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "You're already in another squad for this tournament", status: 400 });
         }
 
-        // Note: No balance check for joiners. The captain pays the full team entry fee.
+        // Note: No balance check for joiners. The leader pays the full team entry fee.
 
         const playerName = user.player.displayName;
         const tournamentName = squad.poll.tournament?.name ?? "tournament";

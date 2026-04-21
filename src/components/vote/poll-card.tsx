@@ -1048,12 +1048,12 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     <ModalContent>
                         <ModalHeader className="flex items-center gap-2 pb-2">
                             <Shield className="h-5 w-5 text-warning" />
-                            {squadVoteWarning?.isCaptain ? "You're a Squad Captain" : "Leave Squad?"}
+                            {squadVoteWarning?.isCaptain ? "You're the Squad Leader" : "Leave Squad?"}
                         </ModalHeader>
                         <ModalBody className="pb-2">
                             {squadVoteWarning?.isCaptain ? (
                                 <p className="text-sm text-foreground/70">
-                                    You&apos;re the captain of <strong>&ldquo;{squadVoteWarning.squadName}&rdquo;</strong>.
+                                    You&apos;re the leader of <strong>&ldquo;{squadVoteWarning.squadName}&rdquo;</strong>.
                                     Cancel your squad from the Squad Center first to vote individually.
                                 </p>
                             ) : (

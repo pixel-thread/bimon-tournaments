@@ -109,10 +109,10 @@ export function CreateSquadModal({
                                 />
 
                                 <div className="text-xs text-foreground/50 space-y-1">
-                                    <p>• Captain pays <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
+                                    <p>• Leader pays <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
                                     <p>• Roster: up to <strong>{GAME.maxSquadSize}</strong> players ({GAME.squadSize} active + {GAME.maxSquadSize - GAME.squadSize} subs)</p>
                                     <p>• Teammates join for free — no fee required</p>
-                                    <p>• Prize goes to captain when team wins 🏆</p>
+                                    <p>• Prize goes to leader when team wins 🏆</p>
                                 </div>
                             </motion.div>
                         )}

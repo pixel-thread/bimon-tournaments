@@ -58,12 +58,12 @@ export async function POST(request: NextRequest) {
 
         // Must be captain of this squad
         if (invite.squad.captainId !== currentPlayerId) {
-            return ErrorResponse({ message: "Only the squad captain can respond to join requests", status: 403 });
+            return ErrorResponse({ message: "Only the squad leader can respond to join requests", status: 403 });
         }
 
         // Must be a player-initiated request
         if (invite.initiatedBy !== "PLAYER") {
-            return ErrorResponse({ message: "This is a captain invite, not a join request", status: 400 });
+            return ErrorResponse({ message: "This is a leader invite, not a join request", status: 400 });
         }
 
         // Must be PENDING
