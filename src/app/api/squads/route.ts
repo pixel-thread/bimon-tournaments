@@ -77,7 +77,15 @@ export async function GET(request: NextRequest) {
                     ? { id: myInvite.id, status: myInvite.status, initiatedBy: myInvite.initiatedBy }
                     : null,
                 members: squad.invites
-                    .filter((inv) => inv.status !== "DECLINED")
+                    .filter((inv) => {
+                        // Never show declined
+                        if (inv.status === "DECLINED") return false;
+                        // Pending player-initiated requests: only visible to captain and the requester
+                        if (inv.status === "PENDING" && inv.initiatedBy === "PLAYER") {
+                            return isCaptain || inv.playerId === currentPlayerId;
+                        }
+                        return true;
+                    })
                     .map((inv) => ({
                     inviteId: inv.id,
                     playerId: inv.player.id,
