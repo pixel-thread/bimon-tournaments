@@ -182,8 +182,37 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Create squad + captain's self-invite (ACCEPTED) in a transaction
+        // Create squad (or reuse a previously cancelled one to avoid unique constraint)
         const squad = await prisma.$transaction(async (tx) => {
+            // Check for a previously cancelled squad by this captain for this poll
+            const cancelledSquad = await tx.squad.findFirst({
+                where: { pollId, captainId: playerId, status: "CANCELLED" },
+            });
+
+            if (cancelledSquad) {
+                // Reuse: reset the cancelled squad
+                // Delete old invites first
+                await tx.squadInvite.deleteMany({ where: { squadId: cancelledSquad.id } });
+
+                const updated = await tx.squad.update({
+                    where: { id: cancelledSquad.id },
+                    data: {
+                        name: trimmedName,
+                        status: "FORMING",
+                        entryFee,
+                        invites: {
+                            create: {
+                                playerId,
+                                status: "ACCEPTED",
+                                respondedAt: new Date(),
+                            },
+                        },
+                    },
+                });
+                return updated;
+            }
+
+            // No cancelled squad — create fresh
             const created = await tx.squad.create({
                 data: {
                     name: trimmedName,

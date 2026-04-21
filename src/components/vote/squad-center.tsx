@@ -215,8 +215,8 @@ function SquadCard({
                                             className="w-8 h-8 shrink-0"
                                         />
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5 min-w-0">
-                                                <span className="text-sm font-medium truncate">{member.displayName}</span>
+                                            <div className={`flex items-center gap-1.5 min-w-0 ${isMemberCaptain ? 'flex-wrap' : ''}`}>
+                                                <span className={`text-sm font-medium ${isMemberCaptain ? 'break-all' : 'truncate'}`}>{member.displayName}</span>
                                                 {isMemberCaptain && (
                                                     <>
                                                         <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -625,7 +625,7 @@ export function SquadCenter({
                                             <div>
                                                 <p className="font-medium text-foreground/60">No squads yet</p>
                                                 <p className="text-sm text-foreground/40">
-                                                    Be the first to create a squad!
+                                                    Be the first to create a team!
                                                 </p>
                                             </div>
                                         </div>

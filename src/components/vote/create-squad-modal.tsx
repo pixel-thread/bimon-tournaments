@@ -72,7 +72,7 @@ export function CreateSquadModal({
                     </div>
                     <div className="flex-1 min-w-0">
                         <span className="truncate block">
-                            {step === "name" ? "Create Squad" : "Squad Created! 🎉"}
+                            {step === "name" ? "Create Team" : "Team Created! 🎉"}
                         </span>
                         <span className="text-xs font-normal text-foreground/50">{tournamentName}</span>
                     </div>
@@ -128,7 +128,7 @@ export function CreateSquadModal({
                                     <Shield className="w-7 h-7 text-emerald-500" />
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-lg">Squad created!</p>
+                                    <p className="font-semibold text-lg">Team created!</p>
                                     <p className="text-sm text-foreground/60 mt-1">
                                         Players can now request to join your squad from the <strong>View Teams</strong> page.
                                     </p>
@@ -155,7 +155,7 @@ export function CreateSquadModal({
                                 onPress={handleCreate}
                                 startContent={!createMutation.isPending && <Shield className="w-4 h-4" />}
                             >
-                                Create Squad
+                                Create Team
                             </Button>
                         </div>
                     ) : (
