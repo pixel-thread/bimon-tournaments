@@ -223,7 +223,6 @@ export function SlotsModal({
                     </button>
                 </div>
 
-                {/* Main Content */}
                 <div
                     id="teams-list-content"
                     className="relative w-full min-h-screen flex items-start justify-center bg-cover bg-center py-10 sm:py-14"
@@ -232,11 +231,11 @@ export function SlotsModal({
                     {/* Gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/70" />
 
-                    <div className="relative z-10 w-full max-w-4xl mx-auto p-4 sm:p-6">
+                    <div className="relative z-10 w-full max-w-5xl mx-auto px-2 sm:px-6">
                         {/* Title */}
-                        <div className="text-center mb-6">
+                        <div className="text-center mb-4 sm:mb-6">
                             <h1
-                                className="text-2xl sm:text-4xl font-bold tracking-wide text-orange-500"
+                                className="text-xl sm:text-4xl font-bold tracking-wide text-orange-500"
                                 style={{
                                     textShadow:
                                         "0 0 30px rgba(249, 115, 22, 0.6), 0 0 60px rgba(249, 115, 22, 0.3), 0 2px 4px rgba(0,0,0,0.5)",
@@ -245,82 +244,84 @@ export function SlotsModal({
                                 {tournamentTitle}
                             </h1>
                             {seasonName && (
-                                <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30">
-                                    <span className="text-xs font-semibold text-blue-400">{seasonName}</span>
+                                <div className="mt-1.5 sm:mt-2 inline-flex items-center gap-2 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-blue-500/10 border border-blue-500/30">
+                                    <span className="text-[10px] sm:text-xs font-semibold text-blue-400">{seasonName}</span>
                                 </div>
                             )}
                         </div>
 
-                        {/* Table */}
-                        <div className="rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-2xl shadow-black/50 overflow-hidden">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="bg-zinc-800/80 border-b border-white/10">
-                                        <th className="px-3 py-2.5 text-center text-sm font-semibold text-zinc-300">
-                                            Slot No
-                                        </th>
-                                        {hasSquadTeams && (
-                                            <th className="px-3 py-2.5 text-center text-sm font-semibold text-zinc-300">
-                                                Team Name
+                        {/* Table — scrollable on mobile */}
+                        <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-2xl shadow-black/50 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[500px]">
+                                    <thead>
+                                        <tr className="bg-zinc-800/80 border-b border-white/10">
+                                            <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-zinc-300 whitespace-nowrap">
+                                                Slot
                                             </th>
-                                        )}
-                                        {Array.from({ length: maxPlayers }, (_, i) => (
-                                            <th key={i} className="px-3 py-2.5 text-center text-sm font-semibold text-zinc-300">
-                                                Player {i + 1}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {uniqueTeams.map((team, index) => {
-                                        const players = team.players?.map((p) =>
-                                            p.displayName || p.username
-                                        ) || [];
-                                        const paddedPlayers = [
-                                            ...players,
-                                            ...Array(maxPlayers - players.length).fill(""),
-                                        ];
+                                            {hasSquadTeams && (
+                                                <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-zinc-300 whitespace-nowrap">
+                                                    Team
+                                                </th>
+                                            )}
+                                            {Array.from({ length: maxPlayers }, (_, i) => (
+                                                <th key={i} className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-zinc-300 whitespace-nowrap">
+                                                    Player {i + 1}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {uniqueTeams.map((team, index) => {
+                                            const players = team.players?.map((p) =>
+                                                p.displayName || p.username
+                                            ) || [];
+                                            const paddedPlayers = [
+                                                ...players,
+                                                ...Array(maxPlayers - players.length).fill(""),
+                                            ];
 
-                                        return (
-                                            <tr
-                                                key={team.id || index}
-                                                className={`border-b border-white/5 ${index % 2 === 0 ? "bg-zinc-900/40" : "bg-zinc-800/30"} hover:bg-zinc-700/40 transition-colors`}
-                                            >
-                                                <td className="px-3 py-2 text-center text-sm font-medium text-zinc-400">
-                                                    {index + 2}
-                                                </td>
-                                                {hasSquadTeams && (
-                                                    <td className="px-3 py-2 text-center text-sm font-medium text-orange-400/80">
-                                                        {team.name}
+                                            return (
+                                                <tr
+                                                    key={team.id || index}
+                                                    className={`border-b border-white/5 ${index % 2 === 0 ? "bg-zinc-900/40" : "bg-zinc-800/30"} hover:bg-zinc-700/40 transition-colors`}
+                                                >
+                                                    <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium text-zinc-400">
+                                                        {index + 2}
                                                     </td>
-                                                )}
-                                                {paddedPlayers.map((playerName, pi) => (
-                                                    <td
-                                                        key={pi}
-                                                        className={`px-3 py-2 text-center text-sm ${playerName ? "text-white" : "text-zinc-600"}`}
-                                                    >
-                                                        {playerName || "—"}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                                    {hasSquadTeams && (
+                                                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium text-orange-400/80 whitespace-nowrap">
+                                                            {team.name}
+                                                        </td>
+                                                    )}
+                                                    {paddedPlayers.map((playerName, pi) => (
+                                                        <td
+                                                            key={pi}
+                                                            className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm whitespace-nowrap ${playerName ? "text-white" : "text-zinc-600"}`}
+                                                        >
+                                                            {playerName || "\u2014"}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
 
                             {/* Footer */}
-                            <div className="px-2 py-2 bg-zinc-800/60 border-t border-white/10 text-center">
-                                <span className="text-sm font-semibold text-zinc-300">
+                            <div className="px-2 py-1.5 sm:py-2 bg-zinc-800/60 border-t border-white/10 text-center">
+                                <span className="text-[11px] sm:text-sm font-semibold text-zinc-300">
                                     Total Players: {totalPlayers}
                                 </span>
                             </div>
                         </div>
 
                         {/* Footer Branding */}
-                        <div className="mt-6 flex items-center justify-center gap-2 text-zinc-500 text-xs">
-                            <div className="h-px w-8 bg-gradient-to-r from-transparent to-orange-500/50" />
+                        <div className="mt-4 sm:mt-6 flex items-center justify-center gap-2 text-zinc-500 text-[10px] sm:text-xs">
+                            <div className="h-px w-6 sm:w-8 bg-gradient-to-r from-transparent to-orange-500/50" />
                             <span className="font-medium text-zinc-400">{GAME.name} × Bimon Tournament</span>
-                            <div className="h-px w-8 bg-gradient-to-l from-transparent to-orange-500/50" />
+                            <div className="h-px w-6 sm:w-8 bg-gradient-to-l from-transparent to-orange-500/50" />
                         </div>
                     </div>
                 </div>
