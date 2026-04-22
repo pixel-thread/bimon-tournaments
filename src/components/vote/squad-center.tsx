@@ -96,6 +96,7 @@ function SquadCard({
     onLeave,
     isCancelling,
     isResponding,
+    respondingAction,
     isRequesting,
     isRespondingRequest,
     isRemoving,
@@ -116,6 +117,7 @@ function SquadCard({
     onLeave: (squadId: string) => void;
     isCancelling: boolean;
     isResponding: boolean;
+    respondingAction: "accept" | "decline" | null;
     isRequesting: boolean;
     isRespondingRequest: boolean;
     isRemoving: boolean;
@@ -396,9 +398,9 @@ function SquadCard({
                                         size="sm"
                                         color="primary"
                                         className="flex-1 font-semibold"
-                                        isLoading={isResponding}
+                                        isLoading={isResponding && respondingAction === "accept"}
                                         onPress={() => onAccept(myInvite.id)}
-                                        startContent={!isResponding && <Check className="w-3.5 h-3.5" />}
+                                        startContent={!(isResponding && respondingAction === "accept") && <Check className="w-3.5 h-3.5" />}
                                     >
                                         Accept & Join
                                     </Button>
@@ -406,7 +408,8 @@ function SquadCard({
                                         size="sm"
                                         variant="flat"
                                         color="danger"
-                                        isLoading={isResponding}
+                                        isLoading={isResponding && respondingAction === "decline"}
+                                        isDisabled={isResponding && respondingAction === "accept"}
                                         onPress={() => onDecline(myInvite.id)}
                                         isIconOnly
                                     >
@@ -518,15 +521,19 @@ export function SquadCenter({
     const otherSquads = squads?.filter((s) => s.id !== mySquad?.id) ?? [];
     const canCreateSquad = !mySquad;
 
+    const [respondAction, setRespondAction] = useState<"accept" | "decline" | null>(null);
+
     function handleCancel(squadId: string) {
         cancelMutation.mutate(squadId);
     }
 
     function handleAccept(inviteId: string) {
+        setRespondAction("accept");
         respondMutation.mutate({ inviteId, action: "ACCEPT" });
     }
 
     function handleDecline(inviteId: string) {
+        setRespondAction("decline");
         respondMutation.mutate({ inviteId, action: "DECLINE" });
     }
 
@@ -614,6 +621,7 @@ export function SquadCenter({
                                                 onLeave={handleLeave}
                                                 isCancelling={cancelMutation.isPending}
                                                 isResponding={respondMutation.isPending}
+                                                respondingAction={respondMutation.isPending ? respondAction : null}
                                                 isRequesting={requestJoinMutation.isPending}
                                                 isRespondingRequest={respondRequestMutation.isPending}
                                                 isRemoving={removeMemberMutation.isPending}
@@ -647,6 +655,7 @@ export function SquadCenter({
                                                         onLeave={handleLeave}
                                                         isCancelling={cancelMutation.isPending}
                                                         isResponding={respondMutation.isPending}
+                                                        respondingAction={respondMutation.isPending ? respondAction : null}
                                                         isRequesting={requestJoinMutation.isPending}
                                                         isRespondingRequest={respondRequestMutation.isPending}
                                                         isRemoving={removeMemberMutation.isPending}
