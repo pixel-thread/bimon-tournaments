@@ -213,11 +213,15 @@ function PollOptionRow({
     const longPressTimer = useRef<NodeJS.Timeout | null>(null);
     const didLongPress = useRef(false);
 
-    const startPress = () => {
+    const startPress = (e: React.TouchEvent | React.MouseEvent) => {
         if (!isSelected || !onLongPress) return;
+        // Prevent context menu on long-press (mobile)
+        e.preventDefault();
         didLongPress.current = false;
         longPressTimer.current = setTimeout(() => {
             didLongPress.current = true;
+            // Vibrate feedback if available
+            if (navigator.vibrate) navigator.vibrate(50);
             onLongPress();
         }, 3000);
     };
@@ -242,9 +246,11 @@ function PollOptionRow({
             onTouchStart={startPress}
             onTouchEnd={cancelPress}
             onTouchCancel={cancelPress}
+            onTouchMove={cancelPress}
             onMouseDown={startPress}
             onMouseUp={cancelPress}
             onMouseLeave={cancelPress}
+            onContextMenu={(e) => { if (isSelected && onLongPress) e.preventDefault(); }}
             disabled={isLoading || disabled}
             className={`
                 w-full text-left relative overflow-hidden group py-4 px-4 rounded-xl border-2
@@ -260,10 +266,17 @@ function PollOptionRow({
                 ${isLoading ? "cursor-wait opacity-80" : "cursor-pointer"}
                 ${disabled && !isLoading ? "opacity-60 cursor-not-allowed" : ""}
             `}
-            style={isSelected && !theme ? {
-                borderColor: 'var(--game-primary)',
-                backgroundColor: 'color-mix(in srgb, var(--game-primary) 8%, transparent)',
-            } : undefined}
+            style={{
+                ...(isSelected && !theme ? {
+                    borderColor: 'var(--game-primary)',
+                    backgroundColor: 'color-mix(in srgb, var(--game-primary) 8%, transparent)',
+                } : {}),
+                ...(isSelected && onLongPress ? {
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none',
+                    touchAction: 'manipulation',
+                } as React.CSSProperties : {}),
+            }}
         >
             <div className="flex items-center justify-between">
                 {/* Radio + Label */}
