@@ -138,6 +138,7 @@ function SquadCard({
         showInvite ? inviteSearch : "", pollId
     );
     const inviteMutation = useInvitePlayer();
+    const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
     const emptySlots = squad.totalSlots - squad.members.length;
 
     // Can player request to join?
@@ -286,11 +287,19 @@ function SquadCard({
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2">
                                             <Input
+                                                ref={(el: HTMLDivElement | null) => {
+                                                    if (el) {
+                                                        setTimeout(() => {
+                                                            el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                                            const input = el.querySelector("input");
+                                                            input?.focus();
+                                                        }, 100);
+                                                    }
+                                                }}
                                                 placeholder="Search by name..."
                                                 value={inviteSearch}
                                                 onValueChange={setInviteSearch}
                                                 size="sm"
-                                                autoFocus
                                                 className="flex-1"
                                                 startContent={<Search className="w-3.5 h-3.5 text-default-400" />}
                                             />
@@ -327,8 +336,12 @@ function SquadCard({
                                                             color="primary"
                                                             variant="flat"
                                                             className="min-w-0 px-3 h-7"
-                                                            isLoading={inviteMutation.isPending}
-                                                            onPress={() => inviteMutation.mutate({ squadId: squad.id, playerId: player.id })}
+                                                            isLoading={inviteMutation.isPending && invitingPlayerId === player.id}
+                                                            isDisabled={inviteMutation.isPending && invitingPlayerId !== player.id}
+                                                            onPress={() => {
+                                                                setInvitingPlayerId(player.id);
+                                                                inviteMutation.mutate({ squadId: squad.id, playerId: player.id });
+                                                            }}
                                                         >
                                                             Invite
                                                         </Button>

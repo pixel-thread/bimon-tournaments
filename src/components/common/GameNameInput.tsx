@@ -77,9 +77,9 @@ export function GameNameInput({
                 {/* Paste field */}
                 <div
                     onClick={!disabled && !value ? handlePaste : undefined}
-                    className={`relative flex-1 min-h-[48px] rounded-xl border-2 transition-all ${value
+                    className={`relative flex-1 min-h-[48px] rounded-xl border-2 transition-all shadow-sm ${value
                         ? "bg-default-100 border-success/40"
-                        : "bg-default-50 border-default-300 dark:border-default-200 hover:border-primary/60 cursor-pointer active:scale-[0.99]"
+                        : "bg-white dark:bg-default-50 border-default-300 dark:border-default-400 hover:border-primary/60 cursor-pointer active:scale-[0.99] animate-pulse-subtle"
                         } ${error ? "border-danger/60 bg-danger-50/10" : ""} ${disabled ? "opacity-50 cursor-not-allowed" : ""
                         }`}
                 >
@@ -93,10 +93,11 @@ export function GameNameInput({
                         <span className="truncate block">
                             {value || (
                                 <span className="flex items-center gap-2">
-                                    <Clipboard className="h-4 w-4" />
-                                    {clipboardDenied
+                                    <span className="text-foreground/30">🎮</span>
+                                    <span>{clipboardDenied
                                         ? "Long press to paste"
-                                        : "Tap to paste"}
+                                        : "Game Name"}</span>
+                                    <span className="animate-blink text-foreground/40">|</span>
                                 </span>
                             )}
                         </span>
