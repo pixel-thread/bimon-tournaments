@@ -810,7 +810,7 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                             </div>
                         ) : (
                             /* Transactions tab */
-                            <div className="space-y-1">
+                            <div className="space-y-1 max-h-[50vh] overflow-y-auto">
                                 {txLoading ? (
                                     <div className="space-y-2">
                                         {[1, 2, 3, 4, 5].map((i) => (
