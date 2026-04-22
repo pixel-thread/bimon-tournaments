@@ -42,6 +42,7 @@ interface SquadCenterProps {
     entryFee: number;
     currentPlayerId: string;
     theme?: PollTheme | null;
+    hasVotedIn?: boolean;
 }
 
 /* ─── Status Badge ──────────────────────────────────────────── */
@@ -500,6 +501,7 @@ export function SquadCenter({
     entryFee,
     currentPlayerId,
     theme,
+    hasVotedIn,
 }: SquadCenterProps) {
     const [showCreate, setShowCreate] = useState(false);
     const { data: squads, isLoading, refetch } = useSquads(pollId);
@@ -529,6 +531,11 @@ export function SquadCenter({
     }
 
     function handleRequestJoin(squadId: string) {
+        if (hasVotedIn) {
+            if (!window.confirm("You have an individual vote on this poll. Joining a squad will remove it and place you in the squad instead. Continue?")) {
+                return;
+            }
+        }
         requestJoinMutation.mutate(squadId);
     }
 

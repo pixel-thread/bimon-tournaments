@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         const playerName = user.player.displayName;
         const tournamentName = squad.poll.tournament?.name ?? "tournament";
 
-        // Create join request + notify captain
+        // Create join request + remove individual vote + notify captain
         await prisma.$transaction(async (tx) => {
             if (existingInvite) {
                 // Re-request after a decline
@@ -131,6 +131,11 @@ export async function POST(request: NextRequest) {
                     },
                 });
             }
+
+            // Remove individual poll vote — player is now in a squad request
+            await tx.playerPollVote.deleteMany({
+                where: { playerId, pollId: squad.poll.id },
+            });
 
             // Notify captain
             await tx.notification.create({

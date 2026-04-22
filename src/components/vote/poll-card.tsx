@@ -1035,6 +1035,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             entryFee={entryFee}
                             currentPlayerId={currentPlayerId ?? ""}
                             theme={theme}
+                            hasVotedIn={poll.userVote === "IN" || poll.userVote === "SOLO"}
                         />
                         <CreateSquadModal
                             isOpen={showCreateSquad}
