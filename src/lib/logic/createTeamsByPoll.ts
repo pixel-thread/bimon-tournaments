@@ -387,7 +387,7 @@ export async function createTeamsByPoll({
         playersForTeams = shuffle(playersForTeams);
 
         const teamCount = Math.floor(playersForTeams.length / groupSize);
-        if (teamCount === 0 && soloPlayers.length === 0) {
+        if (teamCount === 0 && soloPlayers.length === 0 && squadTeams.length === 0) {
             throw new Error("Not enough players to form teams.");
         }
 
