@@ -226,7 +226,7 @@ export function SlotsModal({
                 {/* Main Content */}
                 <div
                     id="teams-list-content"
-                    className="relative w-full min-h-screen flex items-start justify-center bg-cover bg-center pt-6"
+                    className="relative w-full min-h-screen flex items-start justify-center bg-cover bg-center py-10 sm:py-14"
                     style={{ backgroundImage: `url(${backgroundImage})` }}
                 >
                     {/* Gradient overlay */}
@@ -256,16 +256,16 @@ export function SlotsModal({
                             <table className="w-full">
                                 <thead>
                                     <tr className="bg-zinc-800/80 border-b border-white/10">
-                                        <th className="px-2 py-2 text-center text-sm font-semibold text-zinc-300">
+                                        <th className="px-3 py-2.5 text-center text-sm font-semibold text-zinc-300">
                                             Slot No
                                         </th>
                                         {hasSquadTeams && (
-                                            <th className="px-2 py-2 text-center text-sm font-semibold text-zinc-300">
+                                            <th className="px-3 py-2.5 text-center text-sm font-semibold text-zinc-300">
                                                 Team Name
                                             </th>
                                         )}
                                         {Array.from({ length: maxPlayers }, (_, i) => (
-                                            <th key={i} className="px-2 py-2 text-center text-sm font-semibold text-zinc-300">
+                                            <th key={i} className="px-3 py-2.5 text-center text-sm font-semibold text-zinc-300">
                                                 Player {i + 1}
                                             </th>
                                         ))}
@@ -286,20 +286,20 @@ export function SlotsModal({
                                                 key={team.id || index}
                                                 className={`border-b border-white/5 ${index % 2 === 0 ? "bg-zinc-900/40" : "bg-zinc-800/30"} hover:bg-zinc-700/40 transition-colors`}
                                             >
-                                                <td className="px-2 py-1.5 text-center text-sm font-medium text-zinc-400">
+                                                <td className="px-3 py-2 text-center text-sm font-medium text-zinc-400">
                                                     {index + 2}
                                                 </td>
                                                 {hasSquadTeams && (
-                                                    <td className="px-2 py-1.5 text-center text-sm font-medium text-orange-400/80">
+                                                    <td className="px-3 py-2 text-center text-sm font-medium text-orange-400/80">
                                                         {team.name}
                                                     </td>
                                                 )}
                                                 {paddedPlayers.map((playerName, pi) => (
                                                     <td
                                                         key={pi}
-                                                        className="px-2 py-1.5 text-center text-sm text-white"
+                                                        className={`px-3 py-2 text-center text-sm ${playerName ? "text-white" : "text-zinc-600"}`}
                                                     >
-                                                        {playerName}
+                                                        {playerName || "—"}
                                                     </td>
                                                 ))}
                                             </tr>
