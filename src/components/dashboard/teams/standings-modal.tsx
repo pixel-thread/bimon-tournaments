@@ -499,6 +499,8 @@ function PositionChangeIndicator({ change }: { change: number }) {
 // ── Standings Table (two-column on large screens) ─────────────
 
 function StandingsTable({ standings }: { standings: StandingRow[] }) {
+    // Detect if any team has a custom (squad) name
+    const hasSquadTeams = standings.some((r) => !/^Team \d+$/i.test(r.teamName));
     const renderTable = (slice: StandingRow[], startIndex: number) => (
         <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm">
             <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
@@ -542,7 +544,7 @@ function StandingsTable({ standings }: { standings: StandingRow[] }) {
                                 <td className="px-1 py-1 text-left align-middle">
                                     <div className="flex flex-col min-h-[28px] justify-center">
                                         <span className={`text-[11px] leading-tight font-semibold ${rank <= 3 ? "text-white" : "text-zinc-300"}`} style={{ wordBreak: "break-word" }}>
-                                            {row.playerNames.join(", ")}
+                                            {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
                                         </span>
                                         {row.wins > 0 && (
                                             <span className="text-[9px] mt-0.5 text-yellow-400">
@@ -584,7 +586,7 @@ function StandingsTable({ standings }: { standings: StandingRow[] }) {
                                 <div className="flex items-center gap-2">
                                     <div className="team-name-marquee flex-1 min-w-0">
                                         <span className={`marquee-inner text-sm font-semibold whitespace-nowrap ${rank <= 3 ? "text-white" : "text-zinc-200"}`}>
-                                            {row.playerNames.join(", ")}
+                                            {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
                                         </span>
                                     </div>
                                     {row.wins > 0 && (
