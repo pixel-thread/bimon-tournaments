@@ -253,6 +253,9 @@ export function SlotsModal({
                                         <th className="px-2 py-2 text-center text-sm font-semibold text-zinc-300">
                                             Slot No
                                         </th>
+                                        <th className="px-2 py-2 text-center text-sm font-semibold text-zinc-300">
+                                            Team Name
+                                        </th>
                                         {Array.from({ length: maxPlayers }, (_, i) => (
                                             <th key={i} className="px-2 py-2 text-center text-sm font-semibold text-zinc-300">
                                                 Player {i + 1}
@@ -277,6 +280,9 @@ export function SlotsModal({
                                             >
                                                 <td className="px-2 py-1.5 text-center text-sm font-medium text-zinc-400">
                                                     {index + 2}
+                                                </td>
+                                                <td className="px-2 py-1.5 text-center text-sm font-medium text-orange-400/80">
+                                                    {team.name}
                                                 </td>
                                                 {paddedPlayers.map((playerName, pi) => (
                                                     <td
