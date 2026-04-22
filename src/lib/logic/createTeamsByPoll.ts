@@ -523,6 +523,8 @@ export async function createTeamsByPoll({
 
                 playersToChargeList = allPlayers.filter(
                     (player) =>
+                        // Exclude squad members — captains pay full fee separately
+                        !squadPlayerIds.has(player.id) &&
                         // UC exempt doesn't apply in squad polls — everyone pays their share
                         (!player.isUCExempt || pollAllowSquads) &&
                         player.id !== luckyVoterId &&
