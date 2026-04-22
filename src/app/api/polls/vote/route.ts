@@ -384,3 +384,37 @@ export async function POST(request: NextRequest) {
         return ErrorResponse({ message: "Failed to cast vote", error });
     }
 }
+
+/**
+ * DELETE /api/polls/vote
+ * Secret unvote — removes the player's vote entirely.
+ * Body: { pollId }
+ */
+export async function DELETE(request: NextRequest) {
+    try {
+        const userId = await getAuthEmail();
+        if (!userId) return ErrorResponse({ message: "Unauthorized", status: 401 });
+
+        const body = await request.json();
+        const { pollId } = body as { pollId: string };
+        if (!pollId) return ErrorResponse({ message: "pollId required", status: 400 });
+
+        const user = await prisma.user.findFirst({
+            where: userWhereEmail(userId),
+            select: { player: { select: { id: true } } },
+        });
+        if (!user?.player) return ErrorResponse({ message: "Player not found", status: 404 });
+
+        const deleted = await prisma.playerPollVote.deleteMany({
+            where: { playerId: user.player.id, pollId },
+        });
+
+        if (deleted.count === 0) {
+            return ErrorResponse({ message: "No vote found", status: 404 });
+        }
+
+        return SuccessResponse({ message: "Vote removed" });
+    } catch (error) {
+        return ErrorResponse({ message: "Failed to remove vote", error });
+    }
+}

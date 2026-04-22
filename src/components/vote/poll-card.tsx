@@ -196,6 +196,7 @@ function PollOptionRow({
     theme,
     currentPlayerId,
     onClick,
+    onLongPress,
 }: {
     label: string;
     isSelected: boolean;
@@ -207,7 +208,26 @@ function PollOptionRow({
     theme: PollTheme | null;
     currentPlayerId?: string;
     onClick: () => void;
+    onLongPress?: () => void;
 }) {
+    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+    const didLongPress = useRef(false);
+
+    const startPress = () => {
+        if (!isSelected || !onLongPress) return;
+        didLongPress.current = false;
+        longPressTimer.current = setTimeout(() => {
+            didLongPress.current = true;
+            onLongPress();
+        }, 3000);
+    };
+    const cancelPress = () => {
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    };
+    const handleClick = () => {
+        if (didLongPress.current) { didLongPress.current = false; return; }
+        onClick();
+    };
     // Put current user first so their avatar always shows
     const displayVoters = useMemo(() => {
         if (!currentPlayerId || voters.length === 0) return voters;
@@ -218,7 +238,13 @@ function PollOptionRow({
     return (
         <button
             type="button"
-            onClick={onClick}
+            onClick={handleClick}
+            onTouchStart={startPress}
+            onTouchEnd={cancelPress}
+            onTouchCancel={cancelPress}
+            onMouseDown={startPress}
+            onMouseUp={cancelPress}
+            onMouseLeave={cancelPress}
             disabled={isLoading || disabled}
             className={`
                 w-full text-left relative overflow-hidden group py-4 px-4 rounded-xl border-2
@@ -592,6 +618,20 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     // Squad data for vote warning (only fetched for squad polls)
     const { data: squadsData } = useSquads(poll.allowSquads ? poll.id : undefined);
 
+    // Secret unvote: 3s long-press on selected option
+    const handleUnvote = useCallback(async () => {
+        try {
+            const res = await fetch("/api/polls/vote", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pollId: poll.id }),
+            });
+            if (res.ok) {
+                onRefetch?.();
+            }
+        } catch { /* silent */ }
+    }, [poll.id, onRefetch]);
+
     // Check if current player has any pending captain-initiated invite
     const hasPendingSquadInvite = !!(squadsData && currentPlayerId && squadsData.some(s =>
         s.members.some(m => m.playerId === currentPlayerId && m.status === "PENDING" && m.initiatedBy === "CAPTAIN")
@@ -873,6 +913,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     }
                                     if (poll.userVote !== opt.vote) onVote(poll.id, opt.vote);
                                 }}
+                                onLongPress={poll.userVote === opt.vote ? handleUnvote : undefined}
                             />
                         ))}
 
