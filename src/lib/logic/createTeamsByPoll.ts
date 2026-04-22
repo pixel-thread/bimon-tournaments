@@ -35,6 +35,8 @@ type Props = {
 type DryRunData = {
     teams: TeamStats[];
     tournamentName: string;
+    squadPlayerIds: Set<string>;
+    squadCaptainIds: Set<string>;
 };
 
 export type CreateTeamsByPollsResult = {
@@ -438,7 +440,7 @@ export async function createTeamsByPoll({
             entryFeeCharged: entryFee,
             squadsRegistered,
             squadsCancelled,
-            dryRunData: { teams, tournamentName },
+            dryRunData: { teams, tournamentName, squadPlayerIds, squadCaptainIds: new Set(squadPlayersToCharge.map(p => p.id)) },
         };
     }
 

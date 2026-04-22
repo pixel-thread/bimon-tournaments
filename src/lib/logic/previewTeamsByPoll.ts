@@ -121,10 +121,22 @@ export async function previewTeamsByPoll({
     });
 
     // Find players with insufficient balance
+    // Squad members don't pay — only the captain pays the full team fee
+    const { squadPlayerIds, squadCaptainIds } = dryRunResult.dryRunData;
     const playersWithInsufficientBalance = entryFee > 0
         ? teamPreviews
             .flatMap((t) => t.players)
-            .filter((p) => p.balance < entryFee)
+            .filter((p) => {
+                if (squadPlayerIds.has(p.id)) {
+                    // Squad captain pays full entry fee; other squad members don't pay
+                    if (squadCaptainIds.has(p.id)) {
+                        return p.balance < entryFee;
+                    }
+                    return false; // Non-captain squad members don't pay
+                }
+                // Regular players pay their per-player share
+                return p.balance < entryFee;
+            })
             .map((p) => ({ id: p.id, username: p.displayName || p.username, balance: p.balance }))
         : [];
 
