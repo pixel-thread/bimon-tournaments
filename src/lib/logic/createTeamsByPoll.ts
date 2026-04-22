@@ -205,9 +205,10 @@ export async function createTeamsByPoll({
         });
 
         for (const squad of squads) {
-            if (squad.status === "FULL") {
-                // Convert FULL squad to a premade team
-                const members = squad.invites.map((inv) => inv.player);
+            const members = squad.invites.map((inv) => inv.player);
+
+            if (members.length > 0) {
+                // Process squad with its ACCEPTED members (pending are already excluded by query)
                 const totalKills = members.reduce((sum, p) => {
                     const stats = p.stats?.find((s: any) => s.seasonId === seasonId);
                     return sum + (stats?.kills ?? 0);
@@ -240,7 +241,7 @@ export async function createTeamsByPoll({
                 }
                 squadsRegistered++;
             } else {
-                // Cancel FORMING squads — fees were only reserved, nothing to refund
+                // No accepted members — cancel the squad
                 if (!dryRun) {
                     await prisma.squad.update({
                         where: { id: squad.id },
