@@ -92,11 +92,12 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "You already have a pending invite or are already in this squad", status: 400 });
         }
 
-        // Not in another squad for this poll
+        // Block if already accepted into another squad for this poll
+        // (PENDING requests to other squads are allowed — they'll be cleaned up on accept)
         const inOtherSquad = await prisma.squadInvite.findFirst({
             where: {
                 playerId,
-                status: { in: ["PENDING", "ACCEPTED"] },
+                status: "ACCEPTED",
                 squad: {
                     pollId: squad.poll.id,
                     status: { in: ["FORMING", "FULL"] },

@@ -107,6 +107,20 @@ export async function POST(request: NextRequest) {
                     where: { pollId: invite.squad.poll.id, playerId: invite.playerId },
                 });
 
+                // Auto-decline all other PENDING requests/invites from this player for the same poll
+                await tx.squadInvite.updateMany({
+                    where: {
+                        playerId: invite.playerId,
+                        status: "PENDING",
+                        id: { not: inviteId },
+                        squad: {
+                            pollId: invite.squad.poll.id,
+                            status: { in: ["FORMING", "FULL"] },
+                        },
+                    },
+                    data: { status: "DECLINED", respondedAt: new Date() },
+                });
+
                 // Notify the player
                 await tx.notification.create({
                     data: {
