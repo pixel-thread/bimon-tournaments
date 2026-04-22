@@ -216,7 +216,8 @@ function SquadCard({
                         <div className="px-4 py-3 space-y-2 border-t border-divider/50">
                             {squad.members.map((member) => {
                                 const isMemberCaptain = member.playerId === squad.captain.id;
-                                const showRemove = isCaptain && !isMemberCaptain && member.status === "ACCEPTED" && pollIsActive;
+                                const showRemove = isCaptain && !isMemberCaptain && pollIsActive &&
+                                    (member.status === "ACCEPTED" || (member.status === "PENDING" && member.initiatedBy === "CAPTAIN"));
                                 return (
                                     <div key={member.inviteId} className="flex items-center gap-3">
                                         <Avatar

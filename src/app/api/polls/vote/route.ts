@@ -113,6 +113,27 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Block OUT vote if player is in an accepted squad
+        if (poll.allowSquads && vote === "OUT") {
+            const acceptedSquad = await prisma.squadInvite.findFirst({
+                where: {
+                    playerId: user.player.id,
+                    status: "ACCEPTED",
+                    squad: {
+                        pollId,
+                        status: { in: ["FORMING", "FULL"] },
+                    },
+                },
+                include: { squad: { select: { name: true } } },
+            });
+            if (acceptedSquad) {
+                return ErrorResponse({
+                    message: `⚠️ You're in squad "${acceptedSquad.squad.name}". Leave the squad first to vote out.`,
+                    status: 400,
+                });
+            }
+        }
+
         // Balance gate for IN/SOLO votes — uses AVAILABLE balance (total − reserved)
         // Trusted:  can go negative down to -200 (extended credit for loyal players)
         // PLAYER:   can vote at 0 balance (one free chance) but blocked once negative
