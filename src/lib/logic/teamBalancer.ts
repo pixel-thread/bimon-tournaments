@@ -7,6 +7,7 @@ export type TeamStats = {
   totalDeaths: number;
   totalWins: number;
   weightedScore: number;
+  squadName?: string; // Custom name from squad, used for slot export
 };
 
 // ─── Helper: get player's weighted score ────────────────────

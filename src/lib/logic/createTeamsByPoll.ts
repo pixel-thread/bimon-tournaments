@@ -222,6 +222,7 @@ export async function createTeamsByPoll({
                     totalDeaths: 0,
                     totalWins: 0,
                     weightedScore: 0, // premade teams don't need balancing
+                    squadName: squad.name,
                 });
 
                 for (const m of members) {
@@ -465,7 +466,7 @@ export async function createTeamsByPoll({
                     const teamIdx = i + batchIdx;
                     return tx.team.create({
                         data: {
-                            name: `Team ${teamIdx + 1}`,
+                            name: t.squadName || `Team ${teamIdx + 1}`,
                             teamNumber: teamIdx + 1,
                             tournamentId,
                             seasonId,
