@@ -152,11 +152,11 @@ export default function ProfilePage() {
     const [showLocationModal, setShowLocationModal] = useState(false);
     const [statsMode, setStatsMode] = useState<"casual" | "ranked">("casual");
 
-    const PROFILE_CACHE_KEY = "profile_cache";
+    const getProfileCacheKey = (mode: string) => `profile_cache_${mode}`;
 
-    const getCachedProfile = (): ProfileData | undefined => {
+    const getCachedProfile = (mode: string): ProfileData | undefined => {
         try {
-            const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+            const raw = localStorage.getItem(getProfileCacheKey(mode));
             if (raw) return JSON.parse(raw);
         } catch {}
         return undefined;
@@ -169,12 +169,12 @@ export default function ProfilePage() {
             if (!res.ok) throw new Error("Failed to fetch profile");
             const json = await res.json();
             const data = json.data;
-            // Persist to localStorage for instant load next time
-            try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(data)); } catch {}
+            // Persist to localStorage per mode for instant load next time
+            try { localStorage.setItem(getProfileCacheKey(statsMode), JSON.stringify(data)); } catch {}
             return data;
         },
         staleTime: 5 * 60 * 1000,
-        initialData: getCachedProfile,
+        initialData: () => getCachedProfile(statsMode),
     });
 
     const [onCooldown, setOnCooldown] = useState(false);
@@ -619,7 +619,7 @@ export default function ProfilePage() {
                 {/* ── Stats Section ── */}
                 {stats && (
                     <Card className="border border-divider overflow-hidden">
-                        <CardBody className="p-4 space-y-4">
+                        <CardBody className={`p-4 space-y-4 transition-opacity duration-200 ${isFetching ? "opacity-40" : "opacity-100"}`}>
                             {/* Featured Stat — K/D for BR, Win Rate for bracket games */}
                             <div className="text-center">
                                 <div className="flex items-center justify-center gap-2 mb-1">
@@ -628,7 +628,7 @@ export default function ProfilePage() {
                                     </p>
                                 </div>
                                 <div className="flex items-baseline justify-center gap-2">
-                                    <span className="text-4xl font-bold game-gradient-text">
+                                    <span className="text-4xl font-bold" style={{ color: 'var(--game-primary-dark, var(--game-primary))' }}>
                                         {GAME.features.hasBR
                                             ? stats.kd.toFixed(2)
                                             : stats.matches > 0 ? `${stats.winRate}%` : "—"}

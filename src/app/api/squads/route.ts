@@ -175,6 +175,21 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Check: max squads limit for this poll
+        const activeSquadCount = await prisma.squad.count({
+            where: {
+                pollId,
+                status: { in: ["FORMING", "FULL"] },
+            },
+        });
+
+        if (activeSquadCount >= GAME.maxSquadTeams) {
+            return ErrorResponse({
+                message: `Maximum ${GAME.maxSquadTeams} squads reached for this match. No more squads can be created.`,
+                status: 400,
+            });
+        }
+
         // Check: not already captain or member of another squad for this poll
         const existingSquad = await prisma.squad.findFirst({
             where: {
