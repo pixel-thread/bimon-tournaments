@@ -165,23 +165,37 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
     const teamCount = teamMap.size;
     const avgTeamSize = teamCount > 0 ? Math.round(allPlayerIds.size / teamCount) : 2;
 
-    const donations = await prisma.prizePoolDonation.findMany({
-        where: { tournamentId },
-        select: { amount: true },
-    });
+    const [donations, pollForTournament] = await Promise.all([
+        prisma.prizePoolDonation.findMany({
+            where: { tournamentId },
+            select: { amount: true },
+        }),
+        prisma.poll.findUnique({
+            where: { tournamentId },
+            select: { allowSquads: true },
+        }),
+    ]);
     const totalDonations = donations.reduce((sum: number, d: { amount: number }) => sum + d.amount, 0);
+    const isSquadTournament = pollForTournament?.allowSquads ?? false;
+    const entryFee = tournament.fee ?? 0;
+    // Squad tournaments: captain pays per team, not per player
+    const prizePool = isSquadTournament
+        ? (entryFee * teamCount) + totalDonations
+        : (entryFee * allPlayerIds.size) + totalDonations;
 
     return NextResponse.json({
         success: true,
         data: rankings,
         meta: {
-            entryFee: tournament.fee ?? 0,
+            entryFee,
             totalPlayers: allPlayerIds.size,
-            prizePool: ((tournament.fee ?? 0) * allPlayerIds.size) + totalDonations,
+            teamCount,
+            prizePool,
             donations: totalDonations,
+            isSquadTournament,
             teamType: avgTeamSize === 1 ? "SOLO" : avgTeamSize === 2 ? "DUO" : avgTeamSize === 3 ? "TRIO" : "SQUAD",
             isWinnerDeclared: tournament.isWinnerDeclared,
-            ucExemptCount: ucExemptPlayerIds.size,
+            ucExemptCount: isSquadTournament ? 0 : ucExemptPlayerIds.size,
         },
     });
 }

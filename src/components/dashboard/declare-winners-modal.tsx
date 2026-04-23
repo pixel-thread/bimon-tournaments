@@ -37,10 +37,12 @@ type TeamRanking = {
 type RankingsMeta = {
     entryFee: number;
     totalPlayers: number;
+    teamCount?: number;
     prizePool: number;
     teamType: string;
     isWinnerDeclared: boolean;
     ucExemptCount: number;
+    isSquadTournament?: boolean;
 };
 
 type TaxPreviewData = Record<string, {
@@ -224,6 +226,8 @@ export function DeclareWinnersModal({
     const meta = rankingsData?.meta;
     const entryFee = meta?.entryFee ?? 0;
     const totalPlayers = meta?.totalPlayers ?? 0;
+    const teamCount = meta?.teamCount ?? 0;
+    const isSquadTournament = meta?.isSquadTournament ?? false;
     const teamSize = getTeamSize(meta?.teamType ?? "DUO");
     const ucExemptCount = meta?.ucExemptCount ?? 0;
 
@@ -838,8 +842,8 @@ export function DeclareWinnersModal({
                                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                                                 <span className="text-foreground/40">Entry Fee:</span>
                                                 <span className="font-medium">₹{entryFee}</span>
-                                                <span className="text-foreground/40">Players:</span>
-                                                <span className="font-medium">{totalPlayers}</span>
+                                                <span className="text-foreground/40">{isSquadTournament ? "Teams:" : "Players:"}</span>
+                                                <span className="font-medium">{isSquadTournament ? teamCount : totalPlayers}</span>
                                                 {bonusPool > 0 && (
                                                     <>
                                                         <span className="text-foreground/40">Base Pool:</span>

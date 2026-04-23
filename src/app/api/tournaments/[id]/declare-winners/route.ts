@@ -201,7 +201,10 @@ export async function POST(
         const allPlayerIds = new Set<string>();
         let ucExemptCount = 0;
         for (const team of teamMap.values()) {
-            for (const p of team.players) { allPlayerIds.add(p.playerId); if (p.isUCExempt) ucExemptCount++; }
+            for (const p of team.players) {
+                allPlayerIds.add(p.playerId);
+                if (!isSquadTournament && p.isUCExempt) ucExemptCount++;
+            }
         }
 
         const entryFee = tournament.fee ?? 0;
