@@ -43,6 +43,7 @@ type RankingsMeta = {
     isWinnerDeclared: boolean;
     ucExemptCount: number;
     isSquadTournament?: boolean;
+    captainMap?: Record<string, { id: string; name: string }>;
 };
 
 type TaxPreviewData = Record<string, {
@@ -228,6 +229,7 @@ export function DeclareWinnersModal({
     const totalPlayers = meta?.totalPlayers ?? 0;
     const teamCount = meta?.teamCount ?? 0;
     const isSquadTournament = meta?.isSquadTournament ?? false;
+    const captainMap = meta?.captainMap ?? {};
     const teamSize = getTeamSize(meta?.teamType ?? "DUO");
     const ucExemptCount = meta?.ucExemptCount ?? 0;
 
@@ -476,6 +478,15 @@ export function DeclareWinnersModal({
                     amount: bracketAmounts[idx] ?? 0,
                     ...(GAME.hasDualCurrency ? { diamondAmount: diamondAmounts[idx] ?? 0 } : {}),
                 }));
+            } else if (isSquadTournament) {
+                // Squad: full team amount goes to captain
+                placements = rankings.slice(0, placementCount).map((team, i) => {
+                    const pos = i + 1;
+                    const teamAmount = baseDist?.prizes.get(pos)?.amount ?? 0;
+                    const captain = captainMap[team.teamId];
+                    const captainId = captain?.id || team.players?.[0]?.id || "";
+                    return { position: pos, amount: teamAmount, teamId: team.teamId, players: [{ playerId: captainId, amount: teamAmount }] };
+                });
             } else {
                 // BGMI: build placements with exact per-player amounts from preview
                 placements = rankings.slice(0, placementCount).map((team, i) => {
@@ -561,7 +572,8 @@ export function DeclareWinnersModal({
     const renderTeamCard = (team: TeamRanking, idx: number, detailed: boolean) => {
         const playerCount = team.players?.length || 0;
         const teamPrize = baseDist?.prizes.get(idx + 1)?.amount ?? 0;
-        const perPlayer = getPerPlayerAmount(idx + 1, playerCount);
+        const perPlayer = isSquadTournament ? teamPrize : getPerPlayerAmount(idx + 1, playerCount);
+        const captain = captainMap[team.teamId];
 
         return (
             <div
@@ -576,7 +588,9 @@ export function DeclareWinnersModal({
                     <span className="text-xl shrink-0">{getMedal(idx)}</span>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">
-                            {team.players?.map(p => p.name).join(", ") || team.name || "No players"}
+                            {isSquadTournament && team.name
+                                ? team.name
+                                : team.players?.map(p => p.name).join(", ") || team.name || "No players"}
                         </p>
                         <p className="text-xs text-foreground/40">
                             {team.total} pts • {team.kills} kills
@@ -587,9 +601,11 @@ export function DeclareWinnersModal({
                             <Chip size="sm" color="success" variant="flat" className="font-semibold">
                                 ₹{teamPrize.toLocaleString()}
                             </Chip>
-                            {playerCount > 1 && (
+                            {isSquadTournament && captain ? (
+                                <p className="text-[10px] text-foreground/30 mt-0.5">→ {captain.name}</p>
+                            ) : playerCount > 1 ? (
                                 <p className="text-[10px] text-foreground/30 mt-0.5">₹{perPlayer}/player</p>
-                            )}
+                            ) : null}
                         </div>
                     )}
                 </div>
@@ -599,7 +615,40 @@ export function DeclareWinnersModal({
                     <div className="mt-2 pt-2 border-t border-dashed border-divider space-y-1.5">
                         {taxLoading && !isWinnerDeclared ? (
                             <div className="flex justify-center py-1"><Spinner size="sm" /></div>
+                        ) : isSquadTournament ? (
+                            /* Squad mode: show players for tracking only (wins, attendance) — no per-player amounts */
+                            team.players?.map(p => {
+                                const tax = taxPreview[p.id];
+                                const isCaptain = captain?.id === p.id;
+                                return (
+                                    <div key={p.id} className="text-xs">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className={`font-medium ${isCaptain ? "text-warning" : ""}`}>
+                                                    {p.name}{isCaptain ? " 👑" : ""}
+                                                </span>
+                                                {tax && tax.totalMatches > 0 && (
+                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                                        tax.participationRate >= 1 ? "bg-success/10 text-success" :
+                                                        tax.participationRate >= 0.5 ? "bg-warning/10 text-warning" :
+                                                        "bg-danger/10 text-danger"
+                                                    }`}>
+                                                        {tax.matchesPlayed}/{tax.totalMatches} matches
+                                                    </span>
+                                                )}
+                                                {tax?.repeatWinnerTaxRate && tax.repeatWinnerTaxRate > 0 && (
+                                                    <span className="text-warning text-[10px]">🔄 {tax.totalWins} wins</span>
+                                                )}
+                                            </div>
+                                            {isCaptain && (
+                                                <span className="text-[10px] text-success font-medium">₹{teamPrize}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })
                         ) : (
+                            /* Regular mode: show per-player amounts with participation adjustments */
                             team.players?.map(p => {
                                 // If already declared, use stored amounts from DB
                                 if (isWinnerDeclared && storedAmounts.size > 0) {
@@ -933,19 +982,25 @@ export function DeclareWinnersModal({
                                                         <span className="text-xl shrink-0">{getMedal(idx)}</span>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm font-medium truncate">
-                                                                {winner.players.map(p => p.displayName || p.username).join(", ")}
+                                                                {isSquadTournament
+                                                                    ? winner.teamName
+                                                                    : winner.players.map(p => p.displayName || p.username).join(", ")}
                                                             </p>
-                                                            <p className="text-xs text-foreground/40">{winner.teamName}</p>
+                                                            <p className="text-xs text-foreground/40">{isSquadTournament ? winner.players.map(p => p.displayName || p.username).join(", ") : winner.teamName}</p>
                                                         </div>
                                                         <div className="text-right shrink-0">
                                                             <Chip size="sm" color="success" variant="flat" className="font-semibold">
                                                                 ₹{winner.amount.toLocaleString()}
                                                             </Chip>
-                                                            {winner.players.length > 1 && (
+                                                            {isSquadTournament ? (
+                                                                captainMap[winner.teamId] && (
+                                                                    <p className="text-[10px] text-foreground/30 mt-0.5">→ {captainMap[winner.teamId].name}</p>
+                                                                )
+                                                            ) : winner.players.length > 1 ? (
                                                                 <p className="text-[10px] text-foreground/30 mt-0.5">
                                                                     ₹{Math.floor(winner.amount / winner.players.length)}/player
                                                                 </p>
-                                                            )}
+                                                            ) : null}
                                                         </div>
                                                     </div>
                                                     {/* Per-player stored amounts */}

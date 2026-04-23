@@ -248,7 +248,7 @@ export async function POST(
 
         // Step 2: Batch-fetch all tax data using flat matchId filter (works for migrated data)
         const [playerWinCounts, playerMatchCounts, teamPlayerData] = await Promise.all([
-            getPlayerRecentWins(allWinningPlayerIds, tournament.seasonId || "", 6),
+            getPlayerRecentWins(allWinningPlayerIds, tournament.seasonId || "", 6, undefined, isSquadTournament),
             prisma.teamPlayerStats.groupBy({
                 by: ["playerId"],
                 where: { playerId: { in: allWinningPlayerIds }, matchId: { in: matchIds }, present: true },
@@ -944,13 +944,19 @@ function getOrdinal(n: number): string {
 /** Count recent wins per player in last N season tournaments */
 async function getPlayerRecentWins(
     playerIds: string[], seasonId: string, limit: number,
-    excludeTournamentId?: string
+    excludeTournamentId?: string, isSquadMode?: boolean
 ): Promise<Map<string, number>> {
     if (!playerIds.length) return new Map();
 
-    const where: { isWinnerDeclared: boolean; seasonId?: string; id?: { not: string } } = { isWinnerDeclared: true };
+    const where: Record<string, unknown> = { isWinnerDeclared: true };
     if (seasonId) where.seasonId = seasonId;
     if (excludeTournamentId) where.id = { not: excludeTournamentId };
+    // Filter by mode: only count wins from same tournament type
+    if (isSquadMode === true) {
+        where.poll = { allowSquads: true };
+    } else if (isSquadMode === false) {
+        where.poll = { allowSquads: false };
+    }
 
     const recent = await prisma.tournament.findMany({
         where,

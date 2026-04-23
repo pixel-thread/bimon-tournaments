@@ -46,17 +46,24 @@ export async function GET(
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
-        // Step 1: Get match IDs for this tournament
-        const matchIds = (await prisma.match.findMany({
-            where: { tournamentId: id },
-            select: { id: true },
-        })).map(m => m.id);
+        // Step 1: Get match IDs and poll data for this tournament
+        const [matchesRaw, pollForTournament] = await Promise.all([
+            prisma.match.findMany({
+                where: { tournamentId: id },
+                select: { id: true },
+            }),
+            prisma.poll.findUnique({
+                where: { tournamentId: id },
+                select: { allowSquads: true, enableFund: true },
+            }),
+        ]);
+        const matchIds = matchesRaw.map(m => m.id);
 
         const totalMatches = matchIds.length;
 
         // Step 2: Parallel fetch using flat matchId filter (works for migrated data)
         const [recentWins, playerMatchCounts, teamPlayerData] = await Promise.all([
-            getPlayerRecentWins(playerIds, tournament.seasonId || "", 6, id),
+            getPlayerRecentWins(playerIds, tournament.seasonId || "", 6, id, pollForTournament?.allowSquads),
             // Count matches per player using flat matchId filter (no nested relation)
             prisma.teamPlayerStats.groupBy({
                 by: ["playerId"],
@@ -114,10 +121,6 @@ export async function GET(
 
         // Check if fund is enabled (poll-level override for squad tournaments)
         const settings = await getSettings();
-        const pollForTournament = await prisma.poll.findUnique({
-            where: { tournamentId: id },
-            select: { allowSquads: true, enableFund: true },
-        });
         const enableFund = pollForTournament?.allowSquads
             ? (pollForTournament.enableFund ?? false)
             : (settings.enableFund ?? false);
@@ -187,13 +190,19 @@ export async function GET(
 // Reuse the same logic from declare-winners
 async function getPlayerRecentWins(
     playerIds: string[], seasonId: string, limit: number,
-    excludeTournamentId?: string
+    excludeTournamentId?: string, isSquadMode?: boolean
 ): Promise<Map<string, number>> {
     if (!playerIds.length) return new Map();
 
-    const where: { isWinnerDeclared: boolean; seasonId?: string; id?: { not: string } } = { isWinnerDeclared: true };
+    const where: Record<string, unknown> = { isWinnerDeclared: true };
     if (seasonId) where.seasonId = seasonId;
     if (excludeTournamentId) where.id = { not: excludeTournamentId };
+    // Filter by mode: only count wins from same tournament type
+    if (isSquadMode === true) {
+        where.poll = { allowSquads: true };
+    } else if (isSquadMode === false) {
+        where.poll = { allowSquads: false };
+    }
 
     const recent = await prisma.tournament.findMany({
         where,

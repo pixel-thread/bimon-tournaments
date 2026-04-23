@@ -172,7 +172,7 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
         }),
         prisma.poll.findUnique({
             where: { tournamentId },
-            select: { allowSquads: true },
+            select: { allowSquads: true, id: true },
         }),
     ]);
     const totalDonations = donations.reduce((sum: number, d: { amount: number }) => sum + d.amount, 0);
@@ -182,6 +182,34 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
     const prizePool = isSquadTournament
         ? (entryFee * teamCount) + totalDonations
         : (entryFee * allPlayerIds.size) + totalDonations;
+
+    // For squad tournaments: build captain map (teamId → captainId/captainName)
+    let captainMap: Record<string, { id: string; name: string }> = {};
+    if (isSquadTournament && pollForTournament) {
+        const squads = await prisma.squad.findMany({
+            where: { pollId: pollForTournament.id },
+            select: {
+                captainId: true,
+                captain: { select: { id: true, displayName: true, user: { select: { username: true } } } },
+                invites: {
+                    where: { status: "ACCEPTED" },
+                    select: { playerId: true },
+                },
+            },
+        });
+        // Map: for each squad member → find which team they're on → set captain
+        for (const squad of squads) {
+            const memberIds = squad.invites.map(i => i.playerId);
+            const captainName = squad.captain.displayName || squad.captain.user.username || "Captain";
+            for (const [teamId, team] of teamMap) {
+                const hasSquadMember = team.players.some(p => memberIds.includes(p.id));
+                if (hasSquadMember) {
+                    captainMap[teamId] = { id: squad.captainId, name: captainName };
+                    break;
+                }
+            }
+        }
+    }
 
     return NextResponse.json({
         success: true,
@@ -193,6 +221,7 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
             prizePool,
             donations: totalDonations,
             isSquadTournament,
+            captainMap,
             teamType: avgTeamSize === 1 ? "SOLO" : avgTeamSize === 2 ? "DUO" : avgTeamSize === 3 ? "TRIO" : "SQUAD",
             isWinnerDeclared: tournament.isWinnerDeclared,
             ucExemptCount: isSquadTournament ? 0 : ucExemptPlayerIds.size,
