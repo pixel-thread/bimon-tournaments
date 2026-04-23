@@ -27,6 +27,7 @@ function GameSection({ gameKey, label, icon: Icon, color }: {
     const queryClient = useQueryClient();
     const [rewards, setRewards] = useState<{ place: number; amount: string }[]>([{ place: 1, amount: "" }]);
     const [endDate, setEndDate] = useState("");
+    const [thresholdPct, setThresholdPct] = useState("2");
 
     // Fetch per-game settings
     const { data: settings } = useQuery({
@@ -67,6 +68,13 @@ function GameSection({ gameKey, label, icon: Icon, color }: {
         }
     }, [settings]);
 
+    // Sync threshold
+    useEffect(() => {
+        if (settings?.thresholdPct !== undefined) {
+            setThresholdPct(String(settings.thresholdPct));
+        }
+    }, [settings]);
+
     const updateRewardsMut = useMutation({
         mutationFn: async () => {
             const rewardMap: Record<string, number> = {};
@@ -81,6 +89,7 @@ function GameSection({ gameKey, label, icon: Icon, color }: {
                     game: gameKey,
                     rewards: rewardMap,
                     endDate: endDate ? new Date(endDate).toISOString() : "",
+                    thresholdPct: parseInt(thresholdPct) || 2,
                 }),
             });
         },
@@ -177,6 +186,15 @@ function GameSection({ gameKey, label, icon: Icon, color }: {
                         value={endDate}
                         onValueChange={setEndDate}
                         description="Countdown shown to players"
+                    />
+                    <Input
+                        label="Winner Threshold %"
+                        type="number"
+                        size="sm"
+                        value={thresholdPct}
+                        onValueChange={setThresholdPct}
+                        endContent={<span className="text-xs text-foreground/40">%</span>}
+                        description="After winning, player must beat their score + this % to rejoin leaderboard"
                     />
                     <Button color="primary" size="sm" onPress={() => updateRewardsMut.mutate()} isLoading={updateRewardsMut.isPending}>
                         Save

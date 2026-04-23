@@ -41,10 +41,16 @@ export async function GET(req: Request) {
         where: { key: `game_end_date_${gameKey}` },
     });
 
+    // Get threshold percentage
+    const thresholdSetting = await prisma.appSetting.findUnique({
+        where: { key: `game_threshold_pct_${gameKey}` },
+    });
+
     return NextResponse.json({
         rewards,
         scoreCount,
         endDate: endDateSetting?.value || "",
+        thresholdPct: thresholdSetting ? parseInt(thresholdSetting.value) : 2,
     });
 }
 
@@ -65,7 +71,7 @@ export async function POST(req: Request) {
     const prefix = `game_reward_${gk}_`;
 
     if (action === "updateRewards") {
-        const { rewards, endDate } = body as { rewards: Record<string, number>; endDate?: string };
+        const { rewards, endDate, thresholdPct } = body as { rewards: Record<string, number>; endDate?: string; thresholdPct?: number };
         for (const [position, amount] of Object.entries(rewards)) {
             await prisma.appSetting.upsert({
                 where: { key: `${prefix}${position}` },
@@ -79,6 +85,14 @@ export async function POST(req: Request) {
                 where: { key: `game_end_date_${gk}` },
                 create: { key: `game_end_date_${gk}`, value: endDate },
                 update: { value: endDate },
+            });
+        }
+        // Save threshold percentage
+        if (thresholdPct !== undefined) {
+            await prisma.appSetting.upsert({
+                where: { key: `game_threshold_pct_${gk}` },
+                create: { key: `game_threshold_pct_${gk}`, value: String(thresholdPct) },
+                update: { value: String(thresholdPct) },
             });
         }
         return NextResponse.json({ success: true });
@@ -125,8 +139,10 @@ export async function POST(req: Request) {
                 },
             });
 
-            // Set 2% threshold for next round
-            const newThreshold = Math.ceil(score.score * 1.02);
+            // Read configurable threshold percentage (default 2%)
+            const tSetting = await prisma.appSetting.findUnique({ where: { key: `game_threshold_pct_${gk}` } });
+            const pct = tSetting ? parseInt(tSetting.value) : 2;
+            const newThreshold = Math.ceil(score.score * (1 + pct / 100));
             await prisma.gameScoreThreshold.upsert({
                 where: { playerId_gameType: { playerId: score.playerId, gameType: gk } },
                 create: {
