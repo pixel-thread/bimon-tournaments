@@ -2,6 +2,7 @@ import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getAuthEmail } from "@/lib/auth";
 import { type NextRequest } from "next/server";
+import { getCategoryFromKDValue } from "@/lib/logic/categoryUtils";
 
 /**
  * GET /api/teams
@@ -31,39 +32,45 @@ export async function GET(request: NextRequest) {
             teamIdFilter = matchTeamStats.map(ts => ts.teamId);
         }
 
-        const teams = await prisma.team.findMany({
-            where: {
-                tournamentId,
-                ...(teamIdFilter ? { id: { in: teamIdFilter } } : {}),
-            },
-            include: {
-                players: {
-                    select: {
-                        id: true,
-                        displayName: true,
-                        customProfileImageUrl: true,
-                        user: {
-                            select: {
-                                username: true,
-                                imageUrl: true,
+        const [teams, poll] = await Promise.all([
+            prisma.team.findMany({
+                where: {
+                    tournamentId,
+                    ...(teamIdFilter ? { id: { in: teamIdFilter } } : {}),
+                },
+                include: {
+                    players: {
+                        select: {
+                            id: true,
+                            displayName: true,
+                            customProfileImageUrl: true,
+                            user: {
+                                select: {
+                                    username: true,
+                                    imageUrl: true,
+                                },
                             },
+                            category: true,
                         },
-                        category: true,
+                    },
+                    tournamentWinner: {
+                        select: {
+                            position: true,
+                            amount: true,
+                            isDistributed: true,
+                        },
+                    },
+                    _count: {
+                        select: { matches: true },
                     },
                 },
-                tournamentWinner: {
-                    select: {
-                        position: true,
-                        amount: true,
-                        isDistributed: true,
-                    },
-                },
-                _count: {
-                    select: { matches: true },
-                },
-            },
-            orderBy: { teamNumber: "asc" },
-        });
+                orderBy: { teamNumber: "asc" },
+            }),
+            prisma.poll.findUnique({
+                where: { tournamentId },
+                select: { allowSquads: true },
+            }),
+        ]);
 
         // For migrated teams where team.players is empty,
         // fetch players via TeamPlayerStats
@@ -104,6 +111,42 @@ export async function GET(request: NextRequest) {
             matchCountMap.set(tc.teamId, tc._count.matchId);
         }
 
+        // Compute dynamic categories based on tournament mode
+        // Collect all unique player IDs across all teams
+        const allPlayerIds = new Set<string>();
+        for (const team of teams) {
+            for (const p of team.players) allPlayerIds.add(p.id);
+        }
+        for (const ps of allPlayerStats) {
+            allPlayerIds.add(ps.playerId);
+        }
+
+        // Batch-compute K/D from mode-filtered stats (same logic as players API)
+        const dynamicCategoryMap = new Map<string, string>();
+        if (allPlayerIds.size > 0) {
+            const modeFilter: Record<string, unknown> = {
+                playerId: { in: Array.from(allPlayerIds) },
+            };
+            // Filter by mode: ranked (allowSquads=true) vs casual
+            if (poll?.allowSquads === true) {
+                modeFilter.match = { tournament: { poll: { allowSquads: true } } };
+            } else if (poll?.allowSquads === false) {
+                modeFilter.match = { tournament: { poll: { allowSquads: false } } };
+            }
+
+            const modeStats = await prisma.teamPlayerStats.groupBy({
+                by: ["playerId"],
+                where: modeFilter,
+                _count: { matchId: true },
+                _sum: { kills: true },
+            });
+
+            for (const s of modeStats) {
+                const kd = s._count.matchId > 0 ? (s._sum.kills ?? 0) / s._count.matchId : 0;
+                dynamicCategoryMap.set(s.playerId, getCategoryFromKDValue(kd));
+            }
+        }
+
         const data = teams.map((team) => {
             // Merge players: use team.players if available, otherwise from stats
             const directPlayers = team.players.map((p) => ({
@@ -111,7 +154,7 @@ export async function GET(request: NextRequest) {
                 displayName: p.displayName,
                 username: p.user.username,
                 imageUrl: p.customProfileImageUrl || p.user.imageUrl,
-                category: p.category,
+                category: dynamicCategoryMap.get(p.id) ?? p.category,
             }));
 
             let players = directPlayers;
@@ -127,7 +170,7 @@ export async function GET(request: NextRequest) {
                             displayName: sp.player.displayName,
                             username: sp.player.user.username,
                             imageUrl: sp.player.customProfileImageUrl || sp.player.user.imageUrl,
-                            category: sp.player.category,
+                            category: dynamicCategoryMap.get(sp.player.id) ?? sp.player.category,
                         });
                     }
                 }
