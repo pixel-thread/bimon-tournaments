@@ -31,7 +31,7 @@ const GAMES: GameMeta[] = [
     {
         id: "number-rush",
         name: "Number Rush",
-        tagline: "Tap 1→25 · Fastest time wins",
+        tagline: "Tap 1→30 · Fastest time wins",
         emoji: "⚡",
         href: "/games/number-rush",
         gradient: "linear-gradient(135deg, #d97706 0%, #f59e0b 40%, #fbbf24 100%)",
@@ -40,7 +40,7 @@ const GAMES: GameMeta[] = [
     },
 ];
 
-function GameCard({ game, index, stats }: { game: GameMeta; index: number; stats?: { players: number; topScore: number; prize: number } }) {
+function GameCard({ game, index, stats }: { game: GameMeta; index: number; stats?: { myBest: number; topScore: number; prize: number } }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -92,10 +92,10 @@ function GameCard({ game, index, stats }: { game: GameMeta; index: number; stats
                         {/* Stats row */}
                         {stats && (
                             <div className="mt-4 flex items-center gap-4">
-                                {stats.players > 0 && (
+                                {stats.myBest > 0 && (
                                     <div className="flex items-center gap-1.5">
-                                        <Users className="h-3 w-3 text-foreground/25" />
-                                        <span className="text-[11px] text-foreground/35">{stats.players} playing</span>
+                                        <Trophy className="h-3 w-3 text-foreground/25" />
+                                        <span className="text-[11px] text-foreground/35">Your Best: <span className="font-semibold text-foreground/50">{stats.myBest}</span></span>
                                     </div>
                                 )}
                                 {stats.topScore > 0 && (
@@ -156,7 +156,7 @@ export default function GamesPage() {
         const scores = (data.scores || []) as { score: number }[];
         const rewards = (data.rewards || {}) as Record<string, number>;
         return {
-            players: scores.length,
+            myBest: (data.myBest || 0) as number,
             topScore: scores[0]?.score || 0,
             prize: rewards["1"] || 0,
         };

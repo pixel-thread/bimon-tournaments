@@ -8,8 +8,7 @@ import { AdSlot } from "@/components/common/AdSlot";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 
 /* ── Config ────────────────────────────────────────────── */
-const GRID_SIZE = 25;
-const COLS = 5;
+const GRID_SIZE = 30;
 const MAX_HEARTS = 5;
 const HEART_REGEN_MS = 10 * 60 * 1000;
 const PENALTY_MS = 2000; // 2 seconds added per wrong tap
@@ -371,7 +370,7 @@ export function NumberRush() {
                         <Hash className="h-5 w-5 game-text" />
                         <h1 className="text-lg font-bold">Number Rush</h1>
                     </div>
-                    <p className="text-sm text-foreground/50">Tap 1→25 in order — fastest wins!</p>
+                    <p className="text-sm text-foreground/50">Tap 1→30 in order — fastest wins!</p>
                 </div>
                 <div className="flex items-center gap-1">
                     {Array.from({ length: MAX_HEARTS }).map((_, i) => (
@@ -417,8 +416,8 @@ export function NumberRush() {
                             {/* Stats */}
                             <div className="mb-3 flex items-center justify-between rounded-lg bg-default-100 px-4 py-2.5">
                                 <div className="flex items-center gap-1.5 text-sm">
-                                    <span className="text-foreground/40 text-xs">Next:</span>
-                                    <span className="font-bold game-text text-base">{nextNumber > GRID_SIZE ? "✓" : nextNumber}</span>
+                                    <span className="text-foreground/40 text-xs">Tapped:</span>
+                                    <span className="font-bold game-text text-base">{nextNumber - 1}/{GRID_SIZE}</span>
                                 </div>
                                 <div className="text-xs text-foreground/40">
                                     Best: <span className="font-semibold text-foreground/60">{personalBest > 0 ? personalBest : "—"}</span>
@@ -449,10 +448,9 @@ export function NumberRush() {
                             )}
 
                             {/* 5×5 number grid */}
-                            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                            <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
                                 {grid.map((num) => {
                                     const isTapped = num < nextNumber;
-                                    const isNext = num === nextNumber;
                                     const isWrong = wrongTap === num;
 
                                     return (
@@ -468,9 +466,7 @@ export function NumberRush() {
                                                     ? "bg-success/15 text-success/40 scale-90 border-2 border-success/20"
                                                     : isWrong
                                                         ? "bg-danger/20 text-danger border-2 border-danger/40 scale-95 animate-shake"
-                                                        : isNext && isRunning
-                                                            ? "bg-primary/10 text-foreground border-2 border-primary/30 hover:bg-primary/20 active:scale-95"
-                                                            : "bg-default-100 text-foreground border-2 border-default-200 hover:bg-default-200 active:scale-95 cursor-pointer"
+                                                        : "bg-default-100 text-foreground border-2 border-default-200 hover:bg-default-200 active:scale-95 cursor-pointer"
                                                 }
                                             `}
                                         >
