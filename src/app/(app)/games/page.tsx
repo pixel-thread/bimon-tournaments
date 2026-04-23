@@ -57,11 +57,11 @@ function GameCard({ game, index, stats }: { game: GameMeta; index: number; stats
                     <img
                         src={game.image}
                         alt={game.name}
-                        className="w-full h-28 sm:h-32 object-cover"
+                        className="w-full h-36 sm:h-40 object-cover"
                     />
 
-                    {/* Gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                    {/* Gradient overlay — strong for readability */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/20" />
 
                     {/* Accent bar */}
                     <div
@@ -72,9 +72,9 @@ function GameCard({ game, index, stats }: { game: GameMeta; index: number; stats
                     {/* Content overlaid at bottom */}
                     <div className="absolute bottom-0 left-0 right-0 p-4">
                         <div className="flex items-center justify-between">
-                            <div>
+                            <div style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
                                 <h2 className="text-base font-bold tracking-tight text-white">{game.name}</h2>
-                                <p className="text-[11px] text-white/40 mt-0.5">{game.tagline}</p>
+                                <p className="text-[11px] text-white/50 mt-0.5">{game.tagline}</p>
                             </div>
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
                                 <ChevronRight className="h-4 w-4 text-white/50 group-hover:text-white/80 transition-colors" />
@@ -83,23 +83,23 @@ function GameCard({ game, index, stats }: { game: GameMeta; index: number; stats
 
                         {/* Stats row */}
                         {stats && (
-                            <div className="mt-2.5 flex items-center gap-4">
+                            <div className="mt-2.5 flex items-center gap-4" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}>
                                 {stats.myBest > 0 && (
                                     <div className="flex items-center gap-1.5">
-                                        <Trophy className="h-3 w-3 text-white/25" />
-                                        <span className="text-[11px] text-white/35">Your Best: <span className="font-semibold text-white/60">{stats.myBest}</span></span>
+                                        <Trophy className="h-3 w-3 text-white/40" />
+                                        <span className="text-[11px] text-white/50">Your Best: <span className="font-semibold text-white/80">{stats.myBest}</span></span>
                                     </div>
                                 )}
                                 {stats.topScore > 0 && (
                                     <div className="flex items-center gap-1.5">
                                         <Avatar src={stats.topPlayerImage || undefined} name={stats.topPlayerName} className="h-4 w-4 shrink-0 text-[6px]" />
-                                        <span className="text-[11px] text-white/35">Top: {stats.topScore}</span>
+                                        <span className="text-[11px] text-white/50">Top: <span className="font-semibold text-white/80">{stats.topScore}</span></span>
                                     </div>
                                 )}
                                 {stats.prize > 0 && (
                                     <div className="flex items-center gap-1.5">
-                                        <Zap className="h-3 w-3 text-success/60" />
-                                        <span className="text-[11px] text-success/70 font-semibold">
+                                        <Zap className="h-3 w-3 text-success/80" />
+                                        <span className="text-[11px] text-success font-semibold">
                                             Free {stats.prize} <CurrencyIcon size={9} />
                                         </span>
                                     </div>
