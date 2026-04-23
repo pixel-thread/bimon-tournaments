@@ -9,6 +9,7 @@ import {
     Palette,
     Info,
     LogOut,
+    ChevronRight,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
@@ -28,9 +29,9 @@ const COLOR_THEMES: { value: ColorTheme; label: string; gradient: string }[] = [
 
 import { useLocale, type AppLocale } from "@/components/common/locale-provider";
 
-const LANGUAGES: { value: AppLocale; label: string; nativeLabel: string }[] = [
-    { value: "en", label: "English", nativeLabel: "English" },
-    { value: "kha", label: "Khasi", nativeLabel: "Khasi" },
+const LANGUAGES: { value: AppLocale; label: string }[] = [
+    { value: "en", label: "English" },
+    { value: "kha", label: "Khasi" },
 ];
 
 /**
@@ -41,17 +42,20 @@ export default function SettingsPage() {
 
     const { theme, setTheme } = useTheme();
     const { colorTheme, setColorTheme } = useColorTheme();
-    const { locale, setLocale, t } = useLocale();
+    const { locale, setLocale } = useLocale();
     const [mounted, setMounted] = useState(false);
+    const [langOpen, setLangOpen] = useState(false);
     useEffect(() => setMounted(true), []);
     const { status: pushStatus, subscribing, handleEnable } = usePushStatus();
+
+    const currentLang = LANGUAGES.find((l) => l.value === locale) || LANGUAGES[0];
 
     return (
         <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-6 pb-24 sm:pb-6">
             {/* Header */}
             <div className="flex items-center gap-3">
                 <Settings className="h-6 w-6 text-foreground/70" />
-                <h1 className="text-xl font-bold">{t("Settings", "Settings")}</h1>
+                <h1 className="text-xl font-bold">Settings</h1>
             </div>
 
             {/* Language */}
@@ -61,29 +65,57 @@ export default function SettingsPage() {
                 transition={{ delay: 0.05 }}
             >
                 <Card className="border border-divider">
-                    <CardBody className="p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Globe className="h-4 w-4 text-blue-500" />
-                            <span className="text-sm font-semibold">{t("Language", "Language")}</span>
-                        </div>
-                        <div className="flex gap-2">
-                            {LANGUAGES.map((lang) => (
-                                <button
-                                    key={lang.value}
-                                    onClick={() => setLocale(lang.value)}
-                                    className={`flex-1 rounded-lg border px-3 py-2.5 text-center transition-all ${
-                                        locale === lang.value
-                                            ? "border-primary bg-primary/10 text-primary"
-                                            : "border-divider bg-default-50 text-foreground/60 hover:bg-default-100"
-                                    }`}
+                    <CardBody className="p-0">
+                        <button
+                            className="flex w-full items-center justify-between p-4"
+                            onClick={() => setLangOpen(!langOpen)}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Globe className="h-4 w-4 text-blue-500" />
+                                <span className="text-sm font-semibold">Language</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Chip size="sm" variant="flat" color="primary">
+                                    {currentLang.label}
+                                </Chip>
+                                <motion.div
+                                    animate={{ rotate: langOpen ? 90 : 0 }}
+                                    transition={{ duration: 0.2 }}
                                 >
-                                    <span className="text-sm font-semibold">{lang.nativeLabel}</span>
-                                    {locale === lang.value && (
-                                        <p className="text-[10px] text-primary/60 mt-0.5">✓ Active</p>
-                                    )}
-                                </button>
-                            ))}
-                        </div>
+                                    <ChevronRight className="h-4 w-4 text-foreground/30" />
+                                </motion.div>
+                            </div>
+                        </button>
+                        {langOpen && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden border-t border-divider"
+                            >
+                                {LANGUAGES.map((lang) => (
+                                    <button
+                                        key={lang.value}
+                                        onClick={() => {
+                                            setLocale(lang.value);
+                                            setLangOpen(false);
+                                        }}
+                                        className={`flex w-full items-center justify-between px-4 py-3 transition-colors ${
+                                            locale === lang.value
+                                                ? "bg-primary/5"
+                                                : "hover:bg-default-50"
+                                        }`}
+                                    >
+                                        <span className={`text-sm ${locale === lang.value ? "font-semibold text-primary" : "text-foreground/70"}`}>
+                                            {lang.label}
+                                        </span>
+                                        {locale === lang.value && (
+                                            <span className="text-xs text-primary">✓</span>
+                                        )}
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
                     </CardBody>
                 </Card>
             </motion.div>
