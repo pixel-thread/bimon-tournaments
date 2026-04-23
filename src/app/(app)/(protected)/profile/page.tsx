@@ -162,7 +162,7 @@ export default function ProfilePage() {
         return undefined;
     };
 
-    const { data: profile, isLoading, isFetching, error } = useQuery<ProfileData>({
+    const { data: profile, isLoading, isFetching, error, isPlaceholderData } = useQuery<ProfileData>({
         queryKey: ["profile", statsMode],
         queryFn: async () => {
             const res = await fetch(`/api/profile?mode=${statsMode}`);
@@ -175,6 +175,7 @@ export default function ProfilePage() {
         },
         staleTime: 5 * 60 * 1000,
         initialData: () => getCachedProfile(statsMode),
+        placeholderData: (prev) => prev, // Keep previous mode's data visible while fetching
     });
 
     const [onCooldown, setOnCooldown] = useState(false);
@@ -619,7 +620,7 @@ export default function ProfilePage() {
                 {/* ── Stats Section ── */}
                 {stats && (
                     <Card className="border border-divider overflow-hidden">
-                        <CardBody className={`p-4 space-y-4 transition-opacity duration-200 ${isFetching ? "opacity-40" : "opacity-100"}`}>
+                        <CardBody className={`p-4 space-y-4 transition-opacity duration-200 ${(isFetching || isPlaceholderData) ? "opacity-40" : "opacity-100"}`}>
                             {/* Featured Stat — K/D for BR, Win Rate for bracket games */}
                             <div className="text-center">
                                 <div className="flex items-center justify-center gap-2 mb-1">
