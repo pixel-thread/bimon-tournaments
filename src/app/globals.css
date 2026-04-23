@@ -656,3 +656,15 @@ body[data-scroll-locked] ::-webkit-scrollbar {
 .flip-card.wrong .flip-card-inner {
   animation: card-shake 0.4s ease;
 }
+
+/* ── Number Rush ── */
+@keyframes numShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+.animate-shake {
+  animation: numShake 0.3s ease;
+}

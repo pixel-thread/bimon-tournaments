@@ -2,22 +2,64 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { getAuthEmail, userWhereEmail } from "@/lib/auth";
 
-const DIFFICULTY = "hard"; // Single mode — everyone plays the same
-const MIN_MOVES = 10;     // Can't finish with fewer than 10 moves (10 pairs)
-const MIN_TIME = 10;      // Can't finish in under 10 seconds realistically
+/* ── Game type → difficulty key mapping ─────────────────── */
+const GAME_KEYS: Record<string, string> = {
+    memory: "hard",
+    "number-rush": "number-rush",
+};
+
+/* ── Per-game validation rules ──────────────────────────── */
+const GAME_RULES: Record<string, {
+    calcScore: (data: Record<string, number>) => number;
+    validate: (data: Record<string, number>) => string | null;
+}> = {
+    memory: {
+        calcScore: ({ moves, time }) => Math.max(0, 1000 - (moves * 10) - time),
+        validate: ({ score, moves, time }) => {
+            const expected = Math.max(0, 1000 - (moves * 10) - time);
+            if (score !== expected) return "Invalid score";
+            if (moves < 10) return "Invalid moves";
+            if (time < 10) return "Invalid time";
+            if (score <= 0) return "Score too low";
+            return null;
+        },
+    },
+    "number-rush": {
+        calcScore: ({ time, penalties }) => Math.max(0, 1000 - Math.floor((time + (penalties * 2000)) / 100)),
+        validate: ({ score, time, penalties }) => {
+            const expected = Math.max(0, 1000 - Math.floor((time + (penalties * 2000)) / 100));
+            if (score !== expected) return "Invalid score";
+            if (time < 5000) return "Too fast"; // < 5 seconds impossible
+            if (penalties < 0) return "Invalid penalties";
+            if (score <= 0) return "Score too low";
+            return null;
+        },
+    },
+};
+
+function resolveGame(gameParam: string | null): { key: string; difficulty: string } | null {
+    const game = gameParam || "memory";
+    const difficulty = GAME_KEYS[game];
+    if (!difficulty) return null;
+    return { key: game, difficulty };
+}
 
 /**
- * GET /api/games/leaderboard
- * Returns top 10 scores (single global leaderboard)
+ * GET /api/games/leaderboard?game=memory|number-rush
+ * Returns top scores for the specified game (defaults to memory)
  */
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const showAll = searchParams.get("all") === "1";
+    const resolved = resolveGame(searchParams.get("game"));
+    if (!resolved) return NextResponse.json({ error: "Unknown game" }, { status: 400 });
+
+    const { key: gameType, difficulty } = resolved;
 
     const scores = await prisma.gameScore.findMany({
-        where: { difficulty: DIFFICULTY },
+        where: { difficulty },
         orderBy: { score: "desc" },
-        ...(showAll ? {} : { take: 50 }), // fetch extra to filter below
+        ...(showAll ? {} : { take: 50 }),
         include: {
             player: {
                 select: {
@@ -29,14 +71,14 @@ export async function GET(req: Request) {
         },
     });
 
-    // Fetch all thresholds for players on the leaderboard
+    // Fetch thresholds
     const playerIds = scores.map(s => s.playerId);
     const thresholds = await prisma.gameScoreThreshold.findMany({
-        where: { playerId: { in: playerIds }, gameType: "memory" },
+        where: { playerId: { in: playerIds }, gameType },
     });
     const thresholdMap = new Map(thresholds.map(t => [t.playerId, t.threshold]));
 
-    // Mark blocked entries (below threshold) — they still show but don't count for ranking
+    // Rank — blocked entries don't count
     let eligibleRank = 0;
     const rankedScores = scores.map(s => {
         const minScore = thresholdMap.get(s.playerId);
@@ -52,7 +94,7 @@ export async function GET(req: Request) {
         };
     });
 
-    // For public view: take enough entries to fill 10 eligible + any blocked mixed in
+    // Public view: cap at 10 eligible
     let finalScores = rankedScores;
     if (!showAll) {
         const result: typeof rankedScores = [];
@@ -65,17 +107,16 @@ export async function GET(req: Request) {
         finalScores = result;
     }
 
-    // Get reward config
+    // Reward config
     const rewardSettings = await prisma.appSetting.findMany({
         where: { key: { startsWith: "game_reward_" } },
     });
-
     const rewards: Record<string, number> = {};
     for (const s of rewardSettings) {
         rewards[s.key.replace("game_reward_", "")] = parseInt(s.value) || 0;
     }
 
-    // Get current user's personal best + threshold (if logged in)
+    // Current user's personal best + threshold
     let myBest = 0;
     let myThreshold = 0;
     try {
@@ -87,20 +128,20 @@ export async function GET(req: Request) {
             });
             if (user?.player) {
                 const myScore = await prisma.gameScore.findUnique({
-                    where: { playerId_difficulty: { playerId: user.player.id, difficulty: DIFFICULTY } },
+                    where: { playerId_difficulty: { playerId: user.player.id, difficulty } },
                     select: { score: true },
                 });
                 myBest = myScore?.score ?? 0;
 
                 const myThresholdRecord = await prisma.gameScoreThreshold.findUnique({
-                    where: { playerId_gameType: { playerId: user.player.id, gameType: "memory" } },
+                    where: { playerId_gameType: { playerId: user.player.id, gameType } },
                 });
                 myThreshold = myThresholdRecord?.threshold ?? 0;
             }
         }
-    } catch { /* guest user — no best */ }
+    } catch { /* guest user */ }
 
-    // Get reward end date from settings
+    // Reward end date
     const endDateSetting = await prisma.appConfig.findUnique({
         where: { key: "app_settings" },
     });
@@ -123,8 +164,7 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/games/leaderboard
- * Submit a score. Validates server-side, only saves if new personal best.
- * Body: { score, moves, time }
+ * Submit a score. Body: { game?, score, moves?, time, penalties? }
  */
 export async function POST(req: Request) {
     const email = await getAuthEmail();
@@ -143,54 +183,44 @@ export async function POST(req: Request) {
 
     const playerId = user.player.id;
     const body = await req.json();
-    const { score, moves, time } = body;
+    const { game: gameParam, score, moves, time, penalties } = body;
 
-    if (score == null || moves == null || time == null) {
+    const resolved = resolveGame(gameParam || "memory");
+    if (!resolved) return NextResponse.json({ error: "Unknown game" }, { status: 400 });
+
+    const { key: gameType, difficulty } = resolved;
+    const rules = GAME_RULES[gameType];
+    if (!rules) return NextResponse.json({ error: "Unknown game rules" }, { status: 400 });
+
+    if (score == null || time == null) {
         return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    // ── Anti-abuse validation ──
-    // 1. Verify score matches formula
-    const expectedScore = Math.max(0, 1000 - (moves * 10) - time);
-    if (score !== expectedScore) {
-        return NextResponse.json({ error: "Invalid score" }, { status: 400 });
+    // Validate with game-specific rules
+    const error = rules.validate({ score, moves: moves ?? 0, time, penalties: penalties ?? 0 });
+    if (error) {
+        return NextResponse.json({ error }, { status: 400 });
     }
 
-    // 2. Minimum moves (can't match 10 pairs in fewer than 10 moves)
-    if (moves < MIN_MOVES) {
-        return NextResponse.json({ error: "Invalid moves" }, { status: 400 });
-    }
-
-    // 3. Minimum time (can't physically click 20 cards in under 10s)
-    if (time < MIN_TIME) {
-        return NextResponse.json({ error: "Invalid time" }, { status: 400 });
-    }
-
-    // 4. Score must be positive
-    if (score <= 0) {
-        return NextResponse.json({ error: "Score too low" }, { status: 400 });
-    }
-
-    // Check if player has a threshold from a previous win
+    // Check threshold
     const thresholdRecord = await prisma.gameScoreThreshold.findUnique({
-        where: { playerId_gameType: { playerId, gameType: "memory" } },
+        where: { playerId_gameType: { playerId, gameType } },
     });
 
     if (thresholdRecord && score < thresholdRecord.threshold) {
-        // Score below threshold — don't save to leaderboard
         return NextResponse.json({ saved: false, isNewBest: false, blocked: true, threshold: thresholdRecord.threshold });
     }
 
     // Only save if new personal best
     const existing = await prisma.gameScore.findUnique({
-        where: { playerId_difficulty: { playerId, difficulty: DIFFICULTY } },
+        where: { playerId_difficulty: { playerId, difficulty } },
     });
 
     if (!existing || score > existing.score) {
         await prisma.gameScore.upsert({
-            where: { playerId_difficulty: { playerId, difficulty: DIFFICULTY } },
-            create: { playerId, difficulty: DIFFICULTY, score, moves, time },
-            update: { score, moves, time },
+            where: { playerId_difficulty: { playerId, difficulty } },
+            create: { playerId, difficulty, score, moves: moves ?? 0, time },
+            update: { score, moves: moves ?? 0, time },
         });
 
         return NextResponse.json({ saved: true, isNewBest: true });
