@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { PushPrompt } from "@/components/common/push-prompt";
+import { useLocale } from "@/components/common/locale-provider";
 
 interface Notification {
     id: string;
@@ -184,6 +185,7 @@ export default function NotificationsPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { isOpen, onOpen, onClose } = useDisclosure();
+    const { locale } = useLocale();
 
     // Modal modes
     const [modalMode, setModalMode] = useState<"uc_request" | "reward_detail" | "squad_request">("uc_request");
@@ -345,7 +347,7 @@ export default function NotificationsPage() {
     const openRequestModal = (request: PendingRequest) => {
         setModalMode("uc_request");
         setSelectedRequest(request);
-        setResponseMessage("");
+        setResponseMessage(locale === "kha" ? "Chim nga mai khapnap rei ia kibi duk ✊🏿" : "Here take, I feel pity for the poor ✊🏿");
         onOpen();
     };
 
