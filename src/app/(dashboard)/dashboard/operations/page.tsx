@@ -109,14 +109,20 @@ export default function OperationsPage() {
 
     // Auto-fill create form when modal opens
     const openCreateModal = () => {
-        // Auto-generate next tournament name
-        const pattern = /^Lehkai sngewtynnad\s+(\d+)$/i;
-        let maxNum = 0;
-        for (const t of tournaments) {
-            const m = t.name.match(pattern);
-            if (m) maxNum = Math.max(maxNum, parseInt(m[1]));
+        // Auto-generate next tournament name from the latest tournament
+        const last = tournaments[0];
+        if (last) {
+            const match = last.name.match(/^(.*?\s*)(\d+)$/);
+            if (match) {
+                // Has trailing number — increment it
+                setTName(`${match[1]}${parseInt(match[2]) + 1}`);
+            } else {
+                // No number — append " 2"
+                setTName(`${last.name} 2`);
+            }
+        } else {
+            setTName("Tournament 1");
         }
-        setTName(`Lehkai sngewtynnad ${maxNum + 1}`);
         setTFee(String(settings?.defaultEntryFee ?? 30));
         setTType(GAME.defaultTournamentType as typeof tType);
         // Auto-select current season
