@@ -11,9 +11,7 @@ export const translations = {
     votedSolo: { en: "Solo 🫩", kha: "Nga Leh solo 🫩" },
 
     // ─── Onboarding ───────────────────────────────
-    copyPaste: { en: "Copy and paste", kha: "Copy bad paste ia" },
-    enterYour: { en: "Enter", kha: "Enter ia" },
-    yourGameName: { en: "your game name", kha: "ka kyrteng ba na game" },
+    copyPaste: { en: "Copy and paste", kha: "Copy bad paste" },
     canChangeLater: { en: "You can change this later from your profile page", kha: "Phi lah ban change biang na profile page" },
 
     // ─── Community subtitle ───────────────────────
