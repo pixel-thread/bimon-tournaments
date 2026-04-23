@@ -5,6 +5,7 @@ import { NextRequest } from "next/server";
 import { getSettings } from "@/lib/settings";
 import { GAME } from "@/lib/game-config";
 import { debitWallet } from "@/lib/wallet-service";
+import { censorProfanity } from "@/lib/logic/profanityFilter";
 
 const NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 
@@ -108,7 +109,7 @@ export async function POST(req: NextRequest) {
             updateData.displayName = displayName;
             updateData.displayNameLastChangeAt = new Date();
         }
-        if (bio !== undefined) updateData.bio = bio;
+        if (bio !== undefined) updateData.bio = censorProfanity(bio);
         if (uid !== undefined) updateData.uid = uid;
         if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber || null;
 

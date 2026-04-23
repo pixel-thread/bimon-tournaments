@@ -4,6 +4,7 @@ import { getCategoryFromKDValue, getCategoryFromWinRate } from "@/lib/logic/cate
 import { requireAdmin } from "@/lib/auth";
 import { getBalance, getDiamondBalance } from "@/lib/wallet-service";
 import { GAME } from "@/lib/game-config";
+import { censorProfanity } from "@/lib/logic/profanityFilter";
 
 const VALID_CATEGORIES = ["BOT", "ULTRA_NOOB", "NOOB", "PRO", "ULTRA_PRO", "LEGEND"] as const;
 
@@ -102,7 +103,7 @@ export async function GET(
             isTrusted: player.isTrusted,
             uid: player.uid || null,
             phoneNumber: player.phoneNumber || null,
-            bio: player.bio,
+            bio: censorProfanity(player.bio || ""),
             createdAt: player.createdAt,
             balance: player.user.email ? await getBalance(player.user.email) : 0,
             diamondBalance: player.wallet?.diamondBalance ?? 0,

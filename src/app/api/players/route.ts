@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { type NextRequest } from "next/server";
 import { getCategoryFromKDValue, getCategoryFromWinRate } from "@/lib/logic/categoryUtils";
 import { GAME } from "@/lib/game-config";
+import { censorProfanity } from "@/lib/logic/profanityFilter";
 
 /**
  * GET /api/players
@@ -179,11 +180,11 @@ export async function GET(request: NextRequest) {
             return {
                 id: p.id,
                 displayName: p.displayName,
-                bio: p.bio || (() => {
+                bio: censorProfanity(p.bio || (() => {
                     if (GAME.locale === "kha") return `nga u ${p.displayName || p.user.username} dei u ${category}`;
                     const article = /^[aeiou]/i.test(category) ? "an" : "a";
                     return `I'm ${p.displayName || p.user.username}, ${article} ${category} player`;
-                })(),
+                })()),
                 username: p.user.username,
                 imageUrl: p.customProfileImageUrl || p.user.imageUrl,
                 category,
