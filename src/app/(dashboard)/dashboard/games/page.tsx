@@ -2,16 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, CardBody, Input, Divider, Avatar } from "@heroui/react";
-import { Gamepad2, Trophy, RotateCcw, Banknote, AlertCircle } from "lucide-react";
+import { Button, Card, CardBody, Input, Divider, Avatar, Tabs, Tab } from "@heroui/react";
+import { Gamepad2, Trophy, RotateCcw, Banknote, AlertCircle, Brain, Hash } from "lucide-react";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { GAME } from "@/lib/game-config";
 
 interface LeaderboardEntry {
     rank: number;
     score: number;
-    moves: number;
-    time: number;
     displayName: string;
     imageUrl: string | null;
     playerId: string;
@@ -21,6 +19,7 @@ export default function AdminGamesPage() {
     const queryClient = useQueryClient();
     const [rewards, setRewards] = useState<{ place: number; amount: string }[]>([{ place: 1, amount: "" }]);
     const [endDate, setEndDate] = useState("");
+    const [lbTab, setLbTab] = useState<string>("memory");
 
     // Fetch settings
     const { data: settings } = useQuery({
@@ -31,11 +30,20 @@ export default function AdminGamesPage() {
         },
     });
 
-    // Fetch leaderboard
-    const { data: leaderboard } = useQuery({
-        queryKey: ["admin-games-lb"],
+    // Fetch memory leaderboard
+    const { data: memoryLb } = useQuery({
+        queryKey: ["admin-games-lb", "memory"],
         queryFn: async () => {
-            const res = await fetch("/api/games/leaderboard?all=1");
+            const res = await fetch("/api/games/leaderboard?all=1&game=memory");
+            return res.json();
+        },
+    });
+
+    // Fetch number rush leaderboard
+    const { data: rushLb } = useQuery({
+        queryKey: ["admin-games-lb", "number-rush"],
+        queryFn: async () => {
+            const res = await fetch("/api/games/leaderboard?all=1&game=number-rush");
             return res.json();
         },
     });
@@ -130,7 +138,8 @@ export default function AdminGamesPage() {
         },
     });
 
-    const scores: LeaderboardEntry[] = leaderboard?.scores || [];
+    const currentLb = lbTab === "memory" ? memoryLb : rushLb;
+    const scores: LeaderboardEntry[] = currentLb?.scores || [];
     const placeEmojis = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
     return (
@@ -141,16 +150,17 @@ export default function AdminGamesPage() {
                     <h1 className="text-lg font-bold">Games Management</h1>
                 </div>
                 <p className="text-sm text-foreground/50">
-                    Configure rewards and manage the memory game leaderboard ({settings?.scoreCount ?? 0} players)
+                    Configure rewards and manage game leaderboards ({settings?.scoreCount ?? 0} memory players)
                 </p>
             </div>
 
-            {/* Rewards */}
+            {/* Rewards (memory game only for now) */}
             <Card className="border border-divider">
                 <CardBody className="space-y-4 p-4">
                     <div className="flex items-center gap-2">
                         <Trophy className="h-4 w-4 text-yellow-500" />
                         <h2 className="text-sm font-semibold">Free {GAME.currency} Rewards</h2>
+                        <span className="text-[10px] text-foreground/30 bg-default-100 px-1.5 py-0.5 rounded">Memory Game</span>
                     </div>
                     <p className="text-xs text-foreground/50">
                         Set free {GAME.currency} prizes for top scores. Players see &quot;Free X {GAME.currency}&quot; with a countdown.
@@ -208,9 +218,17 @@ export default function AdminGamesPage() {
 
             <Divider />
 
-            {/* Leaderboard */}
+            {/* Leaderboards */}
             <div className="space-y-4">
-                <h2 className="text-sm font-semibold">Leaderboard</h2>
+                <Tabs
+                    selectedKey={lbTab}
+                    onSelectionChange={(k) => setLbTab(k as string)}
+                    variant="underlined"
+                    classNames={{ tabList: "w-full", tab: "flex-1" }}
+                >
+                    <Tab key="memory" title={<div className="flex items-center gap-1.5"><Brain className="h-4 w-4" /><span>Memory</span></div>} />
+                    <Tab key="number-rush" title={<div className="flex items-center gap-1.5"><Hash className="h-4 w-4" /><span>Number Rush</span></div>} />
+                </Tabs>
 
                 {scores.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 rounded-xl bg-default-100 py-8 text-center">
@@ -239,26 +257,28 @@ export default function AdminGamesPage() {
                     </div>
                 )}
 
-                {/* Actions */}
-                <div className="flex gap-2">
-                    <Button
-                        color="success" variant="flat" size="sm"
-                        onPress={() => distributeRewards.mutate()}
-                        isLoading={distributeRewards.isPending}
-                        isDisabled={scores.length === 0}
-                        startContent={<Banknote className="h-4 w-4" />}
-                    >
-                        Distribute Rewards
-                    </Button>
-                    <Button
-                        color="danger" variant="flat" size="sm"
-                        onPress={() => { if (confirm("Reset ALL scores? This cannot be undone.")) resetScores.mutate(); }}
-                        isLoading={resetScores.isPending}
-                        startContent={<RotateCcw className="h-4 w-4" />}
-                    >
-                        Reset Scores
-                    </Button>
-                </div>
+                {/* Actions — memory game only */}
+                {lbTab === "memory" && (
+                    <div className="flex gap-2">
+                        <Button
+                            color="success" variant="flat" size="sm"
+                            onPress={() => distributeRewards.mutate()}
+                            isLoading={distributeRewards.isPending}
+                            isDisabled={scores.length === 0}
+                            startContent={<Banknote className="h-4 w-4" />}
+                        >
+                            Distribute Rewards
+                        </Button>
+                        <Button
+                            color="danger" variant="flat" size="sm"
+                            onPress={() => { if (confirm("Reset ALL memory scores? This cannot be undone.")) resetScores.mutate(); }}
+                            isLoading={resetScores.isPending}
+                            startContent={<RotateCcw className="h-4 w-4" />}
+                        >
+                            Reset Scores
+                        </Button>
+                    </div>
+                )}
             </div>
         </div>
     );
