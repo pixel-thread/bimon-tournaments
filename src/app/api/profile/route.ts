@@ -8,8 +8,11 @@ import { GAME } from "@/lib/game-config";
  * Fetches the current user's complete profile with player data,
  * detailed stats, wallet, streak, and computed performance metrics.
  */
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const mode = searchParams.get("mode") ?? "casual"; // "casual" | "ranked"
+
         const userId = await getAuthEmail();
         if (!userId) {
             return ErrorResponse({ message: "Unauthorized", status: 401 });
@@ -59,7 +62,14 @@ export async function GET() {
         if (player) {
             const seasonId = activeSeason?.id;
             const tpsSeasonFilter = seasonId ? { seasonId } : {};
-            const tsSeasonFilter = seasonId ? { seasonId } : {};
+
+            // Mode filter: casual = random teams, ranked = squad teams
+            const modeFilter: Record<string, unknown> = {};
+            if (mode === "ranked") {
+                modeFilter.match = { tournament: { poll: { allowSquads: true } } };
+            } else if (mode === "casual") {
+                modeFilter.match = { tournament: { poll: { allowSquads: false } } };
+            }
 
             // All stats queries in parallel
             const [
@@ -70,14 +80,14 @@ export async function GET() {
                 lastTwoMatches,
             ] = await Promise.all([
                 prisma.teamPlayerStats.aggregate({
-                    where: { playerId: player.id, ...tpsSeasonFilter },
+                    where: { playerId: player.id, ...tpsSeasonFilter, ...modeFilter },
                     _count: { matchId: true },
                     _sum: { kills: true },
                 }),
                 prisma.playerStats.count({ where: { playerId: player.id, matches: { gt: 0 } } }),
                 // Use TeamPlayerStats → teamStats to get positions (more reliable than TeamStats.players relation)
                 prisma.teamPlayerStats.findMany({
-                    where: { playerId: player.id, ...tpsSeasonFilter },
+                    where: { playerId: player.id, ...tpsSeasonFilter, ...modeFilter },
                     select: {
                         teamStats: {
                             select: { position: true, tournamentId: true },
@@ -85,12 +95,12 @@ export async function GET() {
                     },
                 }),
                 prisma.teamPlayerStats.findFirst({
-                    where: { playerId: player.id, ...tpsSeasonFilter },
+                    where: { playerId: player.id, ...tpsSeasonFilter, ...modeFilter },
                     orderBy: { kills: "desc" },
                     select: { kills: true },
                 }),
                 prisma.teamPlayerStats.findMany({
-                    where: { playerId: player.id, ...tpsSeasonFilter },
+                    where: { playerId: player.id, ...tpsSeasonFilter, ...modeFilter },
                     orderBy: { createdAt: "desc" },
                     take: 2,
                     select: { kills: true },

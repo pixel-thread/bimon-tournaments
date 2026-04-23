@@ -150,6 +150,7 @@ export default function ProfilePage() {
     const [emailError, setEmailError] = useState("");
     const [showSignOutModal, setShowSignOutModal] = useState(false);
     const [showLocationModal, setShowLocationModal] = useState(false);
+    const [statsMode, setStatsMode] = useState<"casual" | "ranked">("casual");
 
     const PROFILE_CACHE_KEY = "profile_cache";
 
@@ -162,9 +163,9 @@ export default function ProfilePage() {
     };
 
     const { data: profile, isLoading, isFetching, error } = useQuery<ProfileData>({
-        queryKey: ["profile"],
+        queryKey: ["profile", statsMode],
         queryFn: async () => {
-            const res = await fetch("/api/profile");
+            const res = await fetch(`/api/profile?mode=${statsMode}`);
             if (!res.ok) throw new Error("Failed to fetch profile");
             const json = await res.json();
             const data = json.data;
@@ -582,6 +583,33 @@ export default function ProfilePage() {
                             )}
                         </motion.div>
                     </motion.div>
+                )}
+
+                {/* Ranked / Casual toggle — only for games with ranked/casual split */}
+                {GAME.features.hasRankedCasual && stats && (
+                    <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100">
+                        {([
+                            { key: "casual" as const, label: "Casual", icon: "🎮" },
+                            { key: "ranked" as const, label: "Ranked", icon: "🏆" },
+                        ]).map(({ key, label, icon }) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setStatsMode(key)}
+                                className={`
+                                    flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium
+                                    transition-all duration-200 cursor-pointer
+                                    ${statsMode === key
+                                        ? "bg-background shadow-sm text-foreground"
+                                        : "text-foreground/50 hover:text-foreground/70"
+                                    }
+                                `}
+                            >
+                                <span>{icon}</span>
+                                <span>{label}</span>
+                            </button>
+                        ))}
+                    </div>
                 )}
 
                 {/* ── Stats Section ── */}
