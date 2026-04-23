@@ -9,7 +9,6 @@ import {
     Palette,
     Info,
     LogOut,
-    ChevronRight,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
@@ -27,6 +26,13 @@ const COLOR_THEMES: { value: ColorTheme; label: string; gradient: string }[] = [
     { value: "mlbb", label: "Cyan", gradient: "linear-gradient(135deg, #06B6D4, #0891B2)" },
 ];
 
+import { useLocale, type AppLocale } from "@/components/common/locale-provider";
+
+const LANGUAGES: { value: AppLocale; label: string; nativeLabel: string }[] = [
+    { value: "en", label: "English", nativeLabel: "English" },
+    { value: "kha", label: "Khasi", nativeLabel: "Khasi" },
+];
+
 /**
  * /settings — App settings page.
  * Responsive for both mobile and desktop.
@@ -35,6 +41,7 @@ export default function SettingsPage() {
 
     const { theme, setTheme } = useTheme();
     const { colorTheme, setColorTheme } = useColorTheme();
+    const { locale, setLocale, t } = useLocale();
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
     const { status: pushStatus, subscribing, handleEnable } = usePushStatus();
@@ -44,7 +51,7 @@ export default function SettingsPage() {
             {/* Header */}
             <div className="flex items-center gap-3">
                 <Settings className="h-6 w-6 text-foreground/70" />
-                <h1 className="text-xl font-bold">Settings</h1>
+                <h1 className="text-xl font-bold">{t("Settings", "Settings")}</h1>
             </div>
 
             {/* Language */}
@@ -55,21 +62,28 @@ export default function SettingsPage() {
             >
                 <Card className="border border-divider">
                     <CardBody className="p-4">
-                        <button className="flex w-full items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Globe className="h-4 w-4 text-blue-500" />
-                                <span className="text-sm font-semibold">Language</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Chip size="sm" variant="flat" color="default">
-                                    English
-                                </Chip>
-                                <ChevronRight className="h-4 w-4 text-foreground/30" />
-                            </div>
-                        </button>
-                        <p className="mt-1.5 text-xs text-foreground/40">
-                            More languages coming soon
-                        </p>
+                        <div className="flex items-center gap-2 mb-3">
+                            <Globe className="h-4 w-4 text-blue-500" />
+                            <span className="text-sm font-semibold">{t("Language", "Language")}</span>
+                        </div>
+                        <div className="flex gap-2">
+                            {LANGUAGES.map((lang) => (
+                                <button
+                                    key={lang.value}
+                                    onClick={() => setLocale(lang.value)}
+                                    className={`flex-1 rounded-lg border px-3 py-2.5 text-center transition-all ${
+                                        locale === lang.value
+                                            ? "border-primary bg-primary/10 text-primary"
+                                            : "border-divider bg-default-50 text-foreground/60 hover:bg-default-100"
+                                    }`}
+                                >
+                                    <span className="text-sm font-semibold">{lang.nativeLabel}</span>
+                                    {locale === lang.value && (
+                                        <p className="text-[10px] text-primary/60 mt-0.5">✓ Active</p>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
                     </CardBody>
                 </Card>
             </motion.div>

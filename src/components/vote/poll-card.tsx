@@ -15,6 +15,7 @@ import { CreateSquadModal } from "./create-squad-modal";
 import { DonateModal } from "./donate-modal";
 import { DonorsModal } from "./donors-modal";
 import { useSquads } from "@/hooks/use-squads";
+import { useLocale } from "@/components/common/locale-provider";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -383,6 +384,7 @@ function VotersDialog({
     teamType: string;
     theme: PollTheme | null;
 }) {
+    const { tk } = useLocale();
     const allVoteTypes = GAME.features.hasTeamSizes
         ? (["IN", "OUT", "SOLO"] as const)
         : (["IN", "OUT"] as const);
@@ -398,10 +400,10 @@ function VotersDialog({
         const opt = poll.options?.find((o) => o.vote === v);
         if (opt?.name) return opt.name;
         return v === "IN"
-            ? (GAME.locale === "kha" ? "Nga Leh 😎" : "I'm In 😎")
+            ? tk("votedIn")
             : v === "OUT"
-                ? (GAME.locale === "kha" ? "Leh rei" : "I'm Out")
-                : (GAME.locale === "kha" ? "Nga Leh solo 🫩" : "Solo 🫩");
+                ? tk("votedOut")
+                : tk("votedSolo");
     };
     const getColor = (v: string) => v === "IN" ? "bg-emerald-500" : v === "OUT" ? "bg-red-500" : "bg-amber-500";
 
@@ -617,6 +619,7 @@ function VotersDialog({
 /* ─── Main Poll Card ────────────────────────────────────────── */
 
 export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayerId, onRefetch, onEntryChange, entryPending }: PollCardProps) {
+    const { tk } = useLocale();
     const isThisPollVoting = votingPollId === poll.id;
     const { tournament } = poll;
     const [showVoters, setShowVoters] = useState(false);
@@ -720,10 +723,10 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const getOptionName = (vote: string) => {
         const opt = poll.options?.find((o: { vote: string; name: string }) => o.vote === vote);
         return opt?.name || (vote === "IN"
-            ? (GAME.locale === "kha" ? "Nga Leh 😎" : "I'm In 😎")
+            ? tk("votedIn")
             : vote === "OUT"
-                ? (GAME.locale === "kha" ? "Leh rei" : "I'm Out")
-                : (GAME.locale === "kha" ? "Nga Leh solo 🫩" : "Solo 🫩"));
+                ? tk("votedOut")
+                : tk("votedSolo"));
     };
 
     // Vote breakdown for each option (percentage relative to max)
@@ -1061,7 +1064,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     )}
                     {showSquadInfo && poll.allowSquads && (
                         <p className="text-[11px] text-foreground/40 text-center px-4 pb-1 animate-in fade-in duration-200">
-                            Players who vote &quot;{poll.options?.find(o => o.vote === "IN")?.name || (GAME.locale === "kha" ? "Nga Leh 😎" : "I'm In 😎")}&quot; without joining a squad will be placed in randomly assigned teams.
+                            Players who vote &quot;{poll.options?.find(o => o.vote === "IN")?.name || tk("votedIn")}&quot; without joining a squad will be placed in randomly assigned teams.
                         </p>
                     )}
                 </div>

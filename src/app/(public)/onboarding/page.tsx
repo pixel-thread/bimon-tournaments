@@ -16,6 +16,7 @@ import {
 import { useIGNTutorial } from "@/components/common/IGNTutorialModal";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { WhatsAppJoinModal } from "@/components/common/WhatsAppJoinModal";
+import { useLocale } from "@/components/common/locale-provider";
 
 /**
  * /onboarding — New user setup flow.
@@ -27,6 +28,7 @@ export default function OnboardingPage() {
     const isLoaded = status !== "loading";
     const router = useRouter();
     const { user: authUser, refetch } = useAuthUser();
+    const { tk } = useLocale();
 
     const [displayName, setDisplayName] = useState("");
     const [displayNameError, setDisplayNameError] = useState("");
@@ -224,16 +226,16 @@ export default function OnboardingPage() {
                         <p className="text-sm text-foreground/50 mt-1">
                             {GAME.pasteOnlyIGN ? (
                                 <>
-                                    {GAME.locale === "kha" ? "Copy bad paste ia" : "Copy and paste"}{" "}
+                                    {tk("copyPaste")}{" "}
                                     <span className="font-semibold game-text">
-                                        {GAME.locale === "kha" ? `ka kyrteng ba na ${GAME.gameName}` : `your ${GAME.gameName} name`}
+                                        {`your ${GAME.gameName} name`}
                                     </span>
                                 </>
                             ) : (
                                 <>
-                                    {GAME.locale === "kha" ? "Enter ia" : "Enter"}{" "}
+                                    {"Enter"}{" "}
                                     <span className="font-semibold game-text">
-                                        {GAME.locale === "kha" ? `ka kyrteng ba na ${GAME.gameName}` : `your ${GAME.gameName} name`}
+                                        {`your ${GAME.gameName} name`}
                                     </span>
                                 </>
                             )}
@@ -440,7 +442,7 @@ export default function OnboardingPage() {
 
                     {/* Footer */}
                     <p className="text-center text-xs text-foreground/30 px-6 pb-4">
-                        {GAME.locale === "kha" ? "Phi lah ban change biang na profile page" : "You can change this later from your profile page"}
+                        {tk("canChangeLater")}
                     </p>
                 </div>
             </motion.div>

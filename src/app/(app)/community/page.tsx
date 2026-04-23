@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { CrossGamePromo } from "@/components/common/cross-game-promo";
+import { useLocale } from "@/components/common/locale-provider";
 
 const CATEGORIES = [
     { value: "feedback", label: "Feedback", icon: MessageCircle, color: "primary" as const },
@@ -78,25 +79,17 @@ interface PollDTO {
     pendingSuggestions: { id: string; text: string; suggestedBy: string }[];
 }
 
-const SUBTITLE_MESSAGES = GAME.locale === "kha"
-    ? [
-        "Send message kumno bin pynbha ia kanoi ka tournament",
-        "Pynbeit da n ong bakla lane ai ongmut ia u seng",
-    ]
-    : [
-        "Share feedback, ideas, or report bugs",
-        "Vote on polls and help shape the community",
-    ];
-
 function RotatingSubtitle() {
     const [index, setIndex] = useState(0);
+    const { tk } = useLocale();
+    const messages = [tk("communitySubtitle1"), tk("communitySubtitle2")];
 
     useEffect(() => {
         const interval = setInterval(() => {
-            setIndex((i) => (i + 1) % SUBTITLE_MESSAGES.length);
+            setIndex((i) => (i + 1) % messages.length);
         }, 5000);
         return () => clearInterval(interval);
-    }, []);
+    }, [messages.length]);
 
     return (
         <AnimatePresence mode="wait">
@@ -108,7 +101,7 @@ function RotatingSubtitle() {
                 transition={{ duration: 0.3 }}
                 className="text-sm text-foreground/50"
             >
-                {SUBTITLE_MESSAGES[index]}
+                {messages[index]}
             </motion.p>
         </AnimatePresence>
     );

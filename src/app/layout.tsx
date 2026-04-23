@@ -4,6 +4,7 @@ import { Providers } from "@/components/providers";
 import { RouteTracker } from "@/components/common/route-tracker";
 import { AutoUpdater } from "@/components/common/auto-updater";
 import { ColorThemeProvider } from "@/components/common/color-theme-provider";
+import { LocaleProvider } from "@/components/common/locale-provider";
 
 import { GAME } from "@/lib/game-config";
 
@@ -105,10 +106,12 @@ export default function RootLayout({
       <body className={`${rajdhani.variable} font-sans antialiased`}>
         <Providers>
           <ColorThemeProvider>
-            <RouteTracker />
-            <AutoUpdater />
+            <LocaleProvider>
+              <RouteTracker />
+              <AutoUpdater />
 
-            {children}
+              {children}
+            </LocaleProvider>
           </ColorThemeProvider>
         </Providers>
       </body>
