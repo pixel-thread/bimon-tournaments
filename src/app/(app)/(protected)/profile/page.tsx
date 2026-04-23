@@ -502,7 +502,11 @@ export default function ProfilePage() {
                             <div className="pb-0.5 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <h1 className="text-xl font-bold text-white drop-shadow break-all leading-normal">{name}</h1>
-                                    {player?.hasRoyalPass && <Crown className="h-5 w-5 text-yellow-400 shrink-0" />}
+                                    {player?.hasRoyalPass && (
+                                        <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 shadow-sm shadow-yellow-500/30 shrink-0">
+                                            <Crown className="h-3 w-3 text-black" />
+                                        </span>
+                                    )}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
