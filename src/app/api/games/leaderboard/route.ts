@@ -107,13 +107,14 @@ export async function GET(req: Request) {
         finalScores = result;
     }
 
-    // Reward config
+    // Reward config (per-game)
+    const rewardPrefix = `game_reward_${gameType}_`;
     const rewardSettings = await prisma.appSetting.findMany({
-        where: { key: { startsWith: "game_reward_" } },
+        where: { key: { startsWith: rewardPrefix } },
     });
     const rewards: Record<string, number> = {};
     for (const s of rewardSettings) {
-        rewards[s.key.replace("game_reward_", "")] = parseInt(s.value) || 0;
+        rewards[s.key.replace(rewardPrefix, "")] = parseInt(s.value) || 0;
     }
 
     // Current user's personal best + threshold
@@ -141,17 +142,11 @@ export async function GET(req: Request) {
         }
     } catch { /* guest user */ }
 
-    // Reward end date
-    const endDateSetting = await prisma.appConfig.findUnique({
-        where: { key: "app_settings" },
+    // Per-game reward end date
+    const endDateSetting = await prisma.appSetting.findUnique({
+        where: { key: `game_end_date_${gameType}` },
     });
-    let gameRewardEndDate = "";
-    if (endDateSetting) {
-        try {
-            const parsed = JSON.parse(endDateSetting.value);
-            gameRewardEndDate = parsed.gameRewardEndDate || "";
-        } catch { /* ignore */ }
-    }
+    const gameRewardEndDate = endDateSetting?.value || "";
 
     return NextResponse.json({
         scores: finalScores,

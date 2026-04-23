@@ -2,66 +2,105 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { requireAdmin } from "@/lib/auth";
 
-const DIFFICULTY = "hard";
+/* ── Game type → DB difficulty key mapping ─────────────── */
+const GAME_KEYS: Record<string, { difficulty: string; label: string }> = {
+    memory: { difficulty: "hard", label: "Memory Game" },
+    "number-rush": { difficulty: "number-rush", label: "Number Rush" },
+};
+
+function resolveGame(game: string | undefined) {
+    return GAME_KEYS[game || "memory"] || null;
+}
 
 /**
- * GET /api/admin/games — Get reward settings + score count
+ * GET /api/admin/games?game=memory|number-rush
+ * Get per-game reward settings + score count
  */
-export async function GET() {
+export async function GET(req: Request) {
     await requireAdmin();
 
+    const { searchParams } = new URL(req.url);
+    const gameKey = searchParams.get("game") || "memory";
+    const gameConfig = resolveGame(gameKey);
+    if (!gameConfig) return NextResponse.json({ error: "Unknown game" }, { status: 400 });
+
+    const prefix = `game_reward_${gameKey}_`;
     const settings = await prisma.appSetting.findMany({
-        where: { key: { startsWith: "game_reward_" } },
+        where: { key: { startsWith: prefix } },
     });
 
     const rewards: Record<string, number> = {};
     for (const s of settings) {
-        rewards[s.key.replace("game_reward_", "")] = parseInt(s.value) || 0;
+        rewards[s.key.replace(prefix, "")] = parseInt(s.value) || 0;
     }
 
-    const scoreCount = await prisma.gameScore.count({ where: { difficulty: DIFFICULTY } });
+    const scoreCount = await prisma.gameScore.count({ where: { difficulty: gameConfig.difficulty } });
 
-    return NextResponse.json({ rewards, scoreCount });
+    // Get per-game end date
+    const endDateSetting = await prisma.appSetting.findUnique({
+        where: { key: `game_end_date_${gameKey}` },
+    });
+
+    return NextResponse.json({
+        rewards,
+        scoreCount,
+        endDate: endDateSetting?.value || "",
+    });
 }
 
 /**
- * POST /api/admin/games — updateRewards, resetScores, distributeRewards
+ * POST /api/admin/games
+ * Body: { game, action, ... }
+ * Actions: updateRewards, resetScores, distributeRewards
  */
 export async function POST(req: Request) {
     await requireAdmin();
 
     const body = await req.json();
-    const { action } = body;
+    const { action, game: gameKey } = body;
+    const gk = gameKey || "memory";
+    const gameConfig = resolveGame(gk);
+    if (!gameConfig) return NextResponse.json({ error: "Unknown game" }, { status: 400 });
+
+    const prefix = `game_reward_${gk}_`;
 
     if (action === "updateRewards") {
-        const { rewards } = body as { rewards: Record<string, number> };
+        const { rewards, endDate } = body as { rewards: Record<string, number>; endDate?: string };
         for (const [position, amount] of Object.entries(rewards)) {
             await prisma.appSetting.upsert({
-                where: { key: `game_reward_${position}` },
-                create: { key: `game_reward_${position}`, value: String(amount) },
+                where: { key: `${prefix}${position}` },
+                create: { key: `${prefix}${position}`, value: String(amount) },
                 update: { value: String(amount) },
+            });
+        }
+        // Save per-game end date
+        if (endDate !== undefined) {
+            await prisma.appSetting.upsert({
+                where: { key: `game_end_date_${gk}` },
+                create: { key: `game_end_date_${gk}`, value: endDate },
+                update: { value: endDate },
             });
         }
         return NextResponse.json({ success: true });
     }
 
     if (action === "resetScores") {
-        await prisma.gameScore.deleteMany({ where: { difficulty: DIFFICULTY } });
+        await prisma.gameScore.deleteMany({ where: { difficulty: gameConfig.difficulty } });
         return NextResponse.json({ success: true });
     }
 
     if (action === "distributeRewards") {
         const settings = await prisma.appSetting.findMany({
-            where: { key: { startsWith: "game_reward_" } },
+            where: { key: { startsWith: prefix } },
         });
         const rewards: Record<number, number> = {};
         for (const s of settings) {
-            const pos = parseInt(s.key.replace("game_reward_", ""));
-            rewards[pos] = parseInt(s.value) || 0;
+            const pos = parseInt(s.key.replace(prefix, ""));
+            if (!isNaN(pos)) rewards[pos] = parseInt(s.value) || 0;
         }
 
         const topScores = await prisma.gameScore.findMany({
-            where: { difficulty: DIFFICULTY },
+            where: { difficulty: gameConfig.difficulty },
             orderBy: { score: "desc" },
             take: Object.keys(rewards).length,
         });
@@ -82,17 +121,17 @@ export async function POST(req: Request) {
                     playerId: score.playerId,
                     amount,
                     type: "CREDIT",
-                    description: `Memory Game reward (#${i + 1})`,
+                    description: `${gameConfig.label} reward (#${i + 1})`,
                 },
             });
 
-            // Set 2% threshold for next round — player must beat this to reappear
+            // Set 2% threshold for next round
             const newThreshold = Math.ceil(score.score * 1.02);
             await prisma.gameScoreThreshold.upsert({
-                where: { playerId_gameType: { playerId: score.playerId, gameType: "memory" } },
+                where: { playerId_gameType: { playerId: score.playerId, gameType: gk } },
                 create: {
                     playerId: score.playerId,
-                    gameType: "memory",
+                    gameType: gk,
                     threshold: newThreshold,
                     lastWinningScore: score.score,
                 },
