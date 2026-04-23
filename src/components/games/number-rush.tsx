@@ -415,27 +415,17 @@ export function NumberRush() {
                         <>
                             {/* Stats */}
                             <div className="mb-3 flex items-center justify-between rounded-lg bg-default-100 px-4 py-2.5">
-                                <div className="flex items-center gap-1.5 text-sm">
-                                    <span className="text-foreground/40 text-xs">Tapped:</span>
-                                    <span className="font-bold game-text text-base">{nextNumber - 1}/{GRID_SIZE}</span>
-                                </div>
                                 <div className="text-xs text-foreground/40">
                                     Best: <span className="font-semibold text-foreground/60">{personalBest > 0 ? personalBest : "—"}</span>
+                                </div>
+                                <div className={`text-xs font-medium transition-colors ${penalties > 0 ? "text-danger" : "text-foreground/20"}`}>
+                                    {penalties > 0 ? `${penalties} miss · +${penalties * 2}s` : "0 miss"}
                                 </div>
                                 <div className="flex items-center gap-1.5 text-sm">
                                     <Timer className="h-4 w-4 text-foreground/40" />
                                     <span className="font-semibold font-mono">{formatTimeMs(elapsed)}</span>
                                 </div>
                             </div>
-
-                            {/* Penalties */}
-                            {penalties > 0 && (
-                                <div className="mb-3 text-center">
-                                    <span className="text-xs text-danger">
-                                        {penalties} wrong tap{penalties !== 1 ? "s" : ""} (+{penalties * 2}s penalty)
-                                    </span>
-                                </div>
-                            )}
 
                             {/* Threshold notice */}
                             {myThreshold > 0 && (
