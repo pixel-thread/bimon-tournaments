@@ -477,8 +477,8 @@ export default function TeamsPage() {
                                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                                                 {team.teamNumber}
                                             </span>
-                                            <span className="text-sm font-semibold text-foreground/50">
-                                                Team {team.teamNumber}
+                                            <span className="text-sm font-semibold text-foreground/50 truncate">
+                                                {team.name && team.name !== `Team ${team.teamNumber}` ? team.name : `Team ${team.teamNumber}`}
                                             </span>
                                         </div>
                                         {team.winner && (
