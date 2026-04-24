@@ -224,7 +224,8 @@ export function NumberRush() {
     const [isNewBest, setIsNewBest] = useState(false);
     const [hearts, setHearts] = useState(MAX_HEARTS);
     const [showNoHearts, setShowNoHearts] = useState(false);
-    const [hasStarted, setHasStarted] = useState(false);
+    const [phase, setPhase] = useState<"idle" | "memorizing" | "playing">("idle");
+    const [memoCountdown, setMemoCountdown] = useState(5);
     const [regenCountdown, setRegenCountdown] = useState("");
     const [personalBest, setPersonalBest] = useState(0);
     const [myThreshold, setMyThreshold] = useState(0);
@@ -273,6 +274,20 @@ export function NumberRush() {
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }, [isRunning, startTime]);
 
+    // Memorization countdown
+    useEffect(() => {
+        if (phase !== "memorizing") return;
+        if (memoCountdown <= 0) {
+            setPhase("playing");
+            const now = Date.now();
+            setStartTime(now);
+            setIsRunning(true);
+            return;
+        }
+        const id = setTimeout(() => setMemoCountdown(prev => prev - 1), 1000);
+        return () => clearTimeout(id);
+    }, [phase, memoCountdown]);
+
     // Auto-start
     useEffect(() => { startGame(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -307,43 +322,47 @@ export function NumberRush() {
         setShowNoHearts(false);
         setWrongTap(null);
         setFinalTime(0);
-        setHasStarted(true);
+        setPhase("idle");
+        setMemoCountdown(5);
         setGameCount(c => c + 1);
     }, []);
 
+    function handleStart() {
+        const saved = loadHearts();
+        const current = getRegenedHearts(saved);
+        if (current <= 0) { setShowNoHearts(true); setHearts(0); return; }
+        const remaining = consumeHeart();
+        setHearts(remaining);
+        setPhase("memorizing");
+        setMemoCountdown(5);
+    }
+
     function handleTap(num: number) {
-        if (gameWon) return;
+        if (gameWon || phase === "idle") return;
 
-        // First tap — consume heart + start timer
-        if (!isRunning) {
-            const saved = loadHearts();
-            const current = getRegenedHearts(saved);
-            if (current <= 0) { setShowNoHearts(true); setHearts(0); return; }
-
-            if (num !== nextNumber) {
-                // Wrong first tap — don't consume heart
-                setWrongTap(num);
-                setTimeout(() => setWrongTap(null), 300);
-                setPenalties(p => p + 1);
-                return;
-            }
-
-            const remaining = consumeHeart();
-            setHearts(remaining);
+        // During memorizing — skip countdown and start playing
+        if (phase === "memorizing") {
+            setPhase("playing");
             const now = Date.now();
             setStartTime(now);
             setIsRunning(true);
-            setNextNumber(2);
+            if (num === nextNumber) {
+                setNextNumber(nextNumber + 1);
+                setWrongTap(null);
+            } else {
+                setWrongTap(num);
+                setTimeout(() => setWrongTap(null), 300);
+                setPenalties(p => p + 1);
+            }
             return;
         }
 
+        // Playing phase
         if (num === nextNumber) {
             const next = nextNumber + 1;
             setNextNumber(next);
             setWrongTap(null);
-
             if (next > GRID_SIZE) {
-                // Won!
                 const finalMs = Date.now() - startTime;
                 setFinalTime(finalMs);
                 setElapsed(finalMs);
@@ -352,7 +371,6 @@ export function NumberRush() {
                 saveScore(finalMs, penalties);
             }
         } else {
-            // Wrong tap
             setWrongTap(num);
             setTimeout(() => setWrongTap(null), 300);
             setPenalties(p => p + 1);
@@ -407,10 +425,6 @@ export function NumberRush() {
                                 <p className="text-xs text-foreground/30 mt-1">until next heart</p>
                             </div>
                         </div>
-                    ) : !hasStarted ? (
-                        <div className="flex items-center justify-center py-16">
-                            <Hash className="h-8 w-8 text-foreground/20 animate-pulse" />
-                        </div>
                     ) : (
                         <>
                             {/* Stats */}
@@ -418,12 +432,18 @@ export function NumberRush() {
                                 <div className="text-xs text-foreground/40">
                                     Best: <span className="font-semibold text-foreground/60">{personalBest > 0 ? personalBest : "—"}</span>
                                 </div>
-                                <div className={`text-xs font-medium transition-colors ${penalties > 0 ? "text-danger" : "text-foreground/20"}`}>
-                                    {penalties > 0 ? `${penalties} miss · +${penalties * 2}s` : "0 miss"}
-                                </div>
+                                {phase === "memorizing" ? (
+                                    <div className="text-xs font-semibold text-warning animate-pulse">
+                                        Memorize! {memoCountdown}s
+                                    </div>
+                                ) : (
+                                    <div className={`text-xs font-medium transition-colors ${penalties > 0 ? "text-danger" : "text-foreground/20"}`}>
+                                        {penalties > 0 ? `${penalties} miss · +${penalties * 2}s` : "0 miss"}
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-1.5 text-sm">
                                     <Timer className="h-4 w-4 text-foreground/40" />
-                                    <span className="font-semibold font-mono">{formatTimeMs(elapsed)}</span>
+                                    <span className="font-semibold font-mono">{phase === "memorizing" ? "0.0s" : formatTimeMs(elapsed)}</span>
                                 </div>
                             </div>
 
@@ -437,37 +457,56 @@ export function NumberRush() {
                                 </div>
                             )}
 
-                            {/* 5×5 number grid */}
-                            <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
-                                {grid.map((num) => {
-                                    const isTapped = num < nextNumber;
-                                    const isWrong = wrongTap === num;
+                            {/* Number grid */}
+                            <div className="relative">
+                                <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
+                                    {grid.map((num) => {
+                                        const isTapped = num < nextNumber;
+                                        const isWrong = wrongTap === num;
+                                        const isHidden = phase === "idle";
 
-                                    return (
-                                        <button
-                                            key={`${gameCount}-${num}`}
-                                            onClick={() => handleTap(num)}
-                                            disabled={isTapped || gameWon}
-                                            className={`
-                                                aspect-square rounded-xl text-lg sm:text-xl font-bold
-                                                flex items-center justify-center
-                                                transition-all duration-150 select-none
-                                                ${isTapped
-                                                    ? "bg-success/15 text-success/40 scale-90 border-2 border-success/20"
-                                                    : isWrong
-                                                        ? "bg-danger/20 text-danger border-2 border-danger/40 scale-95 animate-shake"
-                                                        : "bg-default-100 text-foreground border-2 border-default-200 hover:bg-default-200 active:scale-95 cursor-pointer"
-                                                }
-                                            `}
+                                        return (
+                                            <button
+                                                key={`${gameCount}-${num}`}
+                                                onClick={() => handleTap(num)}
+                                                disabled={isTapped || gameWon || phase === "idle"}
+                                                className={`
+                                                    aspect-square rounded-xl text-lg sm:text-xl font-bold
+                                                    flex items-center justify-center
+                                                    transition-all duration-150 select-none
+                                                    ${isHidden
+                                                        ? "bg-default-100 border-2 border-default-200 text-foreground/15"
+                                                        : isTapped
+                                                            ? "bg-success/15 text-success/40 scale-90 border-2 border-success/20"
+                                                            : isWrong
+                                                                ? "bg-danger/20 text-danger border-2 border-danger/40 scale-95 animate-shake"
+                                                                : "bg-default-100 text-foreground border-2 border-default-200 hover:bg-default-200 active:scale-95 cursor-pointer"
+                                                    }
+                                                `}
+                                            >
+                                                {isHidden ? "?" : isTapped ? "✓" : num}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* START overlay */}
+                                {phase === "idle" && (
+                                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                                        <Button
+                                            size="lg"
+                                            color="success"
+                                            className="text-lg font-bold px-10 py-7 shadow-2xl"
+                                            onPress={handleStart}
                                         >
-                                            {isTapped ? "✓" : num}
-                                        </button>
-                                    );
-                                })}
+                                            ▶ START
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Reset button */}
-                            {isRunning && (
+                            {(phase === "memorizing" || isRunning) && (
                                 <div className="mt-3">
                                     <Button size="sm" variant="flat" className="w-full" onPress={startGame} startContent={<RotateCcw className="h-3.5 w-3.5" />}>
                                         Reset
