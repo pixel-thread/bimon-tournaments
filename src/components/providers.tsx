@@ -51,6 +51,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
                             richColors
                             closeButton
                             theme="dark"
+                            toastOptions={{
+                                style: { zIndex: 9999 },
+                            }}
+                            style={{ zIndex: 9999 }}
                         />
                     </HeroUIProvider>
                 </ThemeProvider>

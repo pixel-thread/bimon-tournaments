@@ -102,7 +102,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setTournamentFormat(GAME.defaultTournamentType ?? "BRACKET_1V1");
             setTournamentId("");
             setIsActive(true);
-            setAllowSquads(false);
+            setAllowSquads(GAME.features.hasSquads);
             setEnableFund(true);
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
