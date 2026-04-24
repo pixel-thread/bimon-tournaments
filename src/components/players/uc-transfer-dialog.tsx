@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+import { translations } from "@/lib/translations";
 
 // Transfers always use the entry currency (BP for MLBB, UC for BGMI, etc.)
 const TRANSFER_CURRENCY = GAME.hasDualCurrency ? (GAME.entryCurrency ?? "BP") : GAME.currency;
@@ -39,7 +40,9 @@ export function UCTransferDialog({
     sendOnly = false,
 }: UCTransferDialogProps) {
     const [amount, setAmount] = useState("");
-    const [message, setMessage] = useState("Synei lem ia kibi duk 😭");
+    const defaultRequestMsg = translations.transferRequestMsg[GAME.locale === "kha" ? "kha" : "en"];
+    const defaultSendMsg = translations.transferSendMsg[GAME.locale === "kha" ? "kha" : "en"];
+    const [message, setMessage] = useState<string>(defaultRequestMsg);
     const [activeTab, setActiveTab] = useState<string>(sendOnly ? "send" : "request");
     const queryClient = useQueryClient();
     const { balance } = useAuthUser();
@@ -77,7 +80,7 @@ export function UCTransferDialog({
 
     const handleClose = () => {
         setAmount("");
-        setMessage("Synei lem ia kibi duk 😭");
+        setMessage(defaultRequestMsg);
         setActiveTab(sendOnly ? "send" : "request");
         onClose();
     };
@@ -114,7 +117,7 @@ export function UCTransferDialog({
                         selectedKey={activeTab}
                         onSelectionChange={(key) => {
                             setActiveTab(key as string);
-                            setMessage(key === "send" ? "Shim ai donation" : "Synei lem ia kibi duk 😭");
+                            setMessage(key === "send" ? defaultSendMsg : defaultRequestMsg);
                         }}
                         fullWidth
                         size="sm"

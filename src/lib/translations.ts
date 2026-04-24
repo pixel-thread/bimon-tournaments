@@ -20,6 +20,10 @@ export const translations = {
 
     // ─── View All ─────────────────────────────────
     viewAll: { en: "View All", kha: "Peit baroh" },
+
+    // ─── UC Transfer Defaults ─────────────────────
+    transferRequestMsg: { en: "Can you spare some donations? 😭", kha: "Synei lem ia kiba duk 😭" },
+    transferSendMsg: { en: "Take it, I'll give donations", kha: "Shim ai donation" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
