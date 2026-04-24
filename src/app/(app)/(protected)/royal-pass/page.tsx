@@ -18,6 +18,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+import { t } from "@/lib/translations";
 
 interface RoyalPassInfo {
     hasRoyalPass: boolean;
@@ -215,8 +216,8 @@ export default function RoyalPassPage() {
 
                                 <p className="text-center text-xs text-foreground/50">
                                     {data.hasRoyalPass
-                                        ? `Leh kai ban ban ${data.nextRewardAt} tournament ioh ei ${streakReward} ${GAME.currencyPlural} instant!`
-                                        : `Get ${GAME.passName} to earn ${streakReward} ${GAME.currencyPlural} when you hit ${data.nextRewardAt} streak!`}
+                                        ? t("rpStreakDesc", { count: data.nextRewardAt, reward: streakReward, currency: GAME.currencyPlural })
+                                        : t("rpGetToEarn", { passName: GAME.passName, reward: streakReward, currency: GAME.currencyPlural, count: data.nextRewardAt })}
                                 </p>
                             </CardBody>
                         </Card>
@@ -269,14 +270,14 @@ export default function RoyalPassPage() {
                         transition={{ delay: 0.15 }}
                         className="space-y-2 text-sm text-foreground/50"
                     >
-                        <p className="font-medium text-foreground">How it works:</p>
+                        <p className="font-medium text-foreground">{t("rpHowItWorks")}</p>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Rung ha ka tournament</li>
-                            <li>Your streak increases by 1</li>
-                            <li>Pep shi tournament? Ka streak la resets sha 0</li>
-                            <li>Khlem pep {data?.nextRewardAt ?? 8} tournament → Ioh {streakReward} <CurrencyIcon size={12} /> bonus!</li>
+                            <li>{t("rpStep1")}</li>
+                            <li>{t("rpStep2")}</li>
+                            <li>{t("rpStep3")}</li>
+                            <li>{t("rpStep4", { count: data?.nextRewardAt ?? 8, reward: `${streakReward}` })} <CurrencyIcon size={12} /></li>
                             <li className="text-amber-600 dark:text-amber-400">
-                                🎨 Upload custom character image/video for your podium card!
+                                {t("rpStep5")}
                             </li>
                         </ul>
                     </motion.div>
