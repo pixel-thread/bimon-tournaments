@@ -1,3 +1,5 @@
+"use client";
+
 import { Hash } from "lucide-react";
 import { GameManagement } from "@/components/dashboard/games/game-management";
 

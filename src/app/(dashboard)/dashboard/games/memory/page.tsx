@@ -1,3 +1,5 @@
+"use client";
+
 import { Brain } from "lucide-react";
 import { GameManagement } from "@/components/dashboard/games/game-management";
 
