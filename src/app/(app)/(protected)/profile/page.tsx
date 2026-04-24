@@ -48,6 +48,7 @@ import { signOut, useSession } from "next-auth/react";
 import { GameNameInput, validateDisplayName } from "@/components/common/GameNameInput";
 import { useIGNTutorial } from "@/components/common/IGNTutorialModal";
 import { toast } from "sonner";
+import { t } from "@/lib/translations";
 import { CharacterPreviewModal } from "@/components/profile/character-preview-modal";
 import { GAME } from "@/lib/game-config";
 import { LocationModal } from "@/components/common/location-modal";
@@ -947,34 +948,41 @@ export default function ProfilePage() {
                                     )}
 
                                     {/* Bio */}
-                                    <div>
-                                        <p className="text-xs text-foreground/40 mb-1">Bio</p>
-                                        <textarea
-                                            value={newBio}
-                                            onChange={(e) => setNewBio(e.target.value)}
-                                            placeholder="Write something about yourself..."
-                                            maxLength={100}
-                                            rows={2}
-                                            disabled={saving}
-                                            className="w-full px-3 py-2 rounded-lg bg-default-100 border border-divider text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
-                                        />
-                                        <div className="flex items-center justify-between mt-0.5">
-                                            <button
-                                                type="button"
-                                                onClick={() => setNewBio("")}
-                                                disabled={saving || !newBio}
-                                                className="text-[10px] text-primary/60 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                            >
-                                                ↺ Use default
-                                            </button>
-                                            <p className="text-[10px] text-foreground/30">{newBio.length}/100</p>
-                                        </div>
-                                        {!newBio && player && (
-                                            <p className="text-[10px] text-foreground/30 mt-0.5 italic">
-                                                Your tier ({player.category}) updates based on your performance
-                                            </p>
-                                        )}
-                                    </div>
+                                    {(() => {
+                                        const cat = player?.category ? player.category.charAt(0) + player.category.slice(1).toLowerCase() : "";
+                                        const article = /^[aeiou]/i.test(cat) ? "an" : "a";
+                                        const defaultBio = player ? t("defaultBio", { name: player.displayName || profile?.username || "", article, category: cat }) : "";
+                                        return (
+                                            <div>
+                                                <p className="text-xs text-foreground/40 mb-1">Bio</p>
+                                                <textarea
+                                                    value={newBio}
+                                                    onChange={(e) => setNewBio(e.target.value)}
+                                                    placeholder={defaultBio || "Write something about yourself..."}
+                                                    maxLength={100}
+                                                    rows={2}
+                                                    disabled={saving}
+                                                    className="w-full px-3 py-2 rounded-lg bg-default-100 border border-divider text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                                                />
+                                                <div className="flex items-center justify-between mt-0.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNewBio("")}
+                                                        disabled={saving || !newBio}
+                                                        className="text-[10px] text-primary/60 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        ↺ Use default
+                                                    </button>
+                                                    <p className="text-[10px] text-foreground/30">{newBio.length}/100</p>
+                                                </div>
+                                                {!newBio && player && (
+                                                    <p className="text-[10px] text-foreground/30 mt-0.5 italic">
+                                                        Your tier ({player.category}) updates based on your performance
+                                                    </p>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Save / Cancel */}
                                     <div className="flex gap-2 pt-1">
