@@ -958,7 +958,22 @@ export default function ProfilePage() {
                                             disabled={saving}
                                             className="w-full px-3 py-2 rounded-lg bg-default-100 border border-divider text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
                                         />
-                                        <p className="text-[10px] text-foreground/30 mt-0.5 text-right">{newBio.length}/100</p>
+                                        <div className="flex items-center justify-between mt-0.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => setNewBio("")}
+                                                disabled={saving || !newBio}
+                                                className="text-[10px] text-primary/60 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                ↺ Use default
+                                            </button>
+                                            <p className="text-[10px] text-foreground/30">{newBio.length}/100</p>
+                                        </div>
+                                        {!newBio && player && (
+                                            <p className="text-[10px] text-foreground/30 mt-0.5 italic">
+                                                Your tier ({player.category}) updates based on your performance
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Save / Cancel */}
