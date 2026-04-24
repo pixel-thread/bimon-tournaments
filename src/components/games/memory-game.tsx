@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Tabs, Tab, Avatar, Skeleton, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { RotateCcw, Trophy, Timer, MousePointerClick, Gamepad2, Medal, Heart, Square, Lock } from "lucide-react";
+import { RotateCcw, Trophy, Timer, MousePointerClick, Gamepad2, Medal, Heart, Square, Lock, ArrowLeft } from "lucide-react";
 import { AdSlot } from "@/components/common/AdSlot";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 
@@ -410,12 +410,17 @@ export function MemoryGame() {
         <div className="mx-auto max-w-lg px-4 py-6 sm:px-6">
             {/* Header */}
             <div className="mb-4 flex items-center justify-between">
-                <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                        <Gamepad2 className="h-5 w-5 game-text" />
-                        <h1 className="text-lg font-bold">Memory Game</h1>
+                <div className="flex items-center gap-3">
+                    <a href="/games" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-default-100 hover:bg-default-200 transition-colors">
+                        <ArrowLeft className="h-4 w-4 text-foreground/60" />
+                    </a>
+                    <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                            <Gamepad2 className="h-5 w-5 game-text" />
+                            <h1 className="text-lg font-bold">Memory Game</h1>
+                        </div>
+                        <p className="text-sm text-foreground/50">Fewer moves + faster time = higher score</p>
                     </div>
-                    <p className="text-sm text-foreground/50">Fewer moves + faster time = higher score</p>
                 </div>
                 <div className="flex items-center gap-1">
                     {Array.from({ length: MAX_HEARTS }).map((_, i) => (
@@ -559,7 +564,7 @@ export function MemoryGame() {
                                         </div>
                                         <div className="flex gap-2 justify-center">
                                             <Button color="success" variant="flat" onPress={() => { startGame(); setTab("play"); }} startContent={<RotateCcw className="h-4 w-4" />}>Play Again</Button>
-                                            <Button variant="flat" onPress={() => setTab("leaderboard")} startContent={<Trophy className="h-4 w-4" />}>Leaderboard</Button>
+                                            <Button variant="flat" onPress={() => { startGame(); setTab("leaderboard"); }} startContent={<Trophy className="h-4 w-4" />}>Leaderboard</Button>
                                         </div>
                                         {gameCount >= 3 && gameCount % 3 === 0 && <AdSlot format="banner" className="mt-2 rounded-lg overflow-hidden" />}
                                     </div>

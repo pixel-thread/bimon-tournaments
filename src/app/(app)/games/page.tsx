@@ -52,7 +52,7 @@ function GameCard({ game, index, stats }: { game: GameMeta; index: number; stats
             transition={{ delay: index * 0.1, type: "spring", stiffness: 200, damping: 20 }}
         >
             <Link href={game.href}>
-                <div className="group relative overflow-hidden rounded-2xl border border-white/[0.06] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]">
+                <div className="group relative overflow-hidden rounded-2xl border border-white/[0.06] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] min-h-36 sm:min-h-40 bg-default-100">
                     {/* Banner image */}
                     <img
                         src={game.image}

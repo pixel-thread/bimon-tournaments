@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Tabs, Tab, Avatar, Skeleton, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { RotateCcw, Trophy, Timer, Hash, Gamepad2, Medal, Heart, Lock } from "lucide-react";
+import { RotateCcw, Trophy, Timer, Hash, Gamepad2, Medal, Heart, Lock, ArrowLeft } from "lucide-react";
 import { AdSlot } from "@/components/common/AdSlot";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 
@@ -224,8 +224,7 @@ export function NumberRush() {
     const [isNewBest, setIsNewBest] = useState(false);
     const [hearts, setHearts] = useState(MAX_HEARTS);
     const [showNoHearts, setShowNoHearts] = useState(false);
-    const [phase, setPhase] = useState<"idle" | "memorizing" | "playing">("idle");
-    const [memoCountdown, setMemoCountdown] = useState(10);
+    const [phase, setPhase] = useState<"idle" | "playing">("idle");
     const [regenCountdown, setRegenCountdown] = useState("");
     const [personalBest, setPersonalBest] = useState(0);
     const [myThreshold, setMyThreshold] = useState(0);
@@ -274,19 +273,6 @@ export function NumberRush() {
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }, [isRunning, startTime]);
 
-    // Memorization countdown
-    useEffect(() => {
-        if (phase !== "memorizing") return;
-        if (memoCountdown <= 0) {
-            setPhase("playing");
-            const now = Date.now();
-            setStartTime(now);
-            setIsRunning(true);
-            return;
-        }
-        const id = setTimeout(() => setMemoCountdown(prev => prev - 1), 1000);
-        return () => clearTimeout(id);
-    }, [phase, memoCountdown]);
 
     // Auto-start
     useEffect(() => { startGame(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -323,7 +309,6 @@ export function NumberRush() {
         setWrongTap(null);
         setFinalTime(0);
         setPhase("idle");
-        setMemoCountdown(10);
         setGameCount(c => c + 1);
     }, []);
 
@@ -333,29 +318,15 @@ export function NumberRush() {
         if (current <= 0) { setShowNoHearts(true); setHearts(0); return; }
         const remaining = consumeHeart();
         setHearts(remaining);
-        setPhase("memorizing");
-        setMemoCountdown(10);
+        setPhase("playing");
+        const now = Date.now();
+        setStartTime(now);
+        setIsRunning(true);
     }
 
     function handleTap(num: number) {
         if (gameWon || phase === "idle") return;
 
-        // During memorizing — skip countdown and start playing
-        if (phase === "memorizing") {
-            setPhase("playing");
-            const now = Date.now();
-            setStartTime(now);
-            setIsRunning(true);
-            if (num === nextNumber) {
-                setNextNumber(nextNumber + 1);
-                setWrongTap(null);
-            } else {
-                setWrongTap(num);
-                setTimeout(() => setWrongTap(null), 300);
-                setPenalties(p => p + 1);
-            }
-            return;
-        }
 
         // Playing phase
         if (num === nextNumber) {
@@ -383,12 +354,17 @@ export function NumberRush() {
         <div className="mx-auto max-w-lg px-4 py-6 sm:px-6">
             {/* Header */}
             <div className="mb-4 flex items-center justify-between">
-                <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                        <Hash className="h-5 w-5 game-text" />
-                        <h1 className="text-lg font-bold">Number Rush</h1>
+                <div className="flex items-center gap-3">
+                    <a href="/games" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-default-100 hover:bg-default-200 transition-colors">
+                        <ArrowLeft className="h-4 w-4 text-foreground/60" />
+                    </a>
+                    <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                            <Hash className="h-5 w-5 game-text" />
+                            <h1 className="text-lg font-bold">Number Rush</h1>
+                        </div>
+                        <p className="text-sm text-foreground/50">Tap 1→30 in order — fastest wins!</p>
                     </div>
-                    <p className="text-sm text-foreground/50">Tap 1→30 in order — fastest wins!</p>
                 </div>
                 <div className="flex items-center gap-1">
                     {Array.from({ length: MAX_HEARTS }).map((_, i) => (
@@ -432,19 +408,12 @@ export function NumberRush() {
                                 <div className="text-xs text-foreground/40">
                                     Best: <span className="font-semibold text-foreground/60">{personalBest > 0 ? personalBest : "—"}</span>
                                 </div>
-                                {phase === "memorizing" ? (
-                                    <div className="flex items-center gap-1.5 animate-pulse">
-                                        <span className="text-2xl font-black text-warning drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]">{memoCountdown}</span>
-                                        <span className="text-[10px] font-semibold text-warning/70 uppercase tracking-wider">sec</span>
-                                    </div>
-                                ) : (
-                                    <div className={`text-xs font-medium transition-colors ${penalties > 0 ? "text-danger" : "text-foreground/20"}`}>
-                                        {penalties > 0 ? `${penalties} miss · +${penalties * 2}s` : "0 miss"}
-                                    </div>
-                                )}
+                                <div className={`text-xs font-medium transition-colors ${penalties > 0 ? "text-danger" : "text-foreground/20"}`}>
+                                    {penalties > 0 ? `${penalties} miss · +${penalties * 2}s` : "0 miss"}
+                                </div>
                                 <div className="flex items-center gap-1.5 text-sm">
                                     <Timer className="h-4 w-4 text-foreground/40" />
-                                    <span className="font-semibold font-mono">{phase === "memorizing" ? "0.0s" : formatTimeMs(elapsed)}</span>
+                                    <span className="font-semibold font-mono">{formatTimeMs(elapsed)}</span>
                                 </div>
                             </div>
 
@@ -507,7 +476,7 @@ export function NumberRush() {
                             </div>
 
                             {/* Reset button */}
-                            {(phase === "memorizing" || isRunning) && (
+                            {isRunning && (
                                 <div className="mt-3">
                                     <Button size="sm" variant="flat" className="w-full" onPress={startGame} startContent={<RotateCcw className="h-3.5 w-3.5" />}>
                                         Reset
@@ -540,7 +509,7 @@ export function NumberRush() {
                                         </div>
                                         <div className="flex gap-2 justify-center">
                                             <Button color="success" variant="flat" onPress={() => { startGame(); setTab("play"); }} startContent={<RotateCcw className="h-4 w-4" />}>Play Again</Button>
-                                            <Button variant="flat" onPress={() => setTab("leaderboard")} startContent={<Trophy className="h-4 w-4" />}>Leaderboard</Button>
+                                            <Button variant="flat" onPress={() => { startGame(); setTab("leaderboard"); }} startContent={<Trophy className="h-4 w-4" />}>Leaderboard</Button>
                                         </div>
                                         {gameCount >= 3 && gameCount % 3 === 0 && <AdSlot format="banner" className="mt-2 rounded-lg overflow-hidden" />}
                                     </div>
