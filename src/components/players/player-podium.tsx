@@ -185,6 +185,7 @@ export const PodiumCard = memo(function PodiumCard({
                             <video
                                 ref={videoRef}
                                 src={inView ? mediaUrl : undefined}
+                                autoPlay
                                 muted
                                 playsInline
                                 loop
