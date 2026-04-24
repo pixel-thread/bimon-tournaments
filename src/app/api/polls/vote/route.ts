@@ -149,26 +149,25 @@ export async function POST(request: NextRequest) {
                 entryFee = teamSize > 1 ? Math.ceil(fullFee / teamSize) : fullFee;
             }
             const isPlayer = user.role === "PLAYER" || user.role === "ADMIN" || user.role === "SUPER_ADMIN";
-            const reservedNote = reserved > 0 ? ` (${reserved} ${GAME.currency} reserved for tournaments)` : "";
 
             if (user.player.isTrusted) {
                 if (available < -200) {
                     return ErrorResponse({
-                        message: `${GAME.currencyEmoji} Not enough ${GAME.currency} to vote IN — available: ${available} ${GAME.currency}${reservedNote}`,
+                        message: `${GAME.currencyEmoji} Not enough ${GAME.currency} to vote IN — you need ${entryFee} ${GAME.currency} but have ${available} available`,
                         status: 403,
                     });
                 }
             } else if (isPlayer) {
                 if (available < -entryFee) {
                     return ErrorResponse({
-                        message: `${GAME.currencyEmoji} Not enough ${GAME.currency} to vote IN — available: ${available} ${GAME.currency}${reservedNote}`,
+                        message: `${GAME.currencyEmoji} Not enough ${GAME.currency} to vote IN — you need ${entryFee} ${GAME.currency} but have ${available} available`,
                         status: 403,
                     });
                 }
             } else {
                 if (available < entryFee) {
                     return ErrorResponse({
-                        message: `${GAME.currencyEmoji} Not enough ${GAME.currency} to vote IN — you need ${entryFee} ${GAME.currency} but have ${available} available${reservedNote}`,
+                        message: `${GAME.currencyEmoji} Not enough ${GAME.currency} to vote IN — you need ${entryFee} ${GAME.currency} but have ${available} available`,
                         status: 403,
                     });
                 }
