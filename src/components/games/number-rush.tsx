@@ -225,7 +225,7 @@ export function NumberRush() {
     const [hearts, setHearts] = useState(MAX_HEARTS);
     const [showNoHearts, setShowNoHearts] = useState(false);
     const [phase, setPhase] = useState<"idle" | "memorizing" | "playing">("idle");
-    const [memoCountdown, setMemoCountdown] = useState(5);
+    const [memoCountdown, setMemoCountdown] = useState(10);
     const [regenCountdown, setRegenCountdown] = useState("");
     const [personalBest, setPersonalBest] = useState(0);
     const [myThreshold, setMyThreshold] = useState(0);
@@ -323,7 +323,7 @@ export function NumberRush() {
         setWrongTap(null);
         setFinalTime(0);
         setPhase("idle");
-        setMemoCountdown(5);
+        setMemoCountdown(10);
         setGameCount(c => c + 1);
     }, []);
 
@@ -334,7 +334,7 @@ export function NumberRush() {
         const remaining = consumeHeart();
         setHearts(remaining);
         setPhase("memorizing");
-        setMemoCountdown(5);
+        setMemoCountdown(10);
     }
 
     function handleTap(num: number) {
@@ -433,8 +433,9 @@ export function NumberRush() {
                                     Best: <span className="font-semibold text-foreground/60">{personalBest > 0 ? personalBest : "—"}</span>
                                 </div>
                                 {phase === "memorizing" ? (
-                                    <div className="text-xs font-semibold text-warning animate-pulse">
-                                        Memorize! {memoCountdown}s
+                                    <div className="flex items-center gap-1.5 animate-pulse">
+                                        <span className="text-2xl font-black text-warning drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]">{memoCountdown}</span>
+                                        <span className="text-[10px] font-semibold text-warning/70 uppercase tracking-wider">sec</span>
                                     </div>
                                 ) : (
                                     <div className={`text-xs font-medium transition-colors ${penalties > 0 ? "text-danger" : "text-foreground/20"}`}>
