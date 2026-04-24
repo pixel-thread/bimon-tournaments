@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Crown } from "lucide-react";
 import { Avatar } from "@heroui/react";
 import type { PlayerDTO } from "@/hooks/use-players";
@@ -103,9 +103,30 @@ export const PodiumCard = memo(function PodiumCard({
     const config = positionConfig[position];
     const metric = getSortMetric(player, sortBy);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const cardRef = useRef<HTMLDivElement>(null);
     const [mediaLoaded, setMediaLoaded] = useState(false);
+    const [inView, setInView] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
     const name = getDisplayName(player.displayName, player.username);
+
+    // Lazy-load video only when card scrolls into view
+    useEffect(() => {
+        const el = cardRef.current;
+        if (!el) return;
+        const obs = new IntersectionObserver(
+            ([entry]) => { if (entry.isIntersecting) { setInView(true); obs.disconnect(); } },
+            { rootMargin: "200px" }
+        );
+        obs.observe(el);
+        return () => obs.disconnect();
+    }, []);
+
+    // Autoplay video once it's loaded and in view
+    useEffect(() => {
+        if (inView && mediaLoaded && videoRef.current?.paused) {
+            videoRef.current.play().catch(() => {});
+        }
+    }, [inView, mediaLoaded]);
 
     const handleMouseEnter = useCallback(() => {
         if (videoRef.current?.paused) {
@@ -121,7 +142,7 @@ export const PodiumCard = memo(function PodiumCard({
     const thumbnailUrl = charImg?.thumbnailUrl;
 
     return (
-        <div className={`${config.mt} ${config.order} flex flex-col items-center gap-2.5`}>
+        <div ref={cardRef} className={`${config.mt} ${config.order} flex flex-col items-center gap-2.5`}>
             {/* Crown for #1 */}
             {position === 1 && (
                 <Crown className="h-5 w-5 text-yellow-400 animate-pulse" />
@@ -146,7 +167,15 @@ export const PodiumCard = memo(function PodiumCard({
                 {charImg?.url ? (
                     isVideo && mediaUrl ? (
                         <>
-                            {!mediaLoaded && (
+                            {/* Show thumbnail/initial while video loads */}
+                            {thumbnailUrl ? (
+                                <img
+                                    src={thumbnailUrl}
+                                    alt=""
+                                    loading="lazy"
+                                    className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${mediaLoaded ? "opacity-0" : "opacity-90"}`}
+                                />
+                            ) : !mediaLoaded && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-foreground/[0.03]">
                                     <span className="text-3xl font-bold text-foreground/10">
                                         {name.charAt(0).toUpperCase()}
@@ -155,11 +184,11 @@ export const PodiumCard = memo(function PodiumCard({
                             )}
                             <video
                                 ref={videoRef}
-                                src={mediaUrl}
-                                autoPlay
+                                src={inView ? mediaUrl : undefined}
                                 muted
                                 playsInline
-                                preload="auto"
+                                loop
+                                preload="none"
                                 controls={false}
                                 controlsList="nodownload nofullscreen noremoteplayback"
                                 disableRemotePlayback
