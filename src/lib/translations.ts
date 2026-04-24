@@ -34,6 +34,9 @@ export const translations = {
     rpStep3: { en: "Miss a tournament? Your streak resets to 0", kha: "Pep shi tournament? Ka streak la resets sha 0" },
     rpStep4: { en: "Don't miss {count} tournaments → Get {reward} bonus!", kha: "Khlem pep {count} tournament → Ioh {reward} bonus!" },
     rpStep5: { en: "🎨 Upload custom character image/video for your podium card!", kha: "🎨 Upload custom character image/video for your podium card!" },
+
+    // ─── Default Bio ──────────────────────────────
+    defaultBio: { en: "I'm {name}, {article} {category} player", kha: "Nga u {name} dei u {category}" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

@@ -3,6 +3,7 @@ import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getAuthEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { censorProfanity } from "@/lib/logic/profanityFilter";
+import { t } from "@/lib/translations";
 
 /**
  * GET /api/profile
@@ -176,9 +177,8 @@ export async function GET(request: Request) {
                     phoneNumber: player.phoneNumber || null,
                     bio: censorProfanity(player.bio || (() => {
                         const cat = player.category.charAt(0) + player.category.slice(1).toLowerCase();
-                        if (GAME.locale === "kha") return `Nga u ${player.displayName || user.username} dei u ${cat}`;
                         const article = /^[aeiou]/i.test(cat) ? "an" : "a";
-                        return `I'm ${player.displayName || user.username}, ${article} ${cat} player`;
+                        return t("defaultBio", { name: player.displayName || user.username, article, category: cat });
                     })()),
                     category: player.category,
                     hasRoyalPass: player.hasRoyalPass,
