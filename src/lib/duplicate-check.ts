@@ -60,125 +60,59 @@ export async function checkPlayerForDuplicates(
     const { phoneNumber, displayName } = player;
     const { email, secondaryEmail, username } = player.user;
     const usernameBase = getUsernameBase(username);
-    let alertsCreated = 0;
+
+    // Collect all matches as: { otherPlayerId, matchType, matchValue }
+    type Signal = { otherPlayerId: string; matchType: string; matchValue: string };
+    const signals: Signal[] = [];
 
     // ── 1. Phone number match ─────────────────────────────────
     if (phoneNumber) {
         const phoneMatches = await db.player.findMany({
-            where: {
-                phoneNumber,
-                id: { not: playerId },
-            },
-            select: { id: true, displayName: true },
+            where: { phoneNumber, id: { not: playerId } },
+            select: { id: true },
         });
-
         for (const match of phoneMatches) {
-            const [p1, p2] = normalizePair(playerId, match.id);
-            try {
-                await db.duplicateAlert.create({
-                    data: {
-                        player1Id: p1,
-                        player2Id: p2,
-                        matchType: "PHONE",
-                        matchValue: phoneNumber,
-                    },
-                });
-                alertsCreated++;
-            } catch {
-                // unique constraint violation = already flagged, skip
-            }
+            signals.push({ otherPlayerId: match.id, matchType: "PHONE", matchValue: phoneNumber });
         }
     }
 
     // ── 2. Email ↔ Secondary email overlap ────────────────────
-    // Check if this user's email matches another user's secondaryEmail
     if (email) {
         const emailMatches = await db.user.findMany({
-            where: {
-                secondaryEmail: email,
-                id: { not: player.user.id },
-            },
+            where: { secondaryEmail: email, id: { not: player.user.id } },
             include: { player: { select: { id: true } } },
         });
-
         for (const match of emailMatches) {
-            if (!match.player) continue;
-            const [p1, p2] = normalizePair(playerId, match.player.id);
-            try {
-                await db.duplicateAlert.create({
-                    data: {
-                        player1Id: p1,
-                        player2Id: p2,
-                        matchType: "EMAIL",
-                        matchValue: email,
-                    },
-                });
-                alertsCreated++;
-            } catch {
-                // already flagged
+            if (match.player) {
+                signals.push({ otherPlayerId: match.player.id, matchType: "EMAIL", matchValue: email });
             }
         }
     }
 
-    // Check if this user's secondaryEmail matches another user's primary email
     if (secondaryEmail) {
         const secMatches = await db.user.findMany({
-            where: {
-                email: secondaryEmail,
-                id: { not: player.user.id },
-            },
+            where: { email: secondaryEmail, id: { not: player.user.id } },
             include: { player: { select: { id: true } } },
         });
-
         for (const match of secMatches) {
-            if (!match.player) continue;
-            const [p1, p2] = normalizePair(playerId, match.player.id);
-            try {
-                await db.duplicateAlert.create({
-                    data: {
-                        player1Id: p1,
-                        player2Id: p2,
-                        matchType: "EMAIL",
-                        matchValue: secondaryEmail,
-                    },
-                });
-                alertsCreated++;
-            } catch {
-                // already flagged
+            if (match.player) {
+                signals.push({ otherPlayerId: match.player.id, matchType: "EMAIL", matchValue: secondaryEmail });
             }
         }
     }
 
     // ── 3. Username base match ────────────────────────────────
     if (usernameBase && usernameBase.length >= 3) {
-        // Find users whose username starts with the same base
         const allUsers = await db.user.findMany({
-            where: {
-                id: { not: player.user.id },
-            },
+            where: { id: { not: player.user.id } },
             select: { id: true, username: true, player: { select: { id: true } } },
         });
 
-        const baseMatches = allUsers.filter((u) => {
-            const otherBase = getUsernameBase(u.username);
-            return otherBase === usernameBase && otherBase.length >= 3;
-        });
-
-        for (const match of baseMatches) {
+        for (const match of allUsers) {
             if (!match.player) continue;
-            const [p1, p2] = normalizePair(playerId, match.player.id);
-            try {
-                await db.duplicateAlert.create({
-                    data: {
-                        player1Id: p1,
-                        player2Id: p2,
-                        matchType: "USERNAME",
-                        matchValue: `${username} ↔ ${match.username}`,
-                    },
-                });
-                alertsCreated++;
-            } catch {
-                // already flagged
+            const otherBase = getUsernameBase(match.username);
+            if (otherBase === usernameBase && otherBase.length >= 3) {
+                signals.push({ otherPlayerId: match.player.id, matchType: "USERNAME", matchValue: `${username} ↔ ${match.username}` });
             }
         }
     }
@@ -192,27 +126,65 @@ export async function checkPlayerForDuplicates(
                 select: { id: true, displayName: true },
             });
 
-            const nameMatches = allPlayers.filter((p) => {
-                if (!p.displayName) return false;
-                const otherNorm = normalizeDisplayName(p.displayName);
-                return otherNorm === normalizedName;
-            });
-
-            for (const match of nameMatches) {
-                const [p1, p2] = normalizePair(playerId, match.id);
-                try {
-                    await db.duplicateAlert.create({
-                        data: {
-                            player1Id: p1,
-                            player2Id: p2,
-                            matchType: "DISPLAY_NAME",
-                            matchValue: `${displayName} ↔ ${match.displayName}`,
-                        },
-                    });
-                    alertsCreated++;
-                } catch {
-                    // already flagged
+            for (const match of allPlayers) {
+                if (!match.displayName) continue;
+                if (normalizeDisplayName(match.displayName) === normalizedName) {
+                    signals.push({ otherPlayerId: match.id, matchType: "DISPLAY_NAME", matchValue: `${displayName} ↔ ${match.displayName}` });
                 }
+            }
+        }
+    }
+
+    // ── Deduplicate: group by pair, create ONE alert per pair ──
+    const pairMap = new Map<string, { p1: string; p2: string; types: string[]; values: string[] }>();
+
+    for (const sig of signals) {
+        const [p1, p2] = normalizePair(playerId, sig.otherPlayerId);
+        const key = `${p1}:${p2}`;
+        if (!pairMap.has(key)) {
+            pairMap.set(key, { p1, p2, types: [], values: [] });
+        }
+        const entry = pairMap.get(key)!;
+        if (!entry.types.includes(sig.matchType)) {
+            entry.types.push(sig.matchType);
+            entry.values.push(sig.matchValue);
+        }
+    }
+
+    let alertsCreated = 0;
+
+    for (const { p1, p2, types, values } of pairMap.values()) {
+        // Use the most specific match type, or combine them
+        const matchType = types.length === 1 ? types[0] : types.join("+");
+        const matchValue = values.join(" | ");
+
+        // Check if ANY alert already exists for this pair (any match type)
+        const existing = await db.duplicateAlert.findFirst({
+            where: { player1Id: p1, player2Id: p2 },
+        });
+
+        if (existing) {
+            // Update if we found new match types
+            if (!existing.matchType.includes(types[0]) || types.length > 1) {
+                const combinedTypes = new Set([...existing.matchType.split("+"), ...types]);
+                const combinedValue = existing.matchValue === matchValue ? matchValue : `${existing.matchValue} | ${matchValue}`;
+                await db.duplicateAlert.update({
+                    where: { id: existing.id },
+                    data: {
+                        matchType: Array.from(combinedTypes).join("+"),
+                        matchValue: combinedValue,
+                    },
+                });
+            }
+            // Don't count as new
+        } else {
+            try {
+                await db.duplicateAlert.create({
+                    data: { player1Id: p1, player2Id: p2, matchType, matchValue },
+                });
+                alertsCreated++;
+            } catch {
+                // unique constraint violation = already flagged, skip
             }
         }
     }

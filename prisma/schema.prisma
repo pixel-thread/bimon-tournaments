@@ -1289,7 +1289,7 @@ model DuplicateAlert {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([player1Id, player2Id, matchType])
+  @@unique([player1Id, player2Id])
   @@index([isReviewed])
 }
 
