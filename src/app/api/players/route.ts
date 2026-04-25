@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
             if (activeSeason) seasonId = activeSeason.id;
         }
 
-        const tpsWhere: Record<string, unknown> = { playerId: { in: playerIds } };
+        const tpsWhere: Record<string, unknown> = { playerId: { in: playerIds }, present: true };
         if (seasonId) {
             tpsWhere.seasonId = seasonId;
         }

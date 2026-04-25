@@ -82,14 +82,14 @@ export async function GET(request: Request) {
                 lastTwoMatches,
             ] = await Promise.all([
                 prisma.teamPlayerStats.aggregate({
-                    where: { playerId: player.id, ...tpsSeasonFilter, ...modeFilter },
+                    where: { playerId: player.id, present: true, ...tpsSeasonFilter, ...modeFilter },
                     _count: { matchId: true },
                     _sum: { kills: true },
                 }),
                 prisma.playerStats.count({ where: { playerId: player.id, matches: { gt: 0 } } }),
                 // Use TeamPlayerStats → teamStats to get positions (more reliable than TeamStats.players relation)
                 prisma.teamPlayerStats.findMany({
-                    where: { playerId: player.id, ...tpsSeasonFilter, ...modeFilter },
+                    where: { playerId: player.id, present: true, ...tpsSeasonFilter, ...modeFilter },
                     select: {
                         teamStats: {
                             select: { position: true, tournamentId: true },
@@ -97,12 +97,12 @@ export async function GET(request: Request) {
                     },
                 }),
                 prisma.teamPlayerStats.findFirst({
-                    where: { playerId: player.id, ...tpsSeasonFilter, ...modeFilter },
+                    where: { playerId: player.id, present: true, ...tpsSeasonFilter, ...modeFilter },
                     orderBy: { kills: "desc" },
                     select: { kills: true },
                 }),
                 prisma.teamPlayerStats.findMany({
-                    where: { playerId: player.id, ...tpsSeasonFilter, ...modeFilter },
+                    where: { playerId: player.id, present: true, ...tpsSeasonFilter, ...modeFilter },
                     orderBy: { createdAt: "desc" },
                     take: 2,
                     select: { kills: true },

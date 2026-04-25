@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         const playerIds = players.map((p) => p.id);
 
         // Get per-season stats
-        const tpsWhere: Record<string, unknown> = { playerId: { in: playerIds } };
+        const tpsWhere: Record<string, unknown> = { playerId: { in: playerIds }, present: true };
         if (seasonId) tpsWhere.seasonId = seasonId;
 
         const tpsAgg = await prisma.teamPlayerStats.groupBy({

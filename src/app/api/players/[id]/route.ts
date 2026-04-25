@@ -58,7 +58,7 @@ export async function GET(
 
         // Compute stats from TeamPlayerStats (source of truth)
         const statsAgg = await prisma.teamPlayerStats.aggregate({
-            where: { playerId: id },
+            where: { playerId: id, present: true },
             _count: { matchId: true },
             _sum: { kills: true },
         });

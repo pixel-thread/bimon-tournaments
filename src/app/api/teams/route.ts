@@ -126,6 +126,7 @@ export async function GET(request: NextRequest) {
         if (allPlayerIds.size > 0) {
             const modeFilter: Record<string, unknown> = {
                 playerId: { in: Array.from(allPlayerIds) },
+                present: true,
             };
             // Filter by mode: ranked (allowSquads=true) vs casual
             if (poll?.allowSquads === true) {
