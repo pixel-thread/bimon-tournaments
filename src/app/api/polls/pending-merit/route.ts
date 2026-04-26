@@ -34,11 +34,21 @@ export async function GET() {
             orderBy: { createdAt: "desc" },
             select: {
                 tournamentId: true,
-                tournament: { select: { name: true } },
+                tournament: {
+                    select: {
+                        name: true,
+                        poll: { select: { allowSquads: true } },
+                    },
+                },
             },
         });
 
         if (!lastTournamentMatch) {
+            return SuccessResponse({ data: { pending: [], tournamentId: null, tournamentName: null } });
+        }
+
+        // Skip rating for squad tournaments — players chose their own teammates
+        if (lastTournamentMatch.tournament.poll?.allowSquads) {
             return SuccessResponse({ data: { pending: [], tournamentId: null, tournamentName: null } });
         }
 
