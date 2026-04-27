@@ -62,6 +62,24 @@ export async function PATCH(req: NextRequest) {
             create: { name: trimmedDistrict, stateId: locationState.id },
         });
 
+        // Check if this town already exists under a DIFFERENT district in the same state
+        // (prevents misplaced towns, e.g. "Mairang" under "East Khasi Hills" when it belongs to "Eastern West Khasi Hills")
+        const existingTown = await communityDb.centralLocationTown.findFirst({
+            where: {
+                name: { equals: trimmedTown, mode: "insensitive" },
+                districtId: { not: locationDistrict.id },
+                district: { stateId: locationState.id },
+            },
+            include: { district: { select: { name: true } } },
+        });
+
+        if (existingTown) {
+            return ErrorResponse({
+                message: `${trimmedTown} already exists under ${existingTown.district.name}. Please select the correct district.`,
+                status: 400,
+            });
+        }
+
         await communityDb.centralLocationTown.upsert({
             where: {
                 name_districtId: { name: trimmedTown, districtId: locationDistrict.id },

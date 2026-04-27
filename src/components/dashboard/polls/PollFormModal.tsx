@@ -301,7 +301,12 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                                 isSelected={allowSquads}
                                 onValueChange={(v) => {
                                     setAllowSquads(v);
-                                    if (v) setEnableFund(false); // Auto-disable fund for squad polls
+                                    if (v) {
+                                        setEnableFund(false); // Auto-disable fund for squad polls
+                                        if (GAME.features.hasTeamSizes) setTeamType("SQUAD");
+                                    } else {
+                                        if (GAME.features.hasTeamSizes) setTeamType("DYNAMIC");
+                                    }
                                 }}
                             />
                         </div>
