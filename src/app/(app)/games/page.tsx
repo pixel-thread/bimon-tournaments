@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "motion/react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Gamepad2, Trophy, ChevronRight, Zap } from "lucide-react";
+import { Gamepad2, Trophy, ChevronRight, Zap, Loader2 } from "lucide-react";
 import { Avatar } from "@heroui/react";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 
@@ -45,73 +46,83 @@ const GAMES: GameMeta[] = [
 ];
 
 function GameCard({ game, index, stats }: { game: GameMeta; index: number; stats?: { myBest: number; topScore: number; topPlayerImage: string | null; topPlayerName: string; prize: number } }) {
+    const router = useRouter();
+    const [navigating, setNavigating] = useState(false);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ delay: index * 0.1, type: "spring", stiffness: 200, damping: 20 }}
         >
-            <Link href={game.href} className="block">
+            <div
+                onClick={() => {
+                    if (navigating) return;
+                    setNavigating(true);
+                    router.push(game.href);
+                }}
+                className="group relative overflow-hidden rounded-2xl border border-white/[0.06] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] h-36 sm:h-40 cursor-pointer"
+                style={{ background: game.gradient }}
+            >
+                {/* Banner image */}
+                <img
+                    src={game.image}
+                    alt={game.name}
+                    className="absolute inset-0 w-full h-full object-cover"
+                />
+
+                {/* Gradient overlay — strong for readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/20" />
+
+                {/* Accent bar */}
                 <div
-                    className="group relative overflow-hidden rounded-2xl border border-white/[0.06] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] h-36 sm:h-40 cursor-pointer"
+                    className="absolute top-0 left-0 right-0 h-[2px]"
                     style={{ background: game.gradient }}
-                >
-                    {/* Banner image */}
-                    <img
-                        src={game.image}
-                        alt={game.name}
-                        className="absolute inset-0 w-full h-full object-cover"
-                    />
+                />
 
-                    {/* Gradient overlay — strong for readability */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/20" />
-
-                    {/* Accent bar */}
-                    <div
-                        className="absolute top-0 left-0 right-0 h-[2px]"
-                        style={{ background: game.gradient }}
-                    />
-
-                    {/* Content overlaid at bottom */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <div className="flex items-center justify-between">
-                            <div style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
-                                <h2 className="text-base font-bold tracking-tight text-white">{game.name}</h2>
-                                <p className="text-[11px] text-white/50 mt-0.5">{game.tagline}</p>
-                            </div>
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
-                                <ChevronRight className="h-4 w-4 text-white/50 group-hover:text-white/80 transition-colors" />
-                            </div>
+                {/* Content overlaid at bottom */}
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <div className="flex items-center justify-between">
+                        <div style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+                            <h2 className="text-base font-bold tracking-tight text-white">{game.name}</h2>
+                            <p className="text-[11px] text-white/50 mt-0.5">{game.tagline}</p>
                         </div>
-
-                        {/* Stats row */}
-                        {stats && (
-                            <div className="mt-2.5 flex items-center gap-4" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}>
-                                {stats.myBest > 0 && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Trophy className="h-3 w-3 text-white/40" />
-                                        <span className="text-[11px] text-white/50">Your Best: <span className="font-semibold text-white/80">{stats.myBest}</span></span>
-                                    </div>
-                                )}
-                                {stats.topScore > 0 && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Avatar src={stats.topPlayerImage || undefined} name={stats.topPlayerName} className="h-4 w-4 shrink-0 text-[6px]" />
-                                        <span className="text-[11px] text-white/50">Top: <span className="font-semibold text-white/80">{stats.topScore}</span></span>
-                                    </div>
-                                )}
-                                {stats.prize > 0 && (
-                                    <div className="flex items-center gap-1.5">
-                                        <Zap className="h-3 w-3 text-success/80" />
-                                        <span className="text-[11px] text-success font-semibold">
-                                            Free {stats.prize} <CurrencyIcon size={9} />
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
+                            {navigating ? (
+                                <Loader2 className="h-4 w-4 text-white/80 animate-spin" />
+                            ) : (
+                                <ChevronRight className="h-4 w-4 text-white/50 group-hover:text-white/80 transition-colors" />
+                            )}
+                        </div>
                     </div>
+
+                    {/* Stats row */}
+                    {stats && (
+                        <div className="mt-2.5 flex items-center gap-4" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}>
+                            {stats.myBest > 0 && (
+                                <div className="flex items-center gap-1.5">
+                                    <Trophy className="h-3 w-3 text-white/40" />
+                                    <span className="text-[11px] text-white/50">Your Best: <span className="font-semibold text-white/80">{stats.myBest}</span></span>
+                                </div>
+                            )}
+                            {stats.topScore > 0 && (
+                                <div className="flex items-center gap-1.5">
+                                    <Avatar src={stats.topPlayerImage || undefined} name={stats.topPlayerName} className="h-4 w-4 shrink-0 text-[6px]" />
+                                    <span className="text-[11px] text-white/50">Top: <span className="font-semibold text-white/80">{stats.topScore}</span></span>
+                                </div>
+                            )}
+                            {stats.prize > 0 && (
+                                <div className="flex items-center gap-1.5">
+                                    <Zap className="h-3 w-3 text-success/80" />
+                                    <span className="text-[11px] text-success font-semibold">
+                                        Free {stats.prize} <CurrencyIcon size={9} />
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
-            </Link>
+            </div>
         </motion.div>
     );
 }
