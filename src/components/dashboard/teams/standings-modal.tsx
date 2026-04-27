@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import html2canvas from "html2canvas-pro";
+import { toPng } from "html-to-image";
 import { toast } from "sonner";
 import {
     X,
@@ -200,23 +200,6 @@ export function StandingsModal({
             return;
         }
 
-        // Pre-fetch background image as data URL to bypass CORS in html2canvas
-        let bgDataUrl = backgroundImage;
-        if (backgroundImage && !backgroundImage.startsWith("data:")) {
-            try {
-                const imgRes = await fetch(backgroundImage);
-                const blob = await imgRes.blob();
-                bgDataUrl = await new Promise<string>((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result as string);
-                    reader.readAsDataURL(blob);
-                });
-            } catch {
-                // Fall back to original URL if fetch fails
-                console.warn("Failed to pre-fetch background image, using original URL");
-            }
-        }
-
         // Clone the element so we can strip out mobile view without touching the original
         const clone = element.cloneNode(true) as HTMLElement;
         clone.removeAttribute("id");
@@ -236,11 +219,11 @@ export function StandingsModal({
         // Remove floating controls from clone
         clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
 
-        // Style the clone for 1280x720 desktop capture (use data URL for background)
+        // Style the clone for 1280x720 desktop capture
         clone.style.cssText = `
             width: 1280px; height: 720px; min-height: 720px;
             display: flex; align-items: center; justify-content: center;
-            background-image: url(${bgDataUrl});
+            background-image: url(${backgroundImage});
             background-size: cover; background-position: center;
             position: relative; overflow: hidden;
         `;
@@ -251,26 +234,18 @@ export function StandingsModal({
         tempContainer.appendChild(clone);
         document.body.appendChild(tempContainer);
 
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
         try {
-            const canvas = await html2canvas(clone, {
-                backgroundColor: null,
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
+            const dataUrl = await toPng(clone, {
                 width: 1280,
                 height: 720,
-                scrollX: 0,
-                scrollY: 0,
-                windowWidth: 1280,
-                windowHeight: 720,
+                pixelRatio: 2,
             });
 
-            const blob = await new Promise<Blob | null>((resolve) =>
-                canvas.toBlob(resolve, "image/png")
-            );
-            if (!blob) return;
+            // Convert data URL to blob
+            const res = await fetch(dataUrl);
+            const blob = await res.blob();
 
             const file = new File(
                 [blob],
@@ -307,7 +282,7 @@ export function StandingsModal({
             // Fallback: download
             const link = document.createElement("a");
             link.download = file.name;
-            link.href = canvas.toDataURL("image/png");
+            link.href = dataUrl;
             link.click();
             setShareSuccess(true);
             setTimeout(() => setShareSuccess(false), 2000);
