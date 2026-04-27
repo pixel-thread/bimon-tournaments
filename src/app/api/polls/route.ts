@@ -151,7 +151,17 @@ export async function GET(request: Request) {
             };
         });
 
-        return SuccessResponse({ data: { polls: data, currentPlayerId: playerId ?? null, isCouponVerifier: (user?.player as any)?.isCouponVerifier ?? false }, cache: CACHE.NONE });
+        // Check coupon verifier status directly (not from getCurrentUser cache)
+        let isCouponVerifier = false;
+        if (playerId) {
+            const playerFlags = await prisma.player.findUnique({
+                where: { id: playerId },
+                select: { isCouponVerifier: true },
+            });
+            isCouponVerifier = playerFlags?.isCouponVerifier ?? false;
+        }
+
+        return SuccessResponse({ data: { polls: data, currentPlayerId: playerId ?? null, isCouponVerifier }, cache: CACHE.NONE });
     } catch (error) {
         console.error("[GET /api/polls] Error:", error);
         return ErrorResponse({ message: "Failed to fetch polls", error });
