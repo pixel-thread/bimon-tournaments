@@ -280,35 +280,29 @@ export function SlotsModal({
                                                 ...Array(maxPlayers - players.length).fill(""),
                                             ];
 
-                                            const rowColor = index % 3 === 0
-                                                ? "bg-zinc-900/40"
+                                            const textColor = index % 3 === 0
+                                                ? "text-orange-400"
                                                 : index % 3 === 1
-                                                    ? "bg-blue-950/25"
-                                                    : "bg-emerald-950/20";
-
-                                            const teamNameColor = index % 3 === 0
-                                                ? "text-orange-400/80"
-                                                : index % 3 === 1
-                                                    ? "text-blue-400/80"
-                                                    : "text-emerald-400/80";
+                                                    ? "text-blue-400"
+                                                    : "text-emerald-400";
 
                                             return (
                                                 <tr
                                                     key={team.id || index}
-                                                    className={`border-b border-white/5 ${rowColor} hover:bg-zinc-700/40 transition-colors`}
+                                                    className={`border-b border-white/5 ${index % 2 === 0 ? "bg-zinc-900/40" : "bg-zinc-800/30"} hover:bg-zinc-700/40 transition-colors`}
                                                 >
-                                                    <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium text-zinc-400">
+                                                    <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium ${textColor}`}>
                                                         {index + 2}
                                                     </td>
                                                     {hasSquadTeams && (
-                                                        <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium whitespace-nowrap ${teamNameColor}`}>
+                                                        <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium whitespace-nowrap ${textColor}`}>
                                                             {team.name}
                                                         </td>
                                                     )}
                                                     {paddedPlayers.map((playerName, pi) => (
                                                         <td
                                                             key={pi}
-                                                            className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm whitespace-nowrap ${playerName ? "text-white" : "text-zinc-600"}`}
+                                                            className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm whitespace-nowrap ${playerName ? textColor : "text-zinc-600"}`}
                                                         >
                                                             {playerName || "\u2014"}
                                                         </td>
