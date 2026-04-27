@@ -245,6 +245,7 @@ export default function AdminRulesPage() {
                     id: `temp-${Date.now()}`,
                     title: vars.title.trim(),
                     content: vars.content.trim(),
+                    category: vars.category,
                     order: rules.length + 1,
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
