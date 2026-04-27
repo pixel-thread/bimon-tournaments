@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody, CardHeader, Divider, Skeleton } from "@heroui/react";
+import { Card, CardBody, CardHeader, Skeleton } from "@heroui/react";
 import { BookOpen, ChevronDown } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -10,6 +10,7 @@ interface Rule {
     id: string;
     title: string;
     content: string;
+    category: string; // CASUAL, RANKED, or BOTH
     order: number;
     createdAt: string;
     updatedAt: string;
@@ -17,6 +18,7 @@ interface Rule {
 
 export default function RulesPage() {
     const [expandedRule, setExpandedRule] = useState<string | null>(null);
+    const [tab, setTab] = useState<"ranked" | "casual">("ranked");
 
     const { data: rules = [], isLoading } = useQuery<Rule[]>({
         queryKey: ["rules"],
@@ -27,6 +29,18 @@ export default function RulesPage() {
             return json.data;
         },
     });
+
+    // Filter rules based on selected tab — BOTH rules always show
+    const filteredRules = rules.filter((r) => {
+        const cat = r.category || "BOTH";
+        if (cat === "BOTH") return true;
+        return tab === "ranked" ? cat === "RANKED" : cat === "CASUAL";
+    });
+
+    // Count for badges
+    const rankedCount = rules.filter((r) => (r.category || "BOTH") === "RANKED" || (r.category || "BOTH") === "BOTH").length;
+    const casualCount = rules.filter((r) => (r.category || "BOTH") === "CASUAL" || (r.category || "BOTH") === "BOTH").length;
+    const showTabs = rules.some((r) => (r.category || "BOTH") !== "BOTH");
 
     return (
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
@@ -40,24 +54,59 @@ export default function RulesPage() {
                 </p>
             </div>
 
+            {/* ── Ranked / Casual Tabs ── */}
+            {showTabs && (
+                <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100 mb-4">
+                    {([
+                        { key: "ranked" as const, label: "Ranked", icon: "🏆", count: rankedCount },
+                        { key: "casual" as const, label: "Casual", icon: "🎮", count: casualCount },
+                    ]).map(({ key, label, icon, count }) => (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setTab(key)}
+                            className={`
+                                flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium
+                                transition-all duration-200 cursor-pointer
+                                ${tab === key
+                                    ? "bg-background shadow-sm text-foreground"
+                                    : "text-foreground/50 hover:text-foreground/70"
+                                }
+                            `}
+                        >
+                            <span>{icon}</span>
+                            <span>{label}</span>
+                            {count > 0 && (
+                                <span className={`
+                                    text-[10px] font-bold px-1.5 py-0.5 rounded-full
+                                    ${tab === key ? "bg-primary/10 text-primary" : "bg-foreground/10 text-foreground/40"}
+                                `}>
+                                    {count}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             <div className="space-y-3">
                 {isLoading &&
                     [1, 2, 3, 4].map((i) => (
                         <Skeleton key={i} className="h-24 w-full rounded-xl" />
                     ))}
 
-                {!isLoading && rules.length === 0 && (
+                {!isLoading && filteredRules.length === 0 && (
                     <Card className="border border-divider">
                         <CardBody className="flex flex-col items-center gap-3 py-12">
                             <BookOpen className="h-10 w-10 text-foreground/15" />
                             <p className="text-sm text-foreground/40">
-                                No rules have been set up yet
+                                No {tab} rules yet
                             </p>
                         </CardBody>
                     </Card>
                 )}
 
-                {rules.map((rule, i) => {
+                {filteredRules.map((rule, i) => {
                     const isExpanded = expandedRule === rule.id;
                     return (
                         <motion.div

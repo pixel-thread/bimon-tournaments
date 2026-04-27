@@ -31,6 +31,7 @@ interface Rule {
     id: string;
     title: string;
     content: string;
+    category: string; // CASUAL, RANKED, or BOTH
     order: number;
     createdAt: string;
     updatedAt: string;
@@ -82,7 +83,14 @@ function RuleItem({
 
                     {/* Content */}
                     <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold">{rule.title}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold">{rule.title}</p>
+                            <Chip size="sm" variant="flat" className="text-[10px]" color={
+                                rule.category === "RANKED" ? "warning" : rule.category === "CASUAL" ? "primary" : "default"
+                            }>
+                                {rule.category === "BOTH" ? "All" : rule.category === "RANKED" ? "🏆" : "🎮"}
+                            </Chip>
+                        </div>
                         <p className="mt-0.5 line-clamp-2 text-xs text-foreground/50 whitespace-pre-wrap">
                             {rule.content}
                         </p>
@@ -124,6 +132,7 @@ export default function AdminRulesPage() {
     const [editingRule, setEditingRule] = useState<Rule | null>(null);
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
+    const [category, setCategory] = useState<"CASUAL" | "RANKED" | "BOTH">("BOTH");
     // Local reorder state — drives the Reorder.Group
     const [localRules, setLocalRules] = useState<Rule[]>([]);
     const orderBeforeDrag = useRef<string[]>([]);
@@ -198,7 +207,7 @@ export default function AdminRulesPage() {
 
     /* ─── Save mutation ─────────────────────────────────────── */
     const saveRule = useMutation({
-        mutationFn: async (vars: { title: string; content: string; editing: Rule | null }) => {
+        mutationFn: async (vars: { title: string; content: string; category: string; editing: Rule | null }) => {
             const url = vars.editing ? `/api/rules/${vars.editing.id}` : "/api/rules";
             const method = vars.editing ? "PUT" : "POST";
             const res = await fetch(url, {
@@ -207,6 +216,7 @@ export default function AdminRulesPage() {
                 body: JSON.stringify({
                     title: vars.title,
                     content: vars.content,
+                    category: vars.category,
                     order: vars.editing ? vars.editing.order : rules.length + 1,
                 }),
             });
@@ -331,10 +341,12 @@ export default function AdminRulesPage() {
             setEditingRule(rule);
             setTitle(rule.title);
             setContent(rule.content);
+            setCategory((rule.category as "CASUAL" | "RANKED" | "BOTH") || "BOTH");
         } else {
             setEditingRule(null);
             setTitle("");
             setContent("");
+            setCategory("BOTH");
         }
         onOpen();
     };
@@ -343,6 +355,7 @@ export default function AdminRulesPage() {
         setEditingRule(null);
         setTitle("");
         setContent("");
+        setCategory("BOTH");
         onClose();
     };
 
@@ -461,6 +474,22 @@ export default function AdminRulesPage() {
                             minRows={4}
                             maxRows={10}
                         />
+                        <div>
+                            <p className="text-sm font-medium mb-2">Applies to</p>
+                            <div className="flex gap-2">
+                                {(["BOTH", "RANKED", "CASUAL"] as const).map((cat) => (
+                                    <Chip
+                                        key={cat}
+                                        variant={category === cat ? "solid" : "bordered"}
+                                        color={cat === "RANKED" ? "warning" : cat === "CASUAL" ? "primary" : "default"}
+                                        className="cursor-pointer"
+                                        onClick={() => setCategory(cat)}
+                                    >
+                                        {cat === "BOTH" ? "Both" : cat === "RANKED" ? "🏆 Ranked" : "🎮 Casual"}
+                                    </Chip>
+                                ))}
+                            </div>
+                        </div>
                     </ModalBody>
                     <ModalFooter>
                         <Button variant="flat" onPress={handleClose}>
@@ -470,7 +499,7 @@ export default function AdminRulesPage() {
                             color="primary"
                             isLoading={saveRule.isPending}
                             isDisabled={!title.trim() || !content.trim()}
-                            onPress={() => saveRule.mutate({ title, content, editing: editingRule })}
+                            onPress={() => saveRule.mutate({ title, content, category, editing: editingRule })}
                         >
                             {editingRule ? "Save" : "Create"}
                         </Button>

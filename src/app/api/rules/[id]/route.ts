@@ -18,7 +18,7 @@ export async function PUT(
 
         const { id } = await params;
         const body = await req.json();
-        const { title, content, order } = body;
+        const { title, content, order, category } = body;
 
         if (!title?.trim() || !content?.trim()) {
             return NextResponse.json({ error: "Title and content required" }, { status: 400 });
@@ -29,6 +29,7 @@ export async function PUT(
             data: {
                 title: title.trim(),
                 content: content.trim(),
+                category: category || undefined,
                 order: order ?? undefined,
             },
         });

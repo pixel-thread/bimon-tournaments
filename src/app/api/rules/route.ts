@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { title, content, order } = body;
+        const { title, content, order, category } = body;
 
         if (!title?.trim() || !content?.trim()) {
             return NextResponse.json({ error: "Title and content required" }, { status: 400 });
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
             data: {
                 title: title.trim(),
                 content: content.trim(),
+                category: category || "BOTH",
                 order: order ?? 0,
                 createdBy: user.id,
             },

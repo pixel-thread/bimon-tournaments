@@ -51,13 +51,16 @@ function GameCard({ game, index, stats }: { game: GameMeta; index: number; stats
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ delay: index * 0.1, type: "spring", stiffness: 200, damping: 20 }}
         >
-            <Link href={game.href}>
-                <div className="group relative overflow-hidden rounded-2xl border border-white/[0.06] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] min-h-36 sm:min-h-40 bg-default-100">
+            <Link href={game.href} className="block">
+                <div
+                    className="group relative overflow-hidden rounded-2xl border border-white/[0.06] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] h-36 sm:h-40 cursor-pointer"
+                    style={{ background: game.gradient }}
+                >
                     {/* Banner image */}
                     <img
                         src={game.image}
                         alt={game.name}
-                        className="w-full h-36 sm:h-40 object-cover"
+                        className="absolute inset-0 w-full h-full object-cover"
                     />
 
                     {/* Gradient overlay — strong for readability */}
