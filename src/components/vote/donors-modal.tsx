@@ -1,7 +1,7 @@
 "use client";
 
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from "@heroui/react";
-import { Heart, User } from "lucide-react";
+import { Heart, User, Ticket } from "lucide-react";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 
 interface Donation {
@@ -10,15 +10,24 @@ interface Donation {
     isAnonymous: boolean;
 }
 
+interface SponsorCoupon {
+    sponsorName: string;
+    discountPct: number;
+    maxDiscount: number;
+    description: string;
+    status: string;
+}
+
 interface DonorsModalProps {
     isOpen: boolean;
     onClose: () => void;
     donations: Donation[];
     total: number;
     tournamentName: string;
+    sponsorCoupon?: SponsorCoupon | null;
 }
 
-export function DonorsModal({ isOpen, onClose, donations, total, tournamentName }: DonorsModalProps) {
+export function DonorsModal({ isOpen, onClose, donations, total, tournamentName, sponsorCoupon }: DonorsModalProps) {
     // Sort by biggest donation first
     const sorted = [...donations].sort((a, b) => b.amount - a.amount);
 
@@ -88,7 +97,32 @@ export function DonorsModal({ isOpen, onClose, donations, total, tournamentName 
                         ))}
                     </div>
 
-                    {donations.length === 0 && (
+                    {/* Sponsor Coupon — special row */}
+                    {sponsorCoupon && (
+                        <div className="mt-2 p-3 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border border-amber-200/50 dark:border-amber-800/30">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0">
+                                    <Ticket className="w-4 h-4 text-white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 truncate">
+                                        {sponsorCoupon.sponsorName || "Sponsor"}
+                                    </p>
+                                    <p className="text-xs text-foreground/50">
+                                        {sponsorCoupon.description}
+                                    </p>
+                                </div>
+                                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded-lg flex-shrink-0">
+                                    🎟️ Coupon
+                                </span>
+                            </div>
+                            <p className="text-[10px] text-foreground/40 mt-2 ml-11">
+                                Awarded to 1st place captain
+                            </p>
+                        </div>
+                    )}
+
+                    {donations.length === 0 && !sponsorCoupon && (
                         <div className="text-center py-8 text-foreground/40 text-sm">
                             No donations yet. Be the first! 💖
                         </div>

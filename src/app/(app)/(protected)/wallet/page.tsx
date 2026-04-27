@@ -510,6 +510,9 @@ export default function WalletPage() {
                     </motion.div>
                 )}
 
+                {/* ── Sponsor Coupons ─────────────────────────── */}
+                <WalletCoupons />
+
                 {/* ── Transfer to Game ────────────────────────── */}
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
@@ -918,5 +921,106 @@ export default function WalletPage() {
                 </ModalContent>
             </Modal>
         </div>
+    );
+}
+
+// ─── Wallet Coupons Section ─────────────────────────────────
+
+interface CouponData {
+    id: string;
+    code: string;
+    discountPct: number;
+    maxDiscount: number;
+    sponsorName: string;
+    description: string;
+    expiresAt: string;
+    claimedAt: string | null;
+    tournamentName: string | null;
+}
+
+function WalletCoupons() {
+    const { data: coupons, isLoading } = useQuery<CouponData[]>({
+        queryKey: ["my-coupons"],
+        queryFn: async () => {
+            const res = await fetch("/api/coupons/my");
+            if (!res.ok) return [];
+            const json = await res.json();
+            return json.data ?? [];
+        },
+        staleTime: 60_000,
+    });
+
+    if (isLoading || !coupons || coupons.length === 0) return null;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="space-y-2"
+        >
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/40 flex items-center gap-1.5 px-1">
+                🎟️ Your Coupons
+            </h3>
+            {coupons.map((coupon) => {
+                const daysLeft = Math.max(0, Math.ceil((new Date(coupon.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                return (
+                    <div
+                        key={coupon.id}
+                        className="relative overflow-hidden rounded-2xl border border-amber-200/50 dark:border-amber-800/30 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20"
+                    >
+                        {/* Decorative ticket notch */}
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-background" />
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-5 h-5 rounded-full bg-background" />
+
+                        <div className="px-6 py-4 space-y-3">
+                            {/* Discount headline */}
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xl font-bold text-amber-700 dark:text-amber-300">
+                                        {coupon.discountPct}% OFF
+                                    </p>
+                                    <p className="text-xs text-foreground/50">
+                                        up to ₹{coupon.maxDiscount} at {coupon.sponsorName}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] text-foreground/40 uppercase tracking-wide">Expires in</p>
+                                    <p className={`text-sm font-bold ${daysLeft <= 7 ? "text-danger" : "text-foreground/60"}`}>
+                                        {daysLeft}d
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Tournament badge */}
+                            {coupon.tournamentName && (
+                                <p className="text-[10px] text-foreground/40">
+                                    Won from: {coupon.tournamentName}
+                                </p>
+                            )}
+
+                            {/* Code */}
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-white/60 dark:bg-white/10 border border-dashed border-amber-300 dark:border-amber-700 rounded-lg px-3 py-2 text-center">
+                                    <span className="text-base font-mono font-bold tracking-widest text-amber-800 dark:text-amber-200">
+                                        {coupon.code}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(coupon.code);
+                                        toast.success("Code copied! 📋");
+                                    }}
+                                    className="px-3 py-2 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors cursor-pointer"
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </motion.div>
     );
 }

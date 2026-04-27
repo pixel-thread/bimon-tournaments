@@ -23,6 +23,7 @@ export default function VotePage() {
 
     const polls = data?.polls;
     const currentPlayerId = data?.currentPlayerId ?? undefined;
+    const isCouponVerifier = data?.isCouponVerifier ?? false;
     const pendingPollId = voteMutation.isPending ? voteMutation.variables?.pollId : undefined;
     const pendingVote = voteMutation.isPending ? voteMutation.variables?.vote : undefined;
 
@@ -145,6 +146,7 @@ export default function VotePage() {
                                 onRefetch={() => refetch()}
                                 onEntryChange={(pollId, action) => entryMutation.mutate({ pollId, action })}
                                 entryPending={entryMutation.isPending && entryMutation.variables?.pollId === poll.id}
+                                isCouponVerifier={isCouponVerifier}
                             />
                         ))
                     )}

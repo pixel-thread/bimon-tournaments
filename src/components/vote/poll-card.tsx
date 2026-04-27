@@ -31,6 +31,7 @@ interface PollCardProps {
     /** Multi-entry: add/remove extra entries (PES) */
     onEntryChange?: (pollId: string, action: "ADD_ENTRY" | "REMOVE_ENTRY") => void;
     entryPending?: boolean;
+    isCouponVerifier?: boolean;
 }
 
 /* ─── Animated Counter ──────────────────────────────────────── */
@@ -618,7 +619,7 @@ function VotersDialog({
 
 /* ─── Main Poll Card ────────────────────────────────────────── */
 
-export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayerId, onRefetch, onEntryChange, entryPending }: PollCardProps) {
+export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayerId, onRefetch, onEntryChange, entryPending, isCouponVerifier }: PollCardProps) {
     const { tk } = useLocale();
     const isThisPollVoting = votingPollId === poll.id;
     const { tournament } = poll;
@@ -791,6 +792,11 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         >
                             <Plus className="w-3.5 h-3.5 text-white" />
                         </button>
+                    )}
+                    {poll.sponsorCoupon && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
+                            🎟️ +{poll.sponsorCoupon.discountPct}% off coupon
+                        </span>
                     )}
                 </div>
             )}
@@ -1149,6 +1155,10 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         onClose={() => setShowDonate(false)}
                         tournamentId={tournament.id}
                         tournamentName={tournament.name || poll.question}
+                        pollId={poll.id}
+                        allowSquads={poll.allowSquads}
+                        isCouponVerifier={isCouponVerifier}
+                        hasCoupon={!!poll.sponsorCoupon}
                     />
                 )}
 
@@ -1159,6 +1169,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     donations={poll.donations.donations}
                     total={donationTotal}
                     tournamentName={tournament?.name || poll.question}
+                    sponsorCoupon={poll.sponsorCoupon}
                 />
 
                 {/* Squad Vote Warning Modal */}

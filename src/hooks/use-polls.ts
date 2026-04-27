@@ -47,13 +47,20 @@ export interface PollDTO {
         donations: { amount: number; playerName: string | null; isAnonymous: boolean }[];
     };
     squadCount?: number;
+    sponsorCoupon: {
+        sponsorName: string;
+        discountPct: number;
+        maxDiscount: number;
+        description: string;
+        status: string;
+    } | null;
 }
 
 /**
  * Fetch active polls with vote data.
  */
 export function usePolls() {
-    return useQuery<{ polls: PollDTO[]; currentPlayerId: string | null }>({
+    return useQuery<{ polls: PollDTO[]; currentPlayerId: string | null; isCouponVerifier: boolean }>({
         queryKey: ["polls"],
         queryFn: async () => {
             const res = await fetch(`/api/polls?_t=${Date.now()}`);
@@ -97,9 +104,9 @@ export function useVote() {
         },
         onMutate: async ({ pollId, vote }) => {
             await queryClient.cancelQueries({ queryKey: ["polls"] });
-            const previous = queryClient.getQueryData<{ polls: PollDTO[]; currentPlayerId: string | null }>(["polls"]);
+            const previous = queryClient.getQueryData<{ polls: PollDTO[]; currentPlayerId: string | null; isCouponVerifier: boolean }>(["polls"]);
 
-            queryClient.setQueryData<{ polls: PollDTO[]; currentPlayerId: string | null }>(["polls"], (old) => {
+            queryClient.setQueryData<{ polls: PollDTO[]; currentPlayerId: string | null; isCouponVerifier: boolean }>(["polls"], (old) => {
                 if (!old) return old;
                 const currentPlayerId = old.currentPlayerId;
                 return {
@@ -213,9 +220,9 @@ export function useEntryMutation() {
         },
         onMutate: async ({ pollId, action }) => {
             await queryClient.cancelQueries({ queryKey: ["polls"] });
-            const previous = queryClient.getQueryData<{ polls: PollDTO[]; currentPlayerId: string | null }>(["polls"]);
+            const previous = queryClient.getQueryData<{ polls: PollDTO[]; currentPlayerId: string | null; isCouponVerifier: boolean }>(["polls"]);
 
-            queryClient.setQueryData<{ polls: PollDTO[]; currentPlayerId: string | null }>(["polls"], (old) => {
+            queryClient.setQueryData<{ polls: PollDTO[]; currentPlayerId: string | null; isCouponVerifier: boolean }>(["polls"], (old) => {
                 if (!old) return old;
                 return {
                     ...old,

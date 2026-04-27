@@ -590,6 +590,41 @@ export async function POST(
             return winners;
         }, { timeout: 30000, maxWait: 35000 });
 
+        // ── 6b. Auto-assign sponsor coupon to 1st place captain ──
+        if (isSquadTournament) {
+            try {
+                const poll = await prisma.poll.findUnique({
+                    where: { tournamentId: id },
+                    select: { id: true },
+                });
+                if (poll) {
+                    const coupon = await prisma.sponsorCoupon.findUnique({
+                        where: { pollId: poll.id },
+                    });
+                    if (coupon && coupon.status === "AVAILABLE") {
+                        // Find 1st place team
+                        const firstPlaceTeam = winnerTeamsData.find((t) => t.position === 1);
+                        if (firstPlaceTeam) {
+                            const captainId = teamCaptainMap.get(firstPlaceTeam.teamId);
+                            if (captainId) {
+                                await prisma.sponsorCoupon.update({
+                                    where: { id: coupon.id },
+                                    data: {
+                                        status: "CLAIMED",
+                                        claimedById: captainId,
+                                        claimedAt: new Date(),
+                                    },
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch (couponErr) {
+                // Don't fail winner declaration if coupon assignment fails
+                console.error("Coupon auto-assign error:", couponErr);
+            }
+        }
+
         // ── 6. Post-transaction: Solo tax distribution ────────
         // (Outside transaction — needs winners committed first for loser calc)
 

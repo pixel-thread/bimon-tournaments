@@ -183,6 +183,7 @@ export async function GET(request: Request) {
                     category: player.category,
                     hasRoyalPass: player.hasRoyalPass,
                     isBanned: player.isBanned,
+                    isCouponVerifier: player.isCouponVerifier ?? false,
                     state: player.state || null,
                     district: player.district || null,
                     town: player.town || null,

@@ -240,6 +240,11 @@ model Player {
   squadInvites          SquadInvite[]
   welcomeBackCoupons    WelcomeBackCoupon[]
 
+  // Sponsor coupons
+  isCouponVerifier      Boolean            @default(false)
+  couponsCreated        SponsorCoupon[]     @relation("CouponsCreated")
+  couponsClaimed        SponsorCoupon[]     @relation("CouponsClaimed")
+
   @@index([userId])
   @@index([category])
   @@index([isBanned])
@@ -758,6 +763,7 @@ model Poll {
   votes      PlayerPollVote[]
   players    Player[]
   squads     Squad[]
+  sponsorCoupon SponsorCoupon?
 }
 
 model PollOption {
@@ -1312,4 +1318,46 @@ model WelcomeBackCoupon {
   createdAt DateTime @default(now())
 
   @@index([playerId, isUsed])
+}
+
+// ─── Sponsor Coupon ──────────────────────────────────────────
+
+/// Restaurant/sponsor discount coupon donated to a poll's prize pool.
+/// Created by a shop owner (isCouponVerifier), auto-assigned to 1st place
+/// team captain when winners are declared (ranked tournaments only).
+model SponsorCoupon {
+  id            String    @id @default(cuid())
+  code          String    @unique
+
+  // Discount config (set by shop owner)
+  discountPct   Int       @default(10)
+  maxDiscount   Int       @default(200)
+  sponsorName   String    @default("")
+  description   String    @default("")
+
+  // Lifecycle: AVAILABLE → CLAIMED → USED
+  status        String    @default("AVAILABLE")
+  expiresAt     DateTime
+
+  // Created by (shop owner / verifier)
+  createdById   String
+  createdBy     Player    @relation("CouponsCreated", fields: [createdById], references: [id])
+
+  // Linked to poll (1 coupon per poll max)
+  pollId        String?   @unique
+  poll          Poll?     @relation(fields: [pollId], references: [id], onDelete: SetNull)
+
+  // Assigned to winner captain (filled on Declare Winners)
+  claimedById   String?
+  claimedBy     Player?   @relation("CouponsClaimed", fields: [claimedById], references: [id])
+  claimedAt     DateTime?
+
+  // Usage (marked by shop owner)
+  usedAt        DateTime?
+
+  createdAt     DateTime  @default(now())
+
+  @@index([createdById])
+  @@index([claimedById])
+  @@index([status])
 }

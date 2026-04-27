@@ -86,6 +86,21 @@ export async function GET(request: Request) {
             }
         }
 
+        // Fetch sponsor coupons for polls
+        const pollIds = polls.map(p => p.id);
+        const sponsorCoupons = await prisma.sponsorCoupon.findMany({
+            where: { pollId: { in: pollIds } },
+            select: {
+                pollId: true,
+                sponsorName: true,
+                discountPct: true,
+                maxDiscount: true,
+                description: true,
+                status: true,
+            },
+        });
+        const couponByPollId = new Map(sponsorCoupons.map(c => [c.pollId, c]));
+
         const data = polls.map((poll) => {
             const totalVotes = poll.votes.length;
             // Sum voteCount for multi-entry — each extra entry counts as an additional participant
@@ -124,6 +139,7 @@ export async function GET(request: Request) {
                 hasVoted: !!userVote,
                 squadCount: (poll as any)._count?.squads ?? 0,
                 donations: tDonations ?? { total: 0, donations: [] },
+                sponsorCoupon: couponByPollId.get(poll.id) ?? null,
                 playersVotes: poll.votes.map((v: any) => ({
                     playerId: v.playerId,
                     vote: v.vote,
@@ -135,7 +151,7 @@ export async function GET(request: Request) {
             };
         });
 
-        return SuccessResponse({ data: { polls: data, currentPlayerId: playerId ?? null }, cache: CACHE.NONE });
+        return SuccessResponse({ data: { polls: data, currentPlayerId: playerId ?? null, isCouponVerifier: (user?.player as any)?.isCouponVerifier ?? false }, cache: CACHE.NONE });
     } catch (error) {
         console.error("[GET /api/polls] Error:", error);
         return ErrorResponse({ message: "Failed to fetch polls", error });

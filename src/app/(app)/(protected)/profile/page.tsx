@@ -70,6 +70,7 @@ interface ProfileData {
         category: string;
         hasRoyalPass: boolean;
         isBanned: boolean;
+        isCouponVerifier: boolean;
         state: string | null;
         district: string | null;
         town: string | null;
@@ -797,6 +798,26 @@ export default function ProfilePage() {
                             <div className="text-left">
                                 <p className="text-sm font-semibold">Teammate History</p>
                                 <p className="text-[11px] text-foreground/40">See who you&apos;ve played with</p>
+                            </div>
+                        </div>
+                        <span className="text-foreground/30 text-sm">→</span>
+                    </button>
+                )}
+
+                {/* Manage Coupons — only for coupon verifiers */}
+                {player?.isCouponVerifier && (
+                    <button
+                        type="button"
+                        onClick={() => router.push("/coupon/manage")}
+                        className="w-full flex items-center justify-between p-4 rounded-xl border border-amber-200/30 dark:border-amber-800/30 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 hover:from-amber-100 hover:to-orange-100 dark:hover:from-amber-950/30 dark:hover:to-orange-950/30 transition-colors cursor-pointer"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                                <span className="text-sm">🎟️</span>
+                            </div>
+                            <div className="text-left">
+                                <p className="text-sm font-semibold">Manage Coupons</p>
+                                <p className="text-[11px] text-foreground/40">View and manage your coupon rewards</p>
                             </div>
                         </div>
                         <span className="text-foreground/30 text-sm">→</span>
