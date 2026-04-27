@@ -20,6 +20,7 @@
     "@serwist/next": "^9.5.6",
     "@tanstack/react-query": "^5.90.21",
     "cloudinary": "^2.9.0",
+    "html-to-image": "^1.11.13",
     "html2canvas-pro": "^1.6.7",
     "lucide-react": "^0.574.0",
     "motion": "^12.34.2",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import html2canvas from "html2canvas-pro";
+import { toPng } from "html-to-image";
 import { toast } from "sonner";
 import { X, Copy, Check } from "lucide-react";
 import { GAME } from "@/lib/game-config";
@@ -74,58 +74,15 @@ export function SlotsModal({
             return;
         }
 
-        // Pre-fetch background image as data URL to bypass CORS in html2canvas
-        let bgDataUrl = backgroundImage;
-        if (backgroundImage && !backgroundImage.startsWith("data:") && !backgroundImage.startsWith("/")) {
-            try {
-                const imgRes = await fetch(backgroundImage);
-                const blob = await imgRes.blob();
-                bgDataUrl = await new Promise<string>((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result as string);
-                    reader.readAsDataURL(blob);
-                });
-            } catch {
-                console.warn("Failed to pre-fetch background image, using original URL");
-            }
-        }
-
-        // Create temp container for screenshot
-        const tempContainer = document.createElement("div");
-        tempContainer.style.cssText = `
-            position: absolute;
-            width: 900px;
-            left: -9999px;
-            top: 0;
-            overflow: hidden;
-            background-image: url(${bgDataUrl});
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-        `;
-        document.body.appendChild(tempContainer);
-
-        const originalParent = element.parentNode;
-        if (originalParent) originalParent.removeChild(element);
-        tempContainer.appendChild(element);
-
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
         try {
-            const canvas = await html2canvas(element, {
-                backgroundColor: null,
-                scale: 3,
-                useCORS: true,
-                allowTaint: true,
-                scrollX: 0,
-                scrollY: 0,
-                ignoreElements: (el) => el.classList.contains("floating-controls"),
+            const dataUrl = await toPng(element, {
+                pixelRatio: 2,
+                filter: (node) => !node.classList?.contains("floating-controls"),
             });
 
-            const blob = await new Promise<Blob | null>((resolve) =>
-                canvas.toBlob(resolve, "image/png")
-            );
-            if (!blob) return;
+            // Convert data URL to blob
+            const res = await fetch(dataUrl);
+            const blob = await res.blob();
 
             const file = new File(
                 [blob],
@@ -162,7 +119,7 @@ export function SlotsModal({
             // Fallback: download
             const link = document.createElement("a");
             link.download = file.name;
-            link.href = canvas.toDataURL("image/png");
+            link.href = dataUrl;
             link.click();
             setShareSuccess(true);
             setTimeout(() => setShareSuccess(false), 2000);
@@ -170,14 +127,9 @@ export function SlotsModal({
             console.error("Screenshot error:", error);
             toast.error("Failed to capture screenshot");
         } finally {
-            if (originalParent) {
-                tempContainer.removeChild(element);
-                originalParent.appendChild(element);
-            }
-            document.body.removeChild(tempContainer);
             setIsSharing(false);
         }
-    }, [tournamentTitle, backgroundImage]);
+    }, [tournamentTitle]);
 
     if (!isOpen) return null;
 
@@ -252,7 +204,7 @@ export function SlotsModal({
                         {/* Table — scrollable on mobile */}
                         <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-2xl shadow-black/50 overflow-hidden">
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[500px]" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+                                <table className="w-full min-w-[500px]">
                                     <thead>
                                         <tr className="bg-zinc-800/80 border-b border-white/10">
                                             <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-zinc-300 whitespace-nowrap">
