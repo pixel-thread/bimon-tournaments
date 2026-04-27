@@ -877,29 +877,6 @@ export default function WalletPage() {
                             </p>
                         )}
 
-                        {/* GPay pay button */}
-                        {publicSettings?.upiId && (() => {
-                            const playerName = (wallet?.displayName || "Player").replace(/[^a-zA-Z0-9 ]/g, "");
-                            const emailId = wallet?.email?.split("@")[0]?.replace(/[^a-zA-Z0-9]/g, "") || "";
-                            const tn = `${GAME.name} ${playerName}${emailId ? ` ${emailId}` : ""}`.slice(0, 50);
-
-                            return (
-                                <button
-                                    onClick={() => {
-                                        window.location.href = `upi://pay?pa=${encodeURIComponent(publicSettings.upiId!)}&pn=${encodeURIComponent(publicSettings.upiPayeeName || GAME.name)}&tn=${encodeURIComponent(tn)}&mode=00`;
-                                    }}
-                                    className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#1a73e8] px-4 py-2.5 transition-all hover:bg-[#1557b0] active:scale-[0.98]"
-                                >
-                                    <svg width="18" height="18" viewBox="0 0 48 48" fill="none">
-                                        <path fill="#e64a19" d="M42.858,11.975c-4.546-2.624-10.359-1.065-12.985,3.481L23.25,26.927c-1.916,3.312,0.551,4.47,3.301,6.119l6.372,3.678c2.158,1.245,4.914,0.506,6.158-1.649l6.807-11.789C48.176,19.325,46.819,14.262,42.858,11.975z" />
-                                        <path fill="#fbc02d" d="M35.365,16.723l-6.372-3.678c-3.517-1.953-5.509-2.082-6.954,0.214l-9.398,16.275c-2.624,4.543-1.062,10.353,3.481,12.971c3.961,2.287,9.024,0.93,11.311-3.031l9.578-16.59C38.261,20.727,37.523,17.968,35.365,16.723z" />
-                                        <path fill="#43a047" d="M36.591,8.356l-4.476-2.585c-4.95-2.857-11.28-1.163-14.137,3.787L9.457,24.317c-1.259,2.177-0.511,4.964,1.666,6.22l5.012,2.894c2.475,1.43,5.639,0.582,7.069-1.894l9.735-16.86c2.017-3.492,6.481-4.689,9.974-2.672L36.591,8.356z" />
-                                        <path fill="#1e88e5" d="M19.189,13.781l-4.838-2.787c-2.158-1.242-4.914-0.506-6.158,1.646l-5.804,10.03c-2.857,4.936-1.163,11.252,3.787,14.101l3.683,2.121l4.467,2.573l1.939,1.115c-3.442-2.304-4.535-6.92-2.43-10.555l1.503-2.596l5.504-9.51C22.083,17.774,21.344,15.023,19.189,13.781z" />
-                                    </svg>
-                                    <span className="text-sm font-semibold text-white">Pay with GPay</span>
-                                </button>
-                            );
-                        })()}
 
                         {/* Compact steps */}
                         <div className="flex items-center justify-between gap-1 text-[10px] text-foreground/50 px-1">
