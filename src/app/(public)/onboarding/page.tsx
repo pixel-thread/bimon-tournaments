@@ -166,7 +166,7 @@ export default function OnboardingPage() {
 
             setJustCompleted(true);
             localStorage.setItem("onboarded-at", String(Date.now()));
-            toast.success(`Welcome to ${GAME.name}! 🎮`);
+            toast.success(`Welcome to Bimon Tournament × ${GAME.name}! 🎮`);
             // Refresh auth cache immediately so coming back from WhatsApp
             // doesn't redirect to /onboarding again
             await refetch();
@@ -222,7 +222,7 @@ export default function OnboardingPage() {
                                 <Gamepad2 className="h-8 w-8 game-text" />
                             </div>
                         </div>
-                        <h1 className="text-xl font-bold">Welcome to {GAME.name}</h1>
+                        <h1 className="text-xl font-bold">Welcome to Bimon Tournament × {GAME.name}</h1>
                         <p className="text-sm text-foreground/50 mt-1">
                             {GAME.pasteOnlyIGN ? (
                                 <>
