@@ -281,10 +281,10 @@ export function SlotsModal({
                                             ];
 
                                             const textColor = index % 3 === 0
-                                                ? "text-orange-400"
+                                                ? "text-zinc-200"
                                                 : index % 3 === 1
-                                                    ? "text-blue-400"
-                                                    : "text-emerald-400";
+                                                    ? "text-sky-300/70"
+                                                    : "text-amber-200/70";
 
                                             return (
                                                 <tr
