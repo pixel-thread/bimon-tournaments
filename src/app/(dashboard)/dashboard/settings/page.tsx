@@ -194,7 +194,8 @@ export default function SettingsPage() {
                     </div>
                 </CardHeader>
                 <CardBody className="gap-4">
-                    {/* Casual / Ranked toggle */}
+                    {/* Casual / Ranked toggle — BR games only */}
+                    {GAME.features.hasBR && (
                     <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100">
                         {([
                             { key: "casual" as const, label: "Casual", icon: "🎮" },
@@ -218,6 +219,7 @@ export default function SettingsPage() {
                             </button>
                         ))}
                     </div>
+                    )}
 
                     {financeMode === "casual" ? (
                         /* ── Casual Settings ── */

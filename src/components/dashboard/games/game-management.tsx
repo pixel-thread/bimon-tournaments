@@ -28,6 +28,7 @@ export function GameManagement({ gameKey, label, icon: Icon, color, image }: {
     const [rewards, setRewards] = useState<{ place: number; amount: string }[]>([{ place: 1, amount: "" }]);
     const [endDate, setEndDate] = useState("");
     const [thresholdPct, setThresholdPct] = useState("2");
+    const [hasDistributed, setHasDistributed] = useState(false);
 
     // Fetch per-game settings
     const { data: settings } = useQuery({
@@ -108,6 +109,7 @@ export function GameManagement({ gameKey, label, icon: Icon, color, image }: {
             return res.json();
         },
         onSuccess: () => {
+            setHasDistributed(false);
             queryClient.invalidateQueries({ queryKey: ["admin-games", gameKey] });
             queryClient.invalidateQueries({ queryKey: ["admin-games-lb", gameKey] });
         },
@@ -125,6 +127,7 @@ export function GameManagement({ gameKey, label, icon: Icon, color, image }: {
         onSuccess: (data) => {
             if (data.distributed?.length) {
                 alert(`Distributed ${label} rewards to ${data.distributed.length} players!`);
+                setHasDistributed(true);
             }
             queryClient.invalidateQueries({ queryKey: ["admin-games", gameKey] });
         },
@@ -267,7 +270,19 @@ export function GameManagement({ gameKey, label, icon: Icon, color, image }: {
                 </Button>
                 <Button
                     color="danger" variant="flat" size="sm"
-                    onPress={() => { if (confirm(`Reset ALL ${label} scores? This cannot be undone.`)) resetScores.mutate(); }}
+                    onPress={() => {
+                        if (scores.length > 0 && !hasDistributed) {
+                            const proceed = confirm(
+                                `⚠️ You haven't distributed rewards yet!\n\n` +
+                                `Top players will lose their scores without getting paid.\n\n` +
+                                `Are you sure you want to reset ALL ${label} scores?`
+                            );
+                            if (!proceed) return;
+                        }
+                        if (confirm(`Reset ALL ${label} scores? This cannot be undone.`)) {
+                            resetScores.mutate();
+                        }
+                    }}
                     isLoading={resetScores.isPending}
                     startContent={<RotateCcw className="h-4 w-4" />}
                 >
