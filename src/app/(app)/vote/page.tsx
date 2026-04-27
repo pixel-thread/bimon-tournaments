@@ -27,10 +27,11 @@ export default function VotePage() {
     const pendingPollId = voteMutation.isPending ? voteMutation.variables?.pollId : undefined;
     const pendingVote = voteMutation.isPending ? voteMutation.variables?.vote : undefined;
 
-    // Filter polls by tab
-    const filteredPolls = polls?.filter((p) =>
-        tab === "ranked" ? p.allowSquads : !p.allowSquads
-    );
+    // Filter polls by tab — only when both types exist
+    const hasBothTypes = (polls?.some(p => p.allowSquads) && polls?.some(p => !p.allowSquads)) ?? false;
+    const filteredPolls = hasBothTypes
+        ? polls?.filter((p) => tab === "ranked" ? p.allowSquads : !p.allowSquads)
+        : polls;
 
     // Count polls per tab (for badges)
     const casualCount = polls?.filter((p) => !p.allowSquads).length ?? 0;

@@ -114,7 +114,7 @@ export function SlotsModal({
         try {
             const canvas = await html2canvas(element, {
                 backgroundColor: null,
-                scale: 2,
+                scale: 3,
                 useCORS: true,
                 allowTaint: true,
                 scrollX: 0,
@@ -252,7 +252,7 @@ export function SlotsModal({
                         {/* Table — scrollable on mobile */}
                         <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-2xl shadow-black/50 overflow-hidden">
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[500px]">
+                                <table className="w-full min-w-[500px]" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
                                     <thead>
                                         <tr className="bg-zinc-800/80 border-b border-white/10">
                                             <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-zinc-300 whitespace-nowrap">
