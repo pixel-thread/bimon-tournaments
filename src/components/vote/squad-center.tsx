@@ -13,7 +13,8 @@ import {
     Spinner,
     Input,
 } from "@heroui/react";
-import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, Search } from "lucide-react";
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
+import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, Search, MoreVertical } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     useSquads,
@@ -79,7 +80,79 @@ function StatusBadge({ status, initiatedBy }: { status: string; initiatedBy?: st
     }
 }
 
-/* ─── Squad Card ────────────────────────────────────────────── */
+/* ─── Member Actions (three-dot dropdown) ───────────────────── */
+
+import type { SquadMember } from "@/hooks/use-squads";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+function MemberActions({
+    member,
+    onRemove,
+    isRemoving,
+}: {
+    member: SquadMember;
+    onRemove: () => void;
+    isRemoving: boolean;
+}) {
+    const queryClient = useQueryClient();
+    const toggleSub = useMutation({
+        mutationFn: async () => {
+            const res = await fetch("/api/squads/toggle-sub", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ inviteId: member.inviteId }),
+            });
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
+                throw new Error(json.message || "Failed to toggle sub");
+            }
+            return res.json();
+        },
+        onSuccess: (data) => {
+            toast.success(data.message || "Updated");
+            queryClient.invalidateQueries({ queryKey: ["squads"] });
+        },
+        onError: (err) => {
+            toast.error(err instanceof Error ? err.message : "Failed");
+        },
+    });
+
+    return (
+        <Dropdown placement="bottom-end">
+            <DropdownTrigger>
+                <Button
+                    size="sm"
+                    variant="light"
+                    isIconOnly
+                    isLoading={isRemoving || toggleSub.isPending}
+                    className="min-w-6 w-6 h-6"
+                >
+                    <MoreVertical className="w-3.5 h-3.5" />
+                </Button>
+            </DropdownTrigger>
+            <DropdownMenu aria-label="Member actions">
+                <DropdownItem
+                    key="toggle-sub"
+                    startContent={member.isSub ? <Check className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                    onPress={() => toggleSub.mutate()}
+                >
+                    {member.isSub ? "Move to Active" : "Mark as Sub"}
+                </DropdownItem>
+                <DropdownItem
+                    key="remove"
+                    className="text-danger"
+                    color="danger"
+                    startContent={<Trash2 className="w-3.5 h-3.5" />}
+                    onPress={onRemove}
+                >
+                    Remove
+                </DropdownItem>
+            </DropdownMenu>
+        </Dropdown>
+    );
+}
+
 
 function SquadCard({
     squad,
@@ -219,6 +292,7 @@ function SquadCard({
                                 const isMemberCaptain = member.playerId === squad.captain.id;
                                 const showRemove = isCaptain && !isMemberCaptain && pollIsActive &&
                                     (member.status === "ACCEPTED" || (member.status === "PENDING" && member.initiatedBy === "CAPTAIN"));
+                                const canToggleSub = squad.acceptedCount > GAME.squadSize;
                                 return (
                                     <div key={member.inviteId} className="flex items-center gap-3">
                                         <Avatar
@@ -236,22 +310,33 @@ function SquadCard({
                                                 {isMemberCaptain && (
                                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0 whitespace-nowrap">Leader</span>
                                                 )}
+                                                {member.isSub && member.status === "ACCEPTED" && (
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-500 dark:text-blue-400 shrink-0 whitespace-nowrap">SUB</span>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
                                             <StatusBadge status={member.status} initiatedBy={member.initiatedBy} />
                                             {showRemove && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="light"
-                                                    color="danger"
-                                                    isIconOnly
-                                                    isLoading={isRemoving}
-                                                    onPress={() => onRemoveMember(member.inviteId)}
-                                                    className="min-w-6 w-6 h-6"
-                                                >
-                                                    <X className="w-3 h-3" />
-                                                </Button>
+                                                canToggleSub ? (
+                                                    <MemberActions
+                                                        member={member}
+                                                        onRemove={() => onRemoveMember(member.inviteId)}
+                                                        isRemoving={isRemoving}
+                                                    />
+                                                ) : (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="light"
+                                                        color="danger"
+                                                        isIconOnly
+                                                        isLoading={isRemoving}
+                                                        onPress={() => onRemoveMember(member.inviteId)}
+                                                        className="min-w-6 w-6 h-6"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </Button>
+                                                )
                                             )}
                                         </div>
                                     </div>

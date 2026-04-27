@@ -33,6 +33,7 @@ import { motion, AnimatePresence } from "framer-motion";
 interface Town {
     id: string;
     name: string;
+    isOfficial: boolean;
     playerCount: number;
 }
 
@@ -53,6 +54,7 @@ interface LocationState {
 export default function LocationsPage() {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
+    const [showAll, setShowAll] = useState(false);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [deleteTarget, setDeleteTarget] = useState<{
         level: "state" | "district" | "town";
@@ -108,19 +110,40 @@ export default function LocationsPage() {
         setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
     };
 
-    const filtered = search.trim()
-        ? locations.filter(
-              (s) =>
-                  s.name.toLowerCase().includes(search.toLowerCase()) ||
-                  s.districts.some(
-                      (d) =>
-                          d.name.toLowerCase().includes(search.toLowerCase()) ||
-                          d.towns.some((t) =>
-                              t.name.toLowerCase().includes(search.toLowerCase())
-                          )
-                  )
-          )
-        : locations;
+    const isSearching = !!search.trim();
+    const q = search.toLowerCase();
+
+    // Filter logic:
+    // - States/districts with 0 players: hidden unless showAll or searching
+    // - Official (seeded) towns with 0 players: hidden unless showAll or searching
+    // - User-added towns: always visible (even with 0 players)
+    const filtered = locations
+        .filter((s) => {
+            if (isSearching) {
+                return s.name.toLowerCase().includes(q) ||
+                    s.districts.some((d) => d.name.toLowerCase().includes(q) ||
+                        d.towns.some((t) => t.name.toLowerCase().includes(q)));
+            }
+            if (showAll) return true;
+            // Show state if it has players OR has any user-added towns
+            return s.playerCount > 0 || s.districts.some((d) => d.towns.some((t) => !t.isOfficial));
+        })
+        .map((s) => ({
+            ...s,
+            districts: s.districts
+                .filter((d) => {
+                    if (isSearching || showAll) return true;
+                    return d.playerCount > 0 || d.towns.some((t) => !t.isOfficial);
+                })
+                .map((d) => ({
+                    ...d,
+                    towns: d.towns.filter((t) => {
+                        if (isSearching || showAll) return true;
+                        // User-added towns always shown; official towns only if they have players
+                        return !t.isOfficial || t.playerCount > 0;
+                    }),
+                })),
+        }));
 
     const totalPlayers = locations.reduce((sum, s) => sum + s.playerCount, 0);
     const totalStates = locations.length;
@@ -187,15 +210,27 @@ export default function LocationsPage() {
                 ))}
             </div>
 
-            {/* Search */}
-            <Input
-                placeholder="Search states, districts, towns..."
-                value={search}
-                onValueChange={setSearch}
-                startContent={<Search className="h-4 w-4 text-default-400" />}
-                size="sm"
-                classNames={{ inputWrapper: "bg-default-100" }}
-            />
+            {/* Search + Show All */}
+            <div className="flex gap-2 items-center">
+                <Input
+                    placeholder="Search states, districts, towns..."
+                    value={search}
+                    onValueChange={setSearch}
+                    startContent={<Search className="h-4 w-4 text-default-400" />}
+                    size="sm"
+                    classNames={{ inputWrapper: "bg-default-100" }}
+                    className="flex-1"
+                />
+                <Button
+                    size="sm"
+                    variant={showAll ? "solid" : "bordered"}
+                    color={showAll ? "primary" : "default"}
+                    onPress={() => setShowAll(!showAll)}
+                    className="shrink-0 text-xs"
+                >
+                    {showAll ? "Active Only" : "Show All"}
+                </Button>
+            </div>
 
             {/* Loading skeleton */}
             {isLoading && (
@@ -335,8 +370,9 @@ export default function LocationsPage() {
                                                                                 key={town.id}
                                                                                 className="flex items-center gap-3 px-4 pl-20 py-2 hover:bg-default-50 transition-colors"
                                                                             >
-                                                                                <span className="text-xs text-foreground/50 flex-1">
+                                                                                <span className={`text-xs flex-1 ${town.isOfficial ? 'text-foreground/50' : 'text-warning font-medium'}`}>
                                                                                     {town.name}
+                                                                                    {!town.isOfficial && <span className="ml-1 text-[9px] text-warning/60">• user added</span>}
                                                                                 </span>
                                                                                 <div
                                                                                     className="flex items-center gap-1 text-[10px] text-foreground/30 cursor-pointer hover:text-primary transition-colors"

@@ -15,6 +15,7 @@ export interface SquadMember {
     hasRoyalPass: boolean;
     status: "PENDING" | "ACCEPTED" | "DECLINED";
     initiatedBy: "CAPTAIN" | "PLAYER";
+    isSub: boolean;
 }
 
 export interface SquadDTO {
@@ -32,6 +33,7 @@ export interface SquadDTO {
     myInvite: { id: string; status: string; initiatedBy: string } | null;
     members: SquadMember[];
     acceptedCount: number;
+    activeCount: number;
     totalSlots: number;
     isFull: boolean;
 }

@@ -92,12 +92,14 @@ export async function POST(request: NextRequest) {
             // Count accepted invites (including this one now)
             const acceptedCount = invite.squad.invites.filter((i) => i.status === "ACCEPTED").length + 1;
             const isFull = acceptedCount >= GAME.maxSquadSize;
+            // Auto-mark as sub if active roster is already filled
+            const shouldBeSub = acceptedCount > GAME.squadSize;
 
             // Mark accepted + check if squad is now full
             await prisma.$transaction(async (tx) => {
                 await tx.squadInvite.update({
                     where: { id: inviteId },
-                    data: { status: "ACCEPTED", respondedAt: new Date() },
+                    data: { status: "ACCEPTED", respondedAt: new Date(), isSub: shouldBeSub },
                 });
 
                 if (isFull) {

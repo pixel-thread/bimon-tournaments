@@ -63,6 +63,7 @@ export async function GET() {
                 towns: d.towns.map((t: any) => ({
                     id: t.id,
                     name: t.name,
+                    isOfficial: t.isOfficial ?? false,
                     playerCount: countMap[`${s.name}|${d.name}|${t.name}`] || 0,
                 })),
             })),

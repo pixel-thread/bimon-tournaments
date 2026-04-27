@@ -257,6 +257,7 @@ model CentralLocationTown {
   id         String                  @id @default(uuid())
   name       String
   districtId String
+  isOfficial Boolean                 @default(false) // true = admin-seeded, false = user-added
   district   CentralLocationDistrict @relation(fields: [districtId], references: [id], onDelete: Cascade)
   createdAt  DateTime                @default(now())
 

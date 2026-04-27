@@ -1231,6 +1231,7 @@ model SquadInvite {
   playerId    String
   status      SquadInviteStatus @default(PENDING)
   initiatedBy String            @default("CAPTAIN") // "CAPTAIN" | "PLAYER"
+  isSub       Boolean           @default(false)      // true = substitute (beyond active roster)
 
   createdAt   DateTime  @default(now())
   respondedAt DateTime?

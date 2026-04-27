@@ -58,8 +58,10 @@ export async function GET(request: NextRequest) {
 
         const data = squads.map((squad) => {
             const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
+            const activeCount = squad.invites.filter((i) => i.status === "ACCEPTED" && !i.isSub).length;
             const isCaptain = squad.captainId === currentPlayerId;
             const myInvite = squad.invites.find((i) => i.playerId === currentPlayerId);
+            const isMySquad = !!myInvite;
 
             return {
                 id: squad.id,
@@ -95,8 +97,11 @@ export async function GET(request: NextRequest) {
                     hasRoyalPass: inv.player.hasRoyalPass,
                     status: inv.status,
                     initiatedBy: inv.initiatedBy ?? "CAPTAIN",
+                    // Only reveal sub status to the squad's own members
+                    isSub: isMySquad ? inv.isSub : false,
                 })),
                 acceptedCount,
+                activeCount,
                 totalSlots: GAME.maxSquadSize,
                 isFull: acceptedCount >= GAME.maxSquadSize,
             };
