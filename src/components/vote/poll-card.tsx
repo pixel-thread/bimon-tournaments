@@ -626,6 +626,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const [selectedVoteGroup, setSelectedVoteGroup] = useState<"IN" | "OUT" | "SOLO" | null>(null);
     const [showSquads, setShowSquads] = useState(false);
     const [showSquadInfo, setShowSquadInfo] = useState(false);
+    const [showCasualInfo, setShowCasualInfo] = useState(false);
     const [showCreateSquad, setShowCreateSquad] = useState(false);
     const [showDonate, setShowDonate] = useState(false);
     const [showDonors, setShowDonors] = useState(false);
@@ -1065,6 +1066,24 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     {showSquadInfo && poll.allowSquads && (
                         <p className="text-[11px] text-foreground/40 text-center px-4 pb-1 animate-in fade-in duration-200">
                             Players who vote &quot;{poll.options?.find(o => o.vote === "IN")?.name || tk("votedIn")}&quot; without joining a squad will be placed in randomly assigned teams.
+                        </p>
+                    )}
+
+                    {/* Casual Info Note — collapsed by default */}
+                    {!poll.allowSquads && GAME.features.hasTeamSizes && (
+                        <button
+                            type="button"
+                            onClick={() => setShowCasualInfo(!showCasualInfo)}
+                            className="w-full flex items-center justify-center gap-1.5 text-[11px] text-foreground/40 hover:text-foreground/60 transition-colors mt-2 py-1"
+                        >
+                            <Info className="w-3 h-3" />
+                            How does voting work?
+                            <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showCasualInfo ? 'rotate-180' : ''}`} />
+                        </button>
+                    )}
+                    {showCasualInfo && !poll.allowSquads && (
+                        <p className="text-[11px] text-foreground/40 text-center px-4 pb-1 animate-in fade-in duration-200">
+                            Players who vote &quot;{poll.options?.find(o => o.vote === "IN")?.name || tk("votedIn")}&quot; will be placed in randomly assigned teams based on tier balance.{GAME.features.hasTeamSizes && ` Vote "${poll.options?.find(o => o.vote === "SOLO")?.name || tk("votedSolo")}" to play solo.`}
                         </p>
                     )}
                 </div>
