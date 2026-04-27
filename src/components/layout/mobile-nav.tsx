@@ -20,6 +20,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+import { useSquadInviteCount } from "@/hooks/use-squad-invite-count";
 
 type Tab = {
     label: string;
@@ -48,6 +49,7 @@ export function MobileNav() {
     const { data: session } = useSession();
     const user = session?.user;
     const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+    const pendingInviteCount = useSquadInviteCount();
 
     const { data: profileData } = useQuery<{ imageUrl?: string; player?: { displayName?: string; customProfileImageUrl?: string | null } | null; username?: string }>({
         queryKey: ["profile"],
@@ -179,6 +181,9 @@ export function MobileNav() {
                                     strokeWidth={isActive ? 2.5 : 1.5}
                                 />
                             ) : null}
+                            {tab.label === "Vote" && pendingInviteCount > 0 && !isActive && (
+                                <span className="absolute top-1.5 right-1/2 translate-x-4 h-2 w-2 rounded-full bg-danger animate-pulse" />
+                            )}
                             <span className={`max-w-[64px] truncate ${isActive ? "font-semibold" : "font-normal"}`}>
                                 {isProfile ? profileLabel : tab.label}
                             </span>

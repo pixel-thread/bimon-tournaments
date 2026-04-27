@@ -25,7 +25,7 @@ export async function GET() {
 
         const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-        const [notifications, unreadCount, pendingRequests, unclaimedRewards, pendingSquadRequests] = await Promise.all([
+        const [notifications, unreadCount, pendingRequests, unclaimedRewards, pendingSquadRequests, pendingSquadInviteCount] = await Promise.all([
             prisma.notification.findMany({
                 where: {
                     userId: user.id,
@@ -108,10 +108,24 @@ export async function GET() {
                     orderBy: { createdAt: "desc" },
                 })
                 : [],
+            // Count pending captain-initiated squad invites for this player (for Vote tab dot)
+            (user.player && GAME.features.hasSquads)
+                ? prisma.squadInvite.count({
+                    where: {
+                        playerId: user.player.id,
+                        initiatedBy: "CAPTAIN",
+                        status: "PENDING",
+                        squad: {
+                            status: { in: ["FORMING", "FULL"] },
+                            poll: { isActive: true },
+                        },
+                    },
+                })
+                : 0,
         ]);
 
         return SuccessResponse({
-            data: { notifications, unreadCount, pendingRequests, unclaimedRewards, pendingSquadRequests },
+            data: { notifications, unreadCount, pendingRequests, unclaimedRewards, pendingSquadRequests, pendingSquadInviteCount },
         });
     } catch (error) {
         console.error("Error fetching notifications:", error);

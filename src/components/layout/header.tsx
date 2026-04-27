@@ -45,6 +45,7 @@ import { sidebarItems } from "./admin-sidebar";
 import { PubgmiLogo } from "@/components/common/pubgmi-logo";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+import { useSquadInviteCount } from "@/hooks/use-squad-invite-count";
 
 const navItems = [
     { label: "Players", href: "/players", icon: Users },
@@ -77,6 +78,7 @@ export function Header() {
     const { isAdmin, isSuperAdmin, isSignedIn, balance } = useAuthUser();
     const { data: session } = useSession();
     const user = session?.user;
+    const pendingInviteCount = useSquadInviteCount();
 
     // Check if a section contains the active page
     const sectionHasActive = useCallback((section: typeof sidebarItems[0]) => {
@@ -245,6 +247,9 @@ export function Header() {
                                             (balance ?? 0) > 0 ? "text-success" : (balance ?? 0) < 0 ? "text-danger" : ""
                                         }>{(balance ?? 0).toLocaleString()} <CurrencyIcon size={14} /></span>
                                     ) : item.label}
+                                    {item.label === "Vote" && pendingInviteCount > 0 && (
+                                        <span className="h-2 w-2 rounded-full bg-danger animate-pulse" />
+                                    )}
                                 </Link>
                             </NavbarItem>
                         );

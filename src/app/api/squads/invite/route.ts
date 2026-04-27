@@ -117,28 +117,14 @@ export async function POST(request: NextRequest) {
 
         const tournamentName = squad.poll.tournament?.name ?? "tournament";
 
-        // Create the invite + notification
-        await prisma.$transaction(async (tx) => {
-            await tx.squadInvite.create({
-                data: {
-                    squadId,
-                    playerId,
-                    status: "PENDING",
-                    initiatedBy: "CAPTAIN",
-                },
-            });
-
-            // Notify the invited player
-            await tx.notification.create({
-                data: {
-                    title: "🛡 Squad Invite",
-                    message: `${leaderName} invited you to join "${squad.name}" for ${tournamentName}`,
-                    type: "squad_invite",
-                    userId: invitedPlayer.user.id,
-                    playerId: invitedPlayer.id,
-                    link: "/vote",
-                },
-            });
+        // Create the invite
+        await prisma.squadInvite.create({
+            data: {
+                squadId,
+                playerId,
+                status: "PENDING",
+                initiatedBy: "CAPTAIN",
+            },
         });
 
         // Push notification

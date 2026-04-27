@@ -1032,22 +1032,41 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     {/* Squad buttons — only for polls with allowSquads */}
                     {poll.allowSquads && (
                         <div className="space-y-2 mt-2">
-                            <button
-                                type="button"
-                                onClick={() => setShowSquads(true)}
-                                className={`relative w-full text-center font-semibold py-3 px-4 rounded-xl transition-all border shadow-sm cursor-pointer hover:shadow-md ${
-                                    theme
-                                        ? `${theme.optionSelected.border} ${theme.optionSelected.bg} ${theme.optionSelected.text}`
-                                        : 'text-primary bg-primary/5 border-primary/20 hover:bg-primary/10'
-                                }`}
-                            >
-                                <span className="flex items-center justify-center gap-2">
-                                    🛡 View Teams
-                                </span>
-                                {hasPendingSquadInvite && (
-                                    <span className="absolute top-2 right-3 h-2.5 w-2.5 rounded-full bg-danger animate-pulse" />
-                                )}
-                            </button>
+                            <div className="relative">
+                                {/* Rotating border glow for pending invite */}
+                                {hasPendingSquadInvite && (() => {
+                                    // Use theme's wave color for glow, fallback to game primary
+                                    const glowColor = theme?.wave1
+                                        ? theme.wave1.replace(/[\d.]+\)$/, '0.9)')
+                                        : 'var(--game-primary)';
+                                    return (
+                                        <>
+                                            <div className="absolute -inset-[2px] rounded-xl overflow-hidden">
+                                                <div
+                                                    className="absolute inset-0 animate-spin-slow"
+                                                    style={{
+                                                        background: `conic-gradient(from 0deg, transparent 0%, transparent 25%, ${glowColor} 40%, ${glowColor} 60%, transparent 75%, transparent 100%)`,
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="absolute inset-[1px] rounded-[10px] bg-background z-[1]" />
+                                        </>
+                                    );
+                                })()}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSquads(true)}
+                                    className={`relative z-[2] w-full text-center font-semibold py-3 px-4 rounded-xl transition-all border shadow-sm cursor-pointer hover:shadow-md ${
+                                        theme
+                                            ? `${theme.optionSelected.border} ${theme.optionSelected.bg} ${theme.optionSelected.text}`
+                                            : 'text-primary bg-primary/5 border-primary/20 hover:bg-primary/10'
+                                    } ${hasPendingSquadInvite ? 'border-transparent' : ''}`}
+                                >
+                                    <span className="flex items-center justify-center gap-2">
+                                        🛡 View Teams
+                                    </span>
+                                </button>
+                            </div>
                         </div>
                     )}
 
