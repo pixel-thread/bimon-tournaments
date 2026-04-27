@@ -65,14 +65,16 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Grab real name from auth session (Google display name)
+        const authRealName = await getAuthName();
+
         // Find or create the user
         if (!user) {
             // New user — create DB record using NextAuth session data
-            const name = await getAuthName();
             const image = await getAuthImage();
 
             const username =
-                (name || "user")
+                (authRealName || "user")
                     .toLowerCase()
                     .replace(/[^a-z0-9_]/g, "") +
                 Math.floor(Math.random() * 9000 + 1000);
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest) {
                     data: {
                         userId: user.id,
                         displayName: (displayName ?? "").trim(),
+                        realName: authRealName || null,
                         ...(uid?.trim() && { uid: uid.trim() }),
                         ...(requiresPhone && phoneNumber && {
                             phoneNumber: `+91${phoneNumber.replace(/\D/g, "").slice(-10)}`,

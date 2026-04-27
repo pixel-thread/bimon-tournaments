@@ -52,6 +52,7 @@ interface PlayerDetailModalProps {
 interface PlayerDetail {
     id: string;
     displayName: string | null;
+    realName: string | null;
     username: string;
     email: string | null;
     secondaryEmail: string | null;
@@ -337,6 +338,12 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                                             <span className="text-xs text-foreground/50">@{player?.username}</span>
                                             {player?.category && <CategoryBadge category={player.category} size="sm" />}
                                         </div>
+                                        {/* Real name (Google account name) — admin only */}
+                                        {player?.realName && (
+                                            <p className="text-[11px] text-foreground/40 mt-0.5 flex items-center gap-1">
+                                                <span className="text-foreground/25">Real:</span> {player.realName}
+                                            </p>
+                                        )}
                                         {/* Contact row */}
                                         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                             {player?.email && (

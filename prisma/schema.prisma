@@ -170,6 +170,7 @@ model Player {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Game identity
+  realName                String?   // Google/auth provider display name — admin-only, used for duplicate detection
   displayName             String?
   displayNameLastChangeAt DateTime?
   uid                     String?
@@ -1282,7 +1283,7 @@ model DuplicateAlert {
   id          String  @id @default(uuid())
   player1Id   String
   player2Id   String
-  matchType   String  // "PHONE" | "EMAIL" | "USERNAME"
+  matchType   String  // "PHONE" | "EMAIL" | "USERNAME" | "DISPLAY_NAME" | "REAL_NAME"
   matchValue  String  // the actual matching value
   isReviewed  Boolean @default(false)
   reviewNote  String?

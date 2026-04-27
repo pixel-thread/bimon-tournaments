@@ -62,6 +62,14 @@ export const getCurrentUser = cache(async () => {
         });
     }
 
+    // Opportunistic backfill: store Google real name for duplicate detection
+    if (user.player && !user.player.realName && session.user.name) {
+        db.player.update({
+            where: { id: user.player.id },
+            data: { realName: session.user.name },
+        }).catch(() => {}); // fire-and-forget
+    }
+
     return {
         id: user.id,
         clerkId: user.clerkId,

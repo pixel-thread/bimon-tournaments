@@ -135,6 +135,24 @@ export async function checkPlayerForDuplicates(
         }
     }
 
+    // ── 5. Real name (Google account name) match ──────────
+    if (player.realName && player.realName.length >= 3) {
+        const normalizedReal = normalizeDisplayName(player.realName);
+        if (normalizedReal.length >= 3) {
+            const allPlayersWithRealName = await db.player.findMany({
+                where: { id: { not: playerId }, realName: { not: null } },
+                select: { id: true, realName: true },
+            });
+
+            for (const match of allPlayersWithRealName) {
+                if (!match.realName) continue;
+                if (normalizeDisplayName(match.realName) === normalizedReal) {
+                    signals.push({ otherPlayerId: match.id, matchType: "REAL_NAME", matchValue: `${player.realName} ↔ ${match.realName}` });
+                }
+            }
+        }
+    }
+
     // ── Deduplicate: group by pair, create ONE alert per pair ──
     const pairMap = new Map<string, { p1: string; p2: string; types: string[]; values: string[] }>();
 

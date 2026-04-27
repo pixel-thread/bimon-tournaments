@@ -92,6 +92,7 @@ export async function GET(
         return NextResponse.json({
             id: player.id,
             displayName: player.displayName,
+            realName: player.realName || null,
             username: player.user.username,
             email: player.user.email,
             secondaryEmail: player.user.secondaryEmail,
