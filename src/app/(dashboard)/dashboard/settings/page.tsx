@@ -48,6 +48,11 @@ interface Settings {
     defaultEntryFee: number;
     enableTopUps: boolean;
     nameChangeFee: number;
+    rankedOrgCutMode: "percent" | "fixed";
+    rankedOrgCutFixed: number;
+    rankedOrgCutPercent: number;
+    rankedEnableFund: boolean;
+    rankedDefaultEntryFee: number;
     enableElitePass: boolean;
     elitePassPrice: number;
     elitePassOrigPrice: number;
@@ -82,6 +87,7 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploadingQr, setUploadingQr] = useState(false);
+    const [financeMode, setFinanceMode] = useState<"casual" | "ranked">("casual");
 
     useEffect(() => {
         fetch("/api/settings")
@@ -182,86 +188,186 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader className="flex gap-2 items-center pb-0">
                     <DollarSign className="h-5 w-5 text-warning" />
-                    <div>
+                    <div className="flex-1">
                         <h2 className="text-lg font-semibold">Financial</h2>
                         <p className="text-xs text-foreground/50">Prize pool cuts, fees, and top-ups</p>
                     </div>
                 </CardHeader>
                 <CardBody className="gap-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">Org Cut Mode:</span>
-                                <div className="flex gap-1">
-                                    {(["percent", "fixed"] as const).map((mode) => (
-                                        <Chip
-                                            key={mode}
-                                            variant={settings.orgCutMode === mode ? "solid" : "bordered"}
-                                            color={settings.orgCutMode === mode ? "primary" : "default"}
-                                            className="cursor-pointer"
-                                            onClick={() => update("orgCutMode", mode)}
-                                        >
-                                            {mode === "percent" ? "%" : `Fixed ${GAME.currency}`}
-                                        </Chip>
-                                    ))}
+                    {/* Casual / Ranked toggle */}
+                    <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100">
+                        {([
+                            { key: "casual" as const, label: "Casual", icon: "🎮" },
+                            { key: "ranked" as const, label: "Ranked", icon: "🏆" },
+                        ]).map(({ key, label, icon }) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setFinanceMode(key)}
+                                className={`
+                                    flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium
+                                    transition-all duration-200 cursor-pointer
+                                    ${financeMode === key
+                                        ? "bg-background shadow-sm text-foreground"
+                                        : "text-foreground/50 hover:text-foreground/70"
+                                    }
+                                `}
+                            >
+                                <span>{icon}</span>
+                                <span>{label}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {financeMode === "casual" ? (
+                        /* ── Casual Settings ── */
+                        <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium">Org Cut Mode:</span>
+                                        <div className="flex gap-1">
+                                            {(["percent", "fixed"] as const).map((mode) => (
+                                                <Chip
+                                                    key={mode}
+                                                    variant={settings.orgCutMode === mode ? "solid" : "bordered"}
+                                                    color={settings.orgCutMode === mode ? "primary" : "default"}
+                                                    className="cursor-pointer"
+                                                    onClick={() => update("orgCutMode", mode)}
+                                                >
+                                                    {mode === "percent" ? "%" : `Fixed ${GAME.currency}`}
+                                                </Chip>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {settings.orgCutMode === "percent" ? (
+                                        <Input
+                                            label="Org Cut"
+                                            type="number"
+                                            size="sm"
+                                            value={String(settings.orgCutPercent)}
+                                            onValueChange={(v) => update("orgCutPercent", Number(v))}
+                                            description="Percentage of prize pool"
+                                            endContent={<span className="text-foreground/40">%</span>}
+                                        />
+                                    ) : (
+                                        <Input
+                                            label="Org Cut"
+                                            type="number"
+                                            size="sm"
+                                            value={String(settings.orgCutFixed)}
+                                            onValueChange={(v) => update("orgCutFixed", Number(v))}
+                                            description="Fixed org cut per tournament"
+                                            endContent={<span className="text-foreground/40">{GAME.currency}</span>}
+                                        />
+                                    )}
                                 </div>
-                            </div>
-                            {settings.orgCutMode === "percent" ? (
                                 <Input
-                                    label="Org Cut"
+                                    label="Default Entry Fee"
                                     type="number"
                                     size="sm"
-                                    value={String(settings.orgCutPercent)}
-                                    onValueChange={(v) => update("orgCutPercent", Number(v))}
-                                    description="Percentage of prize pool"
-                                    endContent={<span className="text-foreground/40">%</span>}
-                                />
-                            ) : (
-                                <Input
-                                    label="Org Cut"
-                                    type="number"
-                                    size="sm"
-                                    value={String(settings.orgCutFixed)}
-                                    onValueChange={(v) => update("orgCutFixed", Number(v))}
-                                    description="Fixed org cut per tournament"
+                                    value={String(settings.defaultEntryFee)}
+                                    onValueChange={(v) => update("defaultEntryFee", Number(v))}
+                                    description={`Default casual entry fee (${GAME.currency})`}
                                     endContent={<span className="text-foreground/40">{GAME.currency}</span>}
                                 />
-                            )}
-                        </div>
-                        <Input
-                            label="Default Entry Fee"
-                            type="number"
-                            size="sm"
-                            value={String(settings.defaultEntryFee)}
-                            onValueChange={(v) => update("defaultEntryFee", Number(v))}
-                            description={`Default tournament entry fee (${GAME.currency})`}
-                            endContent={<span className="text-foreground/40">{GAME.currency}</span>}
-                        />
-                        <Input
-                            label="Name Change Fee"
-                            type="number"
-                            size="sm"
-                            value={String(settings.nameChangeFee)}
-                            onValueChange={(v) => update("nameChangeFee", Number(v))}
-                            description={`Cost to change IGN (${GAME.currency})`}
-                            endContent={<span className="text-foreground/40">{GAME.currency}</span>}
-                        />
-                    </div>
-                    <Divider />
-                    <Switch
-                        size="sm"
-                        isSelected={settings.enableFund}
-                        onValueChange={(v) => update("enableFund", v)}
-                    >
-                        <div>
-                            <p className="text-sm">Community Fund</p>
-                            <p className="text-xs text-foreground/40">
-                                {settings.enableFund
-                                    ? "ON — Solo & back-to-back taxes go to fund"
-                                    : "OFF — No taxes, winners get full prize"}
-                            </p>
-                        </div>
-                    </Switch>
+                                <Input
+                                    label="Name Change Fee"
+                                    type="number"
+                                    size="sm"
+                                    value={String(settings.nameChangeFee)}
+                                    onValueChange={(v) => update("nameChangeFee", Number(v))}
+                                    description={`Cost to change IGN (${GAME.currency})`}
+                                    endContent={<span className="text-foreground/40">{GAME.currency}</span>}
+                                />
+                            </div>
+                            <Divider />
+                            <Switch
+                                size="sm"
+                                isSelected={settings.enableFund}
+                                onValueChange={(v) => update("enableFund", v)}
+                            >
+                                <div>
+                                    <p className="text-sm">Community Fund</p>
+                                    <p className="text-xs text-foreground/40">
+                                        {settings.enableFund
+                                            ? "ON — Solo & back-to-back taxes go to fund"
+                                            : "OFF — No taxes, winners get full prize"}
+                                    </p>
+                                </div>
+                            </Switch>
+                        </>
+                    ) : (
+                        /* ── Ranked Settings ── */
+                        <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium">Org Cut Mode:</span>
+                                        <div className="flex gap-1">
+                                            {(["percent", "fixed"] as const).map((mode) => (
+                                                <Chip
+                                                    key={mode}
+                                                    variant={settings.rankedOrgCutMode === mode ? "solid" : "bordered"}
+                                                    color={settings.rankedOrgCutMode === mode ? "primary" : "default"}
+                                                    className="cursor-pointer"
+                                                    onClick={() => update("rankedOrgCutMode", mode)}
+                                                >
+                                                    {mode === "percent" ? "%" : `Fixed ${GAME.currency}`}
+                                                </Chip>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {settings.rankedOrgCutMode === "percent" ? (
+                                        <Input
+                                            label="Org Cut"
+                                            type="number"
+                                            size="sm"
+                                            value={String(settings.rankedOrgCutPercent)}
+                                            onValueChange={(v) => update("rankedOrgCutPercent", Number(v))}
+                                            description="Percentage of prize pool (ranked)"
+                                            endContent={<span className="text-foreground/40">%</span>}
+                                        />
+                                    ) : (
+                                        <Input
+                                            label="Org Cut"
+                                            type="number"
+                                            size="sm"
+                                            value={String(settings.rankedOrgCutFixed)}
+                                            onValueChange={(v) => update("rankedOrgCutFixed", Number(v))}
+                                            description="Fixed org cut per ranked tournament"
+                                            endContent={<span className="text-foreground/40">{GAME.currency}</span>}
+                                        />
+                                    )}
+                                </div>
+                                <Input
+                                    label="Default Entry Fee"
+                                    type="number"
+                                    size="sm"
+                                    value={String(settings.rankedDefaultEntryFee)}
+                                    onValueChange={(v) => update("rankedDefaultEntryFee", Number(v))}
+                                    description={`Default ranked entry fee (${GAME.currency})`}
+                                    endContent={<span className="text-foreground/40">{GAME.currency}</span>}
+                                />
+                            </div>
+                            <Divider />
+                            <Switch
+                                size="sm"
+                                isSelected={settings.rankedEnableFund}
+                                onValueChange={(v) => update("rankedEnableFund", v)}
+                            >
+                                <div>
+                                    <p className="text-sm">Community Fund (Ranked)</p>
+                                    <p className="text-xs text-foreground/40">
+                                        {settings.rankedEnableFund
+                                            ? "ON — Solo & back-to-back taxes go to fund"
+                                            : "OFF — No taxes, winners get full prize"}
+                                    </p>
+                                </div>
+                            </Switch>
+                        </>
+                    )}
+
                     {GAME.features.hasTopUps && (
                         <>
                             <Divider />

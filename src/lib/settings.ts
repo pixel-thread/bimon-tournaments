@@ -4,7 +4,7 @@ import { cache } from "react";
 const SETTINGS_KEY = "app_settings";
 
 export interface AppSettings {
-    // 💰 Financial
+    // 💰 Financial (Casual — default mode)
     orgCutMode: "percent" | "fixed"; // Which org cut mode is active
     orgCutPercent: number; // Percentage of prize pool the org takes
     orgCutFixed: number;   // Fixed amount (in currency) the org takes per tournament
@@ -12,6 +12,13 @@ export interface AppSettings {
     defaultEntryFee: number;
     enableTopUps: boolean;
     nameChangeFee: number;
+
+    // 💰 Financial (Ranked / Squad overrides)
+    rankedOrgCutMode: "percent" | "fixed";
+    rankedOrgCutPercent: number;
+    rankedOrgCutFixed: number;
+    rankedEnableFund: boolean;
+    rankedDefaultEntryFee: number;
 
     // 🏆 Royal Pass
     enableElitePass: boolean;
@@ -72,6 +79,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
     defaultEntryFee: 30,
     enableTopUps: true,
     nameChangeFee: 1,
+
+    rankedOrgCutMode: "fixed",
+    rankedOrgCutPercent: 0,
+    rankedOrgCutFixed: 0,
+    rankedEnableFund: false,
+    rankedDefaultEntryFee: 30,
 
     enableElitePass: true,
     elitePassPrice: 5,

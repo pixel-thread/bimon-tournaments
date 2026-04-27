@@ -119,10 +119,11 @@ export async function GET(
             participationRate: number;
         }> = {};
 
-        // Check if fund is enabled (poll-level override for squad tournaments)
+        // Check if fund is enabled (ranked-specific settings for squad tournaments)
         const settings = await getSettings();
-        const enableFund = pollForTournament?.allowSquads
-            ? (pollForTournament.enableFund ?? false)
+        const isRanked = pollForTournament?.allowSquads ?? false;
+        const enableFund = isRanked
+            ? (settings.rankedEnableFund ?? false)
             : (settings.enableFund ?? false);
 
         for (const pid of playerIds) {

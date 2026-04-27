@@ -26,6 +26,12 @@ export async function GET() {
                 orgCutFixed: settings.orgCutFixed,
                 enableFund: settings.enableFund,
                 enableTopUps: settings.enableTopUps,
+                // Ranked overrides
+                rankedOrgCutMode: settings.rankedOrgCutMode,
+                rankedOrgCutPercent: settings.rankedOrgCutPercent,
+                rankedOrgCutFixed: settings.rankedOrgCutFixed,
+                rankedEnableFund: settings.rankedEnableFund,
+                rankedDefaultEntryFee: settings.rankedDefaultEntryFee,
                 enableElitePass: settings.enableElitePass,
                 elitePassPrice: settings.elitePassPrice,
                 elitePassOrigPrice: settings.elitePassOrigPrice,

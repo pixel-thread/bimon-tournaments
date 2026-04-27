@@ -54,7 +54,8 @@ export default function VotePage() {
             {/* ── Merit Rating (non-blocking, above polls) ────── */}
             <MeritRatingSection />
 
-            {/* ── Casual / Ranked Tabs ──────────────────────── */}
+            {/* ── Casual / Ranked Tabs (only when both types exist) ── */}
+            {casualCount > 0 && rankedCount > 0 && (
             <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100 mb-4">
                 {([
                     { key: "casual" as const, label: "Casual", icon: "🎮", count: casualCount },
@@ -86,6 +87,7 @@ export default function VotePage() {
                     </button>
                 ))}
             </div>
+            )}
 
             {/* ── Polls ──────────────────────────────────────── */}
             {isLoading && (
