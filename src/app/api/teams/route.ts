@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
             };
         });
 
-        return SuccessResponse({ data });
+        return SuccessResponse({ data, meta: { allowSquads: poll?.allowSquads ?? false } });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch teams", error });
     }

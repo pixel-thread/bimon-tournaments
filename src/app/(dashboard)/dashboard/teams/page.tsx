@@ -200,7 +200,7 @@ export default function TeamsPage() {
         staleTime: 0,
     });
 
-    const { data: teams, isLoading, error } = useQuery<TeamDTO[]>({
+    const { data: teamsResponse, isLoading, error } = useQuery<{ data: TeamDTO[]; allowSquads: boolean }>({
         queryKey: ["teams", tournamentId, matchId],
         queryFn: async () => {
             let url = `/api/teams?tournamentId=${tournamentId}`;
@@ -208,11 +208,14 @@ export default function TeamsPage() {
             const res = await fetch(url);
             if (!res.ok) throw new Error("Failed");
             const json = await res.json();
-            return json.data;
+            return { data: json.data, allowSquads: json.meta?.allowSquads ?? false };
         },
         enabled: !!tournamentId,
         staleTime: 30_000,
     });
+
+    const teams = teamsResponse?.data;
+    const allowSquads = teamsResponse?.allowSquads ?? false;
 
     // ── Derived state ─────────────────────────────────────────
 
@@ -597,6 +600,7 @@ export default function TeamsPage() {
                 tournamentTitle={tournaments.find((t) => t.id === tournamentId)?.name ?? ""}
                 seasonName={seasons.find((s) => s.id === seasonId)?.name ?? ""}
                 backgroundImage={globalBg?.publicUrl || "/images/image.webp"}
+                allowSquads={allowSquads}
             />
 
             {/* Slots Export */}
@@ -607,6 +611,7 @@ export default function TeamsPage() {
                 teams={teams ?? []}
                 seasonName={seasons.find((s) => s.id === seasonId)?.name ?? ""}
                 backgroundImage={globalBg?.publicUrl || "/images/image.webp"}
+                allowSquads={allowSquads}
             />
 
             {/* Delete Match Confirmation */}

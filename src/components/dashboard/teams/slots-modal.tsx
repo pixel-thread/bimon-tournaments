@@ -21,6 +21,7 @@ interface Props {
     teams: TeamDTO[];
     seasonName?: string;
     backgroundImage?: string;
+    allowSquads?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────
@@ -32,6 +33,7 @@ export function SlotsModal({
     teams,
     seasonName = "",
     backgroundImage = "/images/image.webp",
+    allowSquads = false,
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
@@ -57,11 +59,8 @@ export function SlotsModal({
         [uniqueTeams]
     );
 
-    // Show team name column only if any team has a custom (non-generic) name
-    const hasSquadTeams = useMemo(
-        () => uniqueTeams.some((t) => !/^Team \d+$/i.test(t.name)),
-        [uniqueTeams]
-    );
+    // Show team name column only for squad (ranked) tournaments
+    const hasSquadTeams = allowSquads;
 
     // ── Screenshot / Copy ─────────────────────────────────────
 

@@ -60,6 +60,7 @@ interface Props {
     tournamentTitle?: string;
     seasonName?: string;
     backgroundImage?: string;
+    allowSquads?: boolean;
 }
 
 // ── Placement Points (BGMI scoring) ───────────────────────────
@@ -77,6 +78,7 @@ export function StandingsModal({
     tournamentTitle = "",
     seasonName = "",
     backgroundImage = "/images/image.webp",
+    allowSquads = false,
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
@@ -442,7 +444,7 @@ export function StandingsModal({
                             </div>
                         ) : (
                             <div className="rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-2xl shadow-black/50 p-4 sm:p-6">
-                                <StandingsTable standings={standings} />
+                                <StandingsTable standings={standings} allowSquads={allowSquads} />
                             </div>
                         )}
 
@@ -498,9 +500,9 @@ function PositionChangeIndicator({ change }: { change: number }) {
 
 // ── Standings Table (two-column on large screens) ─────────────
 
-function StandingsTable({ standings }: { standings: StandingRow[] }) {
-    // Detect if any team has a custom (squad) name
-    const hasSquadTeams = standings.some((r) => !/^Team \d+$/i.test(r.teamName));
+function StandingsTable({ standings, allowSquads = false }: { standings: StandingRow[]; allowSquads?: boolean }) {
+    // Use allowSquads from prop instead of regex heuristic
+    const hasSquadTeams = allowSquads;
     const renderTable = (slice: StandingRow[], startIndex: number) => (
         <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm">
             <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
