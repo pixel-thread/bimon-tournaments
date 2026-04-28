@@ -105,6 +105,8 @@ interface ProfileData {
         } | null;
         wallet: { balance: number };
         streak: { current: number; longest: number } | null;
+        clan: { id: string; name: string; tag: string } | null;
+        pendingClanInvites: number;
     } | null;
 }
 
@@ -801,6 +803,35 @@ export default function ProfilePage() {
                             </div>
                         </div>
                         <span className="text-foreground/30 text-sm">→</span>
+                    </button>
+                )}
+
+                {/* My Clan / Guild */}
+                {GAME.features.hasClans && player && (
+                    <button
+                        type="button"
+                        onClick={() => router.push("/clan")}
+                        className="relative w-full flex items-center justify-between p-4 rounded-xl border border-divider bg-default-50 hover:bg-default-100 transition-colors cursor-pointer"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Shield className="w-4 h-4 text-primary" />
+                            </div>
+                            <div className="text-left">
+                                <p className="text-sm font-semibold">My {GAME.clanLabel}</p>
+                                <p className="text-[11px] text-foreground/40">
+                                    {player.clan
+                                        ? `[${player.clan.tag}] ${player.clan.name}`
+                                        : `Create or join a ${GAME.clanLabel.toLowerCase()}`}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {(player.pendingClanInvites ?? 0) > 0 && (
+                                <span className="h-2 w-2 rounded-full bg-danger animate-pulse" />
+                            )}
+                            <span className="text-foreground/30 text-sm">→</span>
+                        </div>
                     </button>
                 )}
 

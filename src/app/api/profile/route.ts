@@ -42,6 +42,13 @@ export async function GET(request: Request) {
                                     isVideo: true,
                                 },
                             },
+                            clanMembership: {
+                                include: {
+                                    clan: {
+                                        select: { id: true, name: true, tag: true },
+                                    },
+                                },
+                            },
                         },
                     },
                 },
@@ -161,6 +168,23 @@ export async function GET(request: Request) {
             };
         }
 
+        // Clan data
+        let clanData = null;
+        let pendingClanInvites = 0;
+        if (player) {
+            const clanMembership = (player as any).clanMembership;
+            if (clanMembership?.clan) {
+                clanData = {
+                    id: clanMembership.clan.id,
+                    name: clanMembership.clan.name,
+                    tag: clanMembership.clan.tag,
+                };
+            }
+            pendingClanInvites = await prisma.clanInvite.count({
+                where: { playerId: player.id, status: "PENDING" },
+            });
+        }
+
         const data = {
             id: user.id,
             clerkId: user.clerkId,
@@ -206,6 +230,8 @@ export async function GET(request: Request) {
                             longest: player.streak.longest,
                         }
                         : { current: 0, longest: 0 },
+                    clan: clanData,
+                    pendingClanInvites,
                 }
                 : null,
         };

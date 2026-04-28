@@ -7,6 +7,7 @@ import {
     ModalBody,
     Avatar,
     Button,
+    Chip,
 } from "@heroui/react";
 import { CategoryBadge } from "@/components/ui/category-badge";
 import {
@@ -26,6 +27,7 @@ import { useAuthUser } from "@/hooks/use-auth-user";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { UCTransferDialog } from "./uc-transfer-dialog";
+import { ClanMembersModal } from "./clan-members-modal";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 
@@ -50,6 +52,7 @@ export function PlayerStatsModal({
     const { user } = useAuthUser();
     const router = useRouter();
     const [showUCTransfer, setShowUCTransfer] = useState(false);
+    const [showClanMembers, setShowClanMembers] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
     const [videoMuted, setVideoMuted] = useState(true);
     const charVideoRef = useRef<HTMLVideoElement>(null);
@@ -320,6 +323,23 @@ export function PlayerStatsModal({
                                         &ldquo;{player.bio}&rdquo;
                                     </p>
                                 )}
+                                {player.clan && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowClanMembers(true);
+                                        }}
+                                        className="mt-1 inline-flex items-center gap-1 cursor-pointer"
+                                    >
+                                        <Chip
+                                            size="sm"
+                                            variant="flat"
+                                            className="text-[10px] h-4 hover:bg-default-200 transition-colors"
+                                        >
+                                            [{player.clan.tag}] {player.clan.name}
+                                        </Chip>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -415,6 +435,17 @@ export function PlayerStatsModal({
                     toPlayerId={player.id}
                     toPlayerName={name}
                     sendOnly={player.isAdmin}
+                />
+            )}
+
+            {/* Clan Members Modal */}
+            {player.clan && (
+                <ClanMembersModal
+                    isOpen={showClanMembers}
+                    onClose={() => setShowClanMembers(false)}
+                    clanId={player.clan.id}
+                    clanName={player.clan.name}
+                    clanTag={player.clan.tag}
                 />
             )}
         </>

@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { useSquadInviteCount } from "@/hooks/use-squad-invite-count";
+import { useClanInviteCount } from "@/hooks/use-clan-invite-count";
 
 type Tab = {
     label: string;
@@ -50,6 +51,7 @@ export function MobileNav() {
     const user = session?.user;
     const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
     const pendingInviteCount = useSquadInviteCount();
+    const pendingClanInviteCount = useClanInviteCount();
 
     const { data: profileData } = useQuery<{ imageUrl?: string; player?: { displayName?: string; customProfileImageUrl?: string | null } | null; username?: string }>({
         queryKey: ["profile"],
@@ -182,6 +184,9 @@ export function MobileNav() {
                                 />
                             ) : null}
                             {tab.label === "Vote" && pendingInviteCount > 0 && !isActive && (
+                                <span className="absolute top-1.5 right-1/2 translate-x-4 h-2 w-2 rounded-full bg-danger animate-pulse" />
+                            )}
+                            {isProfile && pendingClanInviteCount > 0 && !isActive && (
                                 <span className="absolute top-1.5 right-1/2 translate-x-4 h-2 w-2 rounded-full bg-danger animate-pulse" />
                             )}
                             <span className={`max-w-[64px] truncate ${isActive ? "font-semibold" : "font-normal"}`}>

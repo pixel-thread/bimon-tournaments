@@ -240,6 +240,11 @@ model Player {
   squadInvites          SquadInvite[]
   welcomeBackCoupons    WelcomeBackCoupon[]
 
+  // Clans / Guilds
+  clanLed               Clan?              @relation("ClanLeader")
+  clanMembership        ClanMember?
+  clanInvites           ClanInvite[]
+
   // Sponsor coupons
   isCouponVerifier      Boolean            @default(false)
   couponsCreated        SponsorCoupon[]     @relation("CouponsCreated")
@@ -1360,4 +1365,69 @@ model SponsorCoupon {
   @@index([createdById])
   @@index([claimedById])
   @@index([status])
+}
+
+// ─── Clans / Guilds ─────────────────────────────────────────
+
+enum ClanRole {
+  LEADER
+  MEMBER
+}
+
+enum ClanInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+/// A player-created clan/guild.
+model Clan {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(30)
+  tag         String   @unique @db.VarChar(6)   // Short tag e.g. "BOOYAH"
+  description String?  @db.VarChar(200)
+  leaderId    String   @unique                   // One clan per leader
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leader      Player       @relation("ClanLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+  members     ClanMember[]
+  invites     ClanInvite[]
+
+  @@index([name])
+}
+
+/// Membership in a clan. A player can only be in ONE clan.
+model ClanMember {
+  id       String   @id @default(uuid())
+  clanId   String
+  playerId String   @unique              // Enforces one-clan-per-player
+  role     ClanRole @default(MEMBER)
+
+  joinedAt DateTime @default(now())
+
+  clan   Clan   @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([clanId, playerId])
+  @@index([clanId])
+}
+
+/// Invite to join a clan — sent by the leader.
+model ClanInvite {
+  id       String           @id @default(uuid())
+  clanId   String
+  playerId String
+  status   ClanInviteStatus @default(PENDING)
+
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+
+  clan   Clan   @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([clanId, playerId])
+  @@index([playerId, status])
+  @@index([clanId, status])
 }

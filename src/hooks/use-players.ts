@@ -27,6 +27,11 @@ export interface PlayerDTO {
     balance: number;
     hasRoyalPass: boolean;
     isAdmin: boolean;
+    clan: {
+        id: string;
+        name: string;
+        tag: string;
+    } | null;
 }
 
 export interface PlayersMeta {

@@ -161,6 +161,18 @@ export async function GET(request: NextRequest) {
             if (m.player2Id) bracketMatchCountMap.set(m.player2Id, (bracketMatchCountMap.get(m.player2Id) ?? 0) + 1);
         }
 
+        // Batch fetch clan memberships for all players
+        const clanMemberships = await prisma.clanMember.findMany({
+            where: { playerId: { in: playerIds } },
+            select: {
+                playerId: true,
+                clan: { select: { id: true, name: true, tag: true } },
+            },
+        });
+        const clanMap = new Map(
+            clanMemberships.map((cm) => [cm.playerId, cm.clan])
+        );
+
 
 
         // Category: use win rate for bracket games (PES), K/D for BR games (BGMI/FF)
@@ -178,6 +190,7 @@ export async function GET(request: NextRequest) {
             const category = isBracketGame
                 ? getCategoryFromWinRate(wins, bracketMatches)
                 : getCategoryFromKDValue(kd);
+            const playerClan = clanMap.get(p.id) ?? null;
             return {
                 id: p.id,
                 displayName: p.displayName,
@@ -209,6 +222,7 @@ export async function GET(request: NextRequest) {
                         thumbnailUrl: p.characterImage.thumbnailUrl,
                     }
                     : null,
+                clan: playerClan,
             };
         });
 

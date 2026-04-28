@@ -32,6 +32,7 @@ interface GameFeatures {
     hasMultiEntry: boolean;      // Allow multiple bracket entries per player (PES only)
     hasSquads: boolean;          // Player-created premade squads
     hasRankedCasual: boolean;    // Separate Ranked (squad) vs Casual (random) leaderboards
+    hasClans: boolean;           // Clan/guild system
     usesCentralWallet?: never;  // REMOVED — all games use local wallet now
 }
 
@@ -78,6 +79,9 @@ interface GameConfig {
     // Both default to 1.0 (no conversion). For MLBB: in=0.9, out=0.9 → 50 UC→45 BP, 50 BP→45 UC
     exchangeRateIn?: number;
     exchangeRateOut?: number;
+    // Clan / Guild
+    clanLabel: string;             // "Clan" or "Guild"
+    clanLabelPlural: string;       // "Clans" or "Guilds"
     // Feature flags
     features: GameFeatures;
 }
@@ -112,6 +116,8 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         maxSquadSize: 6,           // 4 active + 2 subs
         maxSquadTeams: 16,         // 64 players / 4 = 16 squads max
         hasDualCurrency: false,
+        clanLabel: "Clan",
+        clanLabelPlural: "Clans",
         features: {
             hasTeamSizes: true,
             hasLuckyVoters: true,
@@ -126,6 +132,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasMultiEntry: false,
             hasSquads: true,           // Per-poll toggle — admin decides per tournament
             hasRankedCasual: true,     // Ranked/Casual tabs on players page
+            hasClans: true,
         },
     },
     freefire: {
@@ -157,6 +164,8 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         maxSquadSize: 6,           // 4 active + 2 subs
         maxSquadTeams: 16,         // 64 players / 4 = 16 squads max
         hasDualCurrency: false,
+        clanLabel: "Guild",
+        clanLabelPlural: "Guilds",
         features: {
             hasTeamSizes: true,
             hasLuckyVoters: true,
@@ -171,6 +180,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasMultiEntry: false,
             hasSquads: false,
             hasRankedCasual: false,
+            hasClans: true,
         },
     },
     pes: {
@@ -202,6 +212,8 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         maxSquadSize: 1,           // 1v1, no subs
         maxSquadTeams: 64,         // No practical limit for 1v1
         hasDualCurrency: false,
+        clanLabel: "Clan",
+        clanLabelPlural: "Clans",
         features: {
             hasTeamSizes: false,       // PES is 1v1 only
             hasLuckyVoters: true,       // Lucky voter draws work for any tournament
@@ -216,6 +228,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasMultiEntry: true,        // PES players can enter multiple times
             hasSquads: false,
             hasRankedCasual: false,
+            hasClans: true,
         },
     },
     mlbb: {
@@ -256,6 +269,8 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         rewardCurrencyPlural: "Diamonds",
         exchangeRateIn: 0.9,           // 50 UC → 45 BP (UC is worth more than BP)
         exchangeRateOut: 1 / 0.9,      // 45 BP → 50 UC (inverse — round-trip is neutral)
+        clanLabel: "Clan",
+        clanLabelPlural: "Clans",
         features: {
             hasTeamSizes: false,
             hasLuckyVoters: true,
@@ -270,6 +285,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasMultiEntry: false,
             hasSquads: true,           // Squad feature enabled for MLBB
             hasRankedCasual: false,
+            hasClans: true,
         },
     },
 };
