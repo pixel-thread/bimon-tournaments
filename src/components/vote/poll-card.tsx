@@ -847,19 +847,34 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     }
                                 `}</style>
                             </div>
-                            {poll.days && (
-                                <Chip
-                                    size="sm"
-                                    variant="flat"
-                                    className={
-                                        theme
-                                            ? theme.badge
-                                            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200 animate-pulse"
-                                    }
-                                >
-                                    {poll.days}
-                                </Chip>
-                            )}
+                            {poll.days && (() => {
+                                const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                                const dayIdx = DAYS.findIndex(d => poll.days?.toLowerCase().startsWith(d.toLowerCase()));
+                                if (dayIdx < 0) return <Chip size="sm" variant="flat" className={theme ? theme.badge : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200"}>{poll.days}</Chip>;
+                                const today = new Date().getDay(); // 0=Sun
+                                const diff = (dayIdx - today + 7) % 7;
+                                const label = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : `in ${diff} days`;
+                                const isToday = diff === 0;
+                                const isSoon = diff <= 1;
+                                return (
+                                    <Chip
+                                        size="sm"
+                                        variant="flat"
+                                        className={
+                                            isToday
+                                                ? "bg-red-500/20 text-red-400 font-bold animate-pulse"
+                                                : isSoon
+                                                    ? "bg-orange-500/20 text-orange-400 font-semibold"
+                                                    : theme
+                                                        ? theme.badge
+                                                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200"
+                                        }
+                                    >
+                                        {isToday && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mr-1 animate-pulse" />}
+                                        {label}
+                                    </Chip>
+                                );
+                            })()}
                         </div>
 
                         {/* Prize Pool */}
