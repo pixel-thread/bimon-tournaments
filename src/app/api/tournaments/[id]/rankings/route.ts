@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { getCurrentUser } from "@/lib/auth";
+import { isBracketType } from "@/lib/bracket-types";
 
 // BGMI placement points — must match standings-modal.tsx
 const PLACEMENT_PTS: Record<number, number> = {
@@ -42,15 +43,14 @@ export async function GET(
         }
 
         const isBR = tournament.type === "BR";
-        const isBracketType = ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"].includes(tournament.type);
 
         // ─── BR tournaments: use TeamStats ───
         if (isBR) {
             return handleBRRankings(id, tournament);
         }
 
-        // ─── Bracket/League/GroupKnockout: use BracketMatch ───
-        if (isBracketType) {
+        // ─── Bracket/League/GroupKnockout/TDM: use BracketMatch ───
+        if (isBracketType(tournament.type)) {
             return handleBracketRankings(id, tournament);
         }
 

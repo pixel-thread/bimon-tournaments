@@ -10,6 +10,7 @@ import { AdSlot } from "@/components/common/AdSlot";
 import { Skeleton, Card, CardBody, Divider } from "@heroui/react";
 import { Vote, AlertCircle } from "lucide-react";
 import { useAuthGate } from "@/components/common/auth-gate-provider";
+import { GAME } from "@/lib/game-config";
 
 /**
  * /vote — Tournament voting page.
@@ -20,7 +21,7 @@ export default function VotePage() {
     const voteMutation = useVote();
     const entryMutation = useEntryMutation();
     const { requireAuth } = useAuthGate();
-    const [tab, setTab] = useState<"casual" | "ranked">("casual");
+    const [tab, setTab] = useState<"casual" | "ranked" | "tdm">("casual");
 
     const polls = data?.polls;
     const currentPlayerId = data?.currentPlayerId ?? undefined;
@@ -29,15 +30,18 @@ export default function VotePage() {
     const pendingPollId = voteMutation.isPending ? voteMutation.variables?.pollId : undefined;
     const pendingVote = voteMutation.isPending ? voteMutation.variables?.vote : undefined;
 
-    // Filter polls by tab — only when both types exist
-    const hasBothTypes = (polls?.some(p => p.allowSquads) && polls?.some(p => !p.allowSquads)) ?? false;
+    // Filter polls by tab
+    const tdmCount = polls?.filter((p: any) => p.tournament?.isTDM).length ?? 0;
+    const casualCount = polls?.filter((p: any) => !p.allowSquads && !p.tournament?.isTDM).length ?? 0;
+    const rankedCount = polls?.filter((p: any) => p.allowSquads && !p.tournament?.isTDM).length ?? 0;
+    const hasBothTypes = (casualCount > 0 && rankedCount > 0) || (GAME.features.hasTDM && tdmCount > 0);
     const filteredPolls = hasBothTypes
-        ? polls?.filter((p) => tab === "ranked" ? p.allowSquads : !p.allowSquads)
+        ? polls?.filter((p: any) => {
+            if (tab === "tdm") return !!p.tournament?.isTDM;
+            if (tab === "ranked") return p.allowSquads && !p.tournament?.isTDM;
+            return !p.allowSquads && !p.tournament?.isTDM;
+        })
         : polls;
-
-    // Count polls per tab (for badges)
-    const casualCount = polls?.filter((p) => !p.allowSquads).length ?? 0;
-    const rankedCount = polls?.filter((p) => p.allowSquads).length ?? 0;
 
     function handleVote(pollId: string, vote: "IN" | "OUT" | "SOLO") {
         requireAuth(() => voteMutation.mutate({ pollId, vote }));
@@ -64,11 +68,12 @@ export default function VotePage() {
             )}
 
             {/* ── Casual / Ranked Tabs (only when both types exist) ── */}
-            {casualCount > 0 && rankedCount > 0 && (
+            {hasBothTypes && (
             <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100 mb-4">
                 {([
                     { key: "casual" as const, label: "Casual", icon: "🎮", count: casualCount },
                     { key: "ranked" as const, label: "Ranked", icon: "🏆", count: rankedCount },
+                    ...(GAME.features.hasTDM && tdmCount > 0 ? [{ key: "tdm" as const, label: "TDM", icon: "⚔️", count: tdmCount }] : []),
                 ]).map(({ key, label, icon, count }) => (
                     <button
                         key={key}
@@ -132,12 +137,14 @@ export default function VotePage() {
                             <Vote className="h-10 w-10 text-foreground/20" />
                             <div>
                                 <p className="font-medium text-foreground/60">
-                                    No {tab === "ranked" ? "ranked" : "casual"} polls
+                                    No {tab === "ranked" ? "ranked" : tab === "tdm" ? "TDM" : "casual"} polls
                                 </p>
                                 <p className="text-sm text-foreground/40">
                                     {tab === "ranked"
                                         ? "No squad tournaments right now"
-                                        : "Check back later for upcoming tournaments"}
+                                        : tab === "tdm"
+                                            ? "No team deathmatch tournaments right now"
+                                            : "Check back later for upcoming tournaments"}
                                 </p>
                             </div>
                             <AdSlot format="banner" className="mt-4 w-full rounded-lg overflow-hidden" />

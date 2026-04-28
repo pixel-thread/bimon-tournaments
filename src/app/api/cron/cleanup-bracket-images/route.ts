@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/database";
 import { getAuthEmail, userWhereEmail } from "@/lib/auth";
 import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
+import { BRACKET_TYPES } from "@/lib/bracket-types";
 
 /**
  * POST /api/cron/cleanup-bracket-images
@@ -37,7 +38,7 @@ export async function POST() {
             where: {
                 isWinnerDeclared: true,
                 updatedAt: { lt: cutoff },
-                type: { in: ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"] },
+                type: { in: [...BRACKET_TYPES] },
             },
             select: { id: true, name: true },
         });

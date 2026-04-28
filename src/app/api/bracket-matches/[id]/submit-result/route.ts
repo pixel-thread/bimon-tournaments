@@ -70,7 +70,10 @@ export async function POST(
                 status: true,
                 player1Id: true,
                 player2Id: true,
+                team1Id: true,
+                team2Id: true,
                 winnerId: true,
+                winnerTeamId: true,
                 tournamentId: true,
                 round: true,
                 createdAt: true,
@@ -107,28 +110,50 @@ export async function POST(
         }
 
         // Verify participant (skip for admin override)
+        // TDM: check if player is a captain of either team
+        const isTDMMatch = !!(match.team1Id && match.team2Id);
         if (!adminOverride) {
-            const isPlayer1 = match.player1Id === playerId;
-            const isPlayer2 = match.player2Id === playerId;
-            if (!isPlayer1 && !isPlayer2) {
-                return ErrorResponse({
-                    message: "You are not a participant in this match",
-                    status: 403,
+            if (isTDMMatch) {
+                // For TDM, check if user is captain of either team's squad
+                const tournament = await prisma.tournament.findUnique({
+                    where: { id: match.tournamentId },
+                    select: { poll: { select: { id: true } } },
                 });
+                const pollId = tournament?.poll?.id;
+                if (!pollId) return ErrorResponse({ message: "Tournament poll not found", status: 400 });
+                const squad = await prisma.squad.findFirst({
+                    where: { pollId, captainId: playerId },
+                });
+                if (!squad) {
+                    return ErrorResponse({
+                        message: "Only team captains can submit results for TDM matches",
+                        status: 403,
+                    });
+                }
+            } else {
+                const isPlayer1 = match.player1Id === playerId;
+                const isPlayer2 = match.player2Id === playerId;
+                if (!isPlayer1 && !isPlayer2) {
+                    return ErrorResponse({
+                        message: "You are not a participant in this match",
+                        status: 403,
+                    });
+                }
             }
         }
 
         // Check tournament type to determine if draws are allowed
-        const tournament = await prisma.tournament.findUnique({
+        const tournamentForType = await prisma.tournament.findUnique({
             where: { id: match.tournamentId },
-            select: { type: true },
+            select: { type: true, isTDM: true },
         });
-        const isLeague = tournament?.type === "LEAGUE";
-        const isGroupStage = tournament?.type === "GROUP_KNOCKOUT" && match.round < 0;
+        const isLeague = tournamentForType?.type === "LEAGUE";
+        const isGroupStage = tournamentForType?.type === "GROUP_KNOCKOUT" && match.round < 0;
         const drawsAllowed = isLeague || isGroupStage;
 
         // Determine winner from scores
         let claimedWinnerId: string | null = null;
+        let claimedWinnerTeamId: string | null = null;
         if (score1 === score2) {
             if (!drawsAllowed) {
                 return ErrorResponse({
@@ -136,7 +161,8 @@ export async function POST(
                     status: 400,
                 });
             }
-            claimedWinnerId = null;
+        } else if (isTDMMatch) {
+            claimedWinnerTeamId = score1 > score2 ? match.team1Id : match.team2Id;
         } else {
             claimedWinnerId = score1 > score2 ? match.player1Id : match.player2Id;
         }
@@ -163,6 +189,7 @@ export async function POST(
                     score1,
                     score2,
                     winnerId: claimedWinnerId,
+                    winnerTeamId: claimedWinnerTeamId,
                     status: "CONFIRMED",
                     mvpPlayerId: mvpPlayerId || null,
                 },
@@ -170,8 +197,8 @@ export async function POST(
 
             // Advance winners for knockout matches
             const isKnockoutMatch =
-                tournament?.type === "BRACKET_1V1" ||
-                (tournament?.type === "GROUP_KNOCKOUT" && match.round > 0);
+                tournamentForType?.type === "BRACKET_1V1" ||
+                (tournamentForType?.type === "GROUP_KNOCKOUT" && match.round > 0);
 
             if (isKnockoutMatch) {
                 await advanceWinners(match.tournamentId, match.round);
@@ -195,14 +222,15 @@ export async function POST(
                     score1,
                     score2,
                     winnerId: claimedWinnerId,
+                    winnerTeamId: claimedWinnerTeamId,
                     status: "CONFIRMED",
                     mvpPlayerId: mvpPlayerId || null,
                 },
             });
 
             const isKnockoutMatch =
-                tournament?.type === "BRACKET_1V1" ||
-                (tournament?.type === "GROUP_KNOCKOUT" && match.round > 0);
+                tournamentForType?.type === "BRACKET_1V1" ||
+                (tournamentForType?.type === "GROUP_KNOCKOUT" && match.round > 0);
 
             if (isKnockoutMatch) {
                 await advanceWinners(match.tournamentId, match.round);
@@ -223,7 +251,7 @@ export async function POST(
             const settings = await getSettings();
             const deadlineMs = await getMatchDeadlineMs(
                 match.tournamentId,
-                tournament?.type || "BRACKET_1V1",
+                tournamentForType?.type || "BRACKET_1V1",
                 match.round,
                 match.createdAt,
                 settings,
@@ -241,6 +269,7 @@ export async function POST(
                 score1,
                 score2,
                 winnerId: claimedWinnerId,
+                winnerTeamId: claimedWinnerTeamId,
                 status: "SUBMITTED",
                 disputeDeadline,
             },
@@ -298,7 +327,10 @@ export async function PUT(
                 status: true,
                 player1Id: true,
                 player2Id: true,
+                team1Id: true,
+                team2Id: true,
                 winnerId: true,
+                winnerTeamId: true,
                 tournamentId: true,
                 round: true,
             },
@@ -320,11 +352,31 @@ export async function PUT(
             });
         }
 
-        // Must be the OTHER player (the one who didn't submit) or an admin
+        // Must be the OTHER player/captain (the one who didn't submit) or an admin
         const playerId = user.player.id;
         const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
-        const isParticipant = match.player1Id === playerId || match.player2Id === playerId;
-        const isOpponent = isParticipant && match.winnerId !== playerId;
+        const isTDMMatch = !!(match.team1Id && match.team2Id);
+
+        let isOpponent = false;
+        if (isTDMMatch) {
+            // For TDM: check if player is captain of the OPPOSING team
+            const tournament = await prisma.tournament.findUnique({
+                where: { id: match.tournamentId },
+                select: { poll: { select: { id: true } } },
+            });
+            if (tournament?.poll?.id) {
+                const squad = await prisma.squad.findFirst({
+                    where: { pollId: tournament.poll.id, captainId: playerId },
+                });
+                // Is a captain AND not from the winning team
+                if (squad) {
+                    isOpponent = true; // Captain of opposing team can confirm
+                }
+            }
+        } else {
+            const isParticipant = match.player1Id === playerId || match.player2Id === playerId;
+            isOpponent = isParticipant && match.winnerId !== playerId;
+        }
 
         if (!isAdmin && !isOpponent) {
             return ErrorResponse({

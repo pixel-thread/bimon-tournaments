@@ -68,6 +68,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [isActive, setIsActive] = useState(true);
     const [allowSquads, setAllowSquads] = useState(false);
     const [enableFund, setEnableFund] = useState(true);
+    const [isTDM, setIsTDM] = useState(false);
     const [options, setOptions] = useState<PollOptionDTO[]>([]);
     const [saving, setSaving] = useState(false);
 
@@ -94,6 +95,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setIsActive(poll.isActive);
             setAllowSquads(poll.allowSquads ?? false);
             setEnableFund(poll.enableFund ?? true);
+            setIsTDM(false); // TDM is determined by tournament.isTDM, not poll
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
         } else {
             setQuestion("");
@@ -104,6 +106,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setIsActive(true);
             setAllowSquads(GAME.features.hasSquads);
             setEnableFund(true);
+            setIsTDM(false);
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
                 ? [
@@ -149,8 +152,10 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                 }
                 : {
                     question, days, teamType, tournamentId, allowSquads, enableFund,
-                    // For PES: send format so poll creation can update tournament type
-                    ...(!GAME.features.hasTeamSizes && { tournamentType: tournamentFormat }),
+                    // For PES or TDM: send format so poll creation can update tournament type
+                    ...((!GAME.features.hasTeamSizes || isTDM) && { tournamentType: tournamentFormat }),
+                    // TDM flag — API will set tournament.isTDM
+                    ...(isTDM && { isTDM: true }),
                     // Send custom option names
                     options: options.map(o => ({ name: o.name, vote: o.vote })),
                 };
@@ -172,7 +177,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, options, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, isTDM, options, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -290,7 +295,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     )}
 
                     {/* Allow Squads toggle — for games that support squads */}
-                    {GAME.features.hasSquads && (
+                    {GAME.features.hasSquads && !isTDM && (
                         <div className="flex items-center justify-between rounded-lg bg-default-100 px-3 py-2">
                             <div>
                                 <span className="text-sm">Allow Squads</span>
@@ -310,6 +315,52 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                                 }}
                             />
                         </div>
+                    )}
+
+                    {/* TDM Mode toggle — for games that support TDM */}
+                    {GAME.features.hasTDM && !isEdit && (
+                        <div className="flex items-center justify-between rounded-lg bg-danger/5 border border-danger/10 px-3 py-2">
+                            <div>
+                                <span className="text-sm font-medium">⚔️ TDM Mode</span>
+                                <p className="text-xs text-foreground/40">Team vs Team bracket (squads auto-enabled)</p>
+                            </div>
+                            <Switch
+                                size="sm"
+                                color="danger"
+                                isSelected={isTDM}
+                                onValueChange={(v) => {
+                                    setIsTDM(v);
+                                    if (v) {
+                                        setAllowSquads(true);
+                                        setEnableFund(false);
+                                        if (GAME.features.hasTeamSizes) setTeamType("SQUAD");
+                                        // Default to KO for TDM
+                                        setTournamentFormat("BRACKET_1V1");
+                                    } else {
+                                        if (GAME.features.hasTeamSizes) setTeamType("DYNAMIC");
+                                    }
+                                }}
+                            />
+                        </div>
+                    )}
+
+                    {/* TDM Bracket Format selector */}
+                    {isTDM && (
+                        <Select
+                            label="TDM Bracket Format"
+                            selectedKeys={[tournamentFormat]}
+                            onSelectionChange={(keys) => {
+                                const key = Array.from(keys)[0] as string;
+                                if (key) setTournamentFormat(key);
+                            }}
+                            size="sm"
+                        >
+                            {["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"].map((t) => (
+                                <SelectItem key={t} textValue={TOURNAMENT_FORMAT_LABELS[t] ?? t}>
+                                    {TOURNAMENT_FORMAT_LABELS[t] ?? t}
+                                </SelectItem>
+                            ))}
+                        </Select>
                     )}
 
                     {/* Fund toggle — shown when allowSquads is on (default OFF for squads) */}

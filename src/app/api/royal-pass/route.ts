@@ -49,7 +49,7 @@ export async function GET() {
             })),
         };
 
-        return SuccessResponse({ data, cache: CACHE.MEDIUM });
+        return SuccessResponse({ data, cache: CACHE.NONE });
     } catch (error) {
         return ErrorResponse({
             message: `Failed to fetch ${GAME.passName}`,

@@ -117,7 +117,7 @@ export async function GET(
         const [tournament, settings] = await Promise.all([
             prisma.tournament.findUnique({
                 where: { id },
-                select: { id: true, type: true, fee: true, maxPlacements: true },
+                select: { id: true, type: true, fee: true, maxPlacements: true, isTDM: true },
             }),
             getSettings(),
         ]);
@@ -150,8 +150,29 @@ export async function GET(
                         user: { select: { imageUrl: true } },
                     },
                 },
+                team1: {
+                    select: {
+                        id: true,
+                        name: true,
+                        players: {
+                            select: { id: true, displayName: true },
+                        },
+                    },
+                },
+                team2: {
+                    select: {
+                        id: true,
+                        name: true,
+                        players: {
+                            select: { id: true, displayName: true },
+                        },
+                    },
+                },
                 winner: {
                     select: { id: true, displayName: true },
+                },
+                winnerTeam: {
+                    select: { id: true, name: true },
                 },
                 mvpPlayer: {
                     select: { id: true, displayName: true },
@@ -187,11 +208,14 @@ export async function GET(
 
         const totalRounds = Math.max(...Array.from(roundMap.keys()));
 
-        // Count unique players
+        // Count unique players or teams
         const playerIds = new Set<string>();
+        const teamIds = new Set<string>();
         for (const m of matches) {
             if (m.player1Id) playerIds.add(m.player1Id);
             if (m.player2Id) playerIds.add(m.player2Id);
+            if (m.team1Id) teamIds.add(m.team1Id);
+            if (m.team2Id) teamIds.add(m.team2Id);
         }
 
         // Generate round names
@@ -216,7 +240,10 @@ export async function GET(
                     position: m.position,
                     player1Id: m.player1Id,
                     player2Id: m.player2Id,
+                    team1Id: m.team1Id,
+                    team2Id: m.team2Id,
                     winnerId: m.winnerId,
+                    winnerTeamId: m.winnerTeamId,
                     score1: m.score1,
                     score2: m.score2,
                     status: m.status,
@@ -229,6 +256,12 @@ export async function GET(
                     player2: m.player2
                         ? { displayName: m.player2.displayName, phoneNumber: m.player2.phoneNumber }
                         : null,
+                    team1: m.team1
+                        ? { id: m.team1.id, name: m.team1.name, players: m.team1.players }
+                        : null,
+                    team2: m.team2
+                        ? { id: m.team2.id, name: m.team2.name, players: m.team2.players }
+                        : null,
                     player1Avatar:
                         m.player1?.customProfileImageUrl ??
                         m.player1?.user?.imageUrl ??
@@ -240,14 +273,15 @@ export async function GET(
                     results: m.results,
                     mvpPlayerId: m.mvpPlayerId,
                     mvpPlayerName: m.mvpPlayer?.displayName ?? null,
+                    winnerTeam: m.winnerTeam ?? null,
                 })),
             }));
 
         // Check if there's a final winner (position 0 = Final, position 1 = 3rd Place)
-        const finalMatch = matches.find((m) => m.round === totalRounds && m.position === 0 && m.winnerId);
-        const winner = finalMatch?.winner
-            ? { displayName: finalMatch.winner.displayName }
-            : null;
+        const finalMatch = matches.find((m) => m.round === totalRounds && m.position === 0 && (m.winnerId || m.winnerTeamId));
+        const winner = tournament.isTDM
+            ? (finalMatch?.winnerTeam ? { displayName: finalMatch.winnerTeam.name } : null)
+            : (finalMatch?.winner ? { displayName: finalMatch.winner.displayName } : null);
 
         // Compute prize pool for bracket mode
         const donations = await prisma.prizePoolDonation.findMany({
@@ -256,13 +290,17 @@ export async function GET(
         });
         const totalDonations = donations.reduce((s, d) => s + d.amount, 0);
         const entryFee = tournament.fee ?? 0;
-        const prizePool = entryFee * playerIds.size + totalDonations;
+        // TDM: prize pool = entryFee × teams; 1v1: entryFee × players
+        const participantCount = tournament.isTDM ? teamIds.size : playerIds.size;
+        const prizePool = entryFee * participantCount + totalDonations;
 
         return SuccessResponse({
             data: {
                 rounds,
                 totalRounds,
                 totalPlayers: playerIds.size,
+                totalTeams: teamIds.size,
+                isTDM: tournament.isTDM,
                 winner,
                 entryFee,
                 prizePool,

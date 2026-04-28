@@ -4,6 +4,7 @@ import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { generateBracket } from "@/lib/logic/generateBracket";
 import { generateLeague } from "@/lib/logic/generateLeague";
 import { generateGroupKnockout } from "@/lib/logic/generateGroupKnockout";
+import { BRACKET_TYPES } from "@/lib/bracket-types";
 import { type NextRequest } from "next/server";
 import { debitWallet } from "@/lib/wallet-service";
 
@@ -85,6 +86,7 @@ export async function POST(
                 status: true,
                 fee: true,
                 name: true,
+                isTDM: true,
                 poll: {
                     select: {
                         id: true,
@@ -109,7 +111,7 @@ export async function POST(
             return ErrorResponse({ message: "Tournament not found", status: 404 });
         }
 
-        const VALID_TYPES = ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"];
+        const VALID_TYPES: readonly string[] = BRACKET_TYPES;
         if (!VALID_TYPES.includes(tournament.type)) {
             return ErrorResponse({
                 message: "This tournament type does not support match generation",
@@ -124,6 +126,134 @@ export async function POST(
             });
         }
 
+        // ── TDM: use Teams (squads) instead of individual poll voters ──
+        if (tournament.isTDM) {
+            const teams = await prisma.team.findMany({
+                where: { tournamentId: id },
+                select: { id: true, name: true, teamNumber: true },
+                orderBy: { teamNumber: "asc" },
+            });
+
+            if (teams.length < 2) {
+                return ErrorResponse({
+                    message: `Need at least 2 teams for TDM bracket. Currently ${teams.length} teams.`,
+                    status: 400,
+                });
+            }
+
+            // Close the poll if still active
+            if (tournament.poll?.isActive) {
+                await prisma.poll.update({
+                    where: { id: tournament.poll.id },
+                    data: { isActive: false },
+                });
+            }
+
+            // Shuffle teams for random seeding
+            const teamIds = teams.map(t => t.id);
+            for (let i = teamIds.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [teamIds[i], teamIds[j]] = [teamIds[j], teamIds[i]];
+            }
+
+            // Dispatch to the right generator — pass team IDs as "player" slots
+            let result: any;
+            let message: string;
+
+            switch (tournament.type) {
+                case "BRACKET_1V1": {
+                    const bracketSize = floorPow2(teamIds.length);
+                    const includedIds = teamIds.slice(0, bracketSize);
+                    const excludedCount = teamIds.length - bracketSize;
+                    result = await generateBracket(id, includedIds, { skipShuffle: true });
+                    result.excludedCount = excludedCount;
+                    result.bracketSize = bracketSize;
+                    message = excludedCount > 0
+                        ? `TDM KO bracket generated! ${bracketSize} teams, ${excludedCount} excluded.`
+                        : `TDM KO bracket generated! ${bracketSize} teams, ${result.totalRounds} rounds.`;
+                    break;
+                }
+                case "LEAGUE": {
+                    result = await generateLeague(id, teamIds);
+                    const totalMatches = (teamIds.length * (teamIds.length - 1)) / 2;
+                    message = `TDM League generated! ${teamIds.length} teams, ${totalMatches} matches across ${result.totalRounds} match days.`;
+                    break;
+                }
+                case "GROUP_KNOCKOUT": {
+                    if (teamIds.length < 4) {
+                        return ErrorResponse({
+                            message: `Need at least 4 teams for TDM Group + Knockout. Currently ${teamIds.length}.`,
+                            status: 400,
+                        });
+                    }
+                    result = await generateGroupKnockout(id, teamIds);
+                    message = `TDM Group + KO generated! ${result.numGroups} groups, then knockout.`;
+                    break;
+                }
+                default:
+                    return ErrorResponse({ message: "Unknown tournament type for TDM", status: 400 });
+            }
+
+            // Remap: move player1Id/player2Id → team1Id/team2Id for all generated matches
+            const teamIdSet = new Set(teamIds);
+            const generatedMatches = await prisma.bracketMatch.findMany({
+                where: { tournamentId: id },
+                select: { id: true, player1Id: true, player2Id: true },
+            });
+
+            for (const match of generatedMatches) {
+                await prisma.bracketMatch.update({
+                    where: { id: match.id },
+                    data: {
+                        team1Id: match.player1Id && teamIdSet.has(match.player1Id) ? match.player1Id : null,
+                        team2Id: match.player2Id && teamIdSet.has(match.player2Id) ? match.player2Id : null,
+                        player1Id: null,
+                        player2Id: null,
+                    },
+                });
+            }
+
+            // Debit entry fees for TDM — charge per team (captain pays)
+            const entryFee = tournament.fee ?? 0;
+            if (entryFee > 0) {
+                const teamsWithPlayers = await prisma.team.findMany({
+                    where: { id: { in: teamIds } },
+                    select: {
+                        id: true,
+                        players: {
+                            select: { id: true, isUCExempt: true, user: { select: { email: true } } },
+                        },
+                    },
+                });
+                // Find captains via Squad model
+                const pollId = tournament.poll?.id;
+                if (pollId) {
+                    const squads = await prisma.squad.findMany({
+                        where: { pollId },
+                        select: {
+                            captainId: true,
+                            captain: { select: { isUCExempt: true, user: { select: { email: true } } } },
+                        },
+                    });
+                    const luckyVoterId = tournament.poll?.luckyVoterId;
+                    for (const squad of squads) {
+                        if (squad.captain.isUCExempt || squad.captainId === luckyVoterId) continue;
+                        const email = squad.captain.user?.email;
+                        if (email) {
+                            try {
+                                await debitWallet(email, entryFee, `Entry fee for ${tournament.name} (TDM)`, "TOURNAMENT_ENTRY");
+                            } catch (err) {
+                                console.error(`[generate-bracket] Failed to debit captain ${squad.captainId}:`, err);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return SuccessResponse({ data: result, message });
+        }
+
+        // ── Standard PES / 1v1 flow: use poll voters ──
         if (!tournament.poll) {
             return ErrorResponse({ message: "No poll found for this tournament", status: 400 });
         }

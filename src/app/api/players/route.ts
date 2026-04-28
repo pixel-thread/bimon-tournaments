@@ -121,11 +121,13 @@ export async function GET(request: NextRequest) {
         if (seasonId) {
             tpsWhere.seasonId = seasonId;
         }
-        // Filter by teamMode: ranked (allowSquads=true) vs casual (allowSquads=false)
+        // Filter by teamMode: ranked (allowSquads=true) vs casual (allowSquads=false) vs tdm (isTDM=true)
         if (teamMode === "ranked") {
             tpsWhere.match = { tournament: { poll: { allowSquads: true } } };
         } else if (teamMode === "casual") {
-            tpsWhere.match = { tournament: { poll: { allowSquads: false } } };
+            tpsWhere.match = { tournament: { isTDM: false, poll: { allowSquads: false } } };
+        } else if (teamMode === "tdm") {
+            tpsWhere.match = { tournament: { isTDM: true } };
         }
         const tpsAgg = await prisma.teamPlayerStats.groupBy({
             by: ["playerId"],
@@ -136,11 +138,21 @@ export async function GET(request: NextRequest) {
         const statsMap = new Map(tpsAgg.map((s) => [s.playerId, { kills: s._sum.kills ?? 0, matches: s._count.matchId }]));
 
         // Bracket wins/losses from BracketMatch (for PES / non-BR games)
+        // Build bracket filter based on teamMode
+        const bracketTournamentFilter: Record<string, unknown> = {};
+        if (teamMode === "tdm") {
+            bracketTournamentFilter.isTDM = true;
+        } else if (teamMode === "ranked" || teamMode === "casual") {
+            bracketTournamentFilter.isTDM = false;
+        }
+        const hasBracketFilter = Object.keys(bracketTournamentFilter).length > 0;
+
         const bracketWins = await prisma.bracketMatch.groupBy({
             by: ["winnerId"],
             where: {
                 winnerId: { in: playerIds },
                 status: "CONFIRMED",
+                ...(hasBracketFilter ? { tournament: bracketTournamentFilter } : {}),
             },
             _count: { id: true },
         });
@@ -151,6 +163,7 @@ export async function GET(request: NextRequest) {
                     { player1Id: { in: playerIds } },
                     { player2Id: { in: playerIds } },
                 ],
+                ...(hasBracketFilter ? { tournament: bracketTournamentFilter } : {}),
             },
             select: { player1Id: true, player2Id: true },
         });

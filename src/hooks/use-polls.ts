@@ -17,6 +17,7 @@ export interface PollDTO {
         fee: number | null;
         type: string;
         seasonId: string | null;
+        isTDM?: boolean;
     };
     luckyVoterId: string | null;
     isActive: boolean;

@@ -45,6 +45,7 @@ enum TournamentType {
   BRACKET_1V1     // Single Elimination 1v1 Knockout
   LEAGUE          // Round-robin League (everyone plays everyone)
   GROUP_KNOCKOUT  // Group stage → Knockout (FIFA World Cup style)
+  TDM             // Team Deathmatch bracket knockout (4v4, 8v8)
 }
 
 enum TeamType {
@@ -546,6 +547,7 @@ model Tournament {
   galleryId        String?
   taxPreviewCache  Json?
   maxPlacements    Int              @default(3) // Max podium spots: 2 = no 3rd place
+  isTDM            Boolean          @default(false) // Team Deathmatch: bracket uses teams instead of players
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -642,6 +644,11 @@ model Team {
   teamPlayerStats   TeamPlayerStats[]
   matchPlayerPlayed MatchPlayerPlayed[]
   tournamentWinner  TournamentWinner[]
+
+  // TDM bracket relations
+  bracketMatchesAsT1  BracketMatch[] @relation("BracketTeam1")
+  bracketMatchesAsT2  BracketMatch[] @relation("BracketTeam2")
+  bracketMatchWins    BracketMatch[] @relation("BracketTeamWinner")
 
   @@index([tournamentId])
   @@index([seasonId])
@@ -1166,10 +1173,13 @@ model BracketMatch {
   position        Int                 // position within the round (0-indexed)
   player1Id       String?
   player2Id       String?
+  team1Id         String?             // TDM: team in slot 1
+  team2Id         String?             // TDM: team in slot 2
   winnerId        String?
+  winnerTeamId    String?             // TDM: winning team
   mvpPlayerId     String?
-  score1          Int?
-  score2          Int?
+  score1          Int?                // TDM: team1 total kills
+  score2          Int?                // TDM: team2 total kills
   status          BracketMatchStatus  @default(PENDING)
   disputeDeadline DateTime?
 
@@ -1179,7 +1189,10 @@ model BracketMatch {
   tournament Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   player1    Player?       @relation("BracketPlayer1", fields: [player1Id], references: [id])
   player2    Player?       @relation("BracketPlayer2", fields: [player2Id], references: [id])
+  team1      Team?         @relation("BracketTeam1", fields: [team1Id], references: [id])
+  team2      Team?         @relation("BracketTeam2", fields: [team2Id], references: [id])
   winner     Player?       @relation("BracketWinner", fields: [winnerId], references: [id])
+  winnerTeam Team?         @relation("BracketTeamWinner", fields: [winnerTeamId], references: [id])
   mvpPlayer  Player?       @relation("BracketMVP", fields: [mvpPlayerId], references: [id])
   results    BracketResult[]
 
@@ -1187,6 +1200,8 @@ model BracketMatch {
   @@index([tournamentId, round])
   @@index([player1Id])
   @@index([player2Id])
+  @@index([team1Id])
+  @@index([team2Id])
 }
 
 model BracketResult {

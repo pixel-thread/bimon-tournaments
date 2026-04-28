@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/database";
 import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
+import { isBracketType } from "@/lib/bracket-types";
 import {
     getFinalDistribution,
     getTeamSize,
@@ -28,7 +29,7 @@ const PLACEMENT_PTS: Record<number, number> = {
 
 
 
-const BRACKET_TYPES = ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"];
+
 
 /**
  * POST /api/tournaments/[id]/declare-winners
@@ -69,8 +70,8 @@ export async function POST(
         if (!tournament) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
         if (!dryRun && tournament.isWinnerDeclared) return NextResponse.json({ error: "Winners already declared" }, { status: 400 });
 
-        // Route to bracket path for PES / bracket tournaments
-        if (BRACKET_TYPES.includes(tournament.type)) {
+        // Route to bracket path for PES / bracket / TDM tournaments
+        if (isBracketType(tournament.type)) {
             return declareBracketWinners({ tournament, placements, dryRun, req });
         }
 

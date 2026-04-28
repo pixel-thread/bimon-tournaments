@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth";
+import { ALL_TOURNAMENT_TYPES } from "@/lib/bracket-types";
 
 /**
  * GET /api/polls
@@ -29,6 +30,7 @@ export async function GET(request: Request) {
                         fee: true,
                         type: true,
                         seasonId: true,
+                        isTDM: true,
                     },
                 },
                 options: {
@@ -183,7 +185,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, enableFund } = body;
+        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, enableFund, isTDM: tdmFlag } = body;
 
         if (!question || !tournamentId) {
             return ErrorResponse({ message: "question and tournamentId are required", status: 400 });
@@ -198,11 +200,20 @@ export async function POST(request: Request) {
             return ErrorResponse({ message: "A poll already exists for this tournament. Please edit the existing poll instead.", status: 409 });
         }
 
-        // If tournamentType is provided (PES flow), update the linked tournament's type
-        if (tournamentType && ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT", "BR"].includes(tournamentType)) {
+        // If tournamentType is provided (PES/TDM flow), update the linked tournament's type + isTDM flag
+        if (tournamentType && (ALL_TOURNAMENT_TYPES as readonly string[]).includes(tournamentType)) {
             await prisma.tournament.update({
                 where: { id: tournamentId },
-                data: { type: tournamentType },
+                data: {
+                    type: tournamentType,
+                    ...(tdmFlag && { isTDM: true }),
+                },
+            });
+        } else if (tdmFlag) {
+            // TDM without explicit type — just set the flag
+            await prisma.tournament.update({
+                where: { id: tournamentId },
+                data: { isTDM: true },
             });
         }
 
@@ -275,7 +286,7 @@ export async function PATCH(request: Request) {
         if (enableFund !== undefined) updateData.enableFund = enableFund;
 
         // If tournamentType is provided, update the linked tournament's type
-        if (tournamentType && ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT", "BR"].includes(tournamentType)) {
+        if (tournamentType && (ALL_TOURNAMENT_TYPES as readonly string[]).includes(tournamentType)) {
             const poll = await prisma.poll.findUnique({
                 where: { id },
                 select: { tournamentId: true },

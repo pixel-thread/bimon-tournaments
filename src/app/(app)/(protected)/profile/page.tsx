@@ -196,9 +196,25 @@ export default function ProfilePage() {
         },
         staleTime: 5 * 60 * 1000,
     });
-    const rpPrice = rpSettings?.elitePassPrice ?? 5;
+    const rpDiscountedPrice = rpSettings?.elitePassPrice ?? 5;
     const rpOrigPrice = rpSettings?.elitePassOrigPrice ?? 20;
-    const rpDiscountPercent = rpOrigPrice > rpPrice ? Math.round((1 - rpPrice / rpOrigPrice) * 100) : 0;
+    // Check if player lost discount due to reaching streak threshold (same logic as buy API)
+    const playerStreak = profile?.player?.streak?.current ?? 0;
+    const { data: rpData } = useQuery<{ nextRewardAt: number }>({
+        queryKey: ["royal-pass"],
+        queryFn: async () => {
+            const res = await fetch("/api/royal-pass");
+            if (!res.ok) throw new Error("Failed");
+            const json = await res.json();
+            return json.data;
+        },
+        staleTime: 60 * 1000,
+        enabled: !!profile?.player && !profile.player.hasRoyalPass,
+    });
+    const streakThreshold = rpData?.nextRewardAt ?? 8;
+    const lostDiscount = playerStreak >= streakThreshold;
+    const rpPrice = lostDiscount ? rpOrigPrice : rpDiscountedPrice;
+    const rpDiscountPercent = !lostDiscount && rpOrigPrice > rpDiscountedPrice ? Math.round((1 - rpDiscountedPrice / rpOrigPrice) * 100) : 0;
 
 
     const handleSaveProfile = async (forceChange = false) => {

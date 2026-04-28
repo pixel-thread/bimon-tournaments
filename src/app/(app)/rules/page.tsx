@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader, Skeleton } from "@heroui/react";
 import { BookOpen, ChevronDown } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
+import { GAME } from "@/lib/game-config";
 
 interface Rule {
     id: string;
@@ -18,7 +19,7 @@ interface Rule {
 
 export default function RulesPage() {
     const [expandedRule, setExpandedRule] = useState<string | null>(null);
-    const [tab, setTab] = useState<"ranked" | "casual" | "general">("general");
+    const [tab, setTab] = useState<"ranked" | "casual" | "general" | "tdm">("general");
 
     const { data: rules = [], isLoading } = useQuery<Rule[]>({
         queryKey: ["rules"],
@@ -35,6 +36,7 @@ export default function RulesPage() {
         const cat = r.category || "BOTH";
         if (tab === "general") return cat === "BOTH";
         if (tab === "ranked") return cat === "RANKED";
+        if (tab === "tdm") return cat === "TDM";
         return cat === "CASUAL";
     });
 
@@ -60,6 +62,7 @@ export default function RulesPage() {
                         { key: "general" as const, label: "General" },
                         { key: "casual" as const, label: "Casual" },
                         { key: "ranked" as const, label: "Ranked" },
+                        ...(GAME.features.hasTDM ? [{ key: "tdm" as const, label: "TDM" }] : []),
                     ]).map(({ key, label }) => (
                         <button
                             key={key}

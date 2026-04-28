@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth";
+import { ALL_TOURNAMENT_TYPES } from "@/lib/bracket-types";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
                 seasonId: resolvedSeasonId,
                 createdBy: user.id,
                 startDate: new Date(),
-                type: ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT", "BR"].includes(type) ? type : "BR",
+                type: (ALL_TOURNAMENT_TYPES as readonly string[]).includes(type) ? type : "BR",
                 maxPlacements: maxPlacements ? Math.min(Math.max(Number(maxPlacements), 1), 5) : 3,
             },
         });

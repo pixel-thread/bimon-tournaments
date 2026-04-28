@@ -897,6 +897,19 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                         </Chip>
                                     </div>
                                 )}
+                                {/* TDM badge */}
+                                {tournament?.isTDM && (
+                                    <div className={`absolute bottom-2 ${GAME.features.hasTeamSizes && effectiveTeamType ? "left-[90px]" : "left-3"}`}>
+                                        <Chip
+                                            size="sm"
+                                            color="danger"
+                                            variant="flat"
+                                            className="font-bold bg-red-500/25 text-white border border-red-400/30 backdrop-blur-sm"
+                                        >
+                                            ⚔️ TDM
+                                        </Chip>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>

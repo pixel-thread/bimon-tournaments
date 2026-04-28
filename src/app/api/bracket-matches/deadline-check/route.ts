@@ -5,6 +5,7 @@ import { advanceWinners } from "@/lib/logic/generateBracket";
 import { getSettings } from "@/lib/settings";
 import { getMatchDeadlineMs, isTodayPaused } from "@/lib/logic/koRolloverDeadline";
 import { GAME } from "@/lib/game-config";
+import { BRACKET_TYPES } from "@/lib/bracket-types";
 
 /**
  * POST /api/bracket-matches/deadline-check
@@ -33,15 +34,20 @@ export async function POST() {
         const pendingMatches = await prisma.bracketMatch.findMany({
             where: {
                 status: "PENDING",
-                player1Id: { not: null },
-                player2Id: { not: null },
+                OR: [
+                    // 1v1 matches
+                    { player1Id: { not: null }, player2Id: { not: null } },
+                    // TDM team matches
+                    { team1Id: { not: null }, team2Id: { not: null } },
+                ],
                 tournament: {
                     status: "ACTIVE",
-                    type: { in: ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"] },
+                    type: { in: [...BRACKET_TYPES] },
                 },
             },
             select: {
                 id: true, round: true, player1Id: true, player2Id: true,
+                team1Id: true, team2Id: true,
                 tournamentId: true, createdAt: true,
                 tournament: { select: { type: true } },
             },
@@ -53,6 +59,19 @@ export async function POST() {
         for (const match of pendingMatches) {
             const deadlineMs = await getMatchDeadlineMs(match.tournamentId, match.tournament.type, match.round, match.createdAt, settings);
             if (now.getTime() < deadlineMs) { skipped.push(match.id); continue; }
+
+            // TDM match (team-based): pick a random team as winner
+            if (match.team1Id && match.team2Id) {
+                const winnerTeamId = Math.random() < 0.5 ? match.team1Id! : match.team2Id!;
+                const winnerIsT1 = winnerTeamId === match.team1Id;
+                await prisma.bracketMatch.update({
+                    where: { id: match.id },
+                    data: { winnerTeamId, score1: winnerIsT1 ? 1 : 0, score2: winnerIsT1 ? 0 : 1, status: "CONFIRMED" },
+                });
+                await advanceWinners(match.tournamentId, match.round);
+                resolved.push(match.id);
+                continue;
+            }
 
             const winnerId = Math.random() < 0.5 ? match.player1Id! : match.player2Id!;
             const winnerIsP1 = winnerId === match.player1Id;
@@ -78,7 +97,7 @@ export async function POST() {
                 status: "SUBMITTED",
                 tournament: {
                     status: "ACTIVE",
-                    type: { in: ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"] },
+                    type: { in: [...BRACKET_TYPES] },
                 },
             },
             select: {

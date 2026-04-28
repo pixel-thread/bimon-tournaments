@@ -127,15 +127,20 @@ export interface BracketMatchData {
     position: number;
     player1Id: string | null;
     player2Id: string | null;
+    team1Id?: string | null;
+    team2Id?: string | null;
     winnerId: string | null;
+    winnerTeamId?: string | null;
     score1: number | null;
     score2: number | null;
     status: "PENDING" | "SUBMITTED" | "DISPUTED" | "CONFIRMED" | "BYE";
     disputeDeadline: string | null;
     disputeRemainingMs: number | null;
-    createdAt: string | null;          // used for deadline countdown
+    createdAt: string | null;
     player1: BracketPlayer | null;
     player2: BracketPlayer | null;
+    team1?: { id: string; name: string; players?: { displayName: string | null }[] } | null;
+    team2?: { id: string; name: string; players?: { displayName: string | null }[] } | null;
     player1Avatar: string | null;
     player2Avatar: string | null;
     winner: { id: string; displayName: string | null } | null;
@@ -163,7 +168,7 @@ export function statusConfig(status: BracketMatchData["status"]) {
 /* ─── Player Slot (vertical card row) ───────────────────────── */
 
 export function PlayerSlot({
-    player, avatar, score, isWinner, isCurrent, isBye, onCall, calling, onWhatsApp,
+    player, avatar, score, isWinner, isCurrent, isBye, onCall, calling, onWhatsApp, team,
 }: {
     player: BracketPlayer | null;
     avatar: string | null;
@@ -174,8 +179,9 @@ export function PlayerSlot({
     onCall?: () => void;
     calling?: boolean;
     onWhatsApp?: () => void;
+    team?: { id: string; name: string } | null;
 }) {
-    if (!player) {
+    if (!player && !team) {
         return (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-default-100/50">
                 <div className="h-6 w-6 rounded-full bg-default-200" />
@@ -183,14 +189,16 @@ export function PlayerSlot({
             </div>
         );
     }
+    const displayName = team?.name ?? player?.displayName;
     return (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isWinner ? "bg-success-50 dark:bg-success-50/10 border border-success-200 dark:border-success-800"
             : isCurrent ? "bg-primary-50 dark:bg-primary-50/10 border border-primary-200 dark:border-primary-800"
                 : "bg-default-100/50"
             }`}>
-            <Avatar src={avatar || undefined} name={player.displayName?.[0] || "?"} size="sm" className="h-6 w-6 text-tiny" />
+            <Avatar src={avatar || undefined} name={displayName?.[0] || "?"} size="sm" className="h-6 w-6 text-tiny" />
             <span className={`text-xs font-medium flex-1 truncate ${isWinner ? "text-success-700 dark:text-success-400" : ""}`}>
-                {player.displayName || "Unknown"}
+                {displayName || "Unknown"}
+                {team && <span className="text-[10px] text-foreground/30 ml-1">⚔</span>}
                 {isCurrent && <span className="text-primary text-[10px] ml-1">(You)</span>}
             </span>
             {score !== null && (
@@ -370,6 +378,7 @@ export function MatchCard({
                     onCall={isCurrentP2 && match.player1Id ? callOpponent : undefined}
                     calling={isCurrentP2 ? callingOpponent : false}
                     onWhatsApp={isCurrentP2 && match.player1Id && opponentHasPhone ? whatsAppOpponent : undefined}
+                    team={match.team1}
                 />
                 <div className="flex items-center gap-2 px-2">
                     <div className="flex-1 h-px bg-divider" />
@@ -383,6 +392,7 @@ export function MatchCard({
                     onCall={isCurrentP1 && match.player2Id ? callOpponent : undefined}
                     calling={isCurrentP1 ? callingOpponent : false}
                     onWhatsApp={isCurrentP1 && match.player2Id && opponentHasPhone ? whatsAppOpponent : undefined}
+                    team={match.team2}
                 />
                 <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-2">
@@ -492,20 +502,22 @@ export function CompactMatch({
         isWinner: boolean,
         isCurrent: boolean,
         isTop: boolean,
+        team?: { id: string; name: string } | null,
     ) => {
-        const hue = player?.displayName?.split("").reduce((a, c) => a + c.charCodeAt(0), 0) ?? 0;
+        const displayName = team?.name ?? player?.displayName;
+        const hue = displayName?.split("").reduce((a, c) => a + c.charCodeAt(0), 0) ?? 0;
         return (
             <div className={`flex items-center gap-1.5 px-2 h-[30px] ${isTop ? "rounded-t-[7px]" : "rounded-b-[7px]"} ${
                 isWinner ? "bg-success/8 dark:bg-success/10" : ""
             }`}>
                 {/* Avatar */}
-                {player ? (
+                {player || team ? (
                     playerAvatar ? (
                         <img src={playerAvatar} alt="" className="h-[18px] w-[18px] rounded-full object-cover shrink-0 ring-1 ring-foreground/10" />
                     ) : (
                         <div className="h-[18px] w-[18px] rounded-full shrink-0 flex items-center justify-center text-[7px] font-bold text-white"
                             style={{ background: `hsl(${hue % 360}, 45%, 45%)` }}>
-                            {player.displayName?.charAt(0).toUpperCase() ?? "?"}
+                            {displayName?.charAt(0).toUpperCase() ?? "?"}
                         </div>
                     )
                 ) : (
@@ -515,9 +527,10 @@ export function CompactMatch({
                 <span className={`text-[10px] truncate flex-1 leading-none ${
                     isCurrent ? "text-primary font-semibold" :
                     isWinner ? "font-semibold text-foreground" :
-                    player ? "text-foreground/60" : "text-foreground/20"
+                    (player || team) ? "text-foreground/60" : "text-foreground/20"
                 }`}>
-                    {player?.displayName ?? "TBD"}
+                    {displayName ?? "TBD"}
+                    {team && <span className="text-[8px] text-foreground/30 ml-0.5">⚔</span>}
                 </span>
                 {/* Score */}
                 <span className={`text-[11px] font-bold tabular-nums min-w-[16px] text-right leading-none ${
@@ -541,13 +554,13 @@ export function CompactMatch({
             <div className={`w-[3px] shrink-0 ${accentColor}`} />
             {/* Content */}
             <div className="flex-1 min-w-0">
-                {playerRow(match.player1, match.player1Avatar, match.score1, match.winnerId === match.player1Id && match.winnerId !== null, currentPlayerId === match.player1Id, true)}
+                {playerRow(match.player1, match.player1Avatar, match.score1, match.winnerId === match.player1Id && match.winnerId !== null, currentPlayerId === match.player1Id, true, match.team1)}
                 <div className="flex items-center px-2" style={{ height: 0, zIndex: 1, position: "relative" }}>
                     <div className="flex-1 h-px bg-foreground/15" />
                     <span className="text-[8px] font-black text-foreground/25 px-1 leading-none select-none tracking-widest">VS</span>
                     <div className="flex-1 h-px bg-foreground/15" />
                 </div>
-                {playerRow(match.player2, match.player2Avatar, match.score2, match.winnerId === match.player2Id && match.winnerId !== null, currentPlayerId === match.player2Id, false)}
+                {playerRow(match.player2, match.player2Avatar, match.score2, match.winnerId === match.player2Id && match.winnerId !== null, currentPlayerId === match.player2Id, false, match.team2)}
             </div>
             {/* Eye button */}
             {showEye && (
@@ -606,9 +619,9 @@ export function MatchRow({
             {/* Player 1 */}
             <div className="flex items-center gap-1.5 flex-1 justify-end min-w-0">
                 <span className={`truncate font-medium ${isP1 ? "text-primary" : match.winnerId === match.player1Id ? "text-success-600" : ""}`}>
-                    {match.player1?.displayName ?? "TBD"}
+                    {match.team1?.name ?? match.player1?.displayName ?? "TBD"}
                 </span>
-                <Avatar src={match.player1Avatar || undefined} name={match.player1?.displayName?.[0] || "?"} size="sm" className="h-5 w-5 text-[10px] shrink-0" />
+                <Avatar src={match.player1Avatar || undefined} name={(match.team1?.name ?? match.player1?.displayName)?.[0] || "?"} size="sm" className="h-5 w-5 text-[10px] shrink-0" />
             </div>
 
             {/* Score / VS */}
@@ -644,9 +657,9 @@ export function MatchRow({
 
             {/* Player 2 */}
             <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                <Avatar src={match.player2Avatar || undefined} name={match.player2?.displayName?.[0] || "?"} size="sm" className="h-5 w-5 text-[10px] shrink-0" />
+                <Avatar src={match.player2Avatar || undefined} name={(match.team2?.name ?? match.player2?.displayName)?.[0] || "?"} size="sm" className="h-5 w-5 text-[10px] shrink-0" />
                 <span className={`truncate font-medium ${isP2 ? "text-primary" : match.winnerId === match.player2Id ? "text-success-600" : ""}`}>
-                    {match.player2?.displayName ?? "TBD"}
+                    {match.team2?.name ?? match.player2?.displayName ?? "TBD"}
                 </span>
             </div>
 

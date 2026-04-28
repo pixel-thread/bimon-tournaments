@@ -377,9 +377,9 @@ function TournamentContent({
             id: matchId,
             round: m.round ?? 1,
             player1Id: m.player1Id ?? null,
-            player1Name: m.player1?.displayName ?? null,
+            player1Name: m.team1?.name ?? m.player1?.displayName ?? null,
             player1Avatar: m.player1Avatar ?? null,
-            player2Name: m.player2?.displayName ?? null,
+            player2Name: m.team2?.name ?? m.player2?.displayName ?? null,
             player2Avatar: m.player2Avatar ?? null,
             isDisputing,
             isEditing,
@@ -389,8 +389,8 @@ function TournamentContent({
     const viewMatch = viewingMatch ? allMatches.find((m: any) => m.id === viewingMatch) : null;
     const viewMatchData = viewMatch ? {
         id: viewMatch.id,
-        player1: viewMatch.player1?.displayName ?? null,
-        player2: viewMatch.player2?.displayName ?? null,
+        player1: viewMatch.team1?.name ?? viewMatch.player1?.displayName ?? null,
+        player2: viewMatch.team2?.name ?? viewMatch.player2?.displayName ?? null,
         player1Avatar: viewMatch.player1Avatar,
         player2Avatar: viewMatch.player2Avatar,
         score1: viewMatch.score1,

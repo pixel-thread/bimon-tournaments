@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { getCurrentUser } from "@/lib/auth";
+import { ALL_TOURNAMENT_TYPES } from "@/lib/bracket-types";
 
 /**
  * PUT /api/tournaments/[id]
@@ -24,7 +25,7 @@ export async function PUT(
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
-        const VALID_TYPES = ["BR", "BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"];
+        const VALID_TYPES: readonly string[] = ALL_TOURNAMENT_TYPES;
         const updated = await prisma.tournament.update({
             where: { id },
             data: {

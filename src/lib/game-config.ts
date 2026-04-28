@@ -33,6 +33,7 @@ interface GameFeatures {
     hasSquads: boolean;          // Player-created premade squads
     hasRankedCasual: boolean;    // Separate Ranked (squad) vs Casual (random) leaderboards
     hasClans: boolean;           // Clan/guild system
+    hasTDM: boolean;             // TDM bracket tournaments (4v4/8v8 kill-based)
     usesCentralWallet?: never;  // REMOVED — all games use local wallet now
 }
 
@@ -64,6 +65,7 @@ interface GameConfig {
     squadSize: number;           // Number of players per squad (5 for MLBB, 4 for BGMI/FF)
     maxSquadSize: number;        // Max roster size including subs (squadSize + 2 for BR games)
     maxSquadTeams: number;       // Max squads per match (64 players / squadSize for BR)
+    tdmTeamSizes: number[];      // Supported TDM team sizes (e.g. [4, 8] for 4v4/8v8)
     // Dual currency (MLBB: BP for entry + Diamond for rewards)
     hasDualCurrency: boolean;
     entryCurrency?: string;           // e.g. "BP" — currency used for entry fees & transfers
@@ -108,13 +110,14 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         scoringSystem: "bgmi",
         booyahBonus: false,
         defaultTournamentType: "BR",
-        tournamentTypes: ["BR"],
+        tournamentTypes: ["BR", "TDM"],
         hasBracket: false,
         hasBR: true,
         disputeWindowMinutes: 30,
         squadSize: 4,
         maxSquadSize: 6,           // 4 active + 2 subs
         maxSquadTeams: 16,         // 64 players / 4 = 16 squads max
+        tdmTeamSizes: [4, 8],      // 4v4 and 8v8 TDM
         hasDualCurrency: false,
         clanLabel: "Clan",
         clanLabelPlural: "Clans",
@@ -133,6 +136,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasSquads: true,           // Per-poll toggle — admin decides per tournament
             hasRankedCasual: true,     // Ranked/Casual tabs on players page
             hasClans: true,
+            hasTDM: true,              // TDM bracket tournaments enabled
         },
     },
     freefire: {
@@ -163,6 +167,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         squadSize: 4,
         maxSquadSize: 6,           // 4 active + 2 subs
         maxSquadTeams: 16,         // 64 players / 4 = 16 squads max
+        tdmTeamSizes: [],          // No TDM for Free Fire (yet)
         hasDualCurrency: false,
         clanLabel: "Guild",
         clanLabelPlural: "Guilds",
@@ -181,6 +186,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasSquads: false,
             hasRankedCasual: false,
             hasClans: true,
+            hasTDM: false,
         },
     },
     pes: {
@@ -211,6 +217,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         squadSize: 1,
         maxSquadSize: 1,           // 1v1, no subs
         maxSquadTeams: 64,         // No practical limit for 1v1
+        tdmTeamSizes: [],          // No TDM for PES
         hasDualCurrency: false,
         clanLabel: "Clan",
         clanLabelPlural: "Clans",
@@ -229,6 +236,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasSquads: false,
             hasRankedCasual: false,
             hasClans: true,
+            hasTDM: false,
         },
     },
     mlbb: {
@@ -259,6 +267,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         squadSize: 5,              // MLBB is 5v5
         maxSquadSize: 7,           // 5 active + 2 subs
         maxSquadTeams: 16,         // Cap at 16 squads per match
+        tdmTeamSizes: [],          // No TDM for MLBB
         hasDualCurrency: true,
         entryCurrency: "BP",
         entryCurrencyLabel: "Battle Point",
@@ -286,6 +295,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasSquads: true,           // Squad feature enabled for MLBB
             hasRankedCasual: false,
             hasClans: true,
+            hasTDM: false,
         },
     },
 };
