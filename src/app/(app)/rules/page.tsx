@@ -39,9 +39,6 @@ export default function RulesPage() {
     });
 
     // Count for badges
-    const rankedCount = rules.filter((r) => (r.category || "BOTH") === "RANKED").length;
-    const casualCount = rules.filter((r) => (r.category || "BOTH") === "CASUAL").length;
-    const generalCount = rules.filter((r) => (r.category || "BOTH") === "BOTH").length;
     const showTabs = rules.length > 0;
 
     return (
@@ -56,37 +53,28 @@ export default function RulesPage() {
                 </p>
             </div>
 
-            {/* ── Casual / Ranked / General Tabs ── */}
+            {/* ── General / Casual / Ranked Tabs ── */}
             {showTabs && (
-                <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100 mb-4">
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 mb-4">
                     {([
-                        { key: "general" as const, label: "General", icon: "📋", count: generalCount },
-                        { key: "casual" as const, label: "Casual", icon: "🎮", count: casualCount },
-                        { key: "ranked" as const, label: "Ranked", icon: "🏆", count: rankedCount },
-                    ]).map(({ key, label, icon, count }) => (
+                        { key: "general" as const, label: "General" },
+                        { key: "casual" as const, label: "Casual" },
+                        { key: "ranked" as const, label: "Ranked" },
+                    ]).map(({ key, label }) => (
                         <button
                             key={key}
                             type="button"
                             onClick={() => setTab(key)}
                             className={`
-                                flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium
+                                flex-1 py-2 rounded-lg text-sm font-medium text-center
                                 transition-all duration-200 cursor-pointer
                                 ${tab === key
                                     ? "bg-background shadow-sm text-foreground"
-                                    : "text-foreground/50 hover:text-foreground/70"
+                                    : "text-foreground/40 hover:text-foreground/60"
                                 }
                             `}
                         >
-                            <span>{icon}</span>
-                            <span>{label}</span>
-                            {count > 0 && (
-                                <span className={`
-                                    text-[10px] font-bold px-1.5 py-0.5 rounded-full
-                                    ${tab === key ? "bg-primary/10 text-primary" : "bg-foreground/10 text-foreground/40"}
-                                `}>
-                                    {count}
-                                </span>
-                            )}
+                            {label}
                         </button>
                     ))}
                 </div>
