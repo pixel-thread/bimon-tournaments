@@ -628,6 +628,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const [showSquads, setShowSquads] = useState(false);
     const [showSquadInfo, setShowSquadInfo] = useState(false);
     const [showCasualInfo, setShowCasualInfo] = useState(false);
+    const [showScheduleInfo, setShowScheduleInfo] = useState(false);
     const [showCreateSquad, setShowCreateSquad] = useState(false);
     const [showDonate, setShowDonate] = useState(false);
     const [showDonors, setShowDonors] = useState(false);
@@ -1089,41 +1090,69 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         </div>
                     )}
 
-                    {/* Squad Info Note — collapsed by default */}
-                    {poll.allowSquads && (
-                        <button
-                            type="button"
-                            onClick={() => setShowSquadInfo(!showSquadInfo)}
-                            className="w-full flex items-center justify-center gap-1.5 text-[11px] text-foreground/40 hover:text-foreground/60 transition-colors mt-2 py-1"
-                        >
-                            <Info className="w-3 h-3" />
-                            How does squad voting work?
-                            <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showSquadInfo ? 'rotate-180' : ''}`} />
-                        </button>
-                    )}
+                    {/* Info row — squad/casual info + schedule side by side */}
+                    <div className="flex items-center justify-center gap-3 mt-2">
+                        {poll.allowSquads && (
+                            <button
+                                type="button"
+                                onClick={() => { setShowSquadInfo(!showSquadInfo); setShowScheduleInfo(false); }}
+                                className="flex items-center gap-1 text-[11px] text-foreground/40 hover:text-foreground/60 transition-colors py-1"
+                            >
+                                <Info className="w-3 h-3" />
+                                Squad info
+                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showSquadInfo ? 'rotate-180' : ''}`} />
+                            </button>
+                        )}
+                        {!poll.allowSquads && GAME.features.hasTeamSizes && (
+                            <button
+                                type="button"
+                                onClick={() => { setShowCasualInfo(!showCasualInfo); setShowScheduleInfo(false); }}
+                                className="flex items-center gap-1 text-[11px] text-foreground/40 hover:text-foreground/60 transition-colors py-1"
+                            >
+                                <Info className="w-3 h-3" />
+                                Voting info
+                                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showCasualInfo ? 'rotate-180' : ''}`} />
+                            </button>
+                        )}
+                        {poll.days && (
+                            <>
+                                {(poll.allowSquads || (!poll.allowSquads && GAME.features.hasTeamSizes)) && (
+                                    <span className="h-3 w-px bg-foreground/15" />
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowScheduleInfo(!showScheduleInfo); setShowSquadInfo(false); setShowCasualInfo(false); }}
+                                    className="flex items-center gap-1 text-[11px] text-foreground/40 hover:text-foreground/60 transition-colors py-1"
+                                >
+                                    📅 Schedule
+                                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showScheduleInfo ? 'rotate-180' : ''}`} />
+                                </button>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Expanded info panels */}
                     {showSquadInfo && poll.allowSquads && (
                         <p className="text-[11px] text-foreground/40 text-center px-4 pb-1 animate-in fade-in duration-200">
                             Players who vote &quot;{poll.options?.find(o => o.vote === "IN")?.name || tk("votedIn")}&quot; without joining a squad will be placed in randomly assigned teams.
                         </p>
-                    )}
-
-                    {/* Casual Info Note — collapsed by default */}
-                    {!poll.allowSquads && GAME.features.hasTeamSizes && (
-                        <button
-                            type="button"
-                            onClick={() => setShowCasualInfo(!showCasualInfo)}
-                            className="w-full flex items-center justify-center gap-1.5 text-[11px] text-foreground/40 hover:text-foreground/60 transition-colors mt-2 py-1"
-                        >
-                            <Info className="w-3 h-3" />
-                            How does voting work?
-                            <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showCasualInfo ? 'rotate-180' : ''}`} />
-                        </button>
                     )}
                     {showCasualInfo && !poll.allowSquads && (
                         <p className="text-[11px] text-foreground/40 text-center px-4 pb-1 animate-in fade-in duration-200">
                             Players who vote &quot;{poll.options?.find(o => o.vote === "IN")?.name || tk("votedIn")}&quot; will be placed in randomly assigned teams based on tier balance.{GAME.features.hasTeamSizes && ` Vote "${poll.options?.find(o => o.vote === "SOLO")?.name || tk("votedSolo")}" to play solo.`}
                         </p>
                     )}
+                    {showScheduleInfo && poll.days && (() => {
+                        const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                        const idx = DAYS.findIndex(d => poll.days?.toLowerCase().startsWith(d.toLowerCase()));
+                        const nextDay = idx >= 0 ? DAYS[(idx + 1) % 7] : null;
+                        return (
+                            <div className="text-[11px] text-foreground/40 text-center px-4 pb-1 animate-in fade-in duration-200 space-y-0.5">
+                                <p>📅 Match days: <span className="text-foreground/60 font-medium">{poll.days}{nextDay ? ` & ${nextDay}` : ""}</span></p>
+                                <p>⏰ Start time: <span className="text-foreground/60 font-medium">8:00 PM IST</span></p>
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* ─── Voters Dialog ─── */}
