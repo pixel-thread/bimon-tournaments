@@ -173,6 +173,13 @@ export async function GET(request: NextRequest) {
             clanMemberships.map((cm) => [cm.playerId, cm.clan])
         );
 
+        // Fetch admin-featured character players (show character image without RP)
+        const featuredSetting = await prisma.appSetting.findUnique({
+            where: { key: "featured_character_players" },
+        });
+        const featuredPlayerIds = new Set(
+            (featuredSetting?.value || "").split(",").map((s) => s.trim()).filter(Boolean)
+        );
 
 
         // Category: use win rate for bracket games (PES), K/D for BR games (BGMI/FF)
@@ -214,7 +221,7 @@ export async function GET(request: NextRequest) {
                 balance: p.wallet?.balance ?? 0,
                 hasRoyalPass: p.hasRoyalPass,
                 isAdmin: p.user.role === "SUPER_ADMIN" || p.user.role === "ADMIN",
-                characterImage: (p.hasRoyalPass && p.characterImage)
+                characterImage: ((p.hasRoyalPass || featuredPlayerIds.has(p.id)) && p.characterImage)
                     ? {
                         url: p.characterImage.publicUrl,
                         isAnimated: p.characterImage.isAnimated,
