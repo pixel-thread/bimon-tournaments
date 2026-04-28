@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
             where: { playerId: { in: playerIds } },
             select: {
                 playerId: true,
-                clan: { select: { id: true, name: true, tag: true } },
+                clan: { select: { id: true, name: true, tag: true, logoUrl: true } },
             },
         });
         const clanMap = new Map(

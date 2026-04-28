@@ -329,8 +329,15 @@ export function PlayerStatsModal({
                                             e.stopPropagation();
                                             setShowClanMembers(true);
                                         }}
-                                        className="mt-1 inline-flex items-center gap-1 cursor-pointer"
+                                        className="mt-1 inline-flex items-center gap-1.5 cursor-pointer"
                                     >
+                                        {player.clan.logoUrl && (
+                                            <img
+                                                src={player.clan.logoUrl}
+                                                alt={player.clan.tag}
+                                                className="h-4 w-4 rounded-full object-cover"
+                                            />
+                                        )}
                                         <Chip
                                             size="sm"
                                             variant="flat"

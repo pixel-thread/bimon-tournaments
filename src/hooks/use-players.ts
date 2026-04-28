@@ -31,6 +31,7 @@ export interface PlayerDTO {
         id: string;
         name: string;
         tag: string;
+        logoUrl: string | null;
     } | null;
 }
 

@@ -105,7 +105,7 @@ interface ProfileData {
         } | null;
         wallet: { balance: number };
         streak: { current: number; longest: number } | null;
-        clan: { id: string; name: string; tag: string } | null;
+        clan: { id: string; name: string; tag: string; logoUrl: string | null } | null;
         pendingClanInvites: number;
     } | null;
 }

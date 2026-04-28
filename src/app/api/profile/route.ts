@@ -45,7 +45,7 @@ export async function GET(request: Request) {
                             clanMembership: {
                                 include: {
                                     clan: {
-                                        select: { id: true, name: true, tag: true },
+                                        select: { id: true, name: true, tag: true, logoUrl: true },
                                     },
                                 },
                             },
@@ -178,6 +178,7 @@ export async function GET(request: Request) {
                     id: clanMembership.clan.id,
                     name: clanMembership.clan.name,
                     tag: clanMembership.clan.tag,
+                    logoUrl: clanMembership.clan.logoUrl,
                 };
             }
             pendingClanInvites = await prisma.clanInvite.count({
