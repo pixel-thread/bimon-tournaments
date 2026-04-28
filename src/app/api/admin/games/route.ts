@@ -40,17 +40,41 @@ export async function GET(req: Request) {
     const endDateSetting = await prisma.appSetting.findUnique({
         where: { key: `game_end_date_${gameKey}` },
     });
-
     // Get threshold percentage
     const thresholdSetting = await prisma.appSetting.findUnique({
         where: { key: `game_threshold_pct_${gameKey}` },
     });
+
+    // Get players on threshold (already won, need to beat score + X%)
+    const thresholds = await prisma.gameScoreThreshold.findMany({
+        where: { gameType: gameKey },
+        include: {
+            player: {
+                select: {
+                    id: true,
+                    displayName: true,
+                    customProfileImageUrl: true,
+                    user: { select: { username: true, imageUrl: true } },
+                },
+            },
+        },
+        orderBy: { threshold: "desc" },
+    });
+
+    const thresholdPlayers = thresholds.map((t) => ({
+        playerId: t.playerId,
+        displayName: t.player.displayName || t.player.user.username,
+        imageUrl: t.player.customProfileImageUrl || t.player.user.imageUrl,
+        lastWinningScore: t.lastWinningScore,
+        threshold: t.threshold,
+    }));
 
     return NextResponse.json({
         rewards,
         scoreCount,
         endDate: endDateSetting?.value || "",
         thresholdPct: thresholdSetting ? parseInt(thresholdSetting.value) : 2,
+        thresholdPlayers,
     });
 }
 

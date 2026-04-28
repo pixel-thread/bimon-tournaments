@@ -257,6 +257,38 @@ export function GameManagement({ gameKey, label, icon: Icon, color, image }: {
                 )}
             </div>
 
+            {/* Players on Threshold */}
+            {(settings?.thresholdPlayers?.length > 0) && (
+                <div className="space-y-2">
+                    <h2 className="text-sm font-semibold text-foreground/60 flex items-center gap-2">
+                        <AlertCircle className="h-3.5 w-3.5 text-warning" />
+                        Players on Threshold
+                        <span className="text-[10px] text-foreground/30 font-normal">
+                            (need to beat score + {settings?.thresholdPct ?? 2}% to rejoin)
+                        </span>
+                    </h2>
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3 rounded-lg bg-default-100 px-4 py-2 text-xs font-semibold text-foreground/50">
+                            <span className="flex-1">Player</span>
+                            <span className="w-16 text-right">Won With</span>
+                            <span className="w-20 text-right">Must Beat</span>
+                        </div>
+                        <div className="max-h-[250px] overflow-y-auto space-y-1">
+                            {settings.thresholdPlayers.map((tp: { playerId: string; displayName: string; imageUrl: string | null; lastWinningScore: number; threshold: number }) => (
+                                <div key={tp.playerId} className="flex items-center gap-3 rounded-lg px-4 py-2.5 bg-warning/5 border border-warning/10">
+                                    <div className="flex flex-1 items-center gap-2 min-w-0">
+                                        <Avatar src={tp.imageUrl || undefined} name={tp.displayName} size="sm" className="h-7 w-7 shrink-0" />
+                                        <span className="text-sm font-medium truncate">{tp.displayName}</span>
+                                    </div>
+                                    <span className="w-16 text-right text-sm text-foreground/50">{tp.lastWinningScore}</span>
+                                    <span className="w-20 text-right text-sm font-bold text-warning">{tp.threshold}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Actions */}
             <div className="flex gap-2">
                 <Button
