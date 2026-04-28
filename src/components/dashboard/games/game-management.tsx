@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, CardBody, Input, Avatar } from "@heroui/react";
-import { Trophy, RotateCcw, Banknote, AlertCircle, ArrowLeft } from "lucide-react";
+import { Trophy, Banknote, AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 
@@ -28,7 +28,6 @@ export function GameManagement({ gameKey, label, icon: Icon, color, image }: {
     const [rewards, setRewards] = useState<{ place: number; amount: string }[]>([{ place: 1, amount: "" }]);
     const [endDate, setEndDate] = useState("");
     const [thresholdPct, setThresholdPct] = useState("2");
-    const [hasDistributed, setHasDistributed] = useState(false);
 
     // Fetch per-game settings
     const { data: settings } = useQuery({
@@ -99,37 +98,33 @@ export function GameManagement({ gameKey, label, icon: Icon, color, image }: {
         },
     });
 
-    const resetScores = useMutation({
+    const distributeAndReset = useMutation({
         mutationFn: async () => {
-            const res = await fetch("/api/admin/games", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "resetScores", game: gameKey }),
-            });
-            return res.json();
-        },
-        onSuccess: () => {
-            setHasDistributed(false);
-            queryClient.invalidateQueries({ queryKey: ["admin-games", gameKey] });
-            queryClient.invalidateQueries({ queryKey: ["admin-games-lb", gameKey] });
-        },
-    });
-
-    const distributeRewards = useMutation({
-        mutationFn: async () => {
-            const res = await fetch("/api/admin/games", {
+            // Step 1: Distribute rewards
+            const distRes = await fetch("/api/admin/games", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "distributeRewards", game: gameKey }),
             });
-            return res.json();
+            const distData = await distRes.json();
+
+            // Step 2: Reset scores
+            await fetch("/api/admin/games", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "resetScores", game: gameKey }),
+            });
+
+            return distData;
         },
         onSuccess: (data) => {
             if (data.distributed?.length) {
-                alert(`Distributed ${label} rewards to ${data.distributed.length} players!`);
-                setHasDistributed(true);
+                alert(`Distributed ${label} rewards to ${data.distributed.length} players & reset scores!`);
+            } else {
+                alert(`No rewards to distribute. Scores reset!`);
             }
             queryClient.invalidateQueries({ queryKey: ["admin-games", gameKey] });
+            queryClient.invalidateQueries({ queryKey: ["admin-games-lb", gameKey] });
         },
     });
 
@@ -293,32 +288,17 @@ export function GameManagement({ gameKey, label, icon: Icon, color, image }: {
             <div className="flex gap-2">
                 <Button
                     color="success" variant="flat" size="sm"
-                    onPress={() => distributeRewards.mutate()}
-                    isLoading={distributeRewards.isPending}
+                    onPress={() => {
+                        if (scores.length === 0) return;
+                        if (confirm(`Distribute ${label} rewards to prize winners and reset all scores?\n\nThis cannot be undone.`)) {
+                            distributeAndReset.mutate();
+                        }
+                    }}
+                    isLoading={distributeAndReset.isPending}
                     isDisabled={scores.length === 0}
                     startContent={<Banknote className="h-4 w-4" />}
                 >
-                    Distribute Rewards
-                </Button>
-                <Button
-                    color="danger" variant="flat" size="sm"
-                    onPress={() => {
-                        if (scores.length > 0 && !hasDistributed) {
-                            const proceed = confirm(
-                                `⚠️ You haven't distributed rewards yet!\n\n` +
-                                `Top players will lose their scores without getting paid.\n\n` +
-                                `Are you sure you want to reset ALL ${label} scores?`
-                            );
-                            if (!proceed) return;
-                        }
-                        if (confirm(`Reset ALL ${label} scores? This cannot be undone.`)) {
-                            resetScores.mutate();
-                        }
-                    }}
-                    isLoading={resetScores.isPending}
-                    startContent={<RotateCcw className="h-4 w-4" />}
-                >
-                    Reset All Scores
+                    Distribute & Reset
                 </Button>
             </div>
         </div>
