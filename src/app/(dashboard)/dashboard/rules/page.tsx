@@ -88,7 +88,7 @@ function RuleItem({
                             <Chip size="sm" variant="flat" className="text-[10px]" color={
                                 rule.category === "RANKED" ? "warning" : rule.category === "CASUAL" ? "primary" : "default"
                             }>
-                                {rule.category === "BOTH" ? "All" : rule.category === "RANKED" ? "🏆" : "🎮"}
+                                {rule.category === "BOTH" ? "📋" : rule.category === "RANKED" ? "🏆" : "🎮"}
                             </Chip>
                         </div>
                         <p className="mt-0.5 line-clamp-2 text-xs text-foreground/50 whitespace-pre-wrap">
@@ -486,7 +486,7 @@ export default function AdminRulesPage() {
                                         className="cursor-pointer"
                                         onClick={() => setCategory(cat)}
                                     >
-                                        {cat === "BOTH" ? "Both" : cat === "RANKED" ? "🏆 Ranked" : "🎮 Casual"}
+                                        {cat === "BOTH" ? "📋 General" : cat === "RANKED" ? "🏆 Ranked" : "🎮 Casual"}
                                     </Chip>
                                 ))}
                             </div>

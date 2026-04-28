@@ -18,7 +18,7 @@ interface Rule {
 
 export default function RulesPage() {
     const [expandedRule, setExpandedRule] = useState<string | null>(null);
-    const [tab, setTab] = useState<"ranked" | "casual">("ranked");
+    const [tab, setTab] = useState<"ranked" | "casual" | "general">("general");
 
     const { data: rules = [], isLoading } = useQuery<Rule[]>({
         queryKey: ["rules"],
@@ -30,17 +30,19 @@ export default function RulesPage() {
         },
     });
 
-    // Filter rules based on selected tab — BOTH rules always show
+    // Filter rules based on selected tab
     const filteredRules = rules.filter((r) => {
         const cat = r.category || "BOTH";
-        if (cat === "BOTH") return true;
-        return tab === "ranked" ? cat === "RANKED" : cat === "CASUAL";
+        if (tab === "general") return cat === "BOTH";
+        if (tab === "ranked") return cat === "RANKED";
+        return cat === "CASUAL";
     });
 
     // Count for badges
-    const rankedCount = rules.filter((r) => (r.category || "BOTH") === "RANKED" || (r.category || "BOTH") === "BOTH").length;
-    const casualCount = rules.filter((r) => (r.category || "BOTH") === "CASUAL" || (r.category || "BOTH") === "BOTH").length;
-    const showTabs = rules.some((r) => (r.category || "BOTH") !== "BOTH");
+    const rankedCount = rules.filter((r) => (r.category || "BOTH") === "RANKED").length;
+    const casualCount = rules.filter((r) => (r.category || "BOTH") === "CASUAL").length;
+    const generalCount = rules.filter((r) => (r.category || "BOTH") === "BOTH").length;
+    const showTabs = rules.length > 0;
 
     return (
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
@@ -54,12 +56,13 @@ export default function RulesPage() {
                 </p>
             </div>
 
-            {/* ── Ranked / Casual Tabs ── */}
+            {/* ── Casual / Ranked / General Tabs ── */}
             {showTabs && (
                 <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100 mb-4">
                     {([
                         { key: "casual" as const, label: "Casual", icon: "🎮", count: casualCount },
                         { key: "ranked" as const, label: "Ranked", icon: "🏆", count: rankedCount },
+                        { key: "general" as const, label: "General", icon: "📋", count: generalCount },
                     ]).map(({ key, label, icon, count }) => (
                         <button
                             key={key}
