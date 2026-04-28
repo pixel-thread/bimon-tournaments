@@ -30,6 +30,7 @@ import {
     Check,
     Ban,
     Loader2,
+    Camera,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -52,6 +53,7 @@ interface ClanData {
     name: string;
     tag: string;
     description: string | null;
+    logoUrl: string | null;
     leaderId: string;
     myRole: "LEADER" | "MEMBER";
     members: ClanMember[];
@@ -63,6 +65,7 @@ interface PendingInvite {
     clanName: string;
     clanTag: string;
     clanDescription: string | null;
+    clanLogoUrl: string | null;
     leaderName: string;
     leaderImageUrl: string | null;
     memberCount: number;
@@ -84,6 +87,7 @@ export default function ClanPage() {
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [kickTarget, setKickTarget] = useState<ClanMember | null>(null);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
 
     // Fetch clan data + pending invites
     const { data, isLoading } = useQuery<{
@@ -187,8 +191,60 @@ export default function ClanPage() {
                     <Card className="border border-divider overflow-hidden">
                         <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                                    <Shield className="w-6 h-6 text-primary" />
+                                <div className="relative shrink-0">
+                                    <Avatar
+                                        src={clan.logoUrl || undefined}
+                                        name={clan.tag}
+                                        className="h-12 w-12"
+                                        showFallback
+                                        fallback={
+                                            <Shield className="w-6 h-6 text-primary" />
+                                        }
+                                        classNames={{
+                                            base: clan.logoUrl ? "" : "bg-primary/20",
+                                        }}
+                                    />
+                                    {isLeader && (
+                                        <label
+                                            className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary cursor-pointer hover:bg-primary/80 transition-colors"
+                                        >
+                                            {uploadingLogo
+                                                ? <Loader2 className="h-2.5 w-2.5 animate-spin text-white" />
+                                                : <Camera className="h-2.5 w-2.5 text-white" />
+                                            }
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                disabled={uploadingLogo}
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (!file) return;
+                                                    setUploadingLogo(true);
+                                                    try {
+                                                        const formData = new FormData();
+                                                        formData.append("image", file);
+                                                        const res = await fetch("/api/clans/upload-logo", {
+                                                            method: "POST",
+                                                            body: formData,
+                                                        });
+                                                        if (res.ok) {
+                                                            toast.success("Logo updated!");
+                                                            invalidate();
+                                                        } else {
+                                                            const json = await res.json();
+                                                            toast.error(json.error || "Upload failed");
+                                                        }
+                                                    } catch {
+                                                        toast.error("Upload failed");
+                                                    } finally {
+                                                        setUploadingLogo(false);
+                                                        e.target.value = "";
+                                                    }
+                                                }}
+                                            />
+                                        </label>
+                                    )}
                                 </div>
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2">
@@ -356,9 +412,14 @@ function InviteCard({ invite, onRespond }: { invite: PendingInvite; onRespond: (
             <CardBody className="p-3">
                 <div className="flex items-center gap-3">
                     <Avatar
-                        src={invite.leaderImageUrl || undefined}
-                        name={invite.leaderName}
+                        src={invite.clanLogoUrl || invite.leaderImageUrl || undefined}
+                        name={invite.clanTag}
                         className="h-10 w-10 shrink-0"
+                        showFallback
+                        fallback={<Shield className="w-5 h-5 text-primary" />}
+                        classNames={{
+                            base: (invite.clanLogoUrl || invite.leaderImageUrl) ? "" : "bg-primary/20",
+                        }}
                     />
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">

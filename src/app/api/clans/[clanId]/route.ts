@@ -56,6 +56,7 @@ export async function GET(
                 name: clan.name,
                 tag: clan.tag,
                 description: clan.description,
+                logoUrl: clan.logoUrl,
                 leaderId: clan.leaderId,
                 members: clan.members.map((m) => ({
                     id: m.player.id,

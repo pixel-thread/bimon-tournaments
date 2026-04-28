@@ -1386,6 +1386,7 @@ model Clan {
   name        String   @unique @db.VarChar(30)
   tag         String   @unique @db.VarChar(6)   // Short tag e.g. "BOOYAH"
   description String?  @db.VarChar(200)
+  logoUrl     String?                            // Clan logo image (ImgBB)
   leaderId    String   @unique                   // One clan per leader
 
   createdAt   DateTime @default(now())

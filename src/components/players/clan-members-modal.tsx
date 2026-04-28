@@ -30,6 +30,7 @@ interface ClanDetail {
     name: string;
     tag: string;
     description: string | null;
+    logoUrl: string | null;
     leaderId: string;
     members: ClanMember[];
     memberCount: number;
@@ -83,9 +84,16 @@ export function ClanMembersModal({
                 {/* Header */}
                 <ModalHeader className="flex items-center justify-between pb-2 pr-3">
                     <div className="flex items-center gap-2 min-w-0">
-                        <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 shrink-0">
-                            <Shield className="h-4 w-4 text-primary" />
-                        </div>
+                        <Avatar
+                            src={data?.logoUrl || undefined}
+                            name={clanTag}
+                            className="h-8 w-8 shrink-0"
+                            showFallback
+                            fallback={<Shield className="h-4 w-4 text-primary" />}
+                            classNames={{
+                                base: data?.logoUrl ? "" : "bg-primary/10",
+                            }}
+                        />
                         <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                                 <Chip size="sm" variant="flat" color="primary" className="text-[10px] h-4 px-1.5">

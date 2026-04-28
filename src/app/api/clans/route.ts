@@ -54,6 +54,7 @@ export async function GET() {
                             name: true,
                             tag: true,
                             description: true,
+                            logoUrl: true,
                             leader: {
                                 select: {
                                     displayName: true,
@@ -75,6 +76,7 @@ export async function GET() {
                 name: membership.clan.name,
                 tag: membership.clan.tag,
                 description: membership.clan.description,
+                logoUrl: membership.clan.logoUrl,
                 leaderId: membership.clan.leaderId,
                 myRole: membership.role,
                 members: membership.clan.members.map((m) => ({
@@ -93,6 +95,7 @@ export async function GET() {
             clanName: inv.clan.name,
             clanTag: inv.clan.tag,
             clanDescription: inv.clan.description,
+            clanLogoUrl: inv.clan.logoUrl,
             leaderName:
                 inv.clan.leader.displayName ||
                 inv.clan.leader.user.username,

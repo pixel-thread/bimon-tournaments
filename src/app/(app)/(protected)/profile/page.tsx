@@ -131,6 +131,7 @@ export default function ProfilePage() {
     const [showCharacterPreview, setShowCharacterPreview] = useState(false);
     const [showUCBreakdown, setShowUCBreakdown] = useState(false);
     const [navigatingToWallet, setNavigatingToWallet] = useState(false);
+    const [navigatingToClan, setNavigatingToClan] = useState(false);
     const [heroMuted, setHeroMuted] = useState(true);
     const heroVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -810,7 +811,11 @@ export default function ProfilePage() {
                 {GAME.features.hasClans && player && (
                     <button
                         type="button"
-                        onClick={() => router.push("/clan")}
+                        onClick={() => {
+                            if (navigatingToClan) return;
+                            setNavigatingToClan(true);
+                            router.push("/clan");
+                        }}
                         className="relative w-full flex items-center justify-between p-4 rounded-xl border border-divider bg-default-50 hover:bg-default-100 transition-colors cursor-pointer"
                     >
                         <div className="flex items-center gap-3">
@@ -830,7 +835,10 @@ export default function ProfilePage() {
                             {(player.pendingClanInvites ?? 0) > 0 && (
                                 <span className="h-2 w-2 rounded-full bg-danger animate-pulse" />
                             )}
-                            <span className="text-foreground/30 text-sm">→</span>
+                            {navigatingToClan
+                                ? <Loader2 className="h-4 w-4 animate-spin text-foreground/30" />
+                                : <span className="text-foreground/30 text-sm">→</span>
+                            }
                         </div>
                     </button>
                 )}
