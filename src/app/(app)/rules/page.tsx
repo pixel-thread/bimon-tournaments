@@ -58,8 +58,8 @@ export default function RulesPage() {
             {showTabs && (
                 <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100 mb-4">
                     {([
-                        { key: "ranked" as const, label: "Ranked", icon: "🏆", count: rankedCount },
                         { key: "casual" as const, label: "Casual", icon: "🎮", count: casualCount },
+                        { key: "ranked" as const, label: "Ranked", icon: "🏆", count: rankedCount },
                     ]).map(({ key, label, icon, count }) => (
                         <button
                             key={key}
