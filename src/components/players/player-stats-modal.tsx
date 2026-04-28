@@ -234,7 +234,7 @@ export function PlayerStatsModal({
                                             muted
                                             playsInline
                                             loop
-                                            preload="auto"
+                                            preload="none"
                                             controls={false}
                                             controlsList="nodownload nofullscreen noremoteplayback"
                                             disableRemotePlayback
