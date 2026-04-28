@@ -1357,13 +1357,13 @@ export default function ProfilePage() {
                                     <div className="flex gap-2 pt-1">
                                         <Button
                                             variant="flat"
-                                            className="flex-1"
+                                            className="min-w-[80px] shrink-0"
                                             onPress={() => setShowRPModal(false)}
                                         >
                                             Cancel
                                         </Button>
                                         <Button
-                                            className="flex-1 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold"
+                                            className="flex-1 min-w-0 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold overflow-hidden"
                                             isDisabled={!player?.wallet || player.wallet.balance < rpPrice || isBuyingRP}
                                             isLoading={isBuyingRP}
                                             onPress={async () => {
@@ -1387,7 +1387,7 @@ export default function ProfilePage() {
                                                 }
                                             }}
                                         >
-                                            {GAME.passEmoji} Buy for {rpPrice} <CurrencyIcon size={14} />
+                                            <span className="truncate">{GAME.passEmoji} Buy for {rpPrice}</span> <CurrencyIcon size={14} />
                                         </Button>
                                     </div>
                                 </div>

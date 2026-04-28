@@ -126,7 +126,7 @@ function PrizeBreakdownTooltip({
             </AnimatePresence>
             <button
                 type="button"
-                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/25 hover:bg-white/40 active:bg-white/50 text-white text-xs font-bold cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md hover:scale-110 backdrop-blur-sm border border-white/30"
+                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-black/25 hover:bg-black/40 active:bg-black/50 text-white text-xs font-bold cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md hover:scale-110 backdrop-blur-sm border border-white/20"
                 aria-label="View prize breakdown (double-tap to refresh)"
                 onClick={handleTap}
             >
@@ -855,22 +855,15 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 const diff = (dayIdx - today + 7) % 7;
                                 const label = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : `in ${diff} days`;
                                 const isToday = diff === 0;
-                                const isSoon = diff <= 1;
+                                const isTomorrow = diff === 1;
                                 return (
                                     <Chip
                                         size="sm"
                                         variant="flat"
-                                        className={
-                                            isToday
-                                                ? "bg-red-500/20 text-red-400 font-bold animate-pulse"
-                                                : isSoon
-                                                    ? "bg-orange-500/20 text-orange-400 font-semibold"
-                                                    : theme
-                                                        ? theme.badge
-                                                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200"
-                                        }
+                                        className="bg-black/25 text-white backdrop-blur-sm font-semibold"
                                     >
                                         {isToday && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mr-1 animate-pulse" />}
+                                        {isTomorrow && <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 mr-1" />}
                                         {label}
                                     </Chip>
                                 );
@@ -907,7 +900,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     <div className="absolute bottom-2 left-3">
                                         <Chip
                                             size="sm"
-                                            className="font-bold bg-white/25 text-white border border-white/30 backdrop-blur-sm"
+                                            className="font-bold bg-black/25 text-white border border-white/20 backdrop-blur-sm"
                                         >
                                             {effectiveTeamType}
                                         </Chip>
@@ -920,7 +913,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                             size="sm"
                                             color="danger"
                                             variant="flat"
-                                            className="font-bold bg-red-500/25 text-white border border-red-400/30 backdrop-blur-sm"
+                                            className="font-bold bg-black/25 text-white border border-white/20 backdrop-blur-sm"
                                         >
                                             ⚔️ TDM
                                         </Chip>
