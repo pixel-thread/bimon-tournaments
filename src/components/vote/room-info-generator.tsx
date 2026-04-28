@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Card, CardBody } from "@heroui/react";
 import { Copy, Check, ChevronDown, ChevronUp, KeyRound } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -80,13 +80,13 @@ function TournamentRow({ poll, state, onChange }: {
         const lines = [
             `${typeEmoji} ${toBold(typeLabel + " TOURNAMENT")}`,
             divider,
-            `📋 ${tournamentName}`,
+            `🎯 ${tournamentName}`,
             `🗺️ Map: ${state.map}`,
             `🕐 Match ${matchNum} — ${formatTime(state.time)}`,
             ...(state.roomId.trim() ? [`🔐 Room ID: ${state.roomId.trim()}`] : []),
             `🔑 Password: ${state.password}`,
             divider,
-            `🎯 ${GAME.gameName} × Bimon Tournament`,
+            `${GAME.gameName} × Bimon Tournament`,
             `✨ All the best! 💪`,
         ];
         return lines.join("\n");
@@ -222,7 +222,7 @@ function TournamentRow({ poll, state, onChange }: {
                 ) : (
                     <>
                         <Copy className="w-4 h-4" />
-                        Copy Match {matchNumber}{!state.roomId.trim() ? " (add ID in WhatsApp)" : ""}
+                        Copy Match {matchNumber}
                     </>
                 )}
             </button>
@@ -242,8 +242,33 @@ function TournamentRow({ poll, state, onChange }: {
 export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
     const [isOpen, setIsOpen] = useState(false);
 
-    // State per poll tournament
-    const [states, setStates] = useState<Record<string, TournamentState>>({});
+    const LS_KEY = "room-info-match-counts";
+
+    // Load persisted match counts from localStorage on mount
+    const [states, setStates] = useState<Record<string, TournamentState>>(() => {
+        if (typeof window === "undefined") return {};
+        try {
+            const saved = JSON.parse(localStorage.getItem(LS_KEY) || "{}") as Record<string, number>;
+            const initial: Record<string, TournamentState> = {};
+            for (const [pollId, count] of Object.entries(saved)) {
+                if (typeof count === "number" && count > 0) {
+                    initial[pollId] = { time: "", password: "m", roomId: "", map: "Erangel", copyCount: count, justCopied: false };
+                }
+            }
+            return initial;
+        } catch {
+            return {};
+        }
+    });
+
+    // Persist match counts to localStorage whenever they change
+    useEffect(() => {
+        const counts: Record<string, number> = {};
+        for (const [pollId, state] of Object.entries(states)) {
+            if (state.copyCount > 0) counts[pollId] = state.copyCount;
+        }
+        try { localStorage.setItem(LS_KEY, JSON.stringify(counts)); } catch { /* quota */ }
+    }, [states]);
 
     // Default time = now + 10 minutes (HH:MM format for <input type="time">)
     const getDefaultTime = () => {
@@ -252,15 +277,23 @@ export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
         return `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
     };
 
+    const getDefaultState = (): TournamentState => ({
+        time: getDefaultTime(), password: "m", roomId: "", map: "Erangel", copyCount: 0, justCopied: false,
+    });
+
     const getState = (pollId: string): TournamentState => {
-        return states[pollId] ?? { time: getDefaultTime(), password: "m", roomId: "", map: "Erangel", copyCount: 0, justCopied: false };
+        if (states[pollId]) {
+            // Fill in time if it was loaded from localStorage (which only saves copyCount)
+            return { ...getDefaultState(), ...states[pollId] };
+        }
+        return getDefaultState();
     };
 
     const updateState = (pollId: string, update: Partial<TournamentState>) => {
-        setStates((prev) => ({
-            ...prev,
-            [pollId]: { ...getState(pollId), ...update },
-        }));
+        setStates((prev) => {
+            const current = prev[pollId] ?? getDefaultState();
+            return { ...prev, [pollId]: { ...current, ...update } };
+        });
     };
 
     // Only show active polls
