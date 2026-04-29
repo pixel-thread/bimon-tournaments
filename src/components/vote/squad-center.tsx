@@ -259,8 +259,8 @@ function SquadCard({
                         </span>
                     )}
                     {squad.isFull ? (
-                        <Chip size="sm" variant="flat" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" startContent={<Check className="w-3 h-3" />}>
-                            Ready
+                        <Chip size="sm" variant="flat" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                            {squad.acceptedCount}/{squad.totalSlots}
                         </Chip>
                     ) : (
                         <Chip size="sm" variant="flat" className="bg-amber-500/15 text-amber-600 dark:text-amber-400">

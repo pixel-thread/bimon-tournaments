@@ -200,7 +200,7 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
         // Map: for each squad member → find which team they're on → set captain
         for (const squad of squads) {
             const memberIds = squad.invites.map(i => i.playerId);
-            const captainName = squad.captain.displayName || squad.captain.user.username || "Captain";
+            const captainName = squad.captain.displayName || squad.captain.user.username || "Leader";
             for (const [teamId, team] of teamMap) {
                 const hasSquadMember = team.players.some(p => memberIds.includes(p.id));
                 if (hasSquadMember) {

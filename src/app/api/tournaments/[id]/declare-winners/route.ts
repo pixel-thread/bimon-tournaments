@@ -348,7 +348,7 @@ export async function POST(
                             playerId: captain.playerId,
                             userId: captain.userId,
                             finalAmount: placement.amount,
-                            message: `${getOrdinal(placement.position)} Place - ${tournament.name} (Captain Prize)`,
+                            message: `${getOrdinal(placement.position)} Place - ${tournament.name} (Leader Prize)`,
                             details: {
                                 tournamentId: id,
                                 tournamentName: tournament.name,

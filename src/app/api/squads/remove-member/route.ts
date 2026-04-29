@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
         // Cannot remove yourself (leader)
         if (invite.playerId === currentPlayerId) {
-            return ErrorResponse({ message: "Captains cannot remove themselves — cancel the squad instead", status: 400 });
+            return ErrorResponse({ message: "Leaders cannot remove themselves — cancel the squad instead", status: 400 });
         }
 
         // Squad must be active (FORMING or FULL)
