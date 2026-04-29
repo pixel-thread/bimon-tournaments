@@ -914,16 +914,16 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                         </Chip>
                                     </div>
                                 )}
-                                {/* TDM badge */}
-                                {tournament?.isTDM && (
+                                {/* TDM / WoW badge */}
+                                {(tournament?.isTDM || tournament?.isWoW) && (
                                     <div className={`absolute bottom-2 ${GAME.features.hasTeamSizes && effectiveTeamType ? "left-[90px]" : "left-3"}`}>
                                         <Chip
                                             size="sm"
-                                            color="danger"
+                                            color={tournament?.isWoW ? "warning" : "danger"}
                                             variant="flat"
                                             className="font-bold bg-black/25 text-white border border-white/20 backdrop-blur-sm"
                                         >
-                                            ⚔️ TDM
+                                            {tournament?.isWoW ? "🌟 WoW" : "⚔️ TDM"}
                                         </Chip>
                                     </div>
                                 )}

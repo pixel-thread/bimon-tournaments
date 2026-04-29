@@ -121,13 +121,15 @@ export async function GET(request: NextRequest) {
         if (seasonId) {
             tpsWhere.seasonId = seasonId;
         }
-        // Filter by teamMode: ranked (allowSquads=true) vs casual (allowSquads=false) vs tdm (isTDM=true)
+        // Filter by teamMode: ranked (allowSquads=true) vs casual (allowSquads=false) vs tdm (isTDM=true) vs wow (isWoW=true)
         if (teamMode === "ranked") {
             tpsWhere.match = { tournament: { poll: { allowSquads: true } } };
         } else if (teamMode === "casual") {
-            tpsWhere.match = { tournament: { isTDM: false, poll: { allowSquads: false } } };
+            tpsWhere.match = { tournament: { isTDM: false, isWoW: false, poll: { allowSquads: false } } };
         } else if (teamMode === "tdm") {
-            tpsWhere.match = { tournament: { isTDM: true } };
+            tpsWhere.match = { tournament: { isTDM: true, isWoW: false } };
+        } else if (teamMode === "wow") {
+            tpsWhere.match = { tournament: { isWoW: true } };
         }
         const tpsAgg = await prisma.teamPlayerStats.groupBy({
             by: ["playerId"],
@@ -142,8 +144,12 @@ export async function GET(request: NextRequest) {
         const bracketTournamentFilter: Record<string, unknown> = {};
         if (teamMode === "tdm") {
             bracketTournamentFilter.isTDM = true;
+            bracketTournamentFilter.isWoW = false;
+        } else if (teamMode === "wow") {
+            bracketTournamentFilter.isWoW = true;
         } else if (teamMode === "ranked" || teamMode === "casual") {
             bracketTournamentFilter.isTDM = false;
+            bracketTournamentFilter.isWoW = false;
         }
         const hasBracketFilter = Object.keys(bracketTournamentFilter).length > 0;
 

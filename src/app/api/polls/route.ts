@@ -31,6 +31,7 @@ export async function GET(request: Request) {
                         type: true,
                         seasonId: true,
                         isTDM: true,
+                        isWoW: true,
                     },
                 },
                 options: {
@@ -185,7 +186,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, enableFund, isTDM: tdmFlag } = body;
+        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, enableFund, isTDM: tdmFlag, isWoW: wowFlag } = body;
 
         if (!question || !tournamentId) {
             return ErrorResponse({ message: "question and tournamentId are required", status: 400 });
@@ -200,13 +201,14 @@ export async function POST(request: Request) {
             return ErrorResponse({ message: "A poll already exists for this tournament. Please edit the existing poll instead.", status: 409 });
         }
 
-        // If tournamentType is provided (PES/TDM flow), update the linked tournament's type + isTDM flag
+        // If tournamentType is provided (PES/TDM/WoW flow), update the linked tournament's type + flags
         if (tournamentType && (ALL_TOURNAMENT_TYPES as readonly string[]).includes(tournamentType)) {
             await prisma.tournament.update({
                 where: { id: tournamentId },
                 data: {
                     type: tournamentType,
                     ...(tdmFlag && { isTDM: true }),
+                    ...(wowFlag && { isWoW: true }),
                 },
             });
         } else if (tdmFlag) {
@@ -214,6 +216,12 @@ export async function POST(request: Request) {
             await prisma.tournament.update({
                 where: { id: tournamentId },
                 data: { isTDM: true },
+            });
+        } else if (wowFlag) {
+            // WoW without explicit type — just set the flag
+            await prisma.tournament.update({
+                where: { id: tournamentId },
+                data: { isWoW: true },
             });
         }
 

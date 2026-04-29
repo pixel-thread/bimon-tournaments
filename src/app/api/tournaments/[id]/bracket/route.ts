@@ -117,7 +117,7 @@ export async function GET(
         const [tournament, settings] = await Promise.all([
             prisma.tournament.findUnique({
                 where: { id },
-                select: { id: true, type: true, fee: true, maxPlacements: true, isTDM: true },
+                select: { id: true, type: true, fee: true, maxPlacements: true, isTDM: true, isWoW: true },
             }),
             getSettings(),
         ]);
@@ -279,7 +279,8 @@ export async function GET(
 
         // Check if there's a final winner (position 0 = Final, position 1 = 3rd Place)
         const finalMatch = matches.find((m) => m.round === totalRounds && m.position === 0 && (m.winnerId || m.winnerTeamId));
-        const winner = tournament.isTDM
+        const isTeamBased = tournament.isTDM || tournament.isWoW;
+        const winner = isTeamBased
             ? (finalMatch?.winnerTeam ? { displayName: finalMatch.winnerTeam.name } : null)
             : (finalMatch?.winner ? { displayName: finalMatch.winner.displayName } : null);
 
@@ -290,8 +291,8 @@ export async function GET(
         });
         const totalDonations = donations.reduce((s, d) => s + d.amount, 0);
         const entryFee = tournament.fee ?? 0;
-        // TDM: prize pool = entryFee × teams; 1v1: entryFee × players
-        const participantCount = tournament.isTDM ? teamIds.size : playerIds.size;
+        // TDM/WoW: prize pool = entryFee × teams; 1v1: entryFee × players
+        const participantCount = isTeamBased ? teamIds.size : playerIds.size;
         const prizePool = entryFee * participantCount + totalDonations;
 
         return SuccessResponse({
@@ -301,6 +302,7 @@ export async function GET(
                 totalPlayers: playerIds.size,
                 totalTeams: teamIds.size,
                 isTDM: tournament.isTDM,
+                isWoW: tournament.isWoW,
                 winner,
                 entryFee,
                 prizePool,

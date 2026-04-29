@@ -69,7 +69,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [isActive, setIsActive] = useState(true);
     const [allowSquads, setAllowSquads] = useState(false);
     const [enableFund, setEnableFund] = useState(true);
-    const [isTDM, setIsTDM] = useState(false);
+    const [arenaMode, setArenaMode] = useState<"none" | "tdm" | "wow">("none");
     const [options, setOptions] = useState<PollOptionDTO[]>([]);
     const [saving, setSaving] = useState(false);
 
@@ -96,7 +96,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setIsActive(poll.isActive);
             setAllowSquads(poll.allowSquads ?? false);
             setEnableFund(poll.enableFund ?? true);
-            setIsTDM(false); // TDM is determined by tournament.isTDM, not poll
+            setArenaMode("none"); // Arena mode is determined by tournament flags, not poll
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
         } else {
             setQuestion("");
@@ -107,7 +107,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setIsActive(true);
             setAllowSquads(GAME.features.hasSquads);
             setEnableFund(true);
-            setIsTDM(false);
+            setArenaMode("none");
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
                 ? [
@@ -159,10 +159,12 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                 }
                 : {
                     question, days: actualDays, teamType, tournamentId, allowSquads, enableFund,
-                    // For PES or TDM: send format so poll creation can update tournament type
-                    ...((!GAME.features.hasTeamSizes || isTDM) && { tournamentType: tournamentFormat }),
+                    // For PES or arena modes: send format so poll creation can update tournament type
+                    ...((!GAME.features.hasTeamSizes || arenaMode !== "none") && { tournamentType: tournamentFormat }),
                     // TDM flag — API will set tournament.isTDM
-                    ...(isTDM && { isTDM: true }),
+                    ...(arenaMode === "tdm" && { isTDM: true }),
+                    // WoW flag — API will set tournament.isWoW
+                    ...(arenaMode === "wow" && { isWoW: true }),
                     // Send custom option names
                     options: options.map(o => ({ name: o.name, vote: o.vote })),
                 };
@@ -184,7 +186,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, isTDM, options, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, arenaMode, options, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -319,7 +321,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     )}
 
                     {/* Allow Squads toggle — for games that support squads */}
-                    {GAME.features.hasSquads && !isTDM && (
+                    {GAME.features.hasSquads && arenaMode === "none" && (
                         <div className="flex items-center justify-between rounded-lg bg-default-100 px-3 py-2">
                             <div>
                                 <span className="text-sm">Allow Squads</span>
@@ -341,37 +343,55 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                         </div>
                     )}
 
-                    {/* TDM Mode toggle — for games that support TDM */}
-                    {GAME.features.hasTDM && !isEdit && (
-                        <div className="flex items-center justify-between rounded-lg bg-danger/5 border border-danger/10 px-3 py-2">
-                            <div>
-                                <span className="text-sm font-medium">⚔️ TDM Mode</span>
-                                <p className="text-xs text-foreground/40">Team vs Team bracket (squads auto-enabled)</p>
+                    {/* Arena Mode selector — TDM / WoW (for games that support them) */}
+                    {(GAME.features.hasTDM || GAME.features.hasWoW) && !isEdit && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-medium text-foreground/50">Arena Mode</p>
+                            <div className="flex gap-2">
+                                {([
+                                    { key: "none" as const, label: "None", icon: "❌" },
+                                    ...(GAME.features.hasTDM ? [{ key: "tdm" as const, label: "TDM", icon: "⚔️" }] : []),
+                                    ...(GAME.features.hasWoW ? [{ key: "wow" as const, label: "WoW", icon: "🌟" }] : []),
+                                ]).map(({ key, label, icon }) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        onClick={() => {
+                                            setArenaMode(key);
+                                            if (key !== "none") {
+                                                setAllowSquads(true);
+                                                setEnableFund(false);
+                                                if (GAME.features.hasTeamSizes) setTeamType("SQUAD");
+                                                setTournamentFormat("BRACKET_1V1");
+                                            } else {
+                                                if (GAME.features.hasTeamSizes) setTeamType("DYNAMIC");
+                                            }
+                                        }}
+                                        className={`
+                                            flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium
+                                            transition-all duration-200 cursor-pointer border
+                                            ${arenaMode === key
+                                                ? key === "none"
+                                                    ? "bg-default-100 border-default-300 text-foreground"
+                                                    : key === "tdm"
+                                                        ? "bg-danger/10 border-danger/30 text-danger"
+                                                        : "bg-warning/10 border-warning/30 text-warning"
+                                                : "bg-default-50 border-transparent text-foreground/40 hover:text-foreground/60"
+                                            }
+                                        `}
+                                    >
+                                        <span>{icon}</span>
+                                        <span>{label}</span>
+                                    </button>
+                                ))}
                             </div>
-                            <Switch
-                                size="sm"
-                                color="danger"
-                                isSelected={isTDM}
-                                onValueChange={(v) => {
-                                    setIsTDM(v);
-                                    if (v) {
-                                        setAllowSquads(true);
-                                        setEnableFund(false);
-                                        if (GAME.features.hasTeamSizes) setTeamType("SQUAD");
-                                        // Default to KO for TDM
-                                        setTournamentFormat("BRACKET_1V1");
-                                    } else {
-                                        if (GAME.features.hasTeamSizes) setTeamType("DYNAMIC");
-                                    }
-                                }}
-                            />
                         </div>
                     )}
 
-                    {/* TDM Bracket Format selector */}
-                    {isTDM && (
+                    {/* Arena Bracket Format selector */}
+                    {arenaMode !== "none" && (
                         <Select
-                            label="TDM Bracket Format"
+                            label={`${arenaMode === "tdm" ? "TDM" : "WoW"} Bracket Format`}
                             selectedKeys={[tournamentFormat]}
                             onSelectionChange={(keys) => {
                                 const key = Array.from(keys)[0] as string;

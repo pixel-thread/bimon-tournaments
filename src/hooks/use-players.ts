@@ -58,7 +58,7 @@ interface UsePlayersOptions {
     state?: string;
     district?: string;
     town?: string;
-    teamMode?: "ranked" | "casual" | "tdm" | "all";
+    teamMode?: "ranked" | "casual" | "tdm" | "wow" | "all";
     limit?: number;
 }
 

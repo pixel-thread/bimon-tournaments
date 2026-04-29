@@ -548,6 +548,7 @@ model Tournament {
   taxPreviewCache  Json?
   maxPlacements    Int              @default(3) // Max podium spots: 2 = no 3rd place
   isTDM            Boolean          @default(false) // Team Deathmatch: bracket uses teams instead of players
+  isWoW            Boolean          @default(false) // World of Wonder: creative/custom map tournaments
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

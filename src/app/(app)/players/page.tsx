@@ -9,6 +9,7 @@ import { PlayerTable } from "@/components/players/player-table";
 import { PlayerStatsModal } from "@/components/players/player-stats-modal";
 import { PlayersSkeleton } from "@/components/players/players-skeleton";
 import { GAME } from "@/lib/game-config";
+import { ArenaDropdown } from "@/components/players/arena-dropdown";
 
 
 /**
@@ -57,8 +58,8 @@ export default function PlayersPage() {
     return (
         <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
             <div className="space-y-6">
-                {/* Ranked / Casual / TDM tabs */}
-                {(GAME.features.hasRankedCasual || GAME.features.hasTDM) && (
+                {/* Ranked / Casual / Arena mode tabs */}
+                {(GAME.features.hasRankedCasual || GAME.features.hasTDM || GAME.features.hasWoW) && (
                     <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100">
                         {GAME.features.hasRankedCasual && ([
                             { key: "casual", label: "Casual", icon: "🎮" },
@@ -81,22 +82,13 @@ export default function PlayersPage() {
                                 <span>{label}</span>
                             </button>
                         ))}
-                        {GAME.features.hasTDM && (
-                            <button
-                                type="button"
-                                onClick={() => filters.setTeamMode("tdm")}
-                                className={`
-                                    flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium
-                                    transition-all duration-200 cursor-pointer
-                                    ${teamMode === "tdm"
-                                        ? "bg-background shadow-sm text-foreground"
-                                        : "text-foreground/50 hover:text-foreground/70"
-                                    }
-                                `}
-                            >
-                                <span>⚔️</span>
-                                <span>TDM</span>
-                            </button>
+                        {(GAME.features.hasTDM || GAME.features.hasWoW) && (
+                            <ArenaDropdown
+                                teamMode={teamMode}
+                                onSelect={filters.setTeamMode}
+                                hasTDM={GAME.features.hasTDM}
+                                hasWoW={GAME.features.hasWoW}
+                            />
                         )}
                     </div>
                 )}

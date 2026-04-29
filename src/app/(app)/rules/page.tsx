@@ -19,7 +19,7 @@ interface Rule {
 
 export default function RulesPage() {
     const [expandedRule, setExpandedRule] = useState<string | null>(null);
-    const [tab, setTab] = useState<"ranked" | "casual" | "general" | "tdm">("general");
+    const [tab, setTab] = useState<"ranked" | "casual" | "general" | "tdm" | "wow">("general");
 
     const { data: rules = [], isLoading } = useQuery<Rule[]>({
         queryKey: ["rules"],
@@ -37,6 +37,7 @@ export default function RulesPage() {
         if (tab === "general") return cat === "BOTH";
         if (tab === "ranked") return cat === "RANKED";
         if (tab === "tdm") return cat === "TDM";
+        if (tab === "wow") return cat === "WOW";
         return cat === "CASUAL";
     });
 
@@ -63,6 +64,7 @@ export default function RulesPage() {
                         { key: "casual" as const, label: "Casual" },
                         { key: "ranked" as const, label: "Ranked" },
                         ...(GAME.features.hasTDM ? [{ key: "tdm" as const, label: "TDM" }] : []),
+                        ...(GAME.features.hasWoW ? [{ key: "wow" as const, label: "WoW" }] : []),
                     ]).map(({ key, label }) => (
                         <button
                             key={key}

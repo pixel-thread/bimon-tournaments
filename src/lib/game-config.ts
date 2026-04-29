@@ -34,6 +34,7 @@ interface GameFeatures {
     hasRankedCasual: boolean;    // Separate Ranked (squad) vs Casual (random) leaderboards
     hasClans: boolean;           // Clan/guild system
     hasTDM: boolean;             // TDM bracket tournaments (4v4/8v8 kill-based)
+    hasWoW: boolean;             // World of Wonder creative/custom map tournaments
     usesCentralWallet?: never;  // REMOVED — all games use local wallet now
 }
 
@@ -110,7 +111,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         scoringSystem: "bgmi",
         booyahBonus: false,
         defaultTournamentType: "BR",
-        tournamentTypes: ["BR", "TDM"],
+        tournamentTypes: ["BR", "TDM", "WOW"],
         hasBracket: false,
         hasBR: true,
         disputeWindowMinutes: 30,
@@ -137,6 +138,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasRankedCasual: true,     // Ranked/Casual tabs on players page
             hasClans: true,
             hasTDM: true,              // TDM bracket tournaments enabled
+            hasWoW: true,              // World of Wonder tournaments enabled
         },
     },
     freefire: {
@@ -187,6 +189,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasRankedCasual: false,
             hasClans: true,
             hasTDM: false,
+            hasWoW: false,
         },
     },
     pes: {
@@ -237,6 +240,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasRankedCasual: false,
             hasClans: true,
             hasTDM: false,
+            hasWoW: false,
         },
     },
     mlbb: {
@@ -296,6 +300,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
             hasRankedCasual: false,
             hasClans: true,
             hasTDM: false,
+            hasWoW: false,
         },
     },
 };

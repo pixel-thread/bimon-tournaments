@@ -10,7 +10,7 @@ export const BRACKET_TYPES = ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"] as cons
 export const KO_BRACKET_TYPES = ["BRACKET_1V1", "GROUP_KNOCKOUT"] as const;
 
 /** All valid tournament types (including TDM enum for stats/filtering) */
-export const ALL_TOURNAMENT_TYPES = ["BR", "BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT", "TDM"] as const;
+export const ALL_TOURNAMENT_TYPES = ["BR", "BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT", "TDM", "WOW"] as const;
 
 /** Check if a tournament type uses the bracket system */
 export function isBracketType(type: string | null | undefined): boolean {

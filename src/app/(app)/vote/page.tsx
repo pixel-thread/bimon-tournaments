@@ -11,6 +11,7 @@ import { Skeleton, Card, CardBody, Divider } from "@heroui/react";
 import { Vote, AlertCircle } from "lucide-react";
 import { useAuthGate } from "@/components/common/auth-gate-provider";
 import { GAME } from "@/lib/game-config";
+import { ArenaDropdown } from "@/components/players/arena-dropdown";
 
 /**
  * /vote — Tournament voting page.
@@ -21,7 +22,7 @@ export default function VotePage() {
     const voteMutation = useVote();
     const entryMutation = useEntryMutation();
     const { requireAuth } = useAuthGate();
-    const [tab, setTab] = useState<"casual" | "ranked" | "tdm">("casual");
+    const [tab, setTab] = useState<"casual" | "ranked" | "tdm" | "wow">("casual");
 
     const polls = data?.polls;
     const currentPlayerId = data?.currentPlayerId ?? undefined;
@@ -31,15 +32,17 @@ export default function VotePage() {
     const pendingVote = voteMutation.isPending ? voteMutation.variables?.vote : undefined;
 
     // Filter polls by tab
-    const tdmCount = polls?.filter((p: any) => p.tournament?.isTDM).length ?? 0;
-    const casualCount = polls?.filter((p: any) => !p.allowSquads && !p.tournament?.isTDM).length ?? 0;
-    const rankedCount = polls?.filter((p: any) => p.allowSquads && !p.tournament?.isTDM).length ?? 0;
-    const hasBothTypes = (casualCount > 0 && rankedCount > 0) || (GAME.features.hasTDM && tdmCount > 0);
+    const tdmCount = polls?.filter((p: any) => p.tournament?.isTDM && !p.tournament?.isWoW).length ?? 0;
+    const wowCount = polls?.filter((p: any) => p.tournament?.isWoW).length ?? 0;
+    const casualCount = polls?.filter((p: any) => !p.allowSquads && !p.tournament?.isTDM && !p.tournament?.isWoW).length ?? 0;
+    const rankedCount = polls?.filter((p: any) => p.allowSquads && !p.tournament?.isTDM && !p.tournament?.isWoW).length ?? 0;
+    const hasBothTypes = (casualCount > 0 && rankedCount > 0) || (GAME.features.hasTDM && tdmCount > 0) || (GAME.features.hasWoW && wowCount > 0);
     const filteredPolls = hasBothTypes
         ? polls?.filter((p: any) => {
-            if (tab === "tdm") return !!p.tournament?.isTDM;
-            if (tab === "ranked") return p.allowSquads && !p.tournament?.isTDM;
-            return !p.allowSquads && !p.tournament?.isTDM;
+            if (tab === "tdm") return !!p.tournament?.isTDM && !p.tournament?.isWoW;
+            if (tab === "wow") return !!p.tournament?.isWoW;
+            if (tab === "ranked") return p.allowSquads && !p.tournament?.isTDM && !p.tournament?.isWoW;
+            return !p.allowSquads && !p.tournament?.isTDM && !p.tournament?.isWoW;
         })
         : polls;
 
@@ -73,7 +76,6 @@ export default function VotePage() {
                 {([
                     { key: "casual" as const, label: "Casual", icon: "🎮", count: casualCount },
                     { key: "ranked" as const, label: "Ranked", icon: "🏆", count: rankedCount },
-                    ...(GAME.features.hasTDM && tdmCount > 0 ? [{ key: "tdm" as const, label: "TDM", icon: "⚔️", count: tdmCount }] : []),
                 ]).map(({ key, label, icon, count }) => (
                     <button
                         key={key}
@@ -100,6 +102,14 @@ export default function VotePage() {
                         )}
                     </button>
                 ))}
+                {(GAME.features.hasTDM || GAME.features.hasWoW) && (tdmCount > 0 || wowCount > 0) && (
+                    <ArenaDropdown
+                        teamMode={tab}
+                        onSelect={(mode) => setTab(mode)}
+                        hasTDM={GAME.features.hasTDM && tdmCount > 0}
+                        hasWoW={GAME.features.hasWoW && wowCount > 0}
+                    />
+                )}
             </div>
             )}
 
@@ -137,14 +147,16 @@ export default function VotePage() {
                             <Vote className="h-10 w-10 text-foreground/20" />
                             <div>
                                 <p className="font-medium text-foreground/60">
-                                    No {tab === "ranked" ? "ranked" : tab === "tdm" ? "TDM" : "casual"} polls
+                                    No {tab === "ranked" ? "ranked" : tab === "tdm" ? "TDM" : tab === "wow" ? "WoW" : "casual"} polls
                                 </p>
                                 <p className="text-sm text-foreground/40">
                                     {tab === "ranked"
                                         ? "No squad tournaments right now"
                                         : tab === "tdm"
                                             ? "No team deathmatch tournaments right now"
-                                            : "Check back later for upcoming tournaments"}
+                                            : tab === "wow"
+                                                ? "No World of Wonder tournaments right now"
+                                                : "Check back later for upcoming tournaments"}
                                 </p>
                             </div>
                             <AdSlot format="banner" className="mt-4 w-full rounded-lg overflow-hidden" />

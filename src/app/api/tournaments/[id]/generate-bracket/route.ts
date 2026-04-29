@@ -87,6 +87,7 @@ export async function POST(
                 fee: true,
                 name: true,
                 isTDM: true,
+                isWoW: true,
                 poll: {
                     select: {
                         id: true,
@@ -126,8 +127,9 @@ export async function POST(
             });
         }
 
-        // ── TDM: use Teams (squads) instead of individual poll voters ──
-        if (tournament.isTDM) {
+        // ── TDM / WoW: use Teams (squads) instead of individual poll voters ──
+        if (tournament.isTDM || tournament.isWoW) {
+            const modeLabel = tournament.isWoW ? "WoW" : "TDM";
             const teams = await prisma.team.findMany({
                 where: { tournamentId: id },
                 select: { id: true, name: true, teamNumber: true },
@@ -136,7 +138,7 @@ export async function POST(
 
             if (teams.length < 2) {
                 return ErrorResponse({
-                    message: `Need at least 2 teams for TDM bracket. Currently ${teams.length} teams.`,
+                    message: `Need at least 2 teams for ${modeLabel} bracket. Currently ${teams.length} teams.`,
                     status: 400,
                 });
             }
@@ -169,29 +171,29 @@ export async function POST(
                     result.excludedCount = excludedCount;
                     result.bracketSize = bracketSize;
                     message = excludedCount > 0
-                        ? `TDM KO bracket generated! ${bracketSize} teams, ${excludedCount} excluded.`
-                        : `TDM KO bracket generated! ${bracketSize} teams, ${result.totalRounds} rounds.`;
+                        ? `${modeLabel} KO bracket generated! ${bracketSize} teams, ${excludedCount} excluded.`
+                        : `${modeLabel} KO bracket generated! ${bracketSize} teams, ${result.totalRounds} rounds.`;
                     break;
                 }
                 case "LEAGUE": {
                     result = await generateLeague(id, teamIds);
                     const totalMatches = (teamIds.length * (teamIds.length - 1)) / 2;
-                    message = `TDM League generated! ${teamIds.length} teams, ${totalMatches} matches across ${result.totalRounds} match days.`;
+                    message = `${modeLabel} League generated! ${teamIds.length} teams, ${totalMatches} matches across ${result.totalRounds} match days.`;
                     break;
                 }
                 case "GROUP_KNOCKOUT": {
                     if (teamIds.length < 4) {
                         return ErrorResponse({
-                            message: `Need at least 4 teams for TDM Group + Knockout. Currently ${teamIds.length}.`,
+                            message: `Need at least 4 teams for ${modeLabel} Group + Knockout. Currently ${teamIds.length}.`,
                             status: 400,
                         });
                     }
                     result = await generateGroupKnockout(id, teamIds);
-                    message = `TDM Group + KO generated! ${result.numGroups} groups, then knockout.`;
+                    message = `${modeLabel} Group + KO generated! ${result.numGroups} groups, then knockout.`;
                     break;
                 }
                 default:
-                    return ErrorResponse({ message: "Unknown tournament type for TDM", status: 400 });
+                    return ErrorResponse({ message: `Unknown tournament type for ${modeLabel}`, status: 400 });
             }
 
             // Remap: move player1Id/player2Id → team1Id/team2Id for all generated matches
@@ -241,7 +243,7 @@ export async function POST(
                         const email = squad.captain.user?.email;
                         if (email) {
                             try {
-                                await debitWallet(email, entryFee, `Entry fee for ${tournament.name} (TDM)`, "TOURNAMENT_ENTRY");
+                                await debitWallet(email, entryFee, `Entry fee for ${tournament.name} (${modeLabel})`, "TOURNAMENT_ENTRY");
                             } catch (err) {
                                 console.error(`[generate-bracket] Failed to debit captain ${squad.captainId}:`, err);
                             }
