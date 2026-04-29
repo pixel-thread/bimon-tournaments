@@ -72,25 +72,19 @@ export default function VotePage() {
         { key: "ranked", label: "Ranked", icon: "🏆", count: rankedCount },
     ];
 
-    // Content slide variants — snap out, glide in
+    // Content slide variants — tight and snappy
     const slideVariants = {
         enter: (dir: number) => ({
-            x: dir > 0 ? 80 : -80,
+            x: dir > 0 ? 30 : -30,
             opacity: 0,
-            scale: 0.95,
-            filter: "blur(4px)",
         }),
         center: {
             x: 0,
             opacity: 1,
-            scale: 1,
-            filter: "blur(0px)",
         },
         exit: (dir: number) => ({
-            x: dir > 0 ? -40 : 40,
+            x: dir > 0 ? -20 : 20,
             opacity: 0,
-            scale: 0.97,
-            filter: "blur(3px)",
         }),
     };
 
@@ -208,7 +202,7 @@ export default function VotePage() {
             )}
 
             {filteredPolls && (
-                <AnimatePresence mode="wait" custom={direction}>
+                <AnimatePresence mode="popLayout" custom={direction}>
                     <motion.div
                         key={tab}
                         custom={direction}
@@ -217,10 +211,11 @@ export default function VotePage() {
                         animate="center"
                         exit="exit"
                         transition={{
-                            x: { type: "spring", stiffness: 400, damping: 32, mass: 0.6 },
-                            opacity: { duration: 0.12 },
-                            scale: { type: "spring", stiffness: 400, damping: 28 },
-                            filter: { duration: 0.25 },
+                            type: "spring",
+                            stiffness: 500,
+                            damping: 35,
+                            mass: 0.5,
+                            opacity: { duration: 0.15 },
                         }}
                         className="space-y-4"
                     >
@@ -252,13 +247,12 @@ export default function VotePage() {
                             filteredPolls.map((poll, i) => (
                                 <motion.div
                                     key={poll.id}
-                                    initial={{ opacity: 0, y: 30, scale: 0.97 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    initial={{ opacity: 0, y: 16 }}
+                                    animate={{ opacity: 1, y: 0 }}
                                     transition={{
-                                        delay: i * 0.08,
-                                        duration: 0.4,
-                                        ease: [0.25, 0.46, 0.45, 0.94],
-                                        scale: { type: "spring", stiffness: 300, damping: 25, delay: i * 0.08 },
+                                        delay: i * 0.04,
+                                        duration: 0.25,
+                                        ease: [0.25, 0.1, 0.25, 1],
                                     }}
                                 >
                                     <PollCard
