@@ -181,68 +181,49 @@ export default function VotePage() {
             )}
 
             {filteredPolls && (
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={tab}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.12 }}
-                        className="space-y-4"
-                    >
-                        {filteredPolls.length === 0 ? (
-                            <motion.div
-                                initial={{ opacity: 0, y: 12 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.3, ease: "easeOut" }}
-                                className="flex flex-col items-center gap-3 rounded-xl bg-default-100 py-12 text-center"
-                            >
-                                <Vote className="h-10 w-10 text-foreground/20" />
-                                <div>
-                                    <p className="font-medium text-foreground/60">
-                                        No {tab === "ranked" ? "ranked" : tab === "tdm" ? "TDM" : tab === "wow" ? "WoW" : "casual"} polls
-                                    </p>
-                                    <p className="text-sm text-foreground/40">
-                                        {tab === "ranked"
-                                            ? "No squad tournaments right now"
-                                            : tab === "tdm"
-                                                ? "No team deathmatch tournaments right now"
-                                                : tab === "wow"
-                                                    ? "No World of Wonder tournaments right now"
-                                                    : "Check back later for upcoming tournaments"}
-                                    </p>
-                                </div>
-                                <AdSlot format="banner" className="mt-4 w-full rounded-lg overflow-hidden" />
-                            </motion.div>
-                        ) : (
-                            filteredPolls.map((poll, i) => (
-                                <motion.div
-                                    key={poll.id}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{
-                                        delay: 0.06 + i * 0.05,
-                                        type: "spring",
-                                        stiffness: 380,
-                                        damping: 28,
-                                    }}
-                                >
-                                    <PollCard
-                                        poll={poll}
-                                        onVote={handleVote}
-                                        votingPollId={pendingPollId}
-                                        votingVote={pendingVote}
-                                        currentPlayerId={currentPlayerId}
-                                        onRefetch={() => refetch()}
-                                        onEntryChange={(pollId, action) => entryMutation.mutate({ pollId, action })}
-                                        entryPending={entryMutation.isPending && entryMutation.variables?.pollId === poll.id}
-                                        isCouponVerifier={isCouponVerifier}
-                                    />
-                                </motion.div>
-                            ))
-                        )}
-                    </motion.div>
-                </AnimatePresence>
+                <div className="space-y-4">
+                    {filteredPolls.length === 0 ? (
+                        <motion.div
+                            key={`empty-${tab}`}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className="flex flex-col items-center gap-3 rounded-xl bg-default-100 py-12 text-center"
+                        >
+                            <Vote className="h-10 w-10 text-foreground/20" />
+                            <div>
+                                <p className="font-medium text-foreground/60">
+                                    No {tab === "ranked" ? "ranked" : tab === "tdm" ? "TDM" : tab === "wow" ? "WoW" : "casual"} polls
+                                </p>
+                                <p className="text-sm text-foreground/40">
+                                    {tab === "ranked"
+                                        ? "No squad tournaments right now"
+                                        : tab === "tdm"
+                                            ? "No team deathmatch tournaments right now"
+                                            : tab === "wow"
+                                                ? "No World of Wonder tournaments right now"
+                                                : "Check back later for upcoming tournaments"}
+                                </p>
+                            </div>
+                            <AdSlot format="banner" className="mt-4 w-full rounded-lg overflow-hidden" />
+                        </motion.div>
+                    ) : (
+                        filteredPolls.map((poll, i) => (
+                            <PollCard
+                                key={`poll-slot-${i}`}
+                                poll={poll}
+                                onVote={handleVote}
+                                votingPollId={pendingPollId}
+                                votingVote={pendingVote}
+                                currentPlayerId={currentPlayerId}
+                                onRefetch={() => refetch()}
+                                onEntryChange={(pollId, action) => entryMutation.mutate({ pollId, action })}
+                                entryPending={entryMutation.isPending && entryMutation.variables?.pollId === poll.id}
+                                isCouponVerifier={isCouponVerifier}
+                            />
+                        ))
+                    )}
+                </div>
             )}
 
             {/* ── Ad (non-intrusive, collapses if empty) ──── */}

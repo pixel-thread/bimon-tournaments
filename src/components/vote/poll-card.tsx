@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { Chip, Avatar, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from "@heroui/react";
 import { Users, ChevronRight, ChevronDown, ArrowLeft, Plus, Minus, Shield, Clock, Heart, Info } from "lucide-react";
+import { SlotText } from "@/components/common/slot-text";
 import { motion, AnimatePresence } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import type { PollDTO } from "@/hooks/use-polls";
@@ -136,13 +137,25 @@ function PrizeBreakdownTooltip({
     );
 }
 
-/* ─── Wave SVG Background ───────────────────────────────────── */
+/* ─── Wave SVG Background (crossfade between themes) ──────── */
 
 function WaveBackground({ theme }: { theme: PollTheme }) {
     return (
         <>
-            <div className={`absolute inset-0 bg-gradient-to-br ${theme.header}`} />
-            <div className="absolute bottom-0 left-0 right-0 h-12 overflow-hidden">
+            {/* Gradient crossfade — old fades out, new fades in simultaneously */}
+            <AnimatePresence mode="popLayout" initial={false}>
+                <motion.div
+                    key={theme.header}
+                    className={`absolute inset-0 bg-gradient-to-br ${theme.header}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                    style={{ zIndex: 1 }}
+                />
+            </AnimatePresence>
+            {/* Waves (fills transition via CSS) */}
+            <div className="absolute bottom-0 left-0 right-0 h-12 overflow-hidden" style={{ zIndex: 2 }}>
                 <svg
                     className="absolute bottom-0 w-[200%] h-12 animate-[wave_3s_ease-in-out_infinite]"
                     viewBox="0 0 1200 120"
@@ -151,6 +164,7 @@ function WaveBackground({ theme }: { theme: PollTheme }) {
                     <path
                         d="M0,60 C200,100 400,20 600,60 C800,100 1000,20 1200,60 L1200,120 L0,120 Z"
                         fill={theme.wave1}
+                        style={{ transition: "fill 800ms ease-in-out" }}
                     />
                 </svg>
                 <svg
@@ -161,24 +175,20 @@ function WaveBackground({ theme }: { theme: PollTheme }) {
                     <path
                         d="M0,60 C200,20 400,100 600,60 C800,20 1000,100 1200,60 L1200,120 L0,120 Z"
                         fill={theme.wave2}
+                        style={{ transition: "fill 800ms ease-in-out" }}
                     />
                 </svg>
             </div>
             {/* Sparkles */}
-            <div className="absolute top-3 left-6 w-1 h-1 bg-white rounded-full animate-ping opacity-75" />
+            <div className="absolute top-3 left-6 w-1 h-1 bg-white rounded-full animate-ping opacity-75" style={{ zIndex: 2 }} />
             <div
                 className={`absolute top-4 right-8 w-1.5 h-1.5 ${theme.sparkle} rounded-full animate-ping opacity-60`}
-                style={{ animationDelay: "0.5s" }}
+                style={{ animationDelay: "0.5s", zIndex: 2 }}
             />
             <style jsx>{`
                 @keyframes wave {
-                    0%,
-                    100% {
-                        transform: translateX(0);
-                    }
-                    50% {
-                        transform: translateX(-25%);
-                    }
+                    0%, 100% { transform: translateX(0); }
+                    50% { transform: translateX(-25%); }
                 }
             `}</style>
         </>
@@ -334,7 +344,7 @@ function PollOptionRow({
                             </div>
                         )}
                         <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-                            {voteCount}
+                            <SlotText value={String(voteCount)} charDelay={0.03} />
                         </span>
                     </div>
                 )}
@@ -762,36 +772,65 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
             {/* Compact Donation Badge + Donate Button */}
             {theme && (
                 <div className="flex items-center justify-center gap-2 mb-[-8px] relative z-10">
-                    {donationTotal > 0 && (() => {
-                        const sortedDonations = [...poll.donations.donations].sort((a, b) => b.amount - a.amount);
-                        const topDonor = sortedDonations[0];
-                        const extraCount = sortedDonations.length - 1;
-                        return (
-                            <button
-                                type="button"
-                                onClick={() => setShowDonors(true)}
-                                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r ${theme.header} text-white text-sm font-semibold shadow-lg hover:shadow-xl transition-shadow cursor-pointer`}
-                            >
-                                <span>
-                                    {topDonor.isAnonymous ? "Anonymous" : (topDonor.playerName || "Community")} donated {topDonor.amount}
-                                </span>
-                                <CurrencyIcon size={13} />
-                                {extraCount > 0 && (
-                                    <span className="bg-white/25 px-1.5 py-0.5 rounded-md text-xs font-bold ml-0.5">
-                                        +{extraCount}
+                    <AnimatePresence mode="popLayout" initial={false}>
+                        {donationTotal > 0 && (() => {
+                            const sortedDonations = [...poll.donations.donations].sort((a, b) => b.amount - a.amount);
+                            const topDonor = sortedDonations[0];
+                            const extraCount = sortedDonations.length - 1;
+                            const donorName = topDonor.isAnonymous ? "Anonymous" : (topDonor.playerName || "Community");
+                            return (
+                                <motion.button
+                                    key="donation-badge"
+                                    type="button"
+                                    onClick={() => setShowDonors(true)}
+                                    className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-white text-sm font-semibold shadow-lg hover:shadow-xl transition-shadow cursor-pointer overflow-hidden relative`}
+                                    initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                >
+                                    {/* Crossfading gradient bg */}
+                                    <AnimatePresence mode="popLayout" initial={false}>
+                                        <motion.div
+                                            key={theme.header}
+                                            className={`absolute inset-0 bg-gradient-to-r ${theme.header}`}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.6 }}
+                                        />
+                                    </AnimatePresence>
+                                    <span className="relative z-10">
+                                        <SlotText value={`${donorName} donated ${topDonor.amount}`} charDelay={0.012} />
                                     </span>
-                                )}
-                            </button>
-                        );
-                    })()}
+                                    <span className="relative z-10"><CurrencyIcon size={13} /></span>
+                                    {extraCount > 0 && (
+                                        <span className="relative z-10 bg-white/25 px-1.5 py-0.5 rounded-md text-xs font-bold ml-0.5">
+                                            <SlotText value={`+${extraCount}`} charDelay={0.03} />
+                                        </span>
+                                    )}
+                                </motion.button>
+                            );
+                        })()}
+                    </AnimatePresence>
                     {poll.isActive && (
                         <button
                             type="button"
                             onClick={() => setShowDonate(true)}
-                            className={`w-7 h-7 rounded-full bg-gradient-to-r ${theme.header} flex items-center justify-center shadow-lg hover:shadow-xl transition-all cursor-pointer border border-white/20`}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all cursor-pointer border border-white/20 overflow-hidden relative`}
                             title="Donate to prize pool"
                         >
-                            <Plus className="w-3.5 h-3.5 text-white" />
+                            <AnimatePresence mode="popLayout" initial={false}>
+                                <motion.div
+                                    key={theme.header}
+                                    className={`absolute inset-0 bg-gradient-to-r ${theme.header}`}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.6 }}
+                                />
+                            </AnimatePresence>
+                            <Plus className="w-3.5 h-3.5 text-white relative z-10" />
                         </button>
                     )}
 
@@ -808,7 +847,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     {theme && <WaveBackground theme={theme} />}
 
                     <div
-                        className={`relative p-6 ${showThemedHeader ? "pb-8" : "border-b border-gray-100 dark:border-gray-700"}`}
+                        className={`relative z-10 p-6 ${showThemedHeader ? "pb-8" : "border-b border-gray-100 dark:border-gray-700"}`}
                     >
                         {/* Title + Day badge */}
                         <div className="flex items-start justify-between gap-3">
@@ -820,7 +859,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                         title={tournament?.name || poll.question}
                                         style={isTitleOverflowing ? { '--marquee-offset': `-${titleOverflowPx + 8}px` } as React.CSSProperties : undefined}
                                     >
-                                        {tournament?.name || poll.question}
+                                        <SlotText value={tournament?.name || poll.question} charDelay={0.015} />
                                     </h3>
                                 </div>
                                 <style jsx>{`
@@ -910,7 +949,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                             size="sm"
                                             className="font-bold bg-black/25 text-white border border-white/20 backdrop-blur-sm"
                                         >
-                                            {effectiveTeamType}
+                                            <SlotText value={effectiveTeamType} charDelay={0.03} />
                                         </Chip>
                                     </div>
                                 )}
@@ -934,9 +973,19 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
 
                 {/* ─── Options ─── */}
                 {(
-                    <div
-                        className={`p-6 space-y-3 transition-all duration-700 ease-in-out ${theme ? theme.options : ""}`}
-                    >
+                    <div className="relative p-6">
+                        {/* Crossfading background */}
+                        <AnimatePresence mode="popLayout" initial={false}>
+                            <motion.div
+                                key={theme?.options ?? "default"}
+                                className={`absolute inset-0 ${theme ? theme.options : ""}`}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.8, ease: "easeInOut" }}
+                            />
+                        </AnimatePresence>
+                        <div className="relative space-y-3">
                         {options.map((opt) => (
                             <PollOptionRow
                                 key={opt.vote}
@@ -1011,23 +1060,36 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         )}
 
                     </div>
+                    </div>
                 )}
 
 
 
 
                 {/* ─── Footer ─── */}
-                <div
-                    className={`px-6 pb-5 transition-all duration-700 ease-in-out ${theme ? theme.footer : ""}`}
-                >
-                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-3">
+                <div className="relative px-6 pb-5">
+                    {/* Crossfading background */}
+                    <AnimatePresence mode="popLayout" initial={false}>
+                        <motion.div
+                            key={theme?.footer ?? "default-footer"}
+                            className={`absolute inset-0 ${theme ? theme.footer : ""}`}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.8, ease: "easeInOut" }}
+                        />
+                    </AnimatePresence>
+                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-3 relative">
                             <span className="flex items-center space-x-1">
                             <Users className="w-4 h-4" />
                             <span>
-                                {poll.allowSquads
-                                    ? `${estimatedTeams} team${estimatedTeams !== 1 ? "s" : ""}`
-                                    : `${poll.totalVotes} vote${poll.totalVotes !== 1 ? "s" : ""}`
-                                }
+                                <SlotText
+                                    value={poll.allowSquads
+                                        ? `${estimatedTeams} team${estimatedTeams !== 1 ? "s" : ""}`
+                                        : `${poll.totalVotes} vote${poll.totalVotes !== 1 ? "s" : ""}`
+                                    }
+                                    charDelay={0.02}
+                                />
                             </span>
                         </span>
                         <span className="text-xs">
@@ -1039,10 +1101,10 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 </span>
                             ) : entryFee > 0 ? (
                                 <span className="inline-flex items-center gap-1">
-                                    Entry: {entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : <CurrencyIcon size={12} />}
+                                    <SlotText value={`Entry: ${entryFee}`} charDelay={0.02} /> {GAME.hasDualCurrency ? GAME.entryCurrency : <CurrencyIcon size={12} />}
                                 </span>
                             ) : (
-                                "Free Entry"
+                                <SlotText value="Free Entry" charDelay={0.02} />
                             )}
                         </span>
                     </div>
