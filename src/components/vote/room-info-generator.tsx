@@ -308,7 +308,12 @@ function TournamentRow({ tournament, state, onChange }: {
 
 export function RoomInfoGenerator() {
     const [isOpen, setIsOpen] = useState(false);
-    const DEFAULT_TIME = "20:00";
+    // Default time = now + 10 minutes
+    const getDefaultTime = () => {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 10);
+        return `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+    };
 
     // Fetch in-play tournaments independently
     const { data: tournaments = [] } = useQuery<InPlayTournament[]>({
@@ -331,7 +336,7 @@ export function RoomInfoGenerator() {
             for (const [id, data] of Object.entries(saved)) {
                 if (data && typeof data === "object") {
                     initial[id] = {
-                        time: data.time || DEFAULT_TIME,
+                        time: data.time || getDefaultTime(),
                         password: data.password || "m",
                         roomId: "",
                         map: getDefaultMapForMatch((data.copyCount ?? 0) + 1),
@@ -362,7 +367,7 @@ export function RoomInfoGenerator() {
     }, [states]);
 
     const getDefaultState = (): TournamentState => ({
-        time: DEFAULT_TIME, password: "m", roomId: "", map: "Erangel", copyCount: 0, justCopied: false,
+        time: getDefaultTime(), password: "m", roomId: "", map: "Erangel", copyCount: 0, justCopied: false,
     });
 
     const getState = (id: string): TournamentState => {
