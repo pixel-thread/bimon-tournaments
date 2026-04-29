@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Card, CardBody } from "@heroui/react";
-import { Copy, Check, ChevronDown, ChevronUp, KeyRound } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { GAME } from "@/lib/game-config";
 import type { PollDTO } from "@/hooks/use-polls";
@@ -37,10 +37,43 @@ const BGMI_MAPS = [
     "Nusa",
 ];
 
+/* ─── Alternating map for each match ─── */
+function getDefaultMapForMatch(matchNumber: number): string {
+    // Odd matches: Erangel, Even matches: Miramar
+    return matchNumber % 2 === 1 ? "Erangel" : "Miramar";
+}
+
+/* ─── Time helpers (12h format) ─── */
+
+function formatTimeDisplay(time: string): string {
+    if (!time) return "TBD";
+    const [h, m] = time.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+
+/** Parse "8:30 PM" or "20:30" back to "HH:MM" 24h */
+function parse12hTo24h(input: string): string {
+    // Try 12h format: "8:30 PM"
+    const match12 = input.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match12) {
+        let h = parseInt(match12[1]);
+        const m = parseInt(match12[2]);
+        const ampm = match12[3].toUpperCase();
+        if (ampm === "PM" && h !== 12) h += 12;
+        if (ampm === "AM" && h === 12) h = 0;
+        return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+    }
+    // Already 24h "HH:MM"
+    if (/^\d{1,2}:\d{2}$/.test(input)) return input;
+    return "";
+}
+
 /* ─── Types ─────────────────────────────────────────────────── */
 
 interface TournamentState {
-    time: string;
+    time: string; // 24h "HH:MM" internal format
     password: string;
     roomId: string;
     map: string;
@@ -48,9 +81,17 @@ interface TournamentState {
     justCopied: boolean;
 }
 
+interface PersistedTournamentState {
+    time: string;
+    password: string;
+    copyCount: number;
+}
+
 interface RoomInfoGeneratorProps {
     polls: PollDTO[];
 }
+
+const LS_KEY = "room-info-states";
 
 /* ─── Per-Tournament Row ────────────────────────────────────── */
 
@@ -66,13 +107,23 @@ function TournamentRow({ poll, state, onChange }: {
     const tournamentName = poll.tournament?.name || poll.question;
     const matchNumber = state.copyCount + 1; // Next match to copy
 
-    // Format time value (HH:MM 24h) to a readable string like "8:30 PM"
-    const formatTime = (timeVal: string) => {
-        if (!timeVal) return "TBD";
-        const [h, m] = timeVal.split(":").map(Number);
-        const ampm = h >= 12 ? "PM" : "AM";
-        const h12 = h % 12 || 12;
-        return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
+    // Time editing state — uses 12h display format
+    const [timeEditing, setTimeEditing] = useState(false);
+    const [timeInput, setTimeInput] = useState("");
+    const timeInputRef = useRef<HTMLInputElement>(null);
+
+    const startEditingTime = () => {
+        setTimeInput(state.time ? formatTimeDisplay(state.time) : "");
+        setTimeEditing(true);
+        setTimeout(() => timeInputRef.current?.focus(), 50);
+    };
+
+    const commitTime = () => {
+        setTimeEditing(false);
+        const parsed = parse12hTo24h(timeInput.trim());
+        if (parsed) {
+            onChange({ time: parsed });
+        }
     };
 
     const generateMessage = useCallback((matchNum: number) => {
@@ -82,8 +133,8 @@ function TournamentRow({ poll, state, onChange }: {
             divider,
             `🎯 ${tournamentName}`,
             `🗺️ Map: ${state.map}`,
-            `🕐 Match ${matchNum} — ${formatTime(state.time)}`,
-            ...(state.roomId.trim() ? [`🔐 Room ID: ${state.roomId.trim()}`] : []),
+            `🕐 Match ${matchNum} — ${formatTimeDisplay(state.time)}`,
+            `🔐 Room ID: ${state.roomId.trim() || ""}`,
             `🔑 Password: ${state.password}`,
             divider,
             `${GAME.gameName} × Bimon Tournament`,
@@ -96,9 +147,12 @@ function TournamentRow({ poll, state, onChange }: {
         const nextMatch = state.copyCount + 1;
         const message = generateMessage(nextMatch);
 
+        // Auto-switch map for next match
+        const nextMap = getDefaultMapForMatch(nextMatch + 1);
+
         try {
             await navigator.clipboard.writeText(message);
-            onChange({ copyCount: nextMatch, justCopied: true });
+            onChange({ copyCount: nextMatch, justCopied: true, map: nextMap });
 
             // Reset the checkmark after 2s
             if (timerRef.current) clearTimeout(timerRef.current);
@@ -113,7 +167,7 @@ function TournamentRow({ poll, state, onChange }: {
             textarea.select();
             document.execCommand("copy");
             document.body.removeChild(textarea);
-            onChange({ copyCount: nextMatch, justCopied: true });
+            onChange({ copyCount: nextMatch, justCopied: true, map: nextMap });
             if (timerRef.current) clearTimeout(timerRef.current);
             timerRef.current = setTimeout(() => {
                 onChange({ justCopied: false });
@@ -122,7 +176,7 @@ function TournamentRow({ poll, state, onChange }: {
     }, [generateMessage, state.copyCount, onChange]);
 
     const resetMatch = useCallback(() => {
-        onChange({ copyCount: 0 });
+        onChange({ copyCount: 0, map: "Erangel" });
     }, [onChange]);
 
     return (
@@ -140,9 +194,10 @@ function TournamentRow({ poll, state, onChange }: {
                     <button
                         type="button"
                         onClick={resetMatch}
-                        className="text-[10px] text-foreground/40 hover:text-foreground/60 transition-colors cursor-pointer px-1.5 py-0.5 rounded bg-default-100"
+                        className="text-[10px] text-foreground/40 hover:text-foreground/60 transition-colors cursor-pointer px-1.5 py-0.5 rounded bg-default-100 flex items-center gap-1"
                         title="Reset match counter"
                     >
+                        <RotateCcw className="w-3 h-3" />
                         Reset
                     </button>
                 )}
@@ -165,12 +220,26 @@ function TournamentRow({ poll, state, onChange }: {
                 </div>
                 <div>
                     <label className="text-[10px] text-foreground/40 uppercase tracking-wider mb-1 block">Time</label>
-                    <input
-                        type="time"
-                        value={state.time}
-                        onChange={(e) => onChange({ time: e.target.value })}
-                        className="w-full px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
+                    {timeEditing ? (
+                        <input
+                            ref={timeInputRef}
+                            type="text"
+                            value={timeInput}
+                            onChange={(e) => setTimeInput(e.target.value)}
+                            onBlur={commitTime}
+                            onKeyDown={(e) => { if (e.key === "Enter") commitTime(); }}
+                            placeholder="8:00 PM"
+                            className="w-full px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={startEditingTime}
+                            className="w-full px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm text-left cursor-pointer hover:bg-default-200 transition-colors"
+                        >
+                            {state.time ? formatTimeDisplay(state.time) : <span className="text-foreground/30">8:00 PM</span>}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -242,17 +311,25 @@ function TournamentRow({ poll, state, onChange }: {
 export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
     const [isOpen, setIsOpen] = useState(false);
 
-    const LS_KEY = "room-info-match-counts";
+    // Default time: 8:00 PM
+    const DEFAULT_TIME = "20:00";
 
-    // Load persisted match counts from localStorage on mount
+    // Load persisted states from localStorage on mount
     const [states, setStates] = useState<Record<string, TournamentState>>(() => {
         if (typeof window === "undefined") return {};
         try {
-            const saved = JSON.parse(localStorage.getItem(LS_KEY) || "{}") as Record<string, number>;
+            const saved = JSON.parse(localStorage.getItem(LS_KEY) || "{}") as Record<string, PersistedTournamentState>;
             const initial: Record<string, TournamentState> = {};
-            for (const [pollId, count] of Object.entries(saved)) {
-                if (typeof count === "number" && count > 0) {
-                    initial[pollId] = { time: "", password: "m", roomId: "", map: "Erangel", copyCount: count, justCopied: false };
+            for (const [pollId, data] of Object.entries(saved)) {
+                if (data && typeof data === "object") {
+                    initial[pollId] = {
+                        time: data.time || DEFAULT_TIME,
+                        password: data.password || "m",
+                        roomId: "",
+                        map: getDefaultMapForMatch((data.copyCount ?? 0) + 1),
+                        copyCount: data.copyCount ?? 0,
+                        justCopied: false,
+                    };
                 }
             }
             return initial;
@@ -261,30 +338,29 @@ export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
         }
     });
 
-    // Persist match counts to localStorage whenever they change
+    // Persist time, password, and match counts to localStorage whenever they change
     useEffect(() => {
-        const counts: Record<string, number> = {};
+        const persisted: Record<string, PersistedTournamentState> = {};
         for (const [pollId, state] of Object.entries(states)) {
-            if (state.copyCount > 0) counts[pollId] = state.copyCount;
+            // Persist if there's a custom time or match count > 0
+            if (state.copyCount > 0 || state.time) {
+                persisted[pollId] = {
+                    time: state.time,
+                    password: state.password,
+                    copyCount: state.copyCount,
+                };
+            }
         }
-        try { localStorage.setItem(LS_KEY, JSON.stringify(counts)); } catch { /* quota */ }
+        try { localStorage.setItem(LS_KEY, JSON.stringify(persisted)); } catch { /* quota */ }
     }, [states]);
 
-    // Default time = now + 10 minutes (HH:MM format for <input type="time">)
-    const getDefaultTime = () => {
-        const now = new Date();
-        now.setMinutes(now.getMinutes() + 10);
-        return `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-    };
-
-    const getDefaultState = (): TournamentState => ({
-        time: getDefaultTime(), password: "m", roomId: "", map: "Erangel", copyCount: 0, justCopied: false,
+    const getDefaultState = (matchNum: number = 1): TournamentState => ({
+        time: DEFAULT_TIME, password: "m", roomId: "", map: getDefaultMapForMatch(matchNum), copyCount: 0, justCopied: false,
     });
 
     const getState = (pollId: string): TournamentState => {
         if (states[pollId]) {
-            // Fill in time if it was loaded from localStorage (which only saves copyCount)
-            return { ...getDefaultState(), ...states[pollId] };
+            return states[pollId];
         }
         return getDefaultState();
     };
@@ -296,8 +372,8 @@ export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
         });
     };
 
-    // Only show active polls
-    const activePolls = polls.filter((p) => p.isActive);
+    // Only show active polls that have teams (totalVotes > 0 means teams have been generated)
+    const activePolls = polls.filter((p) => p.isActive && p.totalVotes > 0);
     if (activePolls.length === 0) return null;
 
     return (
@@ -353,7 +429,7 @@ export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
 
                             {/* Hint */}
                             <p className="text-[10px] text-center text-foreground/30 pt-1">
-                                💡 Leave Room ID blank → paste format in WhatsApp, then add ID there
+                                💡 Room ID row always included — fill it in WhatsApp if left blank
                             </p>
                         </CardBody>
                     </motion.div>
