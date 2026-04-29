@@ -48,7 +48,7 @@ const TOURNAMENT_FORMAT_LABELS: Record<string, string> = {
     LEAGUE: "🏟️ League",
     GROUP_KNOCKOUT: "🌍 Group + Knockout",
 };
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Mon - Sat", "Custom"];
 
 interface PollFormModalProps {
     isOpen: boolean;
@@ -62,6 +62,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
 
     const [question, setQuestion] = useState("");
     const [days, setDays] = useState("Monday");
+    const [customDays, setCustomDays] = useState("");
     const [teamType, setTeamType] = useState(GAME.features.hasTeamSizes ? "DYNAMIC" : "SOLO");
     const [tournamentFormat, setTournamentFormat] = useState(GAME.defaultTournamentType ?? "BRACKET_1V1");
     const [tournamentId, setTournamentId] = useState("");
@@ -136,22 +137,28 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             toast.error("Question is required");
             return;
         }
+        if (days === "Custom" && !customDays.trim()) {
+            toast.error("Enter a custom schedule");
+            return;
+        }
         if (!isEdit && !tournamentId) {
             toast.error("Select a tournament");
             return;
         }
 
+        const actualDays = days === "Custom" ? customDays.trim() : days;
+
         setSaving(true);
         try {
             const body = isEdit
                 ? {
-                    id: poll!.id, question, days, teamType, isActive, allowSquads, enableFund,
+                    id: poll!.id, question, days: actualDays, teamType, isActive, allowSquads, enableFund,
                     options: options.map(o => ({ id: o.id, name: o.name })),
                     // Send tournament format on edit too (PES)
                     ...(!GAME.features.hasTeamSizes && { tournamentType: tournamentFormat }),
                 }
                 : {
-                    question, days, teamType, tournamentId, allowSquads, enableFund,
+                    question, days: actualDays, teamType, tournamentId, allowSquads, enableFund,
                     // For PES or TDM: send format so poll creation can update tournament type
                     ...((!GAME.features.hasTeamSizes || isTDM) && { tournamentType: tournamentFormat }),
                     // TDM flag — API will set tournament.isTDM
@@ -270,10 +277,15 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
 
                         <Select
                             label="Day"
-                            selectedKeys={[days]}
+                            selectedKeys={[DAYS.includes(days) ? days : "Custom"]}
                             onSelectionChange={(keys) => {
                                 const key = Array.from(keys)[0] as string;
-                                if (key) setDays(key);
+                                if (key === "Custom") {
+                                    setDays("Custom");
+                                } else if (key) {
+                                    setDays(key);
+                                    setCustomDays("");
+                                }
                             }}
                             size="sm"
                         >
@@ -281,6 +293,18 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                                 <SelectItem key={d} textValue={d}>{d}</SelectItem>
                             ))}
                         </Select>
+                        {(days === "Custom" || (!DAYS.includes(days) && days !== "Monday")) && (
+                            <Input
+                                label="Custom schedule"
+                                placeholder="e.g. Fri - Sun"
+                                value={days === "Custom" ? customDays : days}
+                                onValueChange={(v) => {
+                                    setCustomDays(v);
+                                    if (v.trim()) setDays(v.trim());
+                                }}
+                                size="sm"
+                            />
+                        )}
                     </div>
 
                     {isEdit && (

@@ -848,10 +848,22 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 `}</style>
                             </div>
                             {poll.days && (() => {
-                                const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-                                const dayIdx = DAYS.findIndex(d => poll.days?.toLowerCase().startsWith(d.toLowerCase()));
-                                if (dayIdx < 0) return <Chip size="sm" variant="flat" className={theme ? theme.badge : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200"}>{poll.days}</Chip>;
-                                const today = new Date().getDay(); // 0=Sun
+                                const DAY_MAP: Record<string, number> = {
+                                    sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tuesday: 2,
+                                    wed: 3, wednesday: 3, thu: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6,
+                                };
+                                // Find the first recognizable day name in the string
+                                const lower = poll.days!.toLowerCase();
+                                let dayIdx = -1;
+                                for (const [abbr, idx] of Object.entries(DAY_MAP)) {
+                                    const pos = lower.indexOf(abbr);
+                                    if (pos >= 0 && (pos === 0 || /\W/.test(lower[pos - 1]))) {
+                                        dayIdx = idx;
+                                        break;
+                                    }
+                                }
+                                if (dayIdx < 0) return <Chip size="sm" variant="flat" className="bg-black/25 text-white backdrop-blur-sm font-semibold">{poll.days}</Chip>;
+                                const today = new Date().getDay();
                                 const diff = (dayIdx - today + 7) % 7;
                                 const label = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : `in ${diff} days`;
                                 const isToday = diff === 0;
@@ -1151,12 +1163,15 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         </p>
                     )}
                     {showScheduleInfo && poll.days && (() => {
-                        const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-                        const idx = DAYS.findIndex(d => poll.days?.toLowerCase().startsWith(d.toLowerCase()));
-                        const nextDay = idx >= 0 ? DAYS[(idx + 1) % 7] : null;
+                        const FULL_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                        // Check if it's a single full day name (auto-append next day)
+                        const singleIdx = FULL_DAYS.findIndex(d => d.toLowerCase() === poll.days?.toLowerCase());
+                        const displayDays = singleIdx >= 0
+                            ? `${FULL_DAYS[singleIdx]} & ${FULL_DAYS[(singleIdx + 1) % 7]}`
+                            : poll.days;
                         return (
                             <div className="text-[11px] text-foreground/40 text-center px-4 pb-1 animate-in fade-in duration-200 space-y-0.5">
-                                <p>📅 Match days: <span className="text-foreground/60 font-medium">{poll.days}{nextDay ? ` & ${nextDay}` : ""}</span></p>
+                                <p>📅 Match days: <span className="text-foreground/60 font-medium">{displayDays}</span></p>
                                 <p>⏰ Start time: <span className="text-foreground/60 font-medium">8:00 PM IST</span></p>
                             </div>
                         );
