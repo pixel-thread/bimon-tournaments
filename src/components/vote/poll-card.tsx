@@ -794,11 +794,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             <Plus className="w-3.5 h-3.5 text-white" />
                         </button>
                     )}
-                    {poll.sponsorCoupon && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
-                            🎟️ +{poll.sponsorCoupon.discountPct}% off coupon
-                        </span>
-                    )}
+
                 </div>
             )}
             <div
