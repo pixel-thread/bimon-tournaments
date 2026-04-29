@@ -481,7 +481,7 @@ export default function TeamsPage() {
                                                 {team.teamNumber}
                                             </span>
                                             <span className="text-sm font-semibold text-foreground/50 truncate">
-                                                {team.name && team.name !== `Team ${team.teamNumber}` ? team.name : `Team ${team.teamNumber}`}
+                                                {allowSquads && team.name && team.name !== `Team ${team.teamNumber}` ? team.name : `Team ${team.teamNumber}`}
                                             </span>
                                         </div>
                                         {team.winner && (
