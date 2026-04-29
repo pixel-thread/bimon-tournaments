@@ -851,8 +851,8 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     >
                         {/* Title + Day badge */}
                         <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0 overflow-hidden">
-                                <div className="overflow-hidden">
+                            <div className="flex-1 min-w-0 overflow-x-hidden">
+                                <div className="overflow-x-hidden overflow-y-visible">
                                     <h3
                                         ref={titleRef}
                                         className={`font-semibold text-lg whitespace-nowrap ${isTitleOverflowing ? "animate-marquee" : ""} ${showThemedHeader ? "text-white drop-shadow-md" : "text-gray-900 dark:text-white"}`}
