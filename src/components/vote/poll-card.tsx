@@ -945,12 +945,11 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 {/* Team type badge — only for BR games with team sizes */}
                                 {GAME.features.hasTeamSizes && effectiveTeamType && (
                                     <div className="absolute bottom-2 left-3">
-                                        <Chip
-                                            size="sm"
-                                            className="font-bold bg-black/25 text-white border border-white/20 backdrop-blur-sm"
+                                        <span
+                                            className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-black/25 text-white border border-white/20 backdrop-blur-sm overflow-y-visible"
                                         >
                                             <SlotText value={effectiveTeamType} charDelay={0.03} />
-                                        </Chip>
+                                        </span>
                                     </div>
                                 )}
                                 {/* TDM / WoW badge */}
