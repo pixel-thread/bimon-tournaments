@@ -38,10 +38,10 @@ export function SlotText({
                     className="inline-block overflow-hidden relative"
                     style={{ verticalAlign: "top" }}
                 >
-                    <AnimatePresence mode="popLayout" initial={false}>
+                    <AnimatePresence mode="popLayout">
                         <motion.span
-                            // Re-key on generation + char so ALL chars roll on every change
-                            key={`${gen}-${char}`}
+                            // Re-key on generation so ALL chars roll on every change
+                            key={`${gen}-${i}`}
                             initial={{ y: "100%" }}
                             animate={{ y: 0 }}
                             exit={{ y: "-110%" }}
