@@ -75,10 +75,26 @@ export function SlotsModal({
         }
 
         try {
+            // Temporarily remove viewport constraints so full content is captured
+            const prevMinH = element.style.minHeight;
+            const prevH = element.style.height;
+            element.style.minHeight = 'auto';
+            element.style.height = 'auto';
+
+            // Also expand any overflow-hidden scrollable wrappers inside
+            const scrollWrapper = element.querySelector('.overflow-x-auto') as HTMLElement | null;
+            const prevOverflow = scrollWrapper?.style.overflow;
+            if (scrollWrapper) scrollWrapper.style.overflow = 'visible';
+
             const dataUrl = await toPng(element, {
                 pixelRatio: 2,
                 filter: (node) => !node.classList?.contains("floating-controls"),
             });
+
+            // Restore original styles
+            element.style.minHeight = prevMinH;
+            element.style.height = prevH;
+            if (scrollWrapper && prevOverflow !== undefined) scrollWrapper.style.overflow = prevOverflow;
 
             // Convert data URL to blob
             const res = await fetch(dataUrl);
