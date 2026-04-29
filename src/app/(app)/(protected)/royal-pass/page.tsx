@@ -80,8 +80,10 @@ export default function RoyalPassPage() {
             const json = await res.json();
             if (res.ok) {
                 toast.success(`🎉 ${GAME.passName} purchased!`);
-                queryClient.invalidateQueries({ queryKey: ["royal-pass"] });
-                queryClient.invalidateQueries({ queryKey: ["profile"] });
+                        // Clear stale profile localStorage caches
+                        try { localStorage.removeItem("profile_cache_casual"); localStorage.removeItem("profile_cache_ranked"); } catch {}
+                        queryClient.invalidateQueries({ queryKey: ["royal-pass"] });
+                        queryClient.invalidateQueries({ queryKey: ["profile"] });
             } else {
                 toast.error(json.message || "Purchase failed");
             }

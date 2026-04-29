@@ -1078,7 +1078,8 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             transition={{ duration: 0.8, ease: "easeInOut" }}
                         />
                     </AnimatePresence>
-                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-3 relative">
+                    <div className="relative">
+                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-3">
                             <span className="flex items-center space-x-1">
                             <Users className="w-4 h-4" />
                             <span>
@@ -1233,6 +1234,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             </div>
                         );
                     })()}
+                    </div>
                 </div>
 
                 {/* ─── Voters Dialog ─── */}

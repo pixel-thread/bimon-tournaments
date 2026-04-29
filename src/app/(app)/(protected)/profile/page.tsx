@@ -1375,6 +1375,9 @@ export default function ProfilePage() {
                                                     if (res.ok) {
                                                         toast.success(`${GAME.passName} activated! ${GAME.passEmoji}`);
                                                         setShowRPModal(false);
+                                                        // Clear stale localStorage caches so hasRoyalPass: true is reflected
+                                                        try { localStorage.removeItem(getProfileCacheKey("casual")); } catch {}
+                                                        try { localStorage.removeItem(getProfileCacheKey("ranked")); } catch {}
                                                         await queryClient.invalidateQueries({ queryKey: ["profile"] });
                                                         setTimeout(() => characterInputRef.current?.click(), 500);
                                                     } else {
