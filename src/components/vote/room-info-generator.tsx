@@ -372,8 +372,8 @@ export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
         });
     };
 
-    // Only show active polls that have teams (totalVotes > 0 means teams have been generated)
-    const activePolls = polls.filter((p) => p.isActive && p.totalVotes > 0);
+    // Only show active polls where teams have been generated (tournament is in play)
+    const activePolls = polls.filter((p) => p.isActive && p.tournament?.hasTeams);
     if (activePolls.length === 0) return null;
 
     return (

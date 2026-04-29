@@ -19,6 +19,7 @@ export interface PollDTO {
         seasonId: string | null;
         isTDM?: boolean;
         isWoW?: boolean;
+        hasTeams?: boolean;
     };
     luckyVoterId: string | null;
     isActive: boolean;
