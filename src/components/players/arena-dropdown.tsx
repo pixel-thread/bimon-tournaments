@@ -56,7 +56,7 @@ export function ArenaDropdown({ teamMode, onSelect, hasTDM, hasWoW }: ArenaDropd
                     }
                 `}
             >
-                <span>{activeMode?.icon ?? "⚔️"}</span>
+                {activeMode?.icon && <span>{activeMode.icon}</span>}
                 <span>{activeMode?.label ?? "More"}</span>
                 <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
             </button>
