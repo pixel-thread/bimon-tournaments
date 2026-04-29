@@ -19,7 +19,13 @@ export async function GET(request: Request) {
 
         const polls = await prisma.poll.findMany({
             where: {
-                ...(all ? {} : { isActive: true }),
+                ...(all ? {} : {
+                    OR: [
+                        { isActive: true },
+                        // Also include polls for in-play tournaments (active, teams generated, winner not yet declared)
+                        { tournament: { status: "ACTIVE", isWinnerDeclared: false, teams: { some: {} } } },
+                    ],
+                }),
                 ...(seasonId ? { tournament: { seasonId } } : {}),
             },
             include: {
