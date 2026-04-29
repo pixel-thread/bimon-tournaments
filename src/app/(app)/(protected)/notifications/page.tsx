@@ -524,7 +524,8 @@ export default function NotificationsPage() {
                                                     color="primary"
                                                     variant="flat"
                                                     isIconOnly
-                                                    isLoading={respondSquadRequest.isPending}
+                                                    isLoading={respondSquadRequest.isPending && respondSquadRequest.variables?.inviteId === req.id && respondSquadRequest.variables?.action === "ACCEPT"}
+                                                    isDisabled={respondSquadRequest.isPending && respondSquadRequest.variables?.inviteId === req.id && respondSquadRequest.variables?.action !== "ACCEPT"}
                                                     onPress={() => respondSquadRequest.mutate({ inviteId: req.id, action: "ACCEPT" })}
                                                     className="min-w-7 w-7 h-7"
                                                 >
@@ -535,7 +536,8 @@ export default function NotificationsPage() {
                                                     color="danger"
                                                     variant="flat"
                                                     isIconOnly
-                                                    isLoading={respondSquadRequest.isPending}
+                                                    isLoading={respondSquadRequest.isPending && respondSquadRequest.variables?.inviteId === req.id && respondSquadRequest.variables?.action === "DECLINE"}
+                                                    isDisabled={respondSquadRequest.isPending && respondSquadRequest.variables?.inviteId === req.id && respondSquadRequest.variables?.action !== "DECLINE"}
                                                     onPress={() => respondSquadRequest.mutate({ inviteId: req.id, action: "DECLINE" })}
                                                     className="min-w-7 w-7 h-7"
                                                 >
