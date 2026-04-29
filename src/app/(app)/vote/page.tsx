@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { usePolls, useVote, useEntryMutation } from "@/hooks/use-polls";
 import { PollCard } from "@/components/vote/poll-card";
 import { MeritRatingSection } from "@/components/vote/merit-rating-gate";
@@ -12,9 +12,11 @@ import { Vote, AlertCircle } from "lucide-react";
 import { useAuthGate } from "@/components/common/auth-gate-provider";
 import { GAME } from "@/lib/game-config";
 import { ArenaDropdown } from "@/components/players/arena-dropdown";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, LayoutGroup } from "motion/react";
 
 type TabKey = "casual" | "ranked" | "tdm" | "wow";
+
+const SPRING = { type: "spring" as const, stiffness: 500, damping: 35 };
 
 /**
  * /vote — Tournament voting page.
@@ -26,8 +28,6 @@ export default function VotePage() {
     const entryMutation = useEntryMutation();
     const { requireAuth } = useAuthGate();
     const [tab, setTab] = useState<TabKey>("casual");
-    const [direction, setDirection] = useState(0); // -1 = left, 1 = right
-    const prevTabRef = useRef<TabKey>("casual");
 
     const polls = data?.polls;
     const currentPlayerId = data?.currentPlayerId ?? undefined;
@@ -51,14 +51,7 @@ export default function VotePage() {
         })
         : polls;
 
-    // Tab order for determining slide direction
-    const tabOrder: TabKey[] = ["casual", "ranked", "tdm", "wow"];
-
     function handleTabChange(newTab: TabKey) {
-        const oldIndex = tabOrder.indexOf(prevTabRef.current);
-        const newIndex = tabOrder.indexOf(newTab);
-        setDirection(newIndex > oldIndex ? 1 : -1);
-        prevTabRef.current = newTab;
         setTab(newTab);
     }
 
@@ -72,21 +65,7 @@ export default function VotePage() {
         { key: "ranked", label: "Ranked", icon: "🏆", count: rankedCount },
     ];
 
-    // Content slide variants — tight and snappy
-    const slideVariants = {
-        enter: (dir: number) => ({
-            x: dir > 0 ? 30 : -30,
-            opacity: 0,
-        }),
-        center: {
-            x: 0,
-            opacity: 1,
-        },
-        exit: (dir: number) => ({
-            x: dir > 0 ? -20 : 20,
-            opacity: 0,
-        }),
-    };
+
 
     return (
         <div className="mx-auto max-w-lg px-4 py-6 sm:px-6">
@@ -202,28 +181,20 @@ export default function VotePage() {
             )}
 
             {filteredPolls && (
-                <AnimatePresence mode="popLayout" custom={direction}>
+                <AnimatePresence mode="wait">
                     <motion.div
                         key={tab}
-                        custom={direction}
-                        variants={slideVariants}
-                        initial="enter"
-                        animate="center"
-                        exit="exit"
-                        transition={{
-                            type: "spring",
-                            stiffness: 500,
-                            damping: 35,
-                            mass: 0.5,
-                            opacity: { duration: 0.15 },
-                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.12 }}
                         className="space-y-4"
                     >
                         {filteredPolls.length === 0 ? (
                             <motion.div
-                                initial={{ opacity: 0, y: 20 }}
+                                initial={{ opacity: 0, y: 12 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                transition={{ duration: 0.3, ease: "easeOut" }}
                                 className="flex flex-col items-center gap-3 rounded-xl bg-default-100 py-12 text-center"
                             >
                                 <Vote className="h-10 w-10 text-foreground/20" />
@@ -247,12 +218,13 @@ export default function VotePage() {
                             filteredPolls.map((poll, i) => (
                                 <motion.div
                                     key={poll.id}
-                                    initial={{ opacity: 0, y: 16 }}
+                                    initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{
-                                        delay: i * 0.04,
-                                        duration: 0.25,
-                                        ease: [0.25, 0.1, 0.25, 1],
+                                        delay: 0.06 + i * 0.05,
+                                        type: "spring",
+                                        stiffness: 380,
+                                        damping: 28,
                                     }}
                                 >
                                     <PollCard
