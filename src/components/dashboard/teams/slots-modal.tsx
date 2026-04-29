@@ -76,15 +76,28 @@ export function SlotsModal({
 
         try {
             // Temporarily remove viewport constraints so full content is captured
+            // On mobile, the table (min-w-500px) is wider than the screen, so
+            // toPng only captures visible columns unless we expand the container.
             const prevMinH = element.style.minHeight;
             const prevH = element.style.height;
+            const prevMinW = element.style.minWidth;
+            const prevW = element.style.width;
+            const prevOverflowEl = element.style.overflow;
             element.style.minHeight = 'auto';
             element.style.height = 'auto';
+            element.style.minWidth = '600px'; // Ensure full table fits
+            element.style.width = 'max-content';
+            element.style.overflow = 'visible';
 
-            // Also expand any overflow-hidden scrollable wrappers inside
+            // Also expand the scrollable table wrapper
             const scrollWrapper = element.querySelector('.overflow-x-auto') as HTMLElement | null;
-            const prevOverflow = scrollWrapper?.style.overflow;
+            const prevScrollOverflow = scrollWrapper?.style.overflow;
             if (scrollWrapper) scrollWrapper.style.overflow = 'visible';
+
+            // And the outer rounded container (overflow-hidden from border-radius)
+            const tableContainer = scrollWrapper?.parentElement as HTMLElement | null;
+            const prevContainerOverflow = tableContainer?.style.overflow;
+            if (tableContainer) tableContainer.style.overflow = 'visible';
 
             const dataUrl = await toPng(element, {
                 pixelRatio: 2,
@@ -94,7 +107,11 @@ export function SlotsModal({
             // Restore original styles
             element.style.minHeight = prevMinH;
             element.style.height = prevH;
-            if (scrollWrapper && prevOverflow !== undefined) scrollWrapper.style.overflow = prevOverflow;
+            element.style.minWidth = prevMinW;
+            element.style.width = prevW;
+            element.style.overflow = prevOverflowEl;
+            if (scrollWrapper && prevScrollOverflow !== undefined) scrollWrapper.style.overflow = prevScrollOverflow;
+            if (tableContainer && prevContainerOverflow !== undefined) tableContainer.style.overflow = prevContainerOverflow;
 
             // Convert data URL to blob
             const res = await fetch(dataUrl);

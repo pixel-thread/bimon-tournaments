@@ -77,10 +77,7 @@ export async function POST(request: NextRequest) {
         // 3. Create team
         const teamCount = await prisma.team.count({ where: { tournamentId } });
 
-        // Preserve input order for team name
-        const playerMap = new Map(players.map((p) => [p.id, p]));
-        const orderedPlayers = playerIds.map((id) => playerMap.get(id)!);
-        const teamName = orderedPlayers.map((p) => p.user.username).join("_");
+        const teamName = `Team ${teamCount + 1}`;
 
         const team = await prisma.team.create({
             data: {
