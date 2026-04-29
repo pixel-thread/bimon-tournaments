@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardBody } from "@heroui/react";
 import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { GAME } from "@/lib/game-config";
-import type { PollDTO } from "@/hooks/use-polls";
 
 /* ─── Unicode bold text helper (renders bold in WhatsApp) ───── */
 
@@ -55,7 +55,6 @@ function formatTimeDisplay(time: string): string {
 
 /** Parse "8:30 PM" or "20:30" back to "HH:MM" 24h */
 function parse12hTo24h(input: string): string {
-    // Try 12h format: "8:30 PM"
     const match12 = input.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
     if (match12) {
         let h = parseInt(match12[1]);
@@ -65,19 +64,27 @@ function parse12hTo24h(input: string): string {
         if (ampm === "AM" && h === 12) h = 0;
         return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
     }
-    // Already 24h "HH:MM"
     if (/^\d{1,2}:\d{2}$/.test(input)) return input;
     return "";
 }
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
+interface InPlayTournament {
+    id: string;
+    name: string;
+    type: string;
+    pollId: string | null;
+    allowSquads: boolean;
+    question: string;
+}
+
 interface TournamentState {
     time: string; // 24h "HH:MM" internal format
     password: string;
     roomId: string;
     map: string;
-    copyCount: number; // Tracks match number: 1st copy = Match 1, 2nd = Match 2, etc.
+    copyCount: number;
     justCopied: boolean;
 }
 
@@ -87,27 +94,23 @@ interface PersistedTournamentState {
     copyCount: number;
 }
 
-interface RoomInfoGeneratorProps {
-    polls: PollDTO[];
-}
-
 const LS_KEY = "room-info-states";
 
 /* ─── Per-Tournament Row ────────────────────────────────────── */
 
-function TournamentRow({ poll, state, onChange }: {
-    poll: PollDTO;
+function TournamentRow({ tournament, state, onChange }: {
+    tournament: InPlayTournament;
     state: TournamentState;
     onChange: (update: Partial<TournamentState>) => void;
 }) {
     const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const isRanked = poll.allowSquads;
+    const isRanked = tournament.allowSquads;
     const typeEmoji = isRanked ? "🏆" : "🎮";
     const typeLabel = isRanked ? "RANKED" : "CASUAL";
-    const tournamentName = poll.tournament?.name || poll.question;
-    const matchNumber = state.copyCount + 1; // Next match to copy
+    const tournamentName = tournament.name;
+    const matchNumber = state.copyCount + 1;
 
-    // Time editing state — uses 12h display format
+    // Time editing state
     const [timeEditing, setTimeEditing] = useState(false);
     const [timeInput, setTimeInput] = useState("");
     const timeInputRef = useRef<HTMLInputElement>(null);
@@ -146,21 +149,17 @@ function TournamentRow({ poll, state, onChange }: {
     const handleCopy = useCallback(async () => {
         const nextMatch = state.copyCount + 1;
         const message = generateMessage(nextMatch);
-
-        // Auto-switch map for next match
         const nextMap = getDefaultMapForMatch(nextMatch + 1);
 
         try {
             await navigator.clipboard.writeText(message);
             onChange({ copyCount: nextMatch, justCopied: true, map: nextMap });
 
-            // Reset the checkmark after 2s
             if (timerRef.current) clearTimeout(timerRef.current);
             timerRef.current = setTimeout(() => {
                 onChange({ justCopied: false });
             }, 2000);
         } catch {
-            // Fallback for older browsers
             const textarea = document.createElement("textarea");
             textarea.value = message;
             document.body.appendChild(textarea);
@@ -203,7 +202,6 @@ function TournamentRow({ poll, state, onChange }: {
                 )}
             </div>
 
-            {/* Input Row: Time + Password + Room ID */}
             {/* Row 1: Map + Time */}
             <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -308,21 +306,31 @@ function TournamentRow({ poll, state, onChange }: {
 
 /* ─── Main Component ────────────────────────────────────────── */
 
-export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
+export function RoomInfoGenerator() {
     const [isOpen, setIsOpen] = useState(false);
-
-    // Default time: 8:00 PM
     const DEFAULT_TIME = "20:00";
 
-    // Load persisted states from localStorage on mount
+    // Fetch in-play tournaments independently
+    const { data: tournaments = [] } = useQuery<InPlayTournament[]>({
+        queryKey: ["tournaments-in-play"],
+        queryFn: async () => {
+            const res = await fetch("/api/tournaments/in-play");
+            if (!res.ok) return [];
+            const json = await res.json();
+            return json.data ?? [];
+        },
+        staleTime: 60 * 1000,
+    });
+
+    // Load persisted states from localStorage
     const [states, setStates] = useState<Record<string, TournamentState>>(() => {
         if (typeof window === "undefined") return {};
         try {
             const saved = JSON.parse(localStorage.getItem(LS_KEY) || "{}") as Record<string, PersistedTournamentState>;
             const initial: Record<string, TournamentState> = {};
-            for (const [pollId, data] of Object.entries(saved)) {
+            for (const [id, data] of Object.entries(saved)) {
                 if (data && typeof data === "object") {
-                    initial[pollId] = {
+                    initial[id] = {
                         time: data.time || DEFAULT_TIME,
                         password: data.password || "m",
                         roomId: "",
@@ -338,43 +346,37 @@ export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
         }
     });
 
-    // Persist time, password, and match counts to localStorage whenever they change
+    // Persist to localStorage
     useEffect(() => {
         const persisted: Record<string, PersistedTournamentState> = {};
-        for (const [pollId, state] of Object.entries(states)) {
-            // Persist if there's a custom time or match count > 0
+        for (const [id, state] of Object.entries(states)) {
             if (state.copyCount > 0 || state.time) {
-                persisted[pollId] = {
+                persisted[id] = {
                     time: state.time,
                     password: state.password,
                     copyCount: state.copyCount,
                 };
             }
         }
-        try { localStorage.setItem(LS_KEY, JSON.stringify(persisted)); } catch { /* quota */ }
+        try { localStorage.setItem(LS_KEY, JSON.stringify(persisted)); } catch {}
     }, [states]);
 
-    const getDefaultState = (matchNum: number = 1): TournamentState => ({
-        time: DEFAULT_TIME, password: "m", roomId: "", map: getDefaultMapForMatch(matchNum), copyCount: 0, justCopied: false,
+    const getDefaultState = (): TournamentState => ({
+        time: DEFAULT_TIME, password: "m", roomId: "", map: "Erangel", copyCount: 0, justCopied: false,
     });
 
-    const getState = (pollId: string): TournamentState => {
-        if (states[pollId]) {
-            return states[pollId];
-        }
-        return getDefaultState();
+    const getState = (id: string): TournamentState => {
+        return states[id] ?? getDefaultState();
     };
 
-    const updateState = (pollId: string, update: Partial<TournamentState>) => {
+    const updateState = (id: string, update: Partial<TournamentState>) => {
         setStates((prev) => {
-            const current = prev[pollId] ?? getDefaultState();
-            return { ...prev, [pollId]: { ...current, ...update } };
+            const current = prev[id] ?? getDefaultState();
+            return { ...prev, [id]: { ...current, ...update } };
         });
     };
 
-    // Only show active polls where teams have been generated (tournament is in play)
-    const activePolls = polls.filter((p) => p.isActive && p.tournament?.hasTeams);
-    if (activePolls.length === 0) return null;
+    if (tournaments.length === 0) return null;
 
     return (
         <Card className="mb-4 border border-divider overflow-hidden">
@@ -395,7 +397,7 @@ export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-500 font-medium">
-                        {activePolls.length} active
+                        {tournaments.length} in play
                     </span>
                     {isOpen ? (
                         <ChevronUp className="w-4 h-4 text-foreground/40" />
@@ -416,13 +418,13 @@ export function RoomInfoGenerator({ polls }: RoomInfoGeneratorProps) {
                         className="overflow-hidden"
                     >
                         <CardBody className="px-4 pt-0 pb-4 space-y-4">
-                            {activePolls.map((poll, i) => (
-                                <div key={poll.id}>
+                            {tournaments.map((t, i) => (
+                                <div key={t.id}>
                                     {i > 0 && <div className="border-t border-divider my-3" />}
                                     <TournamentRow
-                                        poll={poll}
-                                        state={getState(poll.id)}
-                                        onChange={(update) => updateState(poll.id, update)}
+                                        tournament={t}
+                                        state={getState(t.id)}
+                                        onChange={(update) => updateState(t.id, update)}
                                     />
                                 </div>
                             ))}

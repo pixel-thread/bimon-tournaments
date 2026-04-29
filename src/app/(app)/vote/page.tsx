@@ -83,8 +83,8 @@ export default function VotePage() {
             <MeritRatingSection />
 
             {/* ── Room Info Generator (UC-exempt room creators only) ── */}
-            {isUCExempt && polls && polls.length > 0 && (
-                <RoomInfoGenerator polls={polls} />
+            {isUCExempt && (
+                <RoomInfoGenerator />
             )}
 
             {/* ── Casual / Ranked Tabs (premium animated) ── */}
