@@ -182,6 +182,25 @@ export async function GET(request: NextRequest) {
         const welcomeBackTotal = welcomeBackCoupons.reduce((sum, c) => sum + c.amount, 0);
         if (welcomeBackTotal > 0) deductions.push({ category: "Welcome Back Coupons", total: welcomeBackTotal, count: welcomeBackCoupons.length });
 
+        // Org Prize Pool Donations — only from @bimon (org account)
+        const BIMON_EMAIL = "bimonlangnongsiej@gmail.com";
+        const orgDonations = await prisma.prizePoolDonation.findMany({
+            where: {
+                tournamentId: { in: tournamentIds },
+                player: {
+                    user: {
+                        OR: [
+                            { email: BIMON_EMAIL },
+                            { secondaryEmail: BIMON_EMAIL },
+                        ],
+                    },
+                },
+            },
+            select: { amount: true },
+        });
+        const orgDonationTotal = orgDonations.reduce((sum, d) => sum + d.amount, 0);
+        if (orgDonationTotal > 0) deductions.push({ category: "Org Donations", total: orgDonationTotal, count: orgDonations.length });
+
         // Name Change Fees (income from players breaking cooldown)
         const nameChangeFees = await prisma.transaction.aggregate({
             where: {

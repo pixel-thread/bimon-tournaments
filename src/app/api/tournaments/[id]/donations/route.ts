@@ -108,13 +108,16 @@ export async function POST(
                 },
             });
         } else {
-            // Anonymous donation — no wallet deduction
+            // Anonymous donation — no wallet deduction, but record admin's playerId for expense tracking
+            const admin = await requireAdmin();
+            const adminPlayerId = admin.player?.id ?? null;
+
             await prisma.prizePoolDonation.create({
                 data: {
                     amount,
                     tournamentId,
-                    playerId: null,
-                    playerName: null,
+                    playerId: adminPlayerId, // Link to admin for income tracking
+                    playerName: null,        // Name hidden from players
                     isAnonymous: true,
                 },
             });

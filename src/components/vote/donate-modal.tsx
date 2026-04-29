@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Switch } from "@heroui/react";
-import { Heart, Eye, EyeOff, Ticket } from "lucide-react";
+import { Heart, Eye, EyeOff, Ticket, User } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
@@ -13,6 +13,7 @@ interface DonateModalProps {
     onClose: () => void;
     tournamentId: string;
     tournamentName: string;
+    playerName?: string;
     pollId?: string;
     allowSquads?: boolean;
     isCouponVerifier?: boolean;
@@ -24,6 +25,7 @@ export function DonateModal({
     onClose,
     tournamentId,
     tournamentName,
+    playerName = "You",
     pollId,
     allowSquads = false,
     isCouponVerifier = false,
@@ -256,10 +258,29 @@ export function DonateModal({
                                     onValueChange={setIsAnonymous}
                                 />
                             </div>
-                            {isAnonymous && (
-                                <p className="text-xs text-foreground/40 -mt-2 ml-7">
-                                    Your name won&apos;t be shown to other players
-                                </p>
+
+                            {/* Live preview — mirrors the donors list styling */}
+                            {parsedAmount > 0 && (
+                                <div className="bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/20 dark:to-rose-950/20 px-3 py-2.5 rounded-xl border border-pink-200/40 dark:border-pink-800/30">
+                                    <p className="text-[10px] text-foreground/40 uppercase tracking-wider mb-1.5 font-medium">Preview on donors list</p>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0">
+                                            {isAnonymous ? (
+                                                <User className="w-4 h-4 text-white" />
+                                            ) : (
+                                                <Heart className="w-4 h-4 text-white fill-white" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`text-sm font-medium truncate ${isAnonymous ? "italic text-foreground/50" : ""}`}>
+                                                {isAnonymous ? "Anonymous" : playerName}
+                                            </p>
+                                        </div>
+                                        <span className="text-sm font-bold inline-flex items-center gap-1 text-pink-600 dark:text-pink-400 flex-shrink-0">
+                                            {parsedAmount} <CurrencyIcon size={12} />
+                                        </span>
+                                    </div>
+                                </div>
                             )}
                         </>
                     ) : (

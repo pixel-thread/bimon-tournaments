@@ -1293,6 +1293,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         onClose={() => setShowDonate(false)}
                         tournamentId={tournament.id}
                         tournamentName={tournament.name || poll.question}
+                        playerName={poll.playersVotes.find(v => v.playerId === currentPlayerId)?.displayName}
                         pollId={poll.id}
                         allowSquads={poll.allowSquads}
                         isCouponVerifier={isCouponVerifier}

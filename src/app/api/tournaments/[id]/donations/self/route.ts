@@ -40,20 +40,28 @@ export async function POST(
             return NextResponse.json({ error: "Tournament voting is closed" }, { status: 400 });
         }
 
-        // Check wallet balance
-        const { available, reserved } = await getAvailableBalance(user.email);
-        if (available < amount) {
-            const reservedNote = reserved > 0 ? ` (${reserved} ${GAME.currency} reserved for tournaments)` : "";
-            return NextResponse.json(
-                { error: `Insufficient balance. You have ${available} ${GAME.currency} available${reservedNote}.` },
-                { status: 400 }
-            );
+        // @bimon (org account) can donate without balance — tracked as org expense
+        const BIMON_EMAIL = "bimonlangnongsiej@gmail.com";
+        const isBimon = user.email === BIMON_EMAIL;
+
+        if (!isBimon) {
+            // Check wallet balance (skip for @bimon)
+            const { available, reserved } = await getAvailableBalance(user.email);
+            if (available < amount) {
+                const reservedNote = reserved > 0 ? ` (${reserved} ${GAME.currency} reserved for tournaments)` : "";
+                return NextResponse.json(
+                    { error: `Insufficient balance. You have ${available} ${GAME.currency} available${reservedNote}.` },
+                    { status: 400 }
+                );
+            }
         }
 
         const playerName = user.player.displayName || user.username;
 
-        // Debit wallet
-        await debitWallet(user.email, amount, `Prize pool donation — ${tournament.name}`, "OTHER");
+        // Debit wallet (skip for @bimon — org-funded donation)
+        if (!isBimon) {
+            await debitWallet(user.email, amount, `Prize pool donation — ${tournament.name}`, "OTHER");
+        }
 
         // Record the donation
         await prisma.prizePoolDonation.create({
