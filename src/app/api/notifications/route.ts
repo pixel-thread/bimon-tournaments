@@ -62,12 +62,13 @@ export async function GET() {
                     orderBy: { createdAt: "desc" },
                 })
                 : [],
-            // Fetch unclaimed rewards for this player
+            // Fetch unclaimed rewards for this player (exclude STREAK — claimed from RP page)
             user.player
                 ? prisma.pendingReward.findMany({
                     where: {
                         playerId: user.player.id,
                         isClaimed: false,
+                        type: { not: "STREAK" },
                     },
                     orderBy: { createdAt: "desc" },
                     take: 20,
@@ -124,8 +125,15 @@ export async function GET() {
                 : 0,
         ]);
 
+        // Separate check: does the player have an unclaimed STREAK reward? (for RP page badge)
+        const hasUnclaimedStreakReward = user.player
+            ? (await prisma.pendingReward.count({
+                where: { playerId: user.player.id, type: "STREAK", isClaimed: false },
+            })) > 0
+            : false;
+
         return SuccessResponse({
-            data: { notifications, unreadCount, pendingRequests, unclaimedRewards, pendingSquadRequests, pendingSquadInviteCount },
+            data: { notifications, unreadCount, pendingRequests, unclaimedRewards, pendingSquadRequests, pendingSquadInviteCount, hasUnclaimedStreakReward },
         });
     } catch (error) {
         console.error("Error fetching notifications:", error);

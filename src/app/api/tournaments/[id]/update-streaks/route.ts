@@ -53,8 +53,8 @@ export async function POST(
             });
         }
 
-        // Get existing streaks and Royal Pass status for these players
-        const [streaks, players] = await Promise.all([
+        // Get existing streaks, Royal Pass status, and unclaimed STREAK rewards
+        const [streaks, players, unclaimedStreakRewards] = await Promise.all([
             prisma.playerStreak.findMany({
                 where: { playerId: { in: playerIds } },
             }),
@@ -62,10 +62,20 @@ export async function POST(
                 where: { id: { in: playerIds } },
                 select: { id: true, hasRoyalPass: true },
             }),
+            // Check who already has an unclaimed STREAK reward (don't create duplicates)
+            prisma.pendingReward.findMany({
+                where: {
+                    playerId: { in: playerIds },
+                    type: "STREAK",
+                    isClaimed: false,
+                },
+                select: { playerId: true },
+            }),
         ]);
 
         const streakMap = new Map(streaks.map((s) => [s.playerId, s]));
         const royalPassSet = new Set(players.filter((p) => p.hasRoyalPass).map((p) => p.id));
+        const hasUnclaimedRewardSet = new Set(unclaimedStreakRewards.map((r) => r.playerId));
         let updated = 0;
         let rewardsCreated = 0;
 
@@ -79,12 +89,15 @@ export async function POST(
                 // Skip if already processed for this tournament (idempotent)
                 if (existing?.lastTournamentId === tournamentId) return;
 
+                // Skip increment if player has an unclaimed STREAK reward (waiting to claim)
+                if (hasUnclaimedRewardSet.has(playerId)) return;
+
                 const newCurrent = (existing?.current ?? 0) + 1;
                 const newLongest = Math.max(newCurrent, existing?.longest ?? 0);
 
                 // Check if Royal Pass player hits milestone
                 if (newCurrent >= STREAK_MILESTONE && royalPassSet.has(playerId)) {
-                    // Create streak reward + reset streak to 0
+                    // Create streak reward — keep streak at milestone until claimed
                     await prisma.$transaction([
                         prisma.pendingReward.create({
                             data: {
@@ -98,14 +111,14 @@ export async function POST(
                             where: { playerId },
                             create: {
                                 playerId,
-                                current: 0,
+                                current: STREAK_MILESTONE,
                                 longest: newLongest,
                                 seasonId: tournament.seasonId,
                                 lastTournamentId: tournamentId,
                                 lastRewardAt: new Date(),
                             },
                             update: {
-                                current: 0,
+                                current: STREAK_MILESTONE,
                                 longest: newLongest,
                                 seasonId: tournament.seasonId,
                                 lastTournamentId: tournamentId,

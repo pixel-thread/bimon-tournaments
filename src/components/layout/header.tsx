@@ -132,7 +132,7 @@ export function Header() {
             return {
                 unreadCount: json.data?.unreadCount ?? 0,
                 unclaimedRewardCount: json.data?.unclaimedRewards?.length ?? 0,
-                hasUnclaimedStreak: (json.data?.unclaimedRewards ?? []).some((r: any) => r.type === "STREAK"),
+                hasUnclaimedStreak: json.data?.hasUnclaimedStreakReward ?? false,
             };
         },
         enabled: isSignedIn,

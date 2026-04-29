@@ -83,6 +83,14 @@ export async function POST(
             data: { isClaimed: true, claimedAt: new Date() },
         });
 
+        // If this was a STREAK reward, reset the player's streak to 0 now
+        if (reward.type === "STREAK") {
+            await prisma.playerStreak.updateMany({
+                where: { playerId: reward.playerId },
+                data: { current: 0 },
+            });
+        }
+
         return SuccessResponse({
             message: "Reward claimed!",
             data: { rewardId: id, amount: reward.amount, diamondAmount: reward.diamondAmount },

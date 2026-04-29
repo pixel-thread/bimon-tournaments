@@ -223,6 +223,65 @@ export default function RoyalPassPage() {
                         </Card>
                     </motion.div>
 
+                    {/* Claim Streak Reward — show when there's an unclaimed STREAK reward */}
+                    {(() => {
+                        const unclaimedStreak = data.pendingRewards.find(r => r.type === "STREAK" && r.isPending);
+                        if (!unclaimedStreak) return null;
+                        return (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.05, type: "spring", stiffness: 300, damping: 20 }}
+                            >
+                                <Card className="relative overflow-hidden border-2 border-amber-400 dark:border-amber-500 shadow-lg shadow-amber-500/20">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-yellow-500/10 to-orange-500/10" />
+                                    <CardBody className="relative p-5 text-center space-y-3">
+                                        <motion.div
+                                            animate={{ scale: [1, 1.15, 1] }}
+                                            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                                            className="text-4xl"
+                                        >
+                                            🎉
+                                        </motion.div>
+                                        <div>
+                                            <p className="font-bold text-lg text-amber-500">Streak Reward Ready!</p>
+                                            <p className="text-sm text-foreground/60 mt-1">
+                                                You earned <span className="font-bold text-amber-400">{unclaimedStreak.amount} <CurrencyIcon size={13} /></span> for your {data.nextRewardAt} tournament streak!
+                                            </p>
+                                        </div>
+                                        <Button
+                                            className="w-full font-bold text-black bg-gradient-to-r from-amber-400 to-yellow-500 shadow-lg shadow-amber-500/30"
+                                            size="lg"
+                                            isLoading={isPurchasing}
+                                            startContent={!isPurchasing && <span className="text-lg">🎁</span>}
+                                            onPress={async () => {
+                                                setIsPurchasing(true);
+                                                try {
+                                                    const res = await fetch(`/api/rewards/${unclaimedStreak.id}/claim`, { method: "POST" });
+                                                    const json = await res.json();
+                                                    if (res.ok) {
+                                                        toast.success(`🔥 ${unclaimedStreak.amount} ${GAME.currencyPlural} claimed!`);
+                                                        queryClient.invalidateQueries({ queryKey: ["royal-pass"] });
+                                                        queryClient.invalidateQueries({ queryKey: ["profile"] });
+                                                        queryClient.invalidateQueries({ queryKey: ["notification-count"] });
+                                                    } else {
+                                                        toast.error(json.message || "Failed to claim");
+                                                    }
+                                                } catch {
+                                                    toast.error("Failed to claim reward");
+                                                } finally {
+                                                    setIsPurchasing(false);
+                                                }
+                                            }}
+                                        >
+                                            Claim {unclaimedStreak.amount} <CurrencyIcon size={14} />
+                                        </Button>
+                                    </CardBody>
+                                </Card>
+                            </motion.div>
+                        );
+                    })()}
+
                     {/* Already has RP */}
                     {data.hasRoyalPass ? (
                         <motion.div
