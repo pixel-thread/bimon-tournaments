@@ -160,11 +160,11 @@ export async function GET(request: NextRequest) {
         const luckyTotal = luckyPolls.reduce((sum, p) => sum + (p.tournament?.fee ?? 0), 0);
         if (luckyTotal > 0) deductions.push({ category: "Lucky Voters", total: luckyTotal, count: luckyPolls.length });
 
-        // Game Rewards (Memory Game prizes)
+        // Game Rewards (Memory Game + Number Rush prizes)
         let gameRewardTotal = 0, gameRewardCount = 0;
         for (const tx of seasonCredits) {
             const d = tx.description.toLowerCase();
-            if (d.includes("memory game") || d.includes("game reward")) {
+            if (d.includes("memory game") || d.includes("number rush") || d.includes("game reward")) {
                 gameRewardTotal += tx.amount;
                 gameRewardCount++;
             }
