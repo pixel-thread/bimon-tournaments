@@ -28,8 +28,28 @@ interface DonorsModalProps {
 }
 
 export function DonorsModal({ isOpen, onClose, donations, total, tournamentName, sponsorCoupon }: DonorsModalProps) {
+    // Combine multiple donations from the same player into one entry
+    const combined = (() => {
+        const map = new Map<string, Donation>();
+        for (const d of donations) {
+            // Anonymous donations stay separate
+            if (d.isAnonymous || !d.playerName) {
+                map.set(`_anon_${map.size}`, d);
+                continue;
+            }
+            const key = d.playerName;
+            const existing = map.get(key);
+            if (existing) {
+                map.set(key, { ...existing, amount: existing.amount + d.amount });
+            } else {
+                map.set(key, { ...d });
+            }
+        }
+        return Array.from(map.values());
+    })();
+
     // Sort by biggest donation first
-    const sorted = [...donations].sort((a, b) => b.amount - a.amount);
+    const sorted = combined.sort((a, b) => b.amount - a.amount);
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} placement="center" size="sm" scrollBehavior="inside">

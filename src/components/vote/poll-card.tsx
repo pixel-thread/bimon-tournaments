@@ -774,7 +774,21 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                 <div className="flex items-center justify-center gap-2 mb-[-8px] relative z-10">
                     <AnimatePresence mode="popLayout" initial={false}>
                         {donationTotal > 0 && (() => {
-                            const sortedDonations = [...poll.donations.donations].sort((a, b) => b.amount - a.amount);
+                            // Combine same-player donations into one entry
+                            const grouped = new Map<string, typeof poll.donations.donations[0]>();
+                            for (const d of poll.donations.donations) {
+                                if (d.isAnonymous || !d.playerName) {
+                                    grouped.set(`_anon_${grouped.size}`, d);
+                                    continue;
+                                }
+                                const existing = grouped.get(d.playerName);
+                                if (existing) {
+                                    grouped.set(d.playerName, { ...existing, amount: existing.amount + d.amount });
+                                } else {
+                                    grouped.set(d.playerName, { ...d });
+                                }
+                            }
+                            const sortedDonations = Array.from(grouped.values()).sort((a, b) => b.amount - a.amount);
                             const topDonor = sortedDonations[0];
                             const extraCount = sortedDonations.length - 1;
                             const donorName = topDonor.isAnonymous ? "Anonymous" : (topDonor.playerName || "Community");
