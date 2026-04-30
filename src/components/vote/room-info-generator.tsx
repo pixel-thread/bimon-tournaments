@@ -363,7 +363,7 @@ export function RoomInfoGenerator() {
                 };
             }
         }
-        try { localStorage.setItem(LS_KEY, JSON.stringify(persisted)); } catch {}
+        try { localStorage.setItem(LS_KEY, JSON.stringify(persisted)); } catch { }
     }, [states]);
 
     const getDefaultState = (): TournamentState => ({
@@ -433,11 +433,6 @@ export function RoomInfoGenerator() {
                                     />
                                 </div>
                             ))}
-
-                            {/* Hint */}
-                            <p className="text-[10px] text-center text-foreground/30 pt-1">
-                                💡 Room ID row always included — fill it in WhatsApp if left blank
-                            </p>
                         </CardBody>
                     </motion.div>
                 )}
