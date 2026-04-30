@@ -61,6 +61,7 @@ export function PlayerStatsModal({
     const EASTER_EGG_AUDIO: Record<string, string> = {
         badsnipe: "/audio/rko.mp3",
         ksscarface: "/audio/619.mp3",
+        zgyokeres: "/audio/faaahh.mp3",
     };
     const easterEggAudio = player?.username ? EASTER_EGG_AUDIO[player.username.toLowerCase()] : undefined;
     const isRkoPlayer = !!easterEggAudio;
