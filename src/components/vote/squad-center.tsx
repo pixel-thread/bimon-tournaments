@@ -172,6 +172,7 @@ function SquadCard({
     respondingAction,
     isRequesting,
     isRespondingRequest,
+    respondingRequestAction,
     isRemoving,
     isLeaving,
     defaultExpanded,
@@ -193,6 +194,7 @@ function SquadCard({
     respondingAction: "accept" | "decline" | null;
     isRequesting: boolean;
     isRespondingRequest: boolean;
+    respondingRequestAction: "accept" | "decline" | null;
     isRemoving: boolean;
     isLeaving: boolean;
     defaultExpanded?: boolean;
@@ -481,7 +483,8 @@ function SquadCard({
                                                     size="sm"
                                                     color="primary"
                                                     variant="flat"
-                                                    isLoading={isRespondingRequest}
+                                                    isLoading={isRespondingRequest && respondingRequestAction === "accept"}
+                                                    isDisabled={isRespondingRequest && respondingRequestAction === "decline"}
                                                     onPress={() => onAcceptRequest(req.inviteId)}
                                                     className="min-w-0 px-2 h-7"
                                                 >
@@ -491,7 +494,8 @@ function SquadCard({
                                                     size="sm"
                                                     color="danger"
                                                     variant="flat"
-                                                    isLoading={isRespondingRequest}
+                                                    isLoading={isRespondingRequest && respondingRequestAction === "decline"}
+                                                    isDisabled={isRespondingRequest && respondingRequestAction === "accept"}
                                                     onPress={() => onDeclineRequest(req.inviteId)}
                                                     className="min-w-0 px-2 h-7"
                                                 >
@@ -639,6 +643,7 @@ export function SquadCenter({
     const canCreateSquad = !mySquad;
 
     const [respondAction, setRespondAction] = useState<"accept" | "decline" | null>(null);
+    const [respondRequestAction, setRespondRequestAction] = useState<"accept" | "decline" | null>(null);
 
     function handleCancel(squadId: string) {
         cancelMutation.mutate(squadId);
@@ -664,10 +669,12 @@ export function SquadCenter({
     }
 
     function handleAcceptRequest(inviteId: string) {
+        setRespondRequestAction("accept");
         respondRequestMutation.mutate({ inviteId, action: "ACCEPT" });
     }
 
     function handleDeclineRequest(inviteId: string) {
+        setRespondRequestAction("decline");
         respondRequestMutation.mutate({ inviteId, action: "DECLINE" });
     }
 
@@ -741,6 +748,7 @@ export function SquadCenter({
                                                 respondingAction={respondMutation.isPending ? respondAction : null}
                                                 isRequesting={requestJoinMutation.isPending}
                                                 isRespondingRequest={respondRequestMutation.isPending}
+                                                respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
                                                 isRemoving={removeMemberMutation.isPending}
                                                 isLeaving={leaveMutation.isPending}
                                                 defaultExpanded
@@ -775,6 +783,7 @@ export function SquadCenter({
                                                         respondingAction={respondMutation.isPending ? respondAction : null}
                                                         isRequesting={requestJoinMutation.isPending}
                                                         isRespondingRequest={respondRequestMutation.isPending}
+                                                        respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
                                                         isRemoving={removeMemberMutation.isPending}
                                                         isLeaving={leaveMutation.isPending}
                                                     />
