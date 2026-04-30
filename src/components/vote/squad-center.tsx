@@ -204,6 +204,7 @@ function SquadCard({
     const [inviteSearch, setInviteSearch] = useState("");
     const cardRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
+    const proxyInputRef = useRef<HTMLInputElement>(null);
     const isCaptain = squad.captain.id === currentPlayerId;
 
     // Invite hooks (only active when captain opens invite)
@@ -357,6 +358,13 @@ function SquadCard({
                         {/* Captain: Invite Players */}
                         {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
                             <div className="px-4 py-3 border-t border-divider/50">
+                                {/* Hidden proxy input — focused immediately on tap to keep keyboard open on mobile */}
+                                <input
+                                    ref={proxyInputRef}
+                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                                    tabIndex={-1}
+                                    readOnly
+                                />
                                 {!showInvite ? (
                                     <Button
                                         size="sm"
@@ -364,7 +372,11 @@ function SquadCard({
                                         color="primary"
                                         className="w-full font-medium"
                                         startContent={<UserPlus className="w-3.5 h-3.5" />}
-                                        onPress={() => setShowInvite(true)}
+                                        onPress={() => {
+                                            // Focus proxy immediately (within user gesture) to keep keyboard open
+                                            proxyInputRef.current?.focus();
+                                            setShowInvite(true);
+                                        }}
                                     >
                                         Invite Players
                                     </Button>
@@ -374,11 +386,17 @@ function SquadCard({
                                             <Input
                                                 ref={(el: HTMLDivElement | null) => {
                                                     if (el) {
-                                                        setTimeout(() => {
+                                                        const focusInput = () => {
                                                             el.scrollIntoView({ behavior: "smooth", block: "center" });
                                                             const input = el.querySelector("input");
-                                                            input?.focus();
-                                                        }, 100);
+                                                            if (input) {
+                                                                input.focus();
+                                                                // Blur proxy after real input takes over
+                                                                proxyInputRef.current?.blur();
+                                                            }
+                                                        };
+                                                        setTimeout(focusInput, 150);
+                                                        setTimeout(focusInput, 400);
                                                     }
                                                 }}
                                                 placeholder="Search by name..."
