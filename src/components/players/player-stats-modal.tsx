@@ -303,7 +303,7 @@ export function PlayerStatsModal({
                                         <button
                                             onClick={toggleRkoMute}
                                             className="ml-0.5 p-0.5 rounded-full hover:bg-white/20 transition-colors"
-                                            title={rkoMuted ? "Unmute RKO" : "Mute RKO"}
+                                            title={rkoMuted ? "Unmute" : "Mute"}
                                         >
                                             {rkoMuted ? (
                                                 <VolumeX className="w-4 h-4 text-foreground/50" />
