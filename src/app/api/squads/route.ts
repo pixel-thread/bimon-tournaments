@@ -36,6 +36,9 @@ export async function GET(request: NextRequest) {
                         user: { select: { username: true, imageUrl: true } },
                     },
                 },
+                clan: {
+                    select: { logoUrl: true, tag: true, name: true },
+                },
                 invites: {
                     include: {
                         player: {
@@ -74,6 +77,9 @@ export async function GET(request: NextRequest) {
                     displayName: squad.captain.displayName ?? squad.captain.user.username,
                     imageUrl: squad.captain.customProfileImageUrl ?? squad.captain.user.imageUrl ?? "",
                 },
+                clanLogo: squad.clan?.logoUrl ?? null,
+                clanTag: squad.clan?.tag ?? null,
+                clanName: squad.clan?.name ?? null,
                 isCaptain,
                 myInvite: myInvite
                     ? { id: myInvite.id, status: myInvite.status, initiatedBy: myInvite.initiatedBy }
@@ -116,7 +122,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/squads
  * Create a new squad for a poll. Captain's entry fee is RESERVED (not deducted).
- * Body: { pollId, name }
+ * Body: { pollId, name, useClan? }
  */
 export async function POST(request: NextRequest) {
     try {
@@ -131,18 +137,52 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { pollId, name } = body as { pollId: string; name: string };
+        const { pollId, name, useClan } = body as { pollId: string; name: string; useClan?: boolean };
 
-        if (!pollId || !name?.trim()) {
-            return ErrorResponse({ message: "pollId and name are required", status: 400 });
-        }
-
-        const trimmedName = name.trim();
-        if (trimmedName.length > 30) {
-            return ErrorResponse({ message: "Squad name must be 30 characters or less", status: 400 });
+        if (!pollId) {
+            return ErrorResponse({ message: "pollId is required", status: 400 });
         }
 
         const playerId = user.player.id;
+
+        // Resolve clan identity if requested
+        let clanId: string | null = null;
+        let trimmedName = (name || "").trim();
+
+        if (useClan) {
+            // Check ClanMember first, then fallback to owned clan (leader)
+            const membership = await prisma.clanMember.findUnique({
+                where: { playerId },
+                include: { clan: { select: { id: true, name: true } } },
+            });
+            let clanInfo: { id: string; name: string } | null = membership?.clan ?? null;
+            if (!clanInfo) {
+                const ownedClan = await prisma.clan.findUnique({
+                    where: { leaderId: playerId },
+                    select: { id: true, name: true },
+                });
+                clanInfo = ownedClan;
+            }
+            if (!clanInfo) {
+                return ErrorResponse({ message: "You are not in a clan", status: 400 });
+            }
+            clanId = clanInfo.id;
+            // Auto-name: "ClanName", "ClanName 2", "ClanName 3", etc.
+            const existingClanSquads = await prisma.squad.count({
+                where: { pollId, clanId, status: { in: ["FORMING", "FULL"] } },
+            });
+            trimmedName = existingClanSquads === 0
+                ? clanInfo.name
+                : `${clanInfo.name} ${existingClanSquads + 1}`;
+        }
+
+        if (!trimmedName) {
+            return ErrorResponse({ message: "Squad name is required", status: 400 });
+        }
+
+        if (trimmedName.length > 30) {
+            return ErrorResponse({ message: "Squad name must be 30 characters or less", status: 400 });
+        }
 
         // Fetch poll + tournament
         const poll = await prisma.poll.findUnique({
@@ -230,6 +270,7 @@ export async function POST(request: NextRequest) {
                     where: { id: cancelledSquad.id },
                     data: {
                         name: trimmedName,
+                        clanId,
                         status: "FORMING",
                         entryFee,
                         invites: {
@@ -256,6 +297,7 @@ export async function POST(request: NextRequest) {
                     name: trimmedName,
                     pollId,
                     captainId: playerId,
+                    clanId,
                     entryFee,
                     invites: {
                         create: {

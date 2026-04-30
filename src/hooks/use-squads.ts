@@ -29,6 +29,9 @@ export interface SquadDTO {
         displayName: string;
         imageUrl: string;
     };
+    clanLogo: string | null;
+    clanTag: string | null;
+    clanName: string | null;
     isCaptain: boolean;
     myInvite: { id: string; status: string; initiatedBy: string } | null;
     members: SquadMember[];
@@ -101,11 +104,11 @@ export function useCreateSquad() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ pollId, name }: { pollId: string; name: string }) => {
+        mutationFn: async ({ pollId, name, useClan }: { pollId: string; name: string; useClan?: boolean }) => {
             const res = await fetch("/api/squads", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pollId, name }),
+                body: JSON.stringify({ pollId, name, useClan }),
             });
             if (!res.ok) {
                 const json = await res.json().catch(() => ({}));

@@ -8,6 +8,7 @@ export type TeamStats = {
   totalWins: number;
   weightedScore: number;
   squadName?: string; // Custom name from squad, used for slot export
+  clanId?: string;    // Clan identity from squad, used for logo display
 };
 
 // ─── Helper: get player's weighted score ────────────────────

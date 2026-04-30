@@ -246,7 +246,11 @@ function SquadCard({
                 className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-default-100/50 transition-colors"
             >
                 <div className="flex items-center gap-2 min-w-0">
-                    <Shield className="w-4 h-4 text-primary shrink-0" />
+                    {squad.clanLogo ? (
+                        <img src={squad.clanLogo} alt={squad.clanTag || ""} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                    ) : (
+                        <Shield className="w-4 h-4 text-primary shrink-0" />
+                    )}
                     <h4 className="font-semibold text-sm truncate">{squad.name}</h4>
                     {isCaptain && (
                         <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />

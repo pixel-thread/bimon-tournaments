@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
                 teamStats: {
                     include: {
                         team: {
-                            select: { id: true, name: true, teamNumber: true },
+                            select: { id: true, name: true, teamNumber: true, clan: { select: { logoUrl: true, tag: true } } },
                         },
                         teamPlayerStats: {
                             include: {
@@ -103,6 +103,8 @@ export async function GET(request: NextRequest) {
                     teamId: ts.team.id,
                     teamName: ts.team.name,
                     teamNumber: ts.team.teamNumber,
+                    clanLogo: ts.team.clan?.logoUrl ?? null,
+                    clanTag: ts.team.clan?.tag ?? null,
                     position: ts.position,
                     players: [...tpsPlayers, ...rosterOnlyPlayers],
                 };

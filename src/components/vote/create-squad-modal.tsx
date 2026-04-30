@@ -9,10 +9,12 @@ import {
     ModalFooter,
     Button,
     Input,
+    Switch,
 } from "@heroui/react";
 import { Shield } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad } from "@/hooks/use-squads";
+import { useQuery } from "@tanstack/react-query";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 
@@ -26,6 +28,13 @@ interface CreateSquadModalProps {
     entryFee: number;
 }
 
+interface MyClan {
+    id: string;
+    name: string;
+    tag: string;
+    logoUrl: string | null;
+}
+
 /* ─── Main Component ────────────────────────────────────────── */
 
 export function CreateSquadModal({
@@ -37,26 +46,43 @@ export function CreateSquadModal({
 }: CreateSquadModalProps) {
     const [step, setStep] = useState<"name" | "done">("name");
     const [squadName, setSquadName] = useState("");
+    const [useClan, setUseClan] = useState(false);
 
     const createMutation = useCreateSquad();
 
+    // Fetch player's clan membership (lightweight)
+    const { data: myClan } = useQuery<MyClan | null>({
+        queryKey: ["my-clan"],
+        queryFn: async () => {
+            const res = await fetch("/api/clans/my");
+            if (!res.ok) return null;
+            const json = await res.json();
+            return json.data ?? null;
+        },
+        enabled: isOpen,
+        staleTime: 60_000,
+    });
+
     const handleCreate = useCallback(async () => {
-        if (!squadName.trim()) return;
+        if (!useClan && !squadName.trim()) return;
         createMutation.mutate(
-            { pollId, name: squadName.trim() },
+            { pollId, name: useClan ? "" : squadName.trim(), useClan },
             {
                 onSuccess: () => {
                     setStep("done");
                 },
             }
         );
-    }, [pollId, squadName, createMutation]);
+    }, [pollId, squadName, useClan, createMutation]);
 
     const handleClose = useCallback(() => {
         setStep("name");
         setSquadName("");
+        setUseClan(false);
         onClose();
     }, [onClose]);
+
+    const canSubmit = useClan || !!squadName.trim();
 
     return (
         <Modal
@@ -68,7 +94,11 @@ export function CreateSquadModal({
             <ModalContent>
                 <ModalHeader className="flex items-center gap-2 text-base pb-1">
                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                        <Shield className="w-3.5 h-3.5 text-white" />
+                        {useClan && myClan?.logoUrl ? (
+                            <img src={myClan.logoUrl} alt={myClan.tag} className="w-7 h-7 rounded-full object-cover" />
+                        ) : (
+                            <Shield className="w-3.5 h-3.5 text-white" />
+                        )}
                     </div>
                     <div className="flex-1 min-w-0">
                         <span className="truncate block">
@@ -97,16 +127,48 @@ export function CreateSquadModal({
                                     </div>
                                 </div>
 
-                                <Input
-                                    label="Squad Name"
-                                    placeholder="e.g. Team Alpha"
-                                    value={squadName}
-                                    onValueChange={setSquadName}
-                                    maxLength={30}
-                                    autoFocus
-                                    description={`${squadName.length}/30 characters`}
-                                    classNames={{ input: "text-base" }}
-                                />
+                                {/* Clan Toggle */}
+                                {myClan && (
+                                    <div className="flex items-center gap-3 p-3 rounded-lg bg-default-50 border border-divider">
+                                        {myClan.logoUrl && (
+                                            <img
+                                                src={myClan.logoUrl}
+                                                alt={myClan.tag}
+                                                className="w-8 h-8 rounded-full object-cover shrink-0"
+                                            />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">[{myClan.tag}] {myClan.name}</p>
+                                            <p className="text-xs text-foreground/50">Use clan identity & logo</p>
+                                        </div>
+                                        <Switch
+                                            size="sm"
+                                            isSelected={useClan}
+                                            onValueChange={setUseClan}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Squad Name Input (hidden when using clan) */}
+                                {!useClan && (
+                                    <Input
+                                        label="Squad Name"
+                                        placeholder="e.g. Team Alpha"
+                                        value={squadName}
+                                        onValueChange={setSquadName}
+                                        maxLength={30}
+                                        autoFocus
+                                        description={`${squadName.length}/30 characters`}
+                                        classNames={{ input: "text-base" }}
+                                    />
+                                )}
+
+                                {useClan && (
+                                    <div className="p-3 rounded-lg bg-success-50/50 border border-success-100 text-sm text-success-700 dark:text-success-400 dark:bg-success-900/20 dark:border-success-800">
+                                        Team will be named <strong>&ldquo;{myClan?.name}&rdquo;</strong> with your clan logo.
+                                        {/* Auto-increments if multiple clan squads exist */}
+                                    </div>
+                                )}
 
                                 <div className="text-xs text-foreground/50 space-y-1">
                                     <p>• Leader pays <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
@@ -125,7 +187,11 @@ export function CreateSquadModal({
                                 className="flex flex-col items-center gap-4 py-6 text-center"
                             >
                                 <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
-                                    <Shield className="w-7 h-7 text-emerald-500" />
+                                    {useClan && myClan?.logoUrl ? (
+                                        <img src={myClan.logoUrl} alt={myClan.tag} className="w-12 h-12 rounded-full object-cover" />
+                                    ) : (
+                                        <Shield className="w-7 h-7 text-emerald-500" />
+                                    )}
                                 </div>
                                 <div>
                                     <p className="font-semibold text-lg">Team created!</p>
@@ -150,7 +216,7 @@ export function CreateSquadModal({
                             <Button
                                 color="primary"
                                 className="flex-1 font-semibold"
-                                isDisabled={!squadName.trim()}
+                                isDisabled={!canSubmit}
                                 isLoading={createMutation.isPending}
                                 onPress={handleCreate}
                                 startContent={!createMutation.isPending && <Shield className="w-4 h-4" />}

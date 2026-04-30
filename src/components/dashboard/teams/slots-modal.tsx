@@ -11,6 +11,8 @@ import { GAME } from "@/lib/game-config";
 interface TeamDTO {
     id: string;
     name: string;
+    clanLogo?: string | null;
+    clanTag?: string | null;
     players: { id: string; displayName: string | null; username: string }[];
 }
 
@@ -281,7 +283,12 @@ export function SlotsModal({
                                                     </td>
                                                     {hasSquadTeams && (
                                                         <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium whitespace-nowrap ${textColor}`}>
-                                                            {team.name}
+                                                            <span className="inline-flex items-center gap-1.5 justify-center">
+                                                                {team.clanLogo && (
+                                                                    <img src={team.clanLogo} alt={team.clanTag || ""} className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                                                )}
+                                                                {team.name}
+                                                            </span>
                                                         </td>
                                                     )}
                                                     {paddedPlayers.map((playerName, pi) => (

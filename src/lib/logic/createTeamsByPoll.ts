@@ -223,6 +223,7 @@ export async function createTeamsByPoll({
                     totalWins: 0,
                     weightedScore: 0, // premade teams don't need balancing
                     squadName: squad.name,
+                    clanId: squad.clanId ?? undefined,
                 });
 
                 for (const m of members) {
@@ -470,6 +471,7 @@ export async function createTeamsByPoll({
                             teamNumber: teamIdx + 1,
                             tournamentId,
                             seasonId,
+                            clanId: t.clanId ?? null,
                             players: { connect: t.players.map((p) => ({ id: p.id })) },
                             matches: { connect: { id: match.id } },
                         },

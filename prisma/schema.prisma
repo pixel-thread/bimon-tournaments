@@ -632,12 +632,14 @@ model Team {
   teamNumber   Int
   tournamentId String?
   seasonId     String?
+  clanId       String?                         // Clan identity when team was created from a clan squad
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   tournament        Tournament?         @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
   season            Season?             @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  clan              Clan?               @relation("ClanTeams", fields: [clanId], references: [id], onDelete: SetNull)
   players           Player[]
   matches           Match[]
   teamStats         TeamStats[]
@@ -653,6 +655,7 @@ model Team {
 
   @@index([tournamentId])
   @@index([seasonId])
+  @@index([clanId])
 }
 
 model TeamStats {
@@ -1234,6 +1237,7 @@ model Squad {
   name      String      @db.VarChar(30)
   pollId    String
   captainId String
+  clanId    String?                         // Set when captain chose to represent their clan
   status    SquadStatus @default(FORMING)
   entryFee  Int         // Per-player fee (snapshot from tournament at creation)
 
@@ -1242,11 +1246,13 @@ model Squad {
 
   poll    Poll          @relation(fields: [pollId], references: [id], onDelete: Cascade)
   captain Player        @relation("SquadCaptain", fields: [captainId], references: [id], onDelete: Cascade)
+  clan    Clan?         @relation(fields: [clanId], references: [id], onDelete: SetNull)
   invites SquadInvite[]
 
   @@unique([pollId, captainId]) // One squad per leader per poll
   @@index([pollId])
   @@index([captainId])
+  @@index([clanId])
   @@index([status])
 }
 
@@ -1387,6 +1393,7 @@ model SponsorCoupon {
 
 enum ClanRole {
   LEADER
+  CO_LEADER
   MEMBER
 }
 
@@ -1411,6 +1418,8 @@ model Clan {
   leader      Player       @relation("ClanLeader", fields: [leaderId], references: [id], onDelete: Cascade)
   members     ClanMember[]
   invites     ClanInvite[]
+  squads      Squad[]
+  teams       Team[]    @relation("ClanTeams")
 
   @@index([name])
 }

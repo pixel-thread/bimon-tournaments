@@ -22,6 +22,8 @@ interface MatchTeam {
     teamId: string;
     teamName: string;
     teamNumber: number;
+    clanLogo: string | null;
+    clanTag: string | null;
     position: number;
     players: {
         id: string;
@@ -41,6 +43,7 @@ interface MatchData {
 interface StandingRow {
     teamId: string;
     teamName: string;
+    clanLogo: string | null;
     totalPoints: number;
     totalKills: number;
     placementPts: number;
@@ -125,6 +128,7 @@ export function StandingsModal({
                         row = {
                             teamId: t.teamId,
                             teamName: t.teamName,
+                            clanLogo: t.clanLogo ?? null,
                             totalPoints: 0,
                             totalKills: 0,
                             placementPts: 0,
@@ -520,9 +524,14 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                                 </td>
                                 <td className="px-1 py-1 text-left align-middle">
                                     <div className="flex flex-col min-h-[28px] justify-center">
-                                        <span className={`text-[11px] leading-tight font-semibold ${rank <= 3 ? "text-white" : "text-zinc-300"}`} style={{ wordBreak: "break-word" }}>
-                                            {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
-                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            {hasSquadTeams && row.clanLogo && (
+                                                <img src={row.clanLogo} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                            )}
+                                            <span className={`text-[11px] leading-tight font-semibold ${rank <= 3 ? "text-white" : "text-zinc-300"}`} style={{ wordBreak: "break-word" }}>
+                                                {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                                            </span>
+                                        </div>
                                         {row.wins > 0 && (
                                             <span className="text-[9px] mt-0.5 text-yellow-400">
                                                 🍗 {row.wins} win{row.wins > 1 ? "s" : ""}
@@ -563,7 +572,12 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                                 <div className="flex items-center gap-2">
                                     <div className="team-name-marquee flex-1 min-w-0">
                                         <span className={`marquee-inner text-sm font-semibold whitespace-nowrap ${rank <= 3 ? "text-white" : "text-zinc-200"}`}>
-                                            {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                                            <span className="inline-flex items-center gap-1.5">
+                                                {hasSquadTeams && row.clanLogo && (
+                                                    <img src={row.clanLogo} alt="" className="w-4 h-4 rounded-full object-cover shrink-0 inline" />
+                                                )}
+                                                {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                                            </span>
                                         </span>
                                     </div>
                                     {row.wins > 0 && (

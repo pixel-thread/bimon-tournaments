@@ -53,6 +53,9 @@ export async function GET(request: NextRequest) {
                             category: true,
                         },
                     },
+                    clan: {
+                        select: { logoUrl: true, tag: true },
+                    },
                     tournamentWinner: {
                         select: {
                             position: true,
@@ -181,6 +184,8 @@ export async function GET(request: NextRequest) {
                 id: team.id,
                 name: team.name,
                 teamNumber: team.teamNumber,
+                clanLogo: team.clan?.logoUrl ?? null,
+                clanTag: team.clan?.tag ?? null,
                 matchCount: matchCountMap.get(team.id) || team._count.matches,
                 winner: team.tournamentWinner[0] ?? null,
                 players,
