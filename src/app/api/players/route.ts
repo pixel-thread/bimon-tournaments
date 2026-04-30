@@ -34,9 +34,7 @@ export async function GET(request: NextRequest) {
         );
 
         // Build where clause
-        const where: Record<string, unknown> = {
-            isBanned: false,
-        };
+        const where: Record<string, unknown> = {};
 
         if (search) {
             where.OR = [

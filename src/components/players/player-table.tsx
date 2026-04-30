@@ -1,8 +1,8 @@
 "use client";
 
-import { Avatar } from "@heroui/react";
+import { Avatar, Chip } from "@heroui/react";
 import { CategoryBadge } from "@/components/ui/category-badge";
-import { Crown } from "lucide-react";
+import { Crown, Ban } from "lucide-react";
 import Script from "next/script";
 import type { PlayerDTO, PlayersMeta } from "@/hooks/use-players";
 import { useAuthUser } from "@/hooks/use-auth-user";
@@ -99,7 +99,9 @@ export function PlayerTable({
                         <div key={player.id}>
                         <div
                             onClick={() => onPlayerClick(player.id)}
-                            className={`group flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2.5 transition-colors ${player.hasRoyalPass
+                            className={`group flex cursor-pointer items-center gap-3 rounded-lg px-4 py-2.5 transition-colors ${player.isBanned
+                                ? "opacity-50 bg-danger/5 hover:bg-danger/10"
+                                : player.hasRoyalPass
                                 ? "bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/25"
                                 : "hover:bg-default-100 active:bg-default-200"
                                 }`}
@@ -129,8 +131,13 @@ export function PlayerTable({
                                 </div>
                                 <div className="min-w-0">
                                     <p className="flex items-center gap-1 truncate text-sm font-medium">
-                                        {getDisplayName(player.displayName, player.username)}
-                                        {player.hasRoyalPass && (
+                                        <span className={player.isBanned ? "line-through text-foreground/40" : ""}>
+                                            {getDisplayName(player.displayName, player.username)}
+                                        </span>
+                                        {player.isBanned && (
+                                            <Chip size="sm" color="danger" variant="flat" className="h-4 px-1 text-[10px] font-bold gap-0.5" startContent={<Ban className="h-2.5 w-2.5" />}>BAN</Chip>
+                                        )}
+                                        {!player.isBanned && player.hasRoyalPass && (
                                             <Crown className="h-3.5 w-3.5 shrink-0 text-yellow-500" />
                                         )}
                                     </p>
