@@ -175,11 +175,23 @@ export function getPrizeDistribution(
         // Tiers 2-4: Last position gets entry fee × team size as refund
         const lastPosition = tier.winnerCount;
         const teamRefund = entryFee * teamSize;
-        const refundAmount = Math.min(teamRefund, winnerPool);
+        let refundAmount = Math.min(teamRefund, winnerPool);
+        const totalPct = tier.percentages.reduce((s, p) => s + p, 0);
+
+        // Calculate what the 2nd-to-last position would get if we use the full refund
+        // to ensure last place never exceeds any higher position
+        const secondToLastPct = tier.percentages[tier.percentages.length - 1];
+        const testRemaining = winnerPool - refundAmount;
+        const secondToLastAmount = Math.floor(testRemaining * (secondToLastPct / totalPct));
+
+        // Cap refund if it would exceed the 2nd-to-last position
+        if (refundAmount > secondToLastAmount && secondToLastAmount > 0) {
+            refundAmount = Math.floor(winnerPool * secondToLastPct / (totalPct + secondToLastPct));
+        }
+
         const remainingForWinners = winnerPool - refundAmount;
 
         // Distribute by relative percentage to all positions except last
-        const totalPct = tier.percentages.reduce((s, p) => s + p, 0);
         tier.percentages.forEach((percent, idx) => {
             const position = idx + 1;
             const amount = Math.floor(remainingForWinners * (percent / totalPct));

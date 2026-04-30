@@ -226,7 +226,9 @@ export async function POST(
         });
         const totalDonations = donations.reduce((sum, d) => sum + d.amount, 0);
         const teamCount = teamMap.size;
-        const teamSize = teamCount > 0 ? Math.round(totalPlayers / teamCount) : 2;
+        // For prize distribution refund: squad fee is per-team, so teamSize=1
+        // For non-squad: fee is per-player, use actual team size for refund calc
+        const teamSize = isSquadTournament ? 1 : (teamCount > 0 ? Math.round(totalPlayers / teamCount) : 2);
         // Squad tournaments: captain pays per team, not per player
         const prizePool = isSquadTournament
             ? (entryFee * teamCount) + totalDonations

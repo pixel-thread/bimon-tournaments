@@ -950,7 +950,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 {GAME.features.hasBR && <PrizeBreakdownTooltip
                                     prizePool={prizePool}
                                     entryFee={entryFee}
-                                    teamSize={effectiveTeamType === "SOLO" ? 1 : effectiveTeamType === "DUO" ? 2 : effectiveTeamType === "TRIO" ? 3 : 4}
+                                    teamSize={poll.allowSquads ? 1 : effectiveTeamType === "SOLO" ? 1 : effectiveTeamType === "DUO" ? 2 : effectiveTeamType === "TRIO" ? 3 : 4}
                                     theme={theme}
                                     orgPercent={orgCut}
                                     orgCutMode={orgCutMode}
