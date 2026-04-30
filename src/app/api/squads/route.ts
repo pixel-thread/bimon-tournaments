@@ -11,10 +11,9 @@ import { type NextRequest } from "next/server";
  */
 export async function GET(request: NextRequest) {
     try {
+        // Allow unauthenticated users to browse squads (read-only guest view)
         const user = await getCurrentUser();
-        if (!user?.player) {
-            return ErrorResponse({ message: "Player profile required", status: 403 });
-        }
+        const currentPlayerId = user?.player?.id ?? null;
 
         const pollId = request.nextUrl.searchParams.get("pollId");
         if (!pollId) {
@@ -57,13 +56,11 @@ export async function GET(request: NextRequest) {
             orderBy: { createdAt: "desc" },
         });
 
-        const currentPlayerId = user.player.id;
-
         const data = squads.map((squad) => {
             const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
             const activeCount = squad.invites.filter((i) => i.status === "ACCEPTED" && !i.isSub).length;
-            const isCaptain = squad.captainId === currentPlayerId;
-            const myInvite = squad.invites.find((i) => i.playerId === currentPlayerId);
+            const isCaptain = currentPlayerId ? squad.captainId === currentPlayerId : false;
+            const myInvite = currentPlayerId ? squad.invites.find((i) => i.playerId === currentPlayerId) : undefined;
             const isMySquad = !!myInvite;
 
             return {
@@ -88,9 +85,10 @@ export async function GET(request: NextRequest) {
                     .filter((inv) => {
                         // Never show declined
                         if (inv.status === "DECLINED") return false;
-                        // Pending invites (both captain and player initiated):
-                        // only visible to the leader and the pending player themselves
+                        // Pending invites: only visible to the leader and the pending player
+                        // Guests (no currentPlayerId) never see pending invites
                         if (inv.status === "PENDING") {
+                            if (!currentPlayerId) return false;
                             return isCaptain || inv.playerId === currentPlayerId;
                         }
                         return true;

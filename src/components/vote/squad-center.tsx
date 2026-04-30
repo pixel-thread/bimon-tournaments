@@ -218,6 +218,7 @@ function SquadCard({
     const emptySlots = squad.totalSlots - squad.members.length;
 
     // Can player request to join?
+    const isGuest = !currentPlayerId;
     const isInThisSquad = isCaptain || myInvite?.status === "ACCEPTED" || myInvite?.status === "PENDING";
     const canRequestJoin = !isInThisSquad && !squad.isFull && squad.status === "FORMING" && pollIsActive;
 
@@ -578,20 +579,33 @@ function SquadCard({
                             </div>
                         )}
 
-                        {/* Request to Join */}
+                        {/* Request to Join / Sign in to Join */}
                         {canRequestJoin && (
                             <div className="px-4 py-3 border-t border-divider/50">
-                                <Button
-                                    size="sm"
-                                    color="primary"
-                                    variant="solid"
-                                    className="w-full font-semibold"
-                                    isLoading={isRequesting}
-                                    onPress={() => onRequestJoin(squad.id)}
-                                    startContent={!isRequesting && <UserPlus className="w-3.5 h-3.5" />}
-                                >
-                                    {myInvite?.status === "DECLINED" ? "Request Again" : "Request to Join"}
-                                </Button>
+                                {isGuest ? (
+                                    <Button
+                                        size="sm"
+                                        color="primary"
+                                        variant="solid"
+                                        className="w-full font-semibold"
+                                        startContent={<LogIn className="w-3.5 h-3.5" />}
+                                        onPress={() => { window.location.href = "/sign-in"; }}
+                                    >
+                                        Sign in to Join
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        color="primary"
+                                        variant="solid"
+                                        className="w-full font-semibold"
+                                        isLoading={isRequesting}
+                                        onPress={() => onRequestJoin(squad.id)}
+                                        startContent={!isRequesting && <UserPlus className="w-3.5 h-3.5" />}
+                                    >
+                                        {myInvite?.status === "DECLINED" ? "Request Again" : "Request to Join"}
+                                    </Button>
+                                )}
                             </div>
                         )}
 
@@ -644,6 +658,7 @@ export function SquadCenter({
         (s) => s.isCaptain || s.myInvite?.status === "ACCEPTED" || s.myInvite?.status === "PENDING"
     );
     const otherSquads = squads?.filter((s) => s.id !== mySquad?.id) ?? [];
+    const isGuest = !currentPlayerId;
     const canCreateSquad = !mySquad;
 
     const [respondAction, setRespondAction] = useState<"accept" | "decline" | null>(null);
@@ -817,14 +832,25 @@ export function SquadCenter({
 
                     <ModalFooter className="flex-col gap-2">
                         {canCreateSquad && (
-                            <Button
-                                className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
-                                color={theme ? undefined : "primary"}
-                                startContent={<Plus className="w-4 h-4" />}
-                                onPress={() => setShowCreate(true)}
-                            >
-                                Create Team
-                            </Button>
+                            isGuest ? (
+                                <Button
+                                    className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
+                                    color={theme ? undefined : "primary"}
+                                    startContent={<LogIn className="w-4 h-4" />}
+                                    onPress={() => { window.location.href = "/sign-in"; }}
+                                >
+                                    Sign in to Create Team
+                                </Button>
+                            ) : (
+                                <Button
+                                    className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
+                                    color={theme ? undefined : "primary"}
+                                    startContent={<Plus className="w-4 h-4" />}
+                                    onPress={() => setShowCreate(true)}
+                                >
+                                    Create Team
+                                </Button>
+                            )
                         )}
                         <Button variant="flat" className="w-full" onPress={onClose}>
                             Close
