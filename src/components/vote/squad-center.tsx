@@ -39,6 +39,14 @@ interface InVoter {
     playerId: string;
     displayName: string;
     imageUrl: string;
+    createdAt: string;
+}
+
+interface RandomTeam {
+    id: string;
+    name: string;
+    members: InVoter[];
+    formedAt: string; // createdAt of the last (squadSize-th) voter
 }
 
 interface SquadCenterProps {
@@ -640,6 +648,69 @@ function SquadCard({
     );
 }
 
+/* ─── Random Team Card (collapsible, amber accent) ──────────── */
+
+function RandomTeamCard({ team, defaultExpanded = false }: { team: RandomTeam; defaultExpanded?: boolean }) {
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-amber-500/25 bg-amber-500/5 dark:bg-amber-500/10 overflow-hidden"
+        >
+            {/* Header — tap to expand */}
+            <button
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-amber-500/10 transition-colors"
+            >
+                <div className="flex items-center gap-2 min-w-0">
+                    <Swords className="w-4 h-4 text-amber-500 shrink-0" />
+                    <h4 className="font-semibold text-sm truncate">{team.name}</h4>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    <Chip size="sm" variant="flat" className="bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                        {team.members.length}/{GAME.squadSize}
+                    </Chip>
+                    <motion.div
+                        animate={{ rotate: isExpanded ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        <ChevronDown className="w-4 h-4 text-foreground/40" />
+                    </motion.div>
+                </div>
+            </button>
+
+            {/* Expandable members */}
+            <AnimatePresence initial={false}>
+                {isExpanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="overflow-hidden"
+                    >
+                        <div className="px-4 py-3 space-y-2 border-t border-amber-500/15">
+                            {team.members.map((voter) => (
+                                <div key={voter.playerId} className="flex items-center gap-3">
+                                    <Avatar
+                                        src={voter.imageUrl}
+                                        name={voter.displayName}
+                                        size="sm"
+                                        className="w-8 h-8 shrink-0"
+                                    />
+                                    <span className="text-sm font-medium truncate">{voter.displayName}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
+}
 /* ─── Main Squad Center ─────────────────────────────────────── */
 
 export function SquadCenter({
@@ -718,7 +789,7 @@ export function SquadCenter({
     const pollIsActive = true; // Squads already filter by poll status in APIs
 
     // Random teams: IN voters not in any squad, grouped into teams of squadSize
-    const randomTeams = useMemo(() => {
+    const randomTeams = useMemo((): RandomTeam[] => {
         if (!squads || inVoters.length === 0) return [];
         // Collect all player IDs that are in a squad (accepted or pending)
         const squadPlayerIds = new Set<string>();
@@ -726,21 +797,56 @@ export function SquadCenter({
             for (const m of s.members) {
                 squadPlayerIds.add(m.playerId);
             }
-            // Captain is always in the squad
             squadPlayerIds.add(s.captain.id);
         }
-        // Filter to voters NOT in any squad
-        const randomVoters = inVoters.filter(v => !squadPlayerIds.has(v.playerId));
+        // Filter to voters NOT in any squad, sorted by vote time
+        const randomVoters = inVoters
+            .filter(v => !squadPlayerIds.has(v.playerId))
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         // Group into teams of squadSize
-        const teams: InVoter[][] = [];
+        const teams: RandomTeam[] = [];
+        let teamNum = 1;
         for (let i = 0; i < randomVoters.length; i += GAME.squadSize) {
             const chunk = randomVoters.slice(i, i + GAME.squadSize);
             if (chunk.length === GAME.squadSize) {
-                teams.push(chunk);
+                teams.push({
+                    id: `random-team-${teamNum}`,
+                    name: `${GAME.name} Team ${teamNum}`,
+                    members: chunk,
+                    formedAt: chunk[chunk.length - 1].createdAt, // last voter's time
+                });
+                teamNum++;
             }
         }
         return teams;
     }, [squads, inVoters]);
+
+    // Find if the current user is in a random team
+    const myRandomTeam = useMemo(() => {
+        if (!currentPlayerId) return null;
+        return randomTeams.find(t => t.members.some(m => m.playerId === currentPlayerId)) ?? null;
+    }, [randomTeams, currentPlayerId]);
+
+    // Merge squads + random teams into a single sorted list (newest first)
+    // Exclude the user's own random team (shown separately at top)
+    type ListItem = { type: "squad"; data: SquadDTO } | { type: "random"; data: RandomTeam };
+    const unifiedList = useMemo((): ListItem[] => {
+        const items: ListItem[] = [];
+        for (const s of otherSquads) {
+            items.push({ type: "squad", data: s });
+        }
+        for (const t of randomTeams) {
+            if (myRandomTeam && t.id === myRandomTeam.id) continue; // shown at top
+            items.push({ type: "random", data: t });
+        }
+        // Sort by creation date descending (newest first, matching squad ordering)
+        items.sort((a, b) => {
+            const dateA = a.type === "squad" ? new Date(a.data.createdAt).getTime() : new Date(a.data.formedAt).getTime();
+            const dateB = b.type === "squad" ? new Date(b.data.createdAt).getTime() : new Date(b.data.formedAt).getTime();
+            return dateB - dateA;
+        });
+        return items;
+    }, [otherSquads, randomTeams, myRandomTeam]);
 
     return (
         <>
@@ -783,7 +889,7 @@ export function SquadCenter({
                                     animate={{ opacity: 1 }}
                                     className="space-y-4"
                                 >
-                                    {/* Your Squad */}
+                                    {/* Your Squad (or Your Random Team) */}
                                     {mySquad && (
                                         <div>
                                             <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
@@ -814,73 +920,57 @@ export function SquadCenter({
                                             />
                                         </div>
                                     )}
-
-                                    {/* Other Squads + Random Teams — unified list */}
-                                    {(otherSquads.length > 0 || randomTeams.length > 0) && (
+                                    {!mySquad && myRandomTeam && (
                                         <div>
                                             <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
-                                                {mySquad ? "Other Squads" : "Squads"}
+                                                Your Squad
+                                            </p>
+                                            <RandomTeamCard team={myRandomTeam} defaultExpanded />
+                                        </div>
+                                    )}
+
+                                    {/* Other Squads + Random Teams — unified sorted list */}
+                                    {unifiedList.length > 0 && (
+                                        <div>
+                                            <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
+                                                {(mySquad || myRandomTeam) ? "Other Squads" : "Squads"}
                                             </p>
                                             <div className="space-y-3">
-                                                {otherSquads.map((squad) => (
-                                                    <SquadCard
-                                                        key={squad.id}
-                                                        squad={squad}
-                                                        currentPlayerId={currentPlayerId}
-                                                        pollIsActive={pollIsActive}
-                                                        pollId={pollId}
-                                                        onCancel={handleCancel}
-                                                        onAccept={handleAccept}
-                                                        onDecline={handleDecline}
-                                                        onRequestJoin={handleRequestJoin}
-                                                        onAcceptRequest={handleAcceptRequest}
-                                                        onDeclineRequest={handleDeclineRequest}
-                                                        onRemoveMember={handleRemoveMember}
-                                                        onLeave={handleLeave}
-                                                        isCancelling={cancelMutation.isPending}
-                                                        isResponding={respondMutation.isPending}
-                                                        respondingAction={respondMutation.isPending ? respondAction : null}
-                                                        isRequesting={requestJoinMutation.isPending}
-                                                        isRespondingRequest={respondRequestMutation.isPending}
-                                                        respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
-                                                        isRemoving={removeMemberMutation.isPending}
-                                                        isLeaving={leaveMutation.isPending}
-                                                    />
-                                                ))}
-                                                {/* Random teams inline */}
-                                                {randomTeams.map((team, idx) => (
-                                                    <motion.div
-                                                        key={`random-team-${idx}`}
-                                                        initial={{ opacity: 0, y: 8 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        className="rounded-xl border border-amber-500/25 bg-amber-500/5 dark:bg-amber-500/10 overflow-hidden"
-                                                    >
-                                                        <div className="w-full flex items-center justify-between px-4 py-3">
-                                                            <div className="flex items-center gap-2 min-w-0">
-                                                                <Swords className="w-4 h-4 text-amber-500 shrink-0" />
-                                                                <h4 className="font-semibold text-sm truncate">{GAME.name} Team {idx + 1}</h4>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 shrink-0">
-                                                                <Chip size="sm" variant="flat" className="bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                                                                    {team.length}/{GAME.squadSize}
-                                                                </Chip>
-                                                            </div>
-                                                        </div>
-                                                        <div className="px-4 py-3 space-y-2 border-t border-divider/50">
-                                                            {team.map((voter) => (
-                                                                <div key={voter.playerId} className="flex items-center gap-3">
-                                                                    <Avatar
-                                                                        src={voter.imageUrl}
-                                                                        name={voter.displayName}
-                                                                        size="sm"
-                                                                        className="w-8 h-8 shrink-0"
-                                                                    />
-                                                                    <span className="text-sm font-medium truncate">{voter.displayName}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </motion.div>
-                                                ))}
+                                                {unifiedList.map((item) => {
+                                                    if (item.type === "squad") {
+                                                        return (
+                                                            <SquadCard
+                                                                key={item.data.id}
+                                                                squad={item.data}
+                                                                currentPlayerId={currentPlayerId}
+                                                                pollIsActive={pollIsActive}
+                                                                pollId={pollId}
+                                                                onCancel={handleCancel}
+                                                                onAccept={handleAccept}
+                                                                onDecline={handleDecline}
+                                                                onRequestJoin={handleRequestJoin}
+                                                                onAcceptRequest={handleAcceptRequest}
+                                                                onDeclineRequest={handleDeclineRequest}
+                                                                onRemoveMember={handleRemoveMember}
+                                                                onLeave={handleLeave}
+                                                                isCancelling={cancelMutation.isPending}
+                                                                isResponding={respondMutation.isPending}
+                                                                respondingAction={respondMutation.isPending ? respondAction : null}
+                                                                isRequesting={requestJoinMutation.isPending}
+                                                                isRespondingRequest={respondRequestMutation.isPending}
+                                                                respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
+                                                                isRemoving={removeMemberMutation.isPending}
+                                                                isLeaving={leaveMutation.isPending}
+                                                            />
+                                                        );
+                                                    }
+                                                    return (
+                                                        <RandomTeamCard
+                                                            key={item.data.id}
+                                                            team={item.data}
+                                                        />
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}

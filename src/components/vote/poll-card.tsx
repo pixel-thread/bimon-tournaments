@@ -1279,6 +1279,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 playerId: v.playerId,
                                 displayName: v.displayName,
                                 imageUrl: v.imageUrl,
+                                createdAt: v.createdAt,
                             }))}
                         />
                         <CreateSquadModal
