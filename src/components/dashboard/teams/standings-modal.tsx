@@ -525,8 +525,8 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                                 <td className="px-1 py-1 text-left align-middle">
                                     <div className="flex flex-col min-h-[28px] justify-center">
                                         <div className="flex items-center gap-1.5">
-                                            {hasSquadTeams && row.clanLogo && (
-                                                <img src={row.clanLogo} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                            {hasSquadTeams && (
+                                                <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
                                             )}
                                             <span className={`text-[11px] leading-tight font-semibold ${rank <= 3 ? "text-white" : "text-zinc-300"}`} style={{ wordBreak: "break-word" }}>
                                                 {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
@@ -573,8 +573,8 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                                     <div className="team-name-marquee flex-1 min-w-0">
                                         <span className={`marquee-inner text-sm font-semibold whitespace-nowrap ${rank <= 3 ? "text-white" : "text-zinc-200"}`}>
                                             <span className="inline-flex items-center gap-1.5">
-                                                {hasSquadTeams && row.clanLogo && (
-                                                    <img src={row.clanLogo} alt="" className="w-4 h-4 rounded-full object-cover shrink-0 inline" />
+                                                {hasSquadTeams && (
+                                                    <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0 inline" />
                                                 )}
                                                 {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
                                             </span>

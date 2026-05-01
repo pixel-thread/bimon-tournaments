@@ -85,6 +85,7 @@ interface GameConfig {
     // Clan / Guild
     clanLabel: string;             // "Clan" or "Guild"
     clanLabelPlural: string;       // "Clans" or "Guilds"
+    iconUrl: string;               // PWA icon path for default team branding
     // Feature flags
     features: GameFeatures;
 }
@@ -122,6 +123,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasDualCurrency: false,
         clanLabel: "Clan",
         clanLabelPlural: "Clans",
+        iconUrl: "/icons/bgmi/icon-192x192.png",
         features: {
             hasTeamSizes: true,
             hasLuckyVoters: true,
@@ -173,6 +175,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasDualCurrency: false,
         clanLabel: "Guild",
         clanLabelPlural: "Guilds",
+        iconUrl: "/icons/freefire/icon-192x192.png",
         features: {
             hasTeamSizes: true,
             hasLuckyVoters: true,
@@ -224,6 +227,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasDualCurrency: false,
         clanLabel: "Clan",
         clanLabelPlural: "Clans",
+        iconUrl: "/icons/pes/icon-192x192.png",
         features: {
             hasTeamSizes: false,       // PES is 1v1 only
             hasLuckyVoters: true,       // Lucky voter draws work for any tournament
@@ -284,6 +288,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         exchangeRateOut: 1 / 0.9,      // 45 BP → 50 UC (inverse — round-trip is neutral)
         clanLabel: "Clan",
         clanLabelPlural: "Clans",
+        iconUrl: "/icons/mlbb/icon-192x192.png",
         features: {
             hasTeamSizes: false,
             hasLuckyVoters: true,

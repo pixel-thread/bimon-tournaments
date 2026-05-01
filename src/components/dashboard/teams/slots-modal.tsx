@@ -87,7 +87,9 @@ export function SlotsModal({
             const prevOverflowEl = element.style.overflow;
             element.style.minHeight = 'auto';
             element.style.height = 'auto';
-            element.style.minWidth = '600px'; // Ensure full table fits
+            // Dynamic width: Slot(60px) + Team(140px if squad) + per-player(140px) + padding
+            const captureWidth = 60 + (hasSquadTeams ? 140 : 0) + maxPlayers * 140 + 40;
+            element.style.minWidth = `${Math.max(600, captureWidth)}px`;
             element.style.width = 'max-content';
             element.style.overflow = 'visible';
 
@@ -164,7 +166,7 @@ export function SlotsModal({
         } finally {
             setIsSharing(false);
         }
-    }, [tournamentTitle]);
+    }, [tournamentTitle, hasSquadTeams, maxPlayers]);
 
     if (!isOpen) return null;
 
@@ -284,9 +286,11 @@ export function SlotsModal({
                                                     {hasSquadTeams && (
                                                         <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium whitespace-nowrap ${textColor}`}>
                                                             <span className="inline-flex items-center gap-1.5 justify-center">
-                                                                {team.clanLogo && (
-                                                                    <img src={team.clanLogo} alt={team.clanTag || ""} className="w-4 h-4 rounded-full object-cover shrink-0" />
-                                                                )}
+                                                                <img
+                                                                    src={team.clanLogo || GAME.iconUrl}
+                                                                    alt={team.clanTag || GAME.name}
+                                                                    className="w-4 h-4 rounded-full object-cover shrink-0"
+                                                                />
                                                                 {team.name}
                                                             </span>
                                                         </td>
