@@ -223,9 +223,10 @@ export function StandingsModal({
         // Remove floating controls from clone
         clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
 
-        // Dynamic height based on number of teams (two-column layout)
-        const rowsPerCol = Math.ceil(standings.length / 2);
-        const captureHeight = Math.max(480, 160 + rowsPerCol * 38 + 80);
+        // Dynamic height: podium(~200px) + title/footer(~160px) + remaining teams in two-col
+        const restTeams = Math.max(0, standings.length - 3);
+        const rowsPerCol = Math.ceil(restTeams / 2);
+        const captureHeight = Math.max(520, 200 + 160 + rowsPerCol * 38 + 80);
         const captureWidth = 1280;
 
         // Style the clone for desktop capture
@@ -482,23 +483,47 @@ function PositionChangeIndicator({ change }: { change: number }) {
     return <span className="inline-flex items-center gap-0.5 text-red-400 text-[10px] font-bold"><ChevronDown className="w-3.5 h-3.5" /><span>{Math.abs(change)}</span></span>;
 }
 
-// ── Standings Table (two-column on large screens) ─────────────
+// ── Standings Table — Podium Top 3 + Two-column rest ──────────
 
 function StandingsTable({ standings, allowSquads = false }: { standings: StandingRow[]; allowSquads?: boolean }) {
-    // Use allowSquads from prop instead of regex heuristic
     const hasSquadTeams = allowSquads;
+    const top3 = standings.slice(0, 3);
+    const rest = standings.slice(3);
+
+    // Podium order: #2, #1, #3 (center elevated)
+    const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
+    const podiumRanks = top3.length >= 3 ? [2, 1, 3] : top3.map((_, i) => i + 1);
+
+    const podiumStyles: Record<number, { ring: string; glow: string; size: string; badge: string; bg: string; elevated: boolean }> = {
+        1: {
+            ring: "ring-2 ring-yellow-400/70",
+            glow: "shadow-[0_0_20px_rgba(234,179,8,0.4)]",
+            size: "w-14 h-14",
+            badge: "bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-500 text-black font-black",
+            bg: "from-yellow-500/15 via-yellow-400/5 to-transparent border-yellow-500/30",
+            elevated: true,
+        },
+        2: {
+            ring: "ring-2 ring-gray-300/60",
+            glow: "shadow-[0_0_14px_rgba(156,163,175,0.3)]",
+            size: "w-11 h-11",
+            badge: "bg-gradient-to-r from-gray-400 via-gray-200 to-gray-300 text-black font-black",
+            bg: "from-gray-400/10 via-gray-300/5 to-transparent border-gray-400/30",
+            elevated: false,
+        },
+        3: {
+            ring: "ring-2 ring-orange-500/60",
+            glow: "shadow-[0_0_14px_rgba(234,88,12,0.3)]",
+            size: "w-11 h-11",
+            badge: "bg-gradient-to-r from-orange-700 via-orange-500 to-orange-600 text-white font-black",
+            bg: "from-orange-500/10 via-orange-400/5 to-transparent border-orange-500/30",
+            elevated: false,
+        },
+    };
+
     const renderTable = (slice: StandingRow[], startIndex: number) => (
         <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm">
-            <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
-                <colgroup>
-                    <col style={{ width: "30px" }} />
-                    <col style={{ width: "26px" }} />
-                    <col />
-                    <col style={{ width: "22px" }} />
-                    <col style={{ width: "30px" }} />
-                    <col style={{ width: "32px" }} />
-                    <col style={{ width: "38px" }} />
-                </colgroup>
+            <table className="w-full border-collapse">
                 <thead>
                     <tr className="border-b border-white/10 bg-gradient-to-r from-orange-500/10 via-transparent to-orange-500/10">
                         <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-orange-400">#</th>
@@ -517,7 +542,7 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                         return (
                             <tr
                                 key={row.teamId}
-                                className={`border-b border-white/5 transition-all duration-200 ${styles.row}`}
+                                className={`border-b border-white/5 last:border-b-0 transition-all duration-200 ${styles.row}`}
                             >
                                 <td className="px-1 py-1.5 text-center align-middle">
                                     <span className={`inline-flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold ${styles.badge}`}>
@@ -528,20 +553,13 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                                     <PositionChangeIndicator change={row.positionChange} />
                                 </td>
                                 <td className="px-1 py-1 text-left align-middle">
-                                    <div className="flex flex-col min-h-[28px] justify-center">
-                                        <div className="flex items-center gap-1.5">
-                                            {hasSquadTeams && (
-                                                <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
-                                            )}
-                                            <span className={`text-[11px] leading-tight font-semibold ${rank <= 3 ? "text-white" : "text-zinc-300"}`} style={{ wordBreak: "break-word" }}>
-                                                {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
-                                            </span>
-                                        </div>
-                                        {row.wins > 0 && (
-                                            <span className="text-[9px] mt-0.5 text-yellow-400">
-                                                🍗 {row.wins} win{row.wins > 1 ? "s" : ""}
-                                            </span>
+                                    <div className="flex items-center gap-1.5">
+                                        {hasSquadTeams && (
+                                            <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
                                         )}
+                                        <span className={`text-[11px] leading-tight font-semibold text-zinc-300 ${hasSquadTeams ? "whitespace-nowrap" : ""}`} style={hasSquadTeams ? undefined : { wordBreak: "break-word" }}>
+                                            {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                                        </span>
                                     </div>
                                 </td>
                                 <td className="px-1 py-1.5 text-center align-middle text-zinc-500 tabular-nums font-mono text-xs">{row.matchCount}</td>
@@ -556,73 +574,119 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
         </div>
     );
 
-    const half = Math.ceil(standings.length / 2);
+    const restHalf = Math.ceil(rest.length / 2);
 
     return (
         <div className="w-full">
-            {/* Mobile: single column */}
-            <div className="mobile-standings sm:hidden space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-                {standings.map((row, index) => {
-                    const rank = index + 1;
-                    const styles = getRankStyles(rank);
-                    return (
-                        <div key={row.teamId} className={`rounded-lg border border-white/10 bg-black/40 backdrop-blur-sm px-3 py-2.5 flex items-start gap-3 transition-all ${styles.row}`}>
-                            <div className="flex flex-col items-center gap-0.5">
-                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${styles.badge}`}>
-                                    {rank}
+            {/* ── Podium: Top 3 ─────────────────────────── */}
+            {top3.length > 0 && (
+                <div className="podium-section mb-5">
+                    <div className="flex items-end justify-center gap-3 sm:gap-5">
+                        {podiumOrder.map((row, i) => {
+                            if (!row) return null;
+                            const rank = podiumRanks[i];
+                            const ps = podiumStyles[rank];
+                            return (
+                                <div
+                                    key={row.teamId}
+                                    className={`flex flex-col items-center text-center ${ps.elevated ? "mb-2" : "mb-0"}`}
+                                    style={{ width: ps.elevated ? (hasSquadTeams ? "140px" : "200px") : (hasSquadTeams ? "120px" : "180px") }}
+                                >
+                                    {/* Logo */}
+                                    <div className={`relative rounded-full ${ps.ring} ${ps.glow} ${ps.size} overflow-hidden bg-zinc-900/80 mb-1.5`}>
+                                        <img
+                                            src={row.clanLogo || GAME.iconUrl}
+                                            alt=""
+                                            className="w-full h-full object-cover"
+                                        />
+                                        {/* Rank badge overlaying bottom */}
+                                        <div className={`absolute -bottom-0.5 left-1/2 -translate-x-1/2 flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${ps.badge} shadow-lg`}>
+                                            {rank}
+                                        </div>
+                                    </div>
+
+                                    {/* Team Name */}
+                                    <p className={`text-xs font-bold mt-1 w-full ${hasSquadTeams ? "truncate" : "leading-tight"} ${rank === 1 ? "text-yellow-300" : rank === 2 ? "text-gray-200" : "text-orange-300"}`}>
+                                        {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                                    </p>
+
+                                    {/* Stats */}
+                                    <div className={`mt-1.5 w-full rounded-lg border bg-gradient-to-b ${ps.bg} px-2 py-1.5 backdrop-blur-sm`}>
+                                        <p className="text-orange-400 font-bold text-sm tabular-nums">{row.totalPoints} <span className="text-[9px] text-zinc-500 font-normal">pts</span></p>
+                                        <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] text-zinc-400">
+                                            <span>{row.totalKills} kills</span>
+                                            <span className="text-zinc-600">|</span>
+                                            <span>{row.placementPts} place</span>
+                                        </div>
+                                        {row.wins > 0 && (
+                                            <p className="text-[9px] mt-0.5 text-yellow-400 font-semibold">🍗 {row.wins} win{row.wins > 1 ? "s" : ""}</p>
+                                        )}
+                                    </div>
                                 </div>
-                                <PositionChangeIndicator change={row.positionChange} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="team-name-marquee flex-1 min-w-0">
-                                        <span className={`marquee-inner text-sm font-semibold whitespace-nowrap ${rank <= 3 ? "text-white" : "text-zinc-200"}`}>
-                                            <span className="inline-flex items-center gap-1.5">
-                                                {hasSquadTeams && (
-                                                    <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0 inline" />
-                                                )}
-                                                {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Mobile: single column (rank 4+) ──────── */}
+            {rest.length > 0 && (
+                <div className="mobile-standings sm:hidden space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+                    {rest.map((row, index) => {
+                        const rank = index + 4;
+                        const styles = getRankStyles(rank);
+                        return (
+                            <div key={row.teamId} className={`rounded-lg border border-white/10 bg-black/40 backdrop-blur-sm px-3 py-2.5 flex items-start gap-3 transition-all ${styles.row}`}>
+                                <div className="flex flex-col items-center gap-0.5">
+                                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${styles.badge}`}>
+                                        {rank}
+                                    </div>
+                                    <PositionChangeIndicator change={row.positionChange} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className="team-name-marquee flex-1 min-w-0">
+                                            <span className={`marquee-inner text-sm font-semibold whitespace-nowrap text-zinc-200`}>
+                                                <span className="inline-flex items-center gap-1.5">
+                                                    {hasSquadTeams && (
+                                                        <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0 inline" />
+                                                    )}
+                                                    {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                                                </span>
                                             </span>
+                                        </div>
+                                    </div>
+                                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
+                                        <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-zinc-400">
+                                            <span className="text-zinc-500">M</span>
+                                            <span className="font-medium text-zinc-300">{row.matchCount}</span>
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-zinc-400">
+                                            <span className="text-zinc-500">K</span>
+                                            <span className="font-medium text-zinc-300">{row.totalKills}</span>
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 rounded-md border border-orange-500/30 bg-orange-500/10 px-2 py-0.5">
+                                            <span className="text-orange-400/70">TOTAL</span>
+                                            <span className="font-bold text-orange-400">{row.totalPoints}</span>
                                         </span>
                                     </div>
-                                    {row.wins > 0 && (
-                                        <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[10px] font-bold">
-                                            🍗{row.wins > 1 ? ` ×${row.wins}` : ""}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
-                                    <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-zinc-400">
-                                        <span className="text-zinc-500">M</span>
-                                        <span className="font-medium text-zinc-300">{row.matchCount}</span>
-                                    </span>
-                                    <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-zinc-400">
-                                        <span className="text-zinc-500">PTS</span>
-                                        <span className="font-medium text-zinc-300">{row.placementPts}</span>
-                                    </span>
-                                    <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-zinc-400">
-                                        <span className="text-zinc-500">K</span>
-                                        <span className="font-medium text-zinc-300">{row.totalKills}</span>
-                                    </span>
-                                    <span className="inline-flex items-center gap-1 rounded-md border border-orange-500/30 bg-orange-500/10 px-2 py-0.5">
-                                        <span className="text-orange-400/70">TOTAL</span>
-                                        <span className="font-bold text-orange-400">{row.totalPoints}</span>
-                                    </span>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Desktop: two-column on lg+ */}
-            <div className="desktop-standings hidden sm:block">
-                <div className="desktop-two-col hidden lg:flex lg:gap-4 lg:justify-center">
-                    <div className="flex-1 max-w-[580px]">{renderTable(standings.slice(0, half), 0)}</div>
-                    <div className="flex-1 max-w-[580px]">{renderTable(standings.slice(half), half)}</div>
+                        );
+                    })}
                 </div>
-                <div className="desktop-single-col block lg:hidden">{renderTable(standings, 0)}</div>
-            </div>
+            )}
+
+            {/* ── Desktop: two-column table (rank 4+) ─── */}
+            {rest.length > 0 && (
+                <div className="desktop-standings hidden sm:block">
+                    <div className="desktop-two-col hidden lg:flex lg:gap-4 lg:justify-center">
+                        <div className="flex-1 max-w-[520px]">{renderTable(rest.slice(0, restHalf), 3)}</div>
+                        <div className="flex-1 max-w-[520px]">{renderTable(rest.slice(restHalf), 3 + restHalf)}</div>
+                    </div>
+                    <div className="desktop-single-col block lg:hidden">{renderTable(rest, 3)}</div>
+                </div>
+            )}
         </div>
     );
 }
