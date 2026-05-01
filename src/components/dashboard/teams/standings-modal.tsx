@@ -223,9 +223,14 @@ export function StandingsModal({
         // Remove floating controls from clone
         clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
 
-        // Style the clone for 1280x720 desktop capture
+        // Dynamic height based on number of teams (two-column layout)
+        const rowsPerCol = Math.ceil(standings.length / 2);
+        const captureHeight = Math.max(480, 160 + rowsPerCol * 38 + 80);
+        const captureWidth = 1280;
+
+        // Style the clone for desktop capture
         clone.style.cssText = `
-            width: 1280px; height: 720px; min-height: 720px;
+            width: ${captureWidth}px; height: ${captureHeight}px; min-height: ${captureHeight}px;
             display: flex; align-items: center; justify-content: center;
             background-image: url(${backgroundImage});
             background-size: cover; background-position: center;
@@ -242,8 +247,8 @@ export function StandingsModal({
 
         try {
             const dataUrl = await toPng(clone, {
-                width: 1280,
-                height: 720,
+                width: captureWidth,
+                height: captureHeight,
                 pixelRatio: 2,
             });
 
@@ -297,7 +302,7 @@ export function StandingsModal({
             document.body.removeChild(tempContainer);
             setIsSharing(false);
         }
-    }, [tournamentTitle, backgroundImage]);
+    }, [tournamentTitle, backgroundImage, standings]);
 
     if (!isOpen) return null;
 
@@ -486,13 +491,13 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
         <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm">
             <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
                 <colgroup>
-                    <col style={{ width: "36px" }} />
-                    <col style={{ width: "32px" }} />
+                    <col style={{ width: "30px" }} />
+                    <col style={{ width: "26px" }} />
                     <col />
-                    <col style={{ width: "28px" }} />
-                    <col style={{ width: "36px" }} />
-                    <col style={{ width: "40px" }} />
-                    <col style={{ width: "48px" }} />
+                    <col style={{ width: "22px" }} />
+                    <col style={{ width: "30px" }} />
+                    <col style={{ width: "32px" }} />
+                    <col style={{ width: "38px" }} />
                 </colgroup>
                 <thead>
                     <tr className="border-b border-white/10 bg-gradient-to-r from-orange-500/10 via-transparent to-orange-500/10">

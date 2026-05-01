@@ -248,7 +248,7 @@ export function SlotsModal({
                                                 Slot
                                             </th>
                                             {hasSquadTeams && (
-                                                <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-zinc-300 whitespace-nowrap">
+                                                <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[11px] sm:text-sm font-semibold text-zinc-300 whitespace-nowrap">
                                                     Team
                                                 </th>
                                             )}
@@ -284,8 +284,8 @@ export function SlotsModal({
                                                         {index + 2}
                                                     </td>
                                                     {hasSquadTeams && (
-                                                        <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium whitespace-nowrap ${textColor}`}>
-                                                            <span className="inline-flex items-center gap-1.5 justify-center">
+                                                        <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[11px] sm:text-sm font-medium whitespace-nowrap ${textColor}`}>
+                                                            <span className="inline-flex items-center gap-1.5">
                                                                 <img
                                                                     src={team.clanLogo || GAME.iconUrl}
                                                                     alt={team.clanTag || GAME.name}
