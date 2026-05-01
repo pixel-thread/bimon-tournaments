@@ -35,6 +35,12 @@ import type { PollTheme } from "./pollTheme";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
+interface InVoter {
+    playerId: string;
+    displayName: string;
+    imageUrl: string;
+}
+
 interface SquadCenterProps {
     isOpen: boolean;
     onClose: () => void;
@@ -44,6 +50,7 @@ interface SquadCenterProps {
     currentPlayerId: string;
     theme?: PollTheme | null;
     hasVotedIn?: boolean;
+    inVoters?: InVoter[];
 }
 
 /* ─── Status Badge ──────────────────────────────────────────── */
@@ -644,6 +651,7 @@ export function SquadCenter({
     currentPlayerId,
     theme,
     hasVotedIn,
+    inVoters = [],
 }: SquadCenterProps) {
     const [showCreate, setShowCreate] = useState(false);
     const { data: squads, isLoading, refetch } = useSquads(pollId);
@@ -709,23 +717,30 @@ export function SquadCenter({
     // or we pass it as prop. For now we'll consider squads are always viewable
     const pollIsActive = true; // Squads already filter by poll status in APIs
 
-    // Split "other squads" into formed teams vs still-forming
-    const mySquadIsFormed = mySquad ? mySquad.acceptedCount >= GAME.squadSize : false;
-    const { formedTeams, formingSquads } = useMemo(() => {
-        const formed: SquadDTO[] = [];
-        const forming: SquadDTO[] = [];
-        for (const s of otherSquads) {
-            if (s.acceptedCount >= GAME.squadSize) {
-                formed.push(s);
-            } else {
-                forming.push(s);
+    // Random teams: IN voters not in any squad, grouped into teams of squadSize
+    const randomTeams = useMemo(() => {
+        if (!squads || inVoters.length === 0) return [];
+        // Collect all player IDs that are in a squad (accepted or pending)
+        const squadPlayerIds = new Set<string>();
+        for (const s of squads) {
+            for (const m of s.members) {
+                squadPlayerIds.add(m.playerId);
+            }
+            // Captain is always in the squad
+            squadPlayerIds.add(s.captain.id);
+        }
+        // Filter to voters NOT in any squad
+        const randomVoters = inVoters.filter(v => !squadPlayerIds.has(v.playerId));
+        // Group into teams of squadSize
+        const teams: InVoter[][] = [];
+        for (let i = 0; i < randomVoters.length; i += GAME.squadSize) {
+            const chunk = randomVoters.slice(i, i + GAME.squadSize);
+            if (chunk.length === GAME.squadSize) {
+                teams.push(chunk);
             }
         }
-        return { formedTeams: formed, formingSquads: forming };
-    }, [otherSquads]);
-    // Team numbering: mySquad takes Team 1 if formed, other formed teams start after
-    const mySquadTeamNumber = mySquadIsFormed ? 1 : 0;
-    const formedTeamOffset = mySquadIsFormed ? 2 : 1; // other formed teams start at this number
+        return teams;
+    }, [squads, inVoters]);
 
     return (
         <>
@@ -773,11 +788,6 @@ export function SquadCenter({
                                         <div>
                                             <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
                                                 Your Squad
-                                                {mySquadIsFormed && (
-                                                    <span className="ml-2 text-emerald-600 dark:text-emerald-400">
-                                                        — {GAME.name} Team {mySquadTeamNumber}
-                                                    </span>
-                                                )}
                                             </p>
                                             <SquadCard
                                                 squad={mySquad}
@@ -805,61 +815,14 @@ export function SquadCenter({
                                         </div>
                                     )}
 
-                                    {/* Formed Teams — squads with enough accepted players */}
-                                    {formedTeams.length > 0 && (
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Swords className="w-3.5 h-3.5 text-emerald-500" />
-                                                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
-                                                    Formed Teams
-                                                </p>
-                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                                                    {formedTeams.length}
-                                                </span>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {formedTeams.map((squad, idx) => (
-                                                    <div key={squad.id}>
-                                                        <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mb-1 ml-1">
-                                                            {GAME.name} Team {idx + formedTeamOffset} — {squad.name}
-                                                        </p>
-                                                        <SquadCard
-                                                            squad={squad}
-                                                            currentPlayerId={currentPlayerId}
-                                                            pollIsActive={pollIsActive}
-                                                            pollId={pollId}
-                                                            onCancel={handleCancel}
-                                                            onAccept={handleAccept}
-                                                            onDecline={handleDecline}
-                                                            onRequestJoin={handleRequestJoin}
-                                                            onAcceptRequest={handleAcceptRequest}
-                                                            onDeclineRequest={handleDeclineRequest}
-                                                            onRemoveMember={handleRemoveMember}
-                                                            onLeave={handleLeave}
-                                                            isCancelling={cancelMutation.isPending}
-                                                            isResponding={respondMutation.isPending}
-                                                            respondingAction={respondMutation.isPending ? respondAction : null}
-                                                            isRequesting={requestJoinMutation.isPending}
-                                                            isRespondingRequest={respondRequestMutation.isPending}
-                                                            respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
-                                                            isRemoving={removeMemberMutation.isPending}
-                                                            isLeaving={leaveMutation.isPending}
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Still Forming Squads */}
-                                    {formingSquads.length > 0 && (
+                                    {/* Other Squads */}
+                                    {otherSquads.length > 0 && (
                                         <div>
                                             <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
                                                 {mySquad ? "Other Squads" : "Squads"}
-                                                {formedTeams.length > 0 && " (Forming)"}
                                             </p>
                                             <div className="space-y-3">
-                                                {formingSquads.map((squad) => (
+                                                {otherSquads.map((squad) => (
                                                     <SquadCard
                                                         key={squad.id}
                                                         squad={squad}
@@ -883,6 +846,56 @@ export function SquadCenter({
                                                         isRemoving={removeMemberMutation.isPending}
                                                         isLeaving={leaveMutation.isPending}
                                                     />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Random Teams — individual IN voters grouped into teams */}
+                                    {randomTeams.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Swords className="w-3.5 h-3.5 text-amber-500" />
+                                                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
+                                                    Random Teams
+                                                </p>
+                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                                                    {randomTeams.length}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-3">
+                                                {randomTeams.map((team, idx) => (
+                                                    <motion.div
+                                                        key={`random-team-${idx}`}
+                                                        initial={{ opacity: 0, y: 8 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        className="rounded-xl border border-amber-500/20 bg-amber-500/5 dark:bg-amber-500/10 overflow-hidden"
+                                                    >
+                                                        <div className="px-4 py-2.5 border-b border-amber-500/10">
+                                                            <div className="flex items-center gap-2">
+                                                                <Swords className="w-3.5 h-3.5 text-amber-500" />
+                                                                <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                                                                    {GAME.name} Team {idx + 1}
+                                                                </span>
+                                                                <Chip size="sm" variant="flat" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 ml-auto">
+                                                                    {team.length}/{GAME.squadSize}
+                                                                </Chip>
+                                                            </div>
+                                                        </div>
+                                                        <div className="px-4 py-3 space-y-2">
+                                                            {team.map((voter) => (
+                                                                <div key={voter.playerId} className="flex items-center gap-3">
+                                                                    <Avatar
+                                                                        src={voter.imageUrl}
+                                                                        name={voter.displayName}
+                                                                        size="sm"
+                                                                        className="w-8 h-8 shrink-0"
+                                                                    />
+                                                                    <span className="text-sm font-medium truncate">{voter.displayName}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </motion.div>
                                                 ))}
                                             </div>
                                         </div>

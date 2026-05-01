@@ -1275,6 +1275,11 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             currentPlayerId={currentPlayerId ?? ""}
                             theme={theme}
                             hasVotedIn={poll.userVote === "IN" || poll.userVote === "SOLO"}
+                            inVoters={(votersByVote["IN"] ?? []).map(v => ({
+                                playerId: v.playerId,
+                                displayName: v.displayName,
+                                imageUrl: v.imageUrl,
+                            }))}
                         />
                         <CreateSquadModal
                             isOpen={showCreateSquad}
