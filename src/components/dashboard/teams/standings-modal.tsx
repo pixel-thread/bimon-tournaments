@@ -612,11 +612,11 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
 
                                     {/* Stats */}
                                     <div className={`mt-1.5 w-full rounded-lg border bg-gradient-to-b ${ps.bg} px-2 py-1.5 backdrop-blur-sm`}>
-                                        <p className="text-orange-400 font-bold text-sm tabular-nums">{row.totalPoints} <span className="text-[9px] text-zinc-500 font-normal">pts</span></p>
+                                        <p className="text-orange-400 font-bold text-sm tabular-nums">{row.totalPoints}</p>
                                         <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] text-zinc-400">
                                             <span>{row.totalKills} kills</span>
                                             <span className="text-zinc-600">|</span>
-                                            <span>{row.placementPts} place</span>
+                                            <span>{row.placementPts} pts</span>
                                         </div>
                                         {row.wins > 0 && (
                                             <p className="text-[9px] mt-0.5 text-yellow-400 font-semibold">🍗 {row.wins} win{row.wins > 1 ? "s" : ""}</p>
