@@ -761,9 +761,9 @@ export function SquadCenter({
                             <span className="truncate block">{tournamentName}</span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-normal text-foreground/50">Squad Center</span>
-                                {squads && squads.length > 0 && (
+                                {squads && (squads.length + randomTeams.length) > 0 && (
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-foreground/50">
-                                        {squads.length} squad{squads.length !== 1 ? "s" : ""}
+                                        {squads.length + randomTeams.length} squad{(squads.length + randomTeams.length) !== 1 ? "s" : ""}
                                     </span>
                                 )}
                             </div>
@@ -815,8 +815,8 @@ export function SquadCenter({
                                         </div>
                                     )}
 
-                                    {/* Other Squads */}
-                                    {otherSquads.length > 0 && (
+                                    {/* Other Squads + Random Teams — unified list */}
+                                    {(otherSquads.length > 0 || randomTeams.length > 0) && (
                                         <div>
                                             <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
                                                 {mySquad ? "Other Squads" : "Squads"}
@@ -847,42 +847,26 @@ export function SquadCenter({
                                                         isLeaving={leaveMutation.isPending}
                                                     />
                                                 ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Random Teams — individual IN voters grouped into teams */}
-                                    {randomTeams.length > 0 && (
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Swords className="w-3.5 h-3.5 text-amber-500" />
-                                                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
-                                                    Random Teams
-                                                </p>
-                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                                                    {randomTeams.length}
-                                                </span>
-                                            </div>
-                                            <div className="space-y-3">
+                                                {/* Random teams inline */}
                                                 {randomTeams.map((team, idx) => (
                                                     <motion.div
                                                         key={`random-team-${idx}`}
                                                         initial={{ opacity: 0, y: 8 }}
                                                         animate={{ opacity: 1, y: 0 }}
-                                                        className="rounded-xl border border-amber-500/20 bg-amber-500/5 dark:bg-amber-500/10 overflow-hidden"
+                                                        className="rounded-xl border border-amber-500/25 bg-amber-500/5 dark:bg-amber-500/10 overflow-hidden"
                                                     >
-                                                        <div className="px-4 py-2.5 border-b border-amber-500/10">
-                                                            <div className="flex items-center gap-2">
-                                                                <Swords className="w-3.5 h-3.5 text-amber-500" />
-                                                                <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
-                                                                    {GAME.name} Team {idx + 1}
-                                                                </span>
-                                                                <Chip size="sm" variant="flat" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 ml-auto">
+                                                        <div className="w-full flex items-center justify-between px-4 py-3">
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <Swords className="w-4 h-4 text-amber-500 shrink-0" />
+                                                                <h4 className="font-semibold text-sm truncate">{GAME.name} Team {idx + 1}</h4>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <Chip size="sm" variant="flat" className="bg-amber-500/15 text-amber-600 dark:text-amber-400">
                                                                     {team.length}/{GAME.squadSize}
                                                                 </Chip>
                                                             </div>
                                                         </div>
-                                                        <div className="px-4 py-3 space-y-2">
+                                                        <div className="px-4 py-3 space-y-2 border-t border-divider/50">
                                                             {team.map((voter) => (
                                                                 <div key={voter.playerId} className="flex items-center gap-3">
                                                                     <Avatar
