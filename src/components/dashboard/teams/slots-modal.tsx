@@ -278,7 +278,7 @@ export function SlotsModal({
                                             return (
                                                 <tr
                                                     key={team.id || index}
-                                                    className={`border-b border-white/5 ${index % 2 === 0 ? "bg-zinc-900/40" : "bg-zinc-800/30"} hover:bg-zinc-700/40 transition-colors`}
+                                                    className={`border-b border-white/5 last:border-b-0 ${index % 2 === 0 ? "bg-zinc-900/40" : "bg-zinc-800/30"} hover:bg-zinc-700/40 transition-colors`}
                                                 >
                                                     <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium ${textColor}`}>
                                                         {index + 2}
@@ -311,7 +311,7 @@ export function SlotsModal({
                             </div>
 
                             {/* Footer */}
-                            <div className="px-2 py-1.5 sm:py-2 bg-zinc-800/60 border-t border-white/10 text-center">
+                            <div className="px-2 py-2 sm:py-2.5 bg-zinc-800/60 border-t border-white/10 text-center">
                                 <span className="text-[11px] sm:text-sm font-semibold text-zinc-300">
                                     Total Players: {totalPlayers}
                                 </span>
