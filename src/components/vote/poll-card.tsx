@@ -1143,31 +1143,6 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         </button>
                     )}
 
-                    {/* Last Champions banner — compact with background image */}
-                    {poll.allowSquads && defendingChampion && (
-                        <div className="relative overflow-hidden rounded-xl h-[52px]">
-                            <img
-                                src="/images/champion-banner.png"
-                                alt=""
-                                className="absolute inset-0 w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/40" />
-                            <div className="relative h-full flex items-center justify-between px-4">
-                                <div className="flex items-center gap-2.5">
-                                    {defendingChampion.clanLogo && (
-                                        <img src={defendingChampion.clanLogo} alt="" className="w-7 h-7 rounded-full object-cover border border-amber-500/40" />
-                                    )}
-                                    <div>
-                                        <p className="text-[11px] font-bold text-white leading-tight">{defendingChampion.teamName}</p>
-                                        {defendingChampion.captainName && (
-                                            <p className="text-[9px] text-white/50 leading-tight">Captain: {defendingChampion.captainName}</p>
-                                        )}
-                                    </div>
-                                </div>
-                                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">🏆 Last Champions</span>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Squad buttons — only for polls with allowSquads */}
                     {poll.allowSquads && (

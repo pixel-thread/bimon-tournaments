@@ -46,7 +46,7 @@ export function CreateSquadModal({
 }: CreateSquadModalProps) {
     const [step, setStep] = useState<"name" | "done">("name");
     const [squadName, setSquadName] = useState("");
-    const [useClan, setUseClan] = useState(false);
+    const [useClan, setUseClan] = useState(true);
 
     const createMutation = useCreateSquad();
 
