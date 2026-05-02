@@ -247,8 +247,45 @@ function SquadCard({
             ref={cardRef}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-divider bg-default-50 dark:bg-default-100/50 overflow-hidden"
+            className={`rounded-xl overflow-hidden ${
+                squad.isDefendingChampion
+                    ? 'relative'
+                    : 'border border-divider bg-default-50 dark:bg-default-100/50'
+            }`}
         >
+            {/* Animated gradient border for defending champion */}
+            {squad.isDefendingChampion && (
+                <>
+                    <div
+                        className="absolute inset-0 rounded-xl"
+                        style={{
+                            background: 'linear-gradient(var(--champion-angle, 0deg), #f59e0b, #eab308, #f97316, #fbbf24, #f59e0b)',
+                            animation: 'champion-spin 3s linear infinite',
+                            padding: '2px',
+                        }}
+                    />
+                    <div className="absolute inset-0 rounded-xl" style={{
+                        background: 'linear-gradient(var(--champion-angle, 0deg), rgba(245,158,11,0.3), rgba(249,115,22,0.15), rgba(245,158,11,0.3))',
+                        animation: 'champion-spin 3s linear infinite',
+                        filter: 'blur(8px)',
+                    }} />
+                    <style>{`
+                        @property --champion-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+                        @keyframes champion-spin { to { --champion-angle: 360deg; } }
+                    `}</style>
+                </>
+            )}
+            <div className={`relative rounded-xl ${
+                squad.isDefendingChampion
+                    ? 'bg-gradient-to-br from-amber-950/90 via-default-50 to-amber-950/90 dark:from-amber-950/80 dark:via-default-100/90 dark:to-amber-950/80 m-[2px]'
+                    : ''
+            }`}>
+            {/* Champion badge */}
+            {squad.isDefendingChampion && (
+                <div className="flex items-center justify-center gap-1.5 py-1.5 bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border-b border-amber-500/20">
+                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">🏆 Defending Champion</span>
+                </div>
+            )}
             {/* Header — always visible, tap to expand */}
             <button
                 type="button"
@@ -644,6 +681,7 @@ function SquadCard({
                     </motion.div>
                 )}
             </AnimatePresence>
+            </div>
         </motion.div>
     );
 }
@@ -725,7 +763,8 @@ export function SquadCenter({
     inVoters = [],
 }: SquadCenterProps) {
     const [showCreate, setShowCreate] = useState(false);
-    const { data: squads, isLoading, refetch } = useSquads(pollId);
+    const { data: squadsResult, isLoading, refetch } = useSquads(pollId);
+    const squads = squadsResult?.squads;
     const cancelMutation = useCancelSquad();
     const respondMutation = useRespondToInvite();
     const requestJoinMutation = useRequestJoin();

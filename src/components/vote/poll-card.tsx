@@ -645,7 +645,9 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const [squadVoteWarning, setSquadVoteWarning] = useState<{ vote: "IN" | "OUT" | "SOLO"; squadName: string; isCaptain: boolean } | null>(null);
 
     // Squad data for vote warning (only fetched for squad polls)
-    const { data: squadsData } = useSquads(poll.allowSquads ? poll.id : undefined);
+    const { data: squadsResult } = useSquads(poll.allowSquads ? poll.id : undefined);
+    const squadsData = squadsResult?.squads;
+    const defendingChampion = squadsResult?.defendingChampion;
 
     // Secret unvote: 3s long-press on selected option
     const handleUnvote = useCallback(async () => {
@@ -1139,6 +1141,21 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 View all votes
                             </span>
                         </button>
+                    )}
+
+                    {/* Defending Champion badge — static premium look */}
+                    {poll.allowSquads && defendingChampion && (
+                        <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border border-amber-500/20">
+                            {defendingChampion.clanLogo && (
+                                <img src={defendingChampion.clanLogo} alt="" className="w-5 h-5 rounded-full object-cover" />
+                            )}
+                            <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                                🏆 Defending Champion: {defendingChampion.teamName}
+                                {defendingChampion.captainName && (
+                                    <span className="font-normal text-foreground/50"> • {defendingChampion.captainName}</span>
+                                )}
+                            </span>
+                        </div>
                     )}
 
                     {/* Squad buttons — only for polls with allowSquads */}

@@ -32,6 +32,7 @@ export interface SquadDTO {
     clanLogo: string | null;
     clanTag: string | null;
     clanName: string | null;
+    isDefendingChampion: boolean;
     isCaptain: boolean;
     myInvite: { id: string; status: string; initiatedBy: string } | null;
     members: SquadMember[];
@@ -39,6 +40,13 @@ export interface SquadDTO {
     activeCount: number;
     totalSlots: number;
     isFull: boolean;
+}
+
+export interface DefendingChampion {
+    clanId: string;
+    teamName: string;
+    captainName: string | null;
+    clanLogo: string | null;
 }
 
 export interface SearchPlayerResult {
@@ -55,14 +63,14 @@ export interface SearchPlayerResult {
  * Fetch all squads for a specific poll.
  */
 export function useSquads(pollId: string | undefined) {
-    return useQuery<SquadDTO[]>({
+    return useQuery<{ squads: SquadDTO[]; defendingChampion: DefendingChampion | null }>({
         queryKey: ["squads", pollId],
         queryFn: async () => {
-            if (!pollId) return [];
+            if (!pollId) return { squads: [], defendingChampion: null };
             const res = await fetch(`/api/squads?pollId=${pollId}&_t=${Date.now()}`);
             if (!res.ok) throw new Error("Failed to fetch squads");
             const json = await res.json();
-            return json.data;
+            return { squads: json.data ?? [], defendingChampion: json.meta?.defendingChampion ?? null };
         },
         enabled: !!pollId && GAME.features.hasSquads,
         staleTime: 15_000,

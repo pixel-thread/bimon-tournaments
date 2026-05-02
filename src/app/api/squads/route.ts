@@ -56,6 +56,47 @@ export async function GET(request: NextRequest) {
             orderBy: { createdAt: "desc" },
         });
 
+        // ── Defending champion: find the last completed squad tournament's 1st place clanId ──
+        let defendingChampion: { clanId: string; teamName: string; captainName: string | null; clanLogo: string | null } | null = null;
+        const lastWinner = await prisma.tournamentWinner.findFirst({
+            where: {
+                position: 1,
+                tournament: {
+                    isWinnerDeclared: true,
+                    poll: { allowSquads: true },
+                },
+                team: { clanId: { not: null } },
+            },
+            orderBy: { createdAt: "desc" },
+            select: {
+                team: {
+                    select: {
+                        name: true,
+                        clanId: true,
+                        clan: { select: { logoUrl: true } },
+                        players: {
+                            select: { displayName: true },
+                            take: 1,
+                        },
+                    },
+                },
+            },
+        });
+        if (lastWinner?.team?.clanId) {
+            // Find the captain of the winning team via Squad records
+            const winningSquad = await prisma.squad.findFirst({
+                where: { clanId: lastWinner.team.clanId, status: "REGISTERED" },
+                orderBy: { createdAt: "desc" },
+                select: { captain: { select: { displayName: true } } },
+            });
+            defendingChampion = {
+                clanId: lastWinner.team.clanId,
+                teamName: lastWinner.team.name,
+                captainName: winningSquad?.captain?.displayName ?? lastWinner.team.players[0]?.displayName ?? null,
+                clanLogo: lastWinner.team.clan?.logoUrl ?? null,
+            };
+        }
+
         const data = squads.map((squad) => {
             const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
             const activeCount = squad.invites.filter((i) => i.status === "ACCEPTED" && !i.isSub).length;
@@ -77,6 +118,7 @@ export async function GET(request: NextRequest) {
                 clanLogo: squad.clan?.logoUrl ?? null,
                 clanTag: squad.clan?.tag ?? null,
                 clanName: squad.clan?.name ?? null,
+                isDefendingChampion: !!defendingChampion && !!squad.clanId && squad.clanId === defendingChampion.clanId,
                 isCaptain,
                 myInvite: myInvite
                     ? { id: myInvite.id, status: myInvite.status, initiatedBy: myInvite.initiatedBy }
@@ -111,7 +153,7 @@ export async function GET(request: NextRequest) {
             };
         });
 
-        return SuccessResponse({ data, cache: CACHE.NONE });
+        return SuccessResponse({ data, meta: { defendingChampion }, cache: CACHE.NONE });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch squads", error });
     }

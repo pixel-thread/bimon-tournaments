@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
                 OR: [
                     { displayName: { contains: q, mode: "insensitive" } },
                     { user: { username: { contains: q, mode: "insensitive" } } },
+                    { user: { email: { contains: q, mode: "insensitive" } } },
                 ],
             },
             select: {
