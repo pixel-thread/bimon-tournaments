@@ -70,7 +70,7 @@ export default function AdminClansPage() {
             {/* Header */}
             <div className="flex items-center gap-3 mb-6">
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => router.push("/dashboard")}
                     className="flex h-8 w-8 items-center justify-center rounded-full bg-default-100 hover:bg-default-200 transition-colors"
                 >
                     <ArrowLeft className="h-4 w-4" />

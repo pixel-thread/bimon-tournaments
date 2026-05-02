@@ -52,6 +52,7 @@ const sidebarItems: SidebarSection[] = [
             { label: "Dashboard", href: "/dashboard", icon: BarChart3 },
             { label: "Teams", href: "/dashboard/teams", icon: Swords, feature: "hasTeamSizes" },
             { label: "Players", href: "/dashboard/players", icon: Users, superAdminOnly: true },
+            { label: GAME.clanLabel + "s", href: "/dashboard/clan", icon: Shield },
             { label: "Polls", href: "/dashboard/polls", icon: Vote },
             { label: "Operations", href: "/dashboard/operations", icon: Settings },
         ],

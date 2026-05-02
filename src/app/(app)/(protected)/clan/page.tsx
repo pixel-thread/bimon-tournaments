@@ -36,6 +36,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { CategoryBadge } from "@/components/ui/category-badge";
+import { useAuthUser } from "@/hooks/use-auth-user";
 
 const label = GAME.clanLabel;
 const labelLower = label.toLowerCase();
@@ -83,6 +84,7 @@ interface SearchResult {
 export default function ClanPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
+    const { isAdmin } = useAuthUser();
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -135,12 +137,21 @@ export default function ClanPage() {
                 >
                     <ArrowLeft className="h-4 w-4" />
                 </button>
-                <div>
+                <div className="flex-1">
                     <h1 className="text-lg font-bold">My {label}</h1>
                     <p className="text-xs text-foreground/40">
                         {clan ? `[${clan.tag}] ${clan.name}` : `Create or join a ${labelLower}`}
                     </p>
                 </div>
+                {isAdmin && (
+                    <button
+                        onClick={() => router.push("/dashboard/clan")}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                    >
+                        <Shield className="h-3.5 w-3.5" />
+                        All {label}s
+                    </button>
+                )}
             </div>
 
             {/* ═══ NO CLAN STATE ═══ */}
