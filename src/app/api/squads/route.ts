@@ -74,25 +74,29 @@ export async function GET(request: NextRequest) {
                         name: true,
                         clanId: true,
                         clan: { select: { logoUrl: true } },
-                        players: {
-                            select: { displayName: true },
-                            take: 1,
-                        },
                     },
+                },
+                tournament: {
+                    select: { poll: { select: { id: true } } },
                 },
             },
         });
         if (lastWinner?.team?.clanId) {
-            // Find the captain of the winning team via Squad records
-            const winningSquad = await prisma.squad.findFirst({
-                where: { clanId: lastWinner.team.clanId, status: "REGISTERED" },
-                orderBy: { createdAt: "desc" },
-                select: { captain: { select: { displayName: true } } },
-            });
+            // Find the squad captain from the winning tournament's poll
+            const winningSquad = lastWinner.tournament.poll
+                ? await prisma.squad.findFirst({
+                    where: {
+                        pollId: lastWinner.tournament.poll.id,
+                        clanId: lastWinner.team.clanId,
+                        status: "REGISTERED",
+                    },
+                    select: { captain: { select: { displayName: true } } },
+                })
+                : null;
             defendingChampion = {
                 clanId: lastWinner.team.clanId,
                 teamName: lastWinner.team.name,
-                captainName: winningSquad?.captain?.displayName ?? lastWinner.team.players[0]?.displayName ?? null,
+                captainName: winningSquad?.captain?.displayName ?? null,
                 clanLogo: lastWinner.team.clan?.logoUrl ?? null,
             };
         }
