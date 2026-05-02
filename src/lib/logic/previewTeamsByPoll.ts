@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/database";
+import { GAME } from "@/lib/game-config";
 import { getCategoryFromKDValue, type PlayerTier } from "./categoryUtils";
 import { createTeamsByPoll } from "./createTeamsByPoll";
 import { getBalancesBatch } from "@/lib/wallet-service";
@@ -92,6 +93,7 @@ export async function previewTeamsByPoll({
     }
 
     // Convert to preview format
+    let randomTeamNum = 1;
     const teamPreviews: TeamPreview[] = rawTeams.map((t, index) => {
         const teamPlayers: TeamPreviewPlayer[] = t.players.map((p: any) => {
             const stats = (p.stats || p.playerStats || []).find((s: any) => s.seasonId === seasonId);
@@ -111,9 +113,10 @@ export async function previewTeamsByPoll({
             };
         });
 
+        const squadName = (t as any).squadName;
         return {
             teamNumber: index + 1,
-            teamName: `Team ${index + 1}`,
+            teamName: squadName || `${GAME.name} Team ${randomTeamNum++}`,
             players: teamPlayers,
             totalKills: t.totalKills,
             weightedScore: t.weightedScore,

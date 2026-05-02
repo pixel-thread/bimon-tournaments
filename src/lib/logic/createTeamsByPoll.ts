@@ -460,14 +460,16 @@ export async function createTeamsByPoll({
 
             // Create teams in batches
             const createdTeamData: { teamId: string; originalTeam: TeamStats }[] = [];
+            let randomTeamNum = 1; // Separate counter for non-squad teams
 
             for (let i = 0; i < teams.length; i += BATCH_SIZE) {
                 const batch = teams.slice(i, i + BATCH_SIZE);
                 const batchPromises = batch.map((t, batchIdx) => {
                     const teamIdx = i + batchIdx;
+                    const teamName = t.squadName || `${GAME.name} Team ${randomTeamNum++}`;
                     return tx.team.create({
                         data: {
-                            name: t.squadName || `Team ${teamIdx + 1}`,
+                            name: teamName,
                             teamNumber: teamIdx + 1,
                             tournamentId,
                             seasonId,
