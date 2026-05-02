@@ -593,16 +593,16 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                                     style={{ width: ps.elevated ? (hasSquadTeams ? "140px" : "200px") : (hasSquadTeams ? "120px" : "180px") }}
                                 >
                                     {/* Logo */}
-                                    <div className={`relative rounded-full ${ps.ring} ${ps.glow} ${ps.size} overflow-hidden bg-zinc-900/80 mb-1.5`}>
+                                    <div className={`rounded-full ${ps.ring} ${ps.glow} ${ps.size} overflow-hidden bg-zinc-900/80`}>
                                         <img
                                             src={row.clanLogo || GAME.iconUrl}
                                             alt=""
                                             className="w-full h-full object-cover"
                                         />
-                                        {/* Rank badge overlaying bottom */}
-                                        <div className={`absolute -bottom-0.5 left-1/2 -translate-x-1/2 flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${ps.badge} shadow-lg`}>
-                                            {rank}
-                                        </div>
+                                    </div>
+                                    {/* Rank badge below logo */}
+                                    <div className={`-mt-2.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${ps.badge} shadow-lg z-10`}>
+                                        {rank}
                                     </div>
 
                                     {/* Team Name */}
