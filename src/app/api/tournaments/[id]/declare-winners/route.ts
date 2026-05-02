@@ -163,7 +163,7 @@ export async function POST(
             const existing = teamMap.get(stat.teamId);
             if (existing) {
                 existing.kills += kills; existing.pts += p; existing.total += t;
-                if (p === 1) existing.chickenDinners++;
+                if (stat.position === 1) existing.chickenDinners++;
                 existing.lastMatchPosition = p; // latest stat overwrites
             } else {
                 teamMap.set(stat.teamId, {
@@ -176,7 +176,7 @@ export async function POST(
                         isSoloRestricted: p2.isSoloRestricted,
                         soloMatchesNeeded: p2.soloMatchesNeeded,
                     })),
-                    chickenDinners: p === 1 ? 1 : 0,
+                    chickenDinners: stat.position === 1 ? 1 : 0,
                     lastMatchPosition: p,
                 });
             }

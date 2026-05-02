@@ -230,7 +230,7 @@ export function DeclareWinnersModal({
     const teamCount = meta?.teamCount ?? 0;
     const isSquadTournament = meta?.isSquadTournament ?? false;
     const captainMap = meta?.captainMap ?? {};
-    const teamSize = getTeamSize(meta?.teamType ?? "DUO");
+    const teamSize = isSquadTournament ? 1 : getTeamSize(meta?.teamType ?? "DUO");
     const ucExemptCount = meta?.ucExemptCount ?? 0;
 
     // Fetch solo tax pool (only in detailed)
