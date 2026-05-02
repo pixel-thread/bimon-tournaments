@@ -553,13 +553,20 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                                     <PositionChangeIndicator change={row.positionChange} />
                                 </td>
                                 <td className="px-1 py-1 text-left align-middle">
-                                    <div className="flex items-center gap-1.5">
-                                        {hasSquadTeams && (
-                                            <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                    <div className="flex flex-col min-h-[28px] justify-center">
+                                        <div className="flex items-center gap-1.5">
+                                            {hasSquadTeams && (
+                                                <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                            )}
+                                            <span className={`text-[11px] leading-tight font-semibold text-zinc-300 ${hasSquadTeams ? "whitespace-nowrap" : ""}`} style={hasSquadTeams ? undefined : { wordBreak: "break-word" }}>
+                                                {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                                            </span>
+                                        </div>
+                                        {row.wins > 0 && (
+                                            <span className="text-[9px] mt-0.5 text-yellow-400">
+                                                🍗 {row.wins} win{row.wins > 1 ? "s" : ""}
+                                            </span>
                                         )}
-                                        <span className={`text-[11px] leading-tight font-semibold text-zinc-300 ${hasSquadTeams ? "whitespace-nowrap" : ""}`} style={hasSquadTeams ? undefined : { wordBreak: "break-word" }}>
-                                            {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
-                                        </span>
                                     </div>
                                 </td>
                                 <td className="px-1 py-1.5 text-center align-middle text-zinc-500 tabular-nums font-mono text-xs">{row.matchCount}</td>
