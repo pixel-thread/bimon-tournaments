@@ -257,33 +257,48 @@ function SquadCard({
             {squad.isDefendingChampion && (
                 <>
                     <div
-                        className="absolute inset-0 rounded-xl"
+                        className="absolute inset-0 rounded-xl champion-border-glow"
                         style={{
-                            background: 'linear-gradient(var(--champion-angle, 0deg), #f59e0b, #eab308, #f97316, #fbbf24, #f59e0b)',
-                            animation: 'champion-spin 3s linear infinite',
+                            background: 'linear-gradient(var(--champion-angle, 0deg), #f59e0b, #eab308, #f97316, #d97706, #fbbf24, #f59e0b)',
                             padding: '2px',
                         }}
                     />
-                    <div className="absolute inset-0 rounded-xl" style={{
-                        background: 'linear-gradient(var(--champion-angle, 0deg), rgba(245,158,11,0.3), rgba(249,115,22,0.15), rgba(245,158,11,0.3))',
-                        animation: 'champion-spin 3s linear infinite',
-                        filter: 'blur(8px)',
+                    <div className="absolute inset-0 rounded-xl champion-border-glow" style={{
+                        background: 'linear-gradient(var(--champion-angle, 0deg), rgba(245,158,11,0.35), rgba(249,115,22,0.2), rgba(234,179,8,0.35), rgba(245,158,11,0.2))',
+                        filter: 'blur(10px)',
                     }} />
                     <style>{`
                         @property --champion-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
                         @keyframes champion-spin { to { --champion-angle: 360deg; } }
-                    `}</style>
+                        .champion-border-glow { animation: champion-spin 4s linear infinite; }
+                        @keyframes champion-bg-shift {
+                            0% { background-position: 0% 50%; }
+                            50% { background-position: 100% 50%; }
+                            100% { background-position: 0% 50%; }
+                        }
+                        .champion-inner-bg {
+                            background: linear-gradient(270deg, #fffbeb, #fef3c7, #fde68a, #fef3c7, #fffbeb);
+                            background-size: 300% 100%;
+                            animation: champion-bg-shift 6s ease-in-out infinite;
+                        }
+                        .dark .champion-inner-bg {
+                            background: linear-gradient(270deg, #1c1917, #292524, #44403c, #292524, #1c1917);
+                            background-size: 300% 100%;
+                            animation: champion-bg-shift 6s ease-in-out infinite;
+                        }
+                    `}
+                    </style>
                 </>
             )}
             <div className={`relative rounded-xl ${
                 squad.isDefendingChampion
-                    ? 'bg-gradient-to-br from-amber-950/90 via-default-50 to-amber-950/90 dark:from-amber-950/80 dark:via-default-100/90 dark:to-amber-950/80 m-[2px]'
+                    ? 'champion-inner-bg m-[2px]'
                     : ''
             }`}>
             {/* Champion badge */}
             {squad.isDefendingChampion && (
-                <div className="flex items-center justify-center gap-1.5 py-1.5 bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border-b border-amber-500/20">
-                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">🏆 Defending Champion</span>
+                <div className="flex items-center justify-center gap-1.5 py-1.5 border-b border-amber-500/30" style={{ background: 'linear-gradient(90deg, rgba(245,158,11,0.08), rgba(234,179,8,0.15), rgba(245,158,11,0.08))' }}>
+                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">🏆 Champion</span>
                 </div>
             )}
             {/* Header — always visible, tap to expand */}
@@ -296,15 +311,17 @@ function SquadCard({
                         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 350);
                     }
                 }}
-                className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-default-100/50 transition-colors"
+                className={`w-full flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
+                    squad.isDefendingChampion ? 'hover:bg-amber-500/10' : 'hover:bg-default-100/50'
+                }`}
             >
                 <div className="flex items-center gap-2 min-w-0">
                     {squad.clanLogo ? (
                         <img src={squad.clanLogo} alt={squad.clanTag || ""} className="w-5 h-5 rounded-full object-cover shrink-0" />
                     ) : (
-                        <Shield className="w-4 h-4 text-primary shrink-0" />
+                        <Shield className={`w-4 h-4 shrink-0 ${squad.isDefendingChampion ? 'text-amber-700 dark:text-amber-400' : 'text-primary'}`} />
                     )}
-                    <h4 className="font-semibold text-sm truncate">{squad.name}</h4>
+                    <h4 className={`font-semibold text-sm truncate ${squad.isDefendingChampion ? 'text-amber-900 dark:text-amber-100' : ''}`}>{squad.name}</h4>
                     {isCaptain && (
                         <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     )}
