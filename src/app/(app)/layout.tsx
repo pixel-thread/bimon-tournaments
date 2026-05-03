@@ -6,6 +6,8 @@ import { AuthGateProvider } from "@/components/common/auth-gate-provider";
 import { ReferralPromoModal } from "@/components/common/referral-promo-modal";
 import { PwaInstallPrompt } from "@/components/common/pwa-install-prompt";
 import { LocationGuard } from "@/components/common/location-guard";
+import { AdSenseScript } from "@/components/common/adsense-script";
+
 
 /**
  * Route group: (app)
@@ -29,6 +31,8 @@ export default function AppLayout({
                     <ReferralPromoModal />
                     <PwaInstallPrompt />
                     <LocationGuard />
+                    <AdSenseScript />
+
                 </div>
             </AuthGateProvider>
         </OnboardingGuard>

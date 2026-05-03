@@ -95,14 +95,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2651043074081875"
-          crossOrigin="anonymous"
-        />
-      </head>
+      <head />
+
       <body className={`${rajdhani.variable} font-sans antialiased`}>
         <Providers>
           <ColorThemeProvider>

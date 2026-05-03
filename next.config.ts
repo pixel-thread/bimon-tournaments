@@ -21,8 +21,6 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      // Default landing → public players page
-      { source: "/", destination: "/players", permanent: false },
       // V1 → V2 route redirects (so old bookmarks/links still work)
       { source: "/tournament/players", destination: "/players", permanent: false },
       { source: "/tournament/vote", destination: "/vote", permanent: false },
