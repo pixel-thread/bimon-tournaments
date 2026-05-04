@@ -296,7 +296,7 @@ export default function OnboardingPage() {
                         <div>
                             <div className="flex items-center gap-2 mb-2">
                                 <label className="text-sm font-medium text-foreground/70">
-                                    {GAME.ignLabel}
+                                    Enter your {GAME.gameName} {GAME.ignLabel}
                                 </label>
                                 {GAME.pasteOnlyIGN && ignTutorial.HelpButton}
                             </div>
@@ -343,7 +343,7 @@ export default function OnboardingPage() {
                                             setDisplayName(e.target.value);
                                             setDisplayNameError("");
                                         }}
-                                        placeholder={GAME.ignLabel}
+                                        placeholder="e.g. iQOOSoulLeGIT"
                                         size="lg"
                                         variant="bordered"
                                         maxLength={20}
