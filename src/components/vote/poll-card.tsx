@@ -1237,16 +1237,19 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             Players who vote &quot;{poll.options?.find(o => o.vote === "IN")?.name || tk("votedIn")}&quot; will be placed in randomly assigned teams based on tier balance.{GAME.features.hasTeamSizes && ` Vote "${poll.options?.find(o => o.vote === "SOLO")?.name || tk("votedSolo")}" to play solo.`}
                         </p>
                     )}
-                    {showScheduleInfo && poll.days && (() => {
+                    {showScheduleInfo && (poll.days || poll.scheduledDate) && (() => {
                         const FULL_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-                        // Check if it's a single full day name (auto-append next day)
                         const singleIdx = FULL_DAYS.findIndex(d => d.toLowerCase() === poll.days?.toLowerCase());
                         const displayDays = singleIdx >= 0
                             ? `${FULL_DAYS[singleIdx]} & ${FULL_DAYS[(singleIdx + 1) % 7]}`
                             : poll.days;
                         return (
                             <div className="text-[11px] text-foreground/40 text-center px-4 pb-1 animate-in fade-in duration-200 space-y-0.5">
-                                <p>📅 Match days: <span className="text-foreground/60 font-medium">{displayDays}</span></p>
+                                {poll.scheduledDate ? (
+                                    <p>📅 <span className="text-foreground/60 font-medium">{new Date(poll.scheduledDate).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}</span></p>
+                                ) : (
+                                    <p>📅 Match days: <span className="text-foreground/60 font-medium">{displayDays}</span></p>
+                                )}
                                 <p>⏰ Start time: <span className="text-foreground/60 font-medium">8:00 PM IST</span></p>
                             </div>
                         );

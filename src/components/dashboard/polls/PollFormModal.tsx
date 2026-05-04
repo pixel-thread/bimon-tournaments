@@ -31,6 +31,7 @@ interface PollDTO {
     teamType: string;
     allowSquads?: boolean;
     isChampionship?: boolean;
+    scheduledDate?: string | null;
     enableFund?: boolean;
     isActive: boolean;
     options?: PollOptionDTO[];
@@ -72,6 +73,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [isChampionship, setIsChampionship] = useState(false);
     const [enableFund, setEnableFund] = useState(true);
     const [arenaMode, setArenaMode] = useState<"none" | "tdm" | "wow">("none");
+    const [scheduledDate, setScheduledDate] = useState("");
     const [options, setOptions] = useState<PollOptionDTO[]>([]);
     const [saving, setSaving] = useState(false);
 
@@ -98,6 +100,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setIsActive(poll.isActive);
             setAllowSquads(poll.allowSquads ?? false);
             setIsChampionship(poll.isChampionship ?? false);
+            setScheduledDate(poll.scheduledDate ? new Date(poll.scheduledDate).toISOString().split("T")[0] : "");
             setEnableFund(poll.enableFund ?? true);
             setArenaMode("none"); // Arena mode is determined by tournament flags, not poll
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
@@ -110,6 +113,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setIsActive(true);
             setAllowSquads(GAME.features.hasSquads);
             setIsChampionship(false);
+            setScheduledDate("");
             setEnableFund(true);
             setArenaMode("none");
             // Pre-populate default options for create
@@ -157,12 +161,14 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             const body = isEdit
                 ? {
                     id: poll!.id, question, days: actualDays, teamType, isActive, allowSquads, isChampionship, enableFund,
+                    scheduledDate: scheduledDate || null,
                     options: options.map(o => ({ id: o.id, name: o.name })),
                     // Send tournament format on edit too (PES)
                     ...(!GAME.features.hasTeamSizes && { tournamentType: tournamentFormat }),
                 }
                 : {
                     question, days: actualDays, teamType, tournamentId, allowSquads, isChampionship, enableFund,
+                    scheduledDate: scheduledDate || null,
                     // For PES or arena modes: send format so poll creation can update tournament type
                     ...((!GAME.features.hasTeamSizes || arenaMode !== "none") && { tournamentType: tournamentFormat }),
                     // TDM flag — API will set tournament.isTDM
@@ -190,7 +196,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, isChampionship, enableFund, arenaMode, options, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, isChampionship, enableFund, scheduledDate, arenaMode, options, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -199,7 +205,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const VOTE_LABEL: Record<string, string> = { IN: "IN 😎", OUT: "OUT 🏳️", SOLO: "SOLO 🫩" };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} size="md" placement="center">
+        <Modal isOpen={isOpen} onClose={onClose} size="md" placement="center" scrollBehavior="inside">
             <ModalContent>
                 <ModalHeader className="flex items-center gap-2 text-base">
                     <Vote className="h-4 w-4" />
@@ -311,6 +317,15 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                                 size="sm"
                             />
                         )}
+                        <Input
+                            label="Scheduled Date"
+                            placeholder="Pick a date"
+                            type="date"
+                            value={scheduledDate}
+                            onValueChange={setScheduledDate}
+                            size="sm"
+                            description={scheduledDate ? `📅 ${new Date(scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}` : undefined}
+                        />
                     </div>
 
                     {isEdit && (

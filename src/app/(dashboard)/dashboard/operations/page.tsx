@@ -510,57 +510,6 @@ export default function OperationsPage() {
                             onValueChange={setTFee}
                             type="number"
                         />
-                        {GAME.features.hasTeamSizes && GAME.tournamentTypes.length > 1 && (
-                            <div className="space-y-1">
-                                <p className="text-xs text-foreground/50 font-medium">Format</p>
-                                <div className="flex gap-2 flex-wrap">
-                                    {GAME.tournamentTypes.includes("BR") && (
-                                        <Button
-                                            size="sm"
-                                            variant={tType === "BR" ? "solid" : "flat"}
-                                            color={tType === "BR" ? "primary" : "default"}
-                                            onPress={() => setTType("BR")}
-                                            className="flex-1 min-w-[100px]"
-                                        >
-                                            🎯 Battle Royale
-                                        </Button>
-                                    )}
-                                    {GAME.tournamentTypes.includes("BRACKET_1V1") && (
-                                        <Button
-                                            size="sm"
-                                            variant={tType === "BRACKET_1V1" ? "solid" : "flat"}
-                                            color={tType === "BRACKET_1V1" ? "secondary" : "default"}
-                                            onPress={() => setTType("BRACKET_1V1")}
-                                            className="flex-1 min-w-[100px]"
-                                        >
-                                            ⚔️ Knockout
-                                        </Button>
-                                    )}
-                                    {GAME.tournamentTypes.includes("LEAGUE") && (
-                                        <Button
-                                            size="sm"
-                                            variant={tType === "LEAGUE" ? "solid" : "flat"}
-                                            color={tType === "LEAGUE" ? "success" : "default"}
-                                            onPress={() => setTType("LEAGUE")}
-                                            className="flex-1 min-w-[100px]"
-                                        >
-                                            🏟️ League
-                                        </Button>
-                                    )}
-                                    {GAME.tournamentTypes.includes("GROUP_KNOCKOUT") && (
-                                        <Button
-                                            size="sm"
-                                            variant={tType === "GROUP_KNOCKOUT" ? "solid" : "flat"}
-                                            color={tType === "GROUP_KNOCKOUT" ? "warning" : "default"}
-                                            onPress={() => setTType("GROUP_KNOCKOUT")}
-                                            className="flex-1 min-w-[100px]"
-                                        >
-                                            🌍 Group + KO
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                         {/* Podium placements — only for bracket types */}
                         {["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"].includes(tType) && (
                             <div className="space-y-1.5">

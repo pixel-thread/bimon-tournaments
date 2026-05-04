@@ -12,6 +12,8 @@ export interface PollDTO {
     teamType: string;
     allowSquads: boolean;
     isChampionship: boolean;
+    scheduledDate: string | null;
+    enableFund?: boolean;
     tournament: {
         id: string;
         name: string;
