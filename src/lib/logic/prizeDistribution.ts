@@ -16,7 +16,7 @@
 // Types
 // ============================================================================
 
-export type PrizeTierLevel = 1 | 2 | 3 | 4;
+export type PrizeTierLevel = 1 | 2 | 3;
 
 export interface PrizeTierConfig {
     level: PrizeTierLevel;
@@ -89,16 +89,6 @@ const TIER_CONFIGS: PrizeTierConfig[] = [
     {
         level: 3,
         minPool: 3001,
-        maxPool: 5000,
-        orgFeePercent: 0,
-        fundPercent: 0,
-        winnerCount: 4,
-        percentages: [52, 28, 14],
-        description: "Top 4 paid",
-    },
-    {
-        level: 4,
-        minPool: 5001,
         maxPool: null,
         orgFeePercent: 0,
         fundPercent: 0,
