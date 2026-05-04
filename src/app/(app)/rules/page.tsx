@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody, CardHeader, Skeleton } from "@heroui/react";
+import { Card, CardBody, CardHeader, Skeleton, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
 import { BookOpen, ChevronDown } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -17,9 +17,26 @@ interface Rule {
     updatedAt: string;
 }
 
+type TabKey = "general" | "casual" | "ranked" | "tdm" | "wow";
+
+const MAIN_TABS: { key: TabKey; label: string }[] = [
+    { key: "general", label: "General" },
+    { key: "casual", label: "Casual" },
+    { key: "ranked", label: "Ranked" },
+];
+
 export default function RulesPage() {
     const [expandedRule, setExpandedRule] = useState<string | null>(null);
-    const [tab, setTab] = useState<"ranked" | "casual" | "general" | "tdm" | "wow">("general");
+    const [tab, setTab] = useState<TabKey>("general");
+    const [moreOpen, setMoreOpen] = useState(false);
+
+    // Build "More" dropdown items based on game features
+    const moreItems: { key: TabKey; label: string }[] = [
+        ...(GAME.features.hasTDM ? [{ key: "tdm" as TabKey, label: "TDM" }] : []),
+        ...(GAME.features.hasWoW ? [{ key: "wow" as TabKey, label: "WoW" }] : []),
+    ];
+
+    const isMoreTab = tab === "tdm" || tab === "wow";
 
     const { data: rules = [], isLoading } = useQuery<Rule[]>({
         queryKey: ["rules"],
@@ -56,16 +73,10 @@ export default function RulesPage() {
                 </p>
             </div>
 
-            {/* ── General / Casual / Ranked Tabs ── */}
+            {/* ── General / Casual / Ranked / More Tabs ── */}
             {showTabs && (
                 <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 mb-4">
-                    {([
-                        { key: "general" as const, label: "General" },
-                        { key: "casual" as const, label: "Casual" },
-                        { key: "ranked" as const, label: "Ranked" },
-                        ...(GAME.features.hasTDM ? [{ key: "tdm" as const, label: "TDM" }] : []),
-                        ...(GAME.features.hasWoW ? [{ key: "wow" as const, label: "WoW" }] : []),
-                    ]).map(({ key, label }) => (
+                    {MAIN_TABS.map(({ key, label }) => (
                         <button
                             key={key}
                             type="button"
@@ -82,6 +93,59 @@ export default function RulesPage() {
                             {label}
                         </button>
                     ))}
+
+                    {/* ── "More" dropdown for TDM / WoW ── */}
+                    {moreItems.length > 0 && (
+                        <Popover
+                            isOpen={moreOpen}
+                            onOpenChange={setMoreOpen}
+                            placement="bottom"
+                        >
+                            <PopoverTrigger>
+                                <button
+                                    type="button"
+                                    className={`
+                                        flex-1 py-2 rounded-lg text-sm font-medium text-center
+                                        transition-all duration-200 cursor-pointer
+                                        flex items-center justify-center gap-1
+                                        ${isMoreTab
+                                            ? "bg-background shadow-sm text-foreground"
+                                            : "text-foreground/40 hover:text-foreground/60"
+                                        }
+                                    `}
+                                >
+                                    {isMoreTab
+                                        ? moreItems.find((m) => m.key === tab)?.label ?? "More"
+                                        : "More"}
+                                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-1 min-w-[120px]">
+                                <div className="flex flex-col">
+                                    {moreItems.map(({ key, label }) => (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => {
+                                                setTab(key);
+                                                setMoreOpen(false);
+                                            }}
+                                            className={`
+                                                px-3 py-2 rounded-lg text-sm text-left
+                                                transition-colors cursor-pointer
+                                                ${tab === key
+                                                    ? "bg-primary/10 text-primary font-semibold"
+                                                    : "text-foreground/70 hover:bg-default-100"
+                                                }
+                                            `}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    )}
                 </div>
             )}
 

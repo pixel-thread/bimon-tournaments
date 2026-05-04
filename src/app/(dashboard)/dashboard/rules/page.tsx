@@ -87,9 +87,9 @@ function RuleItem({
                         <div className="flex items-center gap-2">
                             <p className="text-sm font-semibold">{rule.title}</p>
                             <Chip size="sm" variant="flat" className="text-[10px]" color={
-                                rule.category === "RANKED" ? "warning" : rule.category === "CASUAL" ? "primary" : rule.category === "TDM" ? "danger" : "default"
+                                rule.category === "RANKED" ? "warning" : rule.category === "CASUAL" ? "primary" : rule.category === "TDM" ? "danger" : rule.category === "WOW" ? "secondary" : "default"
                             }>
-                                {rule.category === "BOTH" ? "📋" : rule.category === "RANKED" ? "🏆" : rule.category === "TDM" ? "⚔️" : "🎮"}
+                                {rule.category === "BOTH" ? "📋" : rule.category === "RANKED" ? "🏆" : rule.category === "TDM" ? "⚔️" : rule.category === "WOW" ? "🌍" : "🎮"}
                             </Chip>
                         </div>
                         <p className="mt-0.5 line-clamp-2 text-xs text-foreground/50 whitespace-pre-wrap">
@@ -133,7 +133,7 @@ export default function AdminRulesPage() {
     const [editingRule, setEditingRule] = useState<Rule | null>(null);
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
-    const [category, setCategory] = useState<"CASUAL" | "RANKED" | "BOTH" | "TDM">("BOTH");
+    const [category, setCategory] = useState<"CASUAL" | "RANKED" | "BOTH" | "TDM" | "WOW">("BOTH");
     // Local reorder state — drives the Reorder.Group
     const [localRules, setLocalRules] = useState<Rule[]>([]);
     const orderBeforeDrag = useRef<string[]>([]);
@@ -343,7 +343,7 @@ export default function AdminRulesPage() {
             setEditingRule(rule);
             setTitle(rule.title);
             setContent(rule.content);
-            setCategory((rule.category as "CASUAL" | "RANKED" | "BOTH" | "TDM") || "BOTH");
+            setCategory((rule.category as "CASUAL" | "RANKED" | "BOTH" | "TDM" | "WOW") || "BOTH");
         } else {
             setEditingRule(null);
             setTitle("");
@@ -479,15 +479,15 @@ export default function AdminRulesPage() {
                         <div>
                             <p className="text-sm font-medium mb-2">Applies to</p>
                             <div className="flex gap-2">
-                                {(["BOTH", "RANKED", "CASUAL", ...(GAME.features.hasTDM ? ["TDM"] : [])] as const).map((cat) => (
+                                {(["BOTH", "RANKED", "CASUAL", ...(GAME.features.hasTDM ? ["TDM"] : []), ...(GAME.features.hasWoW ? ["WOW"] : [])] as const).map((cat) => (
                                     <Chip
                                         key={cat}
                                         variant={category === cat ? "solid" : "bordered"}
-                                        color={cat === "RANKED" ? "warning" : cat === "CASUAL" ? "primary" : cat === "TDM" ? "danger" : "default"}
+                                        color={cat === "RANKED" ? "warning" : cat === "CASUAL" ? "primary" : cat === "TDM" ? "danger" : cat === "WOW" ? "secondary" : "default"}
                                         className="cursor-pointer"
                                         onClick={() => setCategory(cat as typeof category)}
                                     >
-                                        {cat === "BOTH" ? "📋 General" : cat === "RANKED" ? "🏆 Ranked" : cat === "TDM" ? "⚔️ TDM" : "🎮 Casual"}
+                                        {cat === "BOTH" ? "📋 General" : cat === "RANKED" ? "🏆 Ranked" : cat === "TDM" ? "⚔️ TDM" : cat === "WOW" ? "🌍 WoW" : "🎮 Casual"}
                                     </Chip>
                                 ))}
                             </div>
