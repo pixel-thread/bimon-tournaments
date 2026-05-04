@@ -128,6 +128,7 @@ export async function GET(request: Request) {
                 allowSquads: poll.allowSquads,
                 isChampionship: poll.isChampionship,
                 scheduledDate: poll.scheduledDate,
+                scheduledTime: poll.scheduledTime,
                 enableFund: poll.enableFund,
                 tournament: poll.tournament ? {
                     id: poll.tournament.id,
@@ -208,7 +209,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, isChampionship, enableFund, scheduledDate, isTDM: tdmFlag, isWoW: wowFlag } = body;
+        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, isChampionship, enableFund, scheduledDate, scheduledTime, isTDM: tdmFlag, isWoW: wowFlag } = body;
 
         if (!question || !tournamentId) {
             return ErrorResponse({ message: "question and tournamentId are required", status: 400 });
@@ -273,6 +274,7 @@ export async function POST(request: Request) {
                 allowSquads: allowSquads ?? false,
                 isChampionship: isChampionship ?? false,
                 scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
+                scheduledTime: scheduledTime || "20:00",
                 enableFund: enableFund ?? true,
                 tournamentId,
                 options: {
@@ -303,7 +305,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, isChampionship, enableFund, scheduledDate } = body;
+        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, isChampionship, enableFund, scheduledDate, scheduledTime } = body;
 
         if (!id) {
             return ErrorResponse({ message: "id is required", status: 400 });
@@ -318,6 +320,7 @@ export async function PATCH(request: Request) {
         if (isChampionship !== undefined) updateData.isChampionship = isChampionship;
         if (enableFund !== undefined) updateData.enableFund = enableFund;
         if (scheduledDate !== undefined) updateData.scheduledDate = scheduledDate ? new Date(scheduledDate) : null;
+        if (scheduledTime !== undefined) updateData.scheduledTime = scheduledTime;
 
         // If tournamentType is provided, update the linked tournament's type
         if (tournamentType && (ALL_TOURNAMENT_TYPES as readonly string[]).includes(tournamentType)) {

@@ -787,6 +787,7 @@ model Poll {
   allowSquads     Boolean   @default(false)
   isChampionship  Boolean   @default(false)
   scheduledDate   DateTime?
+  scheduledTime   String    @default("20:00")
   enableFund      Boolean   @default(true)
   startDate    DateTime  @default(now())
   endDate      DateTime?

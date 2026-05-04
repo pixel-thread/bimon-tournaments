@@ -898,12 +898,30 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     }
                                 `}</style>
                             </div>
-                            {poll.days && (() => {
+                            {(poll.scheduledDate || poll.days) && (() => {
+                                // If scheduledDate is set, use it for exact diff
+                                if (poll.scheduledDate) {
+                                    const scheduled = new Date(poll.scheduledDate);
+                                    const now = new Date();
+                                    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                    const scheduledStart = new Date(scheduled.getFullYear(), scheduled.getMonth(), scheduled.getDate());
+                                    const diff = Math.round((scheduledStart.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
+                                    const label = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : diff > 0 ? `in ${diff} days` : `${-diff}d ago`;
+                                    const isToday = diff === 0;
+                                    const isTomorrow = diff === 1;
+                                    return (
+                                        <Chip size="sm" variant="flat" className="bg-black/25 text-white backdrop-blur-sm font-semibold">
+                                            {isToday && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mr-1 animate-pulse" />}
+                                            {isTomorrow && <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 mr-1" />}
+                                            {label}
+                                        </Chip>
+                                    );
+                                }
+                                // Fallback: parse day name from poll.days
                                 const DAY_MAP: Record<string, number> = {
                                     sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tuesday: 2,
                                     wed: 3, wednesday: 3, thu: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6,
                                 };
-                                // Find the first recognizable day name in the string
                                 const lower = poll.days!.toLowerCase();
                                 let dayIdx = -1;
                                 for (const [abbr, idx] of Object.entries(DAY_MAP)) {
@@ -920,11 +938,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 const isToday = diff === 0;
                                 const isTomorrow = diff === 1;
                                 return (
-                                    <Chip
-                                        size="sm"
-                                        variant="flat"
-                                        className="bg-black/25 text-white backdrop-blur-sm font-semibold"
-                                    >
+                                    <Chip size="sm" variant="flat" className="bg-black/25 text-white backdrop-blur-sm font-semibold">
                                         {isToday && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mr-1 animate-pulse" />}
                                         {isTomorrow && <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 mr-1" />}
                                         {label}
@@ -1259,7 +1273,16 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 ) : (
                                     <p>📅 Match days: <span className="text-foreground/60 font-medium">{displayDays}</span></p>
                                 )}
-                                <p>⏰ Start time: <span className="text-foreground/60 font-medium">8:00 PM IST</span></p>
+                                {(() => {
+                                    const time = poll.scheduledTime || "20:00";
+                                    const [h, m] = time.split(":").map(Number);
+                                    const d1 = new Date(2000, 0, 1, h, m);
+                                    const d2 = new Date(d1.getTime() + 45 * 60000);
+                                    const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+                                    return (
+                                        <p>⏰ <span className="text-foreground/60 font-medium">{fmt(d1)}</span> · <span className="text-foreground/60 font-medium">{fmt(d2)}</span></p>
+                                    );
+                                })()}
                             </div>
                         );
                     })()}
