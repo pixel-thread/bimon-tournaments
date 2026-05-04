@@ -126,6 +126,7 @@ export async function GET(request: Request) {
                 days: poll.days,
                 teamType: poll.teamType,
                 allowSquads: poll.allowSquads,
+                isChampionship: poll.isChampionship,
                 enableFund: poll.enableFund,
                 tournament: poll.tournament ? {
                     id: poll.tournament.id,
@@ -196,7 +197,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, enableFund, isTDM: tdmFlag, isWoW: wowFlag } = body;
+        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, isChampionship, enableFund, isTDM: tdmFlag, isWoW: wowFlag } = body;
 
         if (!question || !tournamentId) {
             return ErrorResponse({ message: "question and tournamentId are required", status: 400 });
@@ -259,6 +260,7 @@ export async function POST(request: Request) {
                 days: days || "Monday",
                 teamType: teamType || "DUO",
                 allowSquads: allowSquads ?? false,
+                isChampionship: isChampionship ?? false,
                 enableFund: enableFund ?? true,
                 tournamentId,
                 options: {
@@ -289,7 +291,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, enableFund } = body;
+        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, isChampionship, enableFund } = body;
 
         if (!id) {
             return ErrorResponse({ message: "id is required", status: 400 });
@@ -301,6 +303,7 @@ export async function PATCH(request: Request) {
         if (teamType !== undefined) updateData.teamType = teamType;
         if (isActive !== undefined) updateData.isActive = isActive;
         if (allowSquads !== undefined) updateData.allowSquads = allowSquads;
+        if (isChampionship !== undefined) updateData.isChampionship = isChampionship;
         if (enableFund !== undefined) updateData.enableFund = enableFund;
 
         // If tournamentType is provided, update the linked tournament's type

@@ -14,6 +14,7 @@ import { isBirthdayWithinWindow } from "./birthdayCheck";
 import { debitWallet, getEmailByPlayerId } from "@/lib/wallet-service";
 import { getActiveCoupon, redeemCoupon } from "@/lib/logic/welcomeBack";
 import { GAME } from "@/lib/game-config";
+import { assignGroups } from "./championship";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -119,6 +120,16 @@ export async function createTeamsByPoll({
         });
         luckyVoterId = poll?.luckyVoterId || null;
         pollAllowSquads = poll?.allowSquads ?? false;
+    }
+
+    // Championship flag
+    let isChampionship = false;
+    if (pollId) {
+        const pollData = await prisma.poll.findUnique({
+            where: { id: pollId },
+            select: { isChampionship: true },
+        });
+        isChampionship = pollData?.isChampionship ?? false;
     }
 
     // Season scoring config
@@ -663,6 +674,91 @@ export async function createTeamsByPoll({
         where: { id: pollId },
         data: { isActive: false },
     });
+
+    // ── Championship: create entries + phase matches ──────────────
+    if (isChampionship && !dryRun) {
+        // Get all team IDs created in the main transaction
+        const allTeamIds = teams.map((_, i) => {
+            // We need the actual created team IDs — fetch from DB
+            return null; // placeholder
+        });
+
+        // Fetch created teams for this tournament
+        const createdTeams = await prisma.team.findMany({
+            where: { tournamentId },
+            select: { id: true },
+            orderBy: { teamNumber: "asc" },
+        });
+
+        const teamIds = createdTeams.map(t => t.id);
+        const { groupA, groupB, standby } = assignGroups(teamIds);
+
+        // Create ChampionshipEntry records
+        const entryData = [
+            ...groupA.map(teamId => ({
+                tournamentId,
+                teamId,
+                group: "A",
+                phase: "HEATS" as const,
+                status: "ACTIVE" as const,
+            })),
+            ...groupB.map(teamId => ({
+                tournamentId,
+                teamId,
+                group: "B",
+                phase: "HEATS" as const,
+                status: "ACTIVE" as const,
+            })),
+            ...standby.map(teamId => ({
+                tournamentId,
+                teamId,
+                group: null,
+                phase: "HEATS" as const,
+                status: "STANDBY" as const,
+            })),
+        ];
+
+        await prisma.championshipEntry.createMany({ data: entryData });
+
+        // Create phase-tagged matches for Heats
+        // Group A: 4 matches, Group B: 4 matches
+        for (const group of ["A", "B"]) {
+            const groupTeamIds = group === "A" ? groupA : groupB;
+            for (let m = 1; m <= 4; m++) {
+                const existingCount = await prisma.match.count({ where: { tournamentId } });
+                const match = await prisma.match.create({
+                    data: {
+                        tournamentId,
+                        seasonId,
+                        matchNumber: existingCount + 1,
+                        phase: `HEATS_${group}`,
+                    },
+                });
+
+                // Connect group teams to this match
+                await prisma.match.update({
+                    where: { id: match.id },
+                    data: {
+                        teams: { connect: groupTeamIds.map(id => ({ id })) },
+                    },
+                });
+
+                // Create TeamStats for each team in this match
+                for (const teamId of groupTeamIds) {
+                    await prisma.teamStats.create({
+                        data: {
+                            teamId,
+                            matchId: match.id,
+                            seasonId,
+                            tournamentId,
+                        },
+                    });
+                }
+            }
+        }
+
+        console.log(`[createTeamsByPoll] Championship setup: Group A (${groupA.length}), Group B (${groupB.length}), Standby (${standby.length})`);
+    }
 
     return {
         ...result,

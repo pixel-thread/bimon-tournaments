@@ -20,6 +20,14 @@ export async function GET(request: NextRequest) {
             return ErrorResponse({ message: "pollId is required", status: 400 });
         }
 
+        // Fetch poll to get championship flag for squad cap
+        const poll = await prisma.poll.findUnique({
+            where: { id: pollId },
+            select: { isChampionship: true },
+        });
+        const isChampionship = poll?.isChampionship ?? false;
+        const maxSquads = isChampionship ? 32 : GAME.maxSquadTeams;
+
         const squads = await prisma.squad.findMany({
             where: {
                 pollId,
@@ -157,7 +165,7 @@ export async function GET(request: NextRequest) {
             };
         });
 
-        return SuccessResponse({ data, meta: { defendingChampion }, cache: CACHE.NONE });
+        return SuccessResponse({ data, meta: { defendingChampion, maxSquads, squadCount: data.length, isChampionship }, cache: CACHE.NONE });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch squads", error });
     }
@@ -265,6 +273,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Check: max squads limit for this poll
+        // Championship: 32 squads, Regular: GAME.maxSquadTeams (16)
+        const maxSquads = poll.isChampionship ? 32 : GAME.maxSquadTeams;
         const activeSquadCount = await prisma.squad.count({
             where: {
                 pollId,
@@ -272,9 +282,11 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        if (activeSquadCount >= GAME.maxSquadTeams) {
+        if (activeSquadCount >= maxSquads) {
             return ErrorResponse({
-                message: `Maximum ${GAME.maxSquadTeams} squads reached for this match. No more squads can be created.`,
+                message: poll.isChampionship
+                    ? `Championship is full (${maxSquads}/32 squads). Try registering earlier next tournament!`
+                    : `Maximum ${maxSquads} squads reached for this match. No more squads can be created.`,
                 status: 400,
             });
         }

@@ -43,6 +43,7 @@ import { BulkEditStatsModal } from "@/components/dashboard/teams/bulk-edit-stats
 import { StandingsModal } from "@/components/dashboard/teams/standings-modal";
 import { SlotsModal } from "@/components/dashboard/teams/slots-modal";
 import { EditTeamModal } from "@/components/dashboard/teams/edit-team-modal";
+import { ChampionshipPanel } from "@/components/dashboard/teams/championship-panel";
 import { GAME } from "@/lib/game-config";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -123,6 +124,7 @@ export default function TeamsPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showStandings, setShowStandings] = useState(false);
     const [showSlots, setShowSlots] = useState(false);
+    const [showChampionship, setShowChampionship] = useState(false);
     const [editTeam, setEditTeam] = useState<TeamDTO | null>(null);
 
     const queryClient = useQueryClient();
@@ -412,6 +414,10 @@ export default function TeamsPage() {
                                 <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                         )}
+                        <Divider orientation="vertical" className="h-5" />
+                        <Button size="sm" variant="flat" isIconOnly onPress={() => setShowChampionship(true)} className="h-8 w-8 min-w-8 shrink-0" title="Championship">
+                            <Trophy className="h-3.5 w-3.5" />
+                        </Button>
                     </div>
                 )}
 
@@ -671,6 +677,14 @@ export default function TeamsPage() {
                     initialPlayers={editTeam.players}
                 />
             )}
+
+            {/* Championship Panel */}
+            <ChampionshipPanel
+                isOpen={showChampionship}
+                onClose={() => setShowChampionship(false)}
+                tournamentId={tournamentId}
+                tournamentName={tournaments.find((t) => t.id === tournamentId)?.name ?? ""}
+            />
         </div>
     );
 }

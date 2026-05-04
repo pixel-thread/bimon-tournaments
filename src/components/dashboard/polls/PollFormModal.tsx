@@ -30,6 +30,7 @@ interface PollDTO {
     days: string;
     teamType: string;
     allowSquads?: boolean;
+    isChampionship?: boolean;
     enableFund?: boolean;
     isActive: boolean;
     options?: PollOptionDTO[];
@@ -68,6 +69,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [tournamentId, setTournamentId] = useState("");
     const [isActive, setIsActive] = useState(true);
     const [allowSquads, setAllowSquads] = useState(false);
+    const [isChampionship, setIsChampionship] = useState(false);
     const [enableFund, setEnableFund] = useState(true);
     const [arenaMode, setArenaMode] = useState<"none" | "tdm" | "wow">("none");
     const [options, setOptions] = useState<PollOptionDTO[]>([]);
@@ -95,6 +97,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setTournamentFormat(poll.tournament?.type ?? GAME.defaultTournamentType ?? "BRACKET_1V1");
             setIsActive(poll.isActive);
             setAllowSquads(poll.allowSquads ?? false);
+            setIsChampionship(poll.isChampionship ?? false);
             setEnableFund(poll.enableFund ?? true);
             setArenaMode("none"); // Arena mode is determined by tournament flags, not poll
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
@@ -106,6 +109,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setTournamentId("");
             setIsActive(true);
             setAllowSquads(GAME.features.hasSquads);
+            setIsChampionship(false);
             setEnableFund(true);
             setArenaMode("none");
             // Pre-populate default options for create
@@ -152,13 +156,13 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         try {
             const body = isEdit
                 ? {
-                    id: poll!.id, question, days: actualDays, teamType, isActive, allowSquads, enableFund,
+                    id: poll!.id, question, days: actualDays, teamType, isActive, allowSquads, isChampionship, enableFund,
                     options: options.map(o => ({ id: o.id, name: o.name })),
                     // Send tournament format on edit too (PES)
                     ...(!GAME.features.hasTeamSizes && { tournamentType: tournamentFormat }),
                 }
                 : {
-                    question, days: actualDays, teamType, tournamentId, allowSquads, enableFund,
+                    question, days: actualDays, teamType, tournamentId, allowSquads, isChampionship, enableFund,
                     // For PES or arena modes: send format so poll creation can update tournament type
                     ...((!GAME.features.hasTeamSizes || arenaMode !== "none") && { tournamentType: tournamentFormat }),
                     // TDM flag — API will set tournament.isTDM
@@ -186,7 +190,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, arenaMode, options, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, isChampionship, enableFund, arenaMode, options, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -339,6 +343,21 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                                         if (GAME.features.hasTeamSizes) setTeamType("DYNAMIC");
                                     }
                                 }}
+                            />
+                        </div>
+                    )}
+
+                    {/* Championship toggle — only when allowSquads is ON */}
+                    {GAME.features.hasSquads && allowSquads && arenaMode === "none" && (
+                        <div className="flex items-center justify-between rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
+                            <div>
+                                <span className="text-sm">🏆 Championship</span>
+                                <p className="text-xs text-foreground/40">32 squads · Heats → Wildcard → Finals</p>
+                            </div>
+                            <Switch
+                                size="sm"
+                                isSelected={isChampionship}
+                                onValueChange={setIsChampionship}
                             />
                         </div>
                     )}

@@ -48,6 +48,20 @@ enum TournamentType {
   TDM             // Team Deathmatch bracket knockout (4v4, 8v8)
 }
 
+enum ChampionshipPhase {
+  HEATS
+  WILDCARD
+  FINALS
+}
+
+enum ChampionshipTeamStatus {
+  ACTIVE       // Playing in current phase
+  QUALIFIED    // Advanced to next phase
+  WILDCARD     // Sent to wildcard round
+  ELIMINATED   // Knocked out
+  STANDBY      // Registered but over 32 cap
+}
+
 enum TeamType {
   SOLO
   DUO
@@ -556,17 +570,18 @@ model Tournament {
   season  Season?  @relation(fields: [seasonId], references: [id], onDelete: SetNull)
   gallery Gallery? @relation(fields: [galleryId], references: [id], onDelete: SetNull)
 
-  teams             Team[]
-  matches           Match[]
-  winners           TournamentWinner[]
-  teamStats         TeamStats[]
-  poll              Poll?
-  recentMatchGroups RecentMatchGroup[]
-  matchPlayerPlayed MatchPlayerPlayed[]
-  income            Income[]
-  sequence          TournamentSequence?
-  donations         PrizePoolDonation[]
-  bracketMatches    BracketMatch[]
+  teams               Team[]
+  matches             Match[]
+  winners             TournamentWinner[]
+  teamStats           TeamStats[]
+  poll                Poll?
+  recentMatchGroups   RecentMatchGroup[]
+  matchPlayerPlayed   MatchPlayerPlayed[]
+  income              Income[]
+  sequence            TournamentSequence?
+  donations           PrizePoolDonation[]
+  bracketMatches      BracketMatch[]
+  championshipEntries ChampionshipEntry[]
 
   @@index([seasonId])
   @@index([status])
@@ -578,6 +593,7 @@ model Match {
   matchNumber  Int
   tournamentId String
   seasonId     String?
+  phase        String?  // "HEATS_A", "HEATS_B", "WILDCARD", "FINALS" (null = regular BR)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -652,6 +668,9 @@ model Team {
   bracketMatchesAsT1  BracketMatch[] @relation("BracketTeam1")
   bracketMatchesAsT2  BracketMatch[] @relation("BracketTeam2")
   bracketMatchWins    BracketMatch[] @relation("BracketTeamWinner")
+
+  // Championship
+  championshipEntry   ChampionshipEntry?
 
   @@index([tournamentId])
   @@index([seasonId])
@@ -765,8 +784,9 @@ model Poll {
   days         String    @default("Monday")
   teamType     TeamType  @default(DUO)
   isActive     Boolean   @default(true)
-  allowSquads  Boolean   @default(false)
-  enableFund   Boolean   @default(true)
+  allowSquads     Boolean   @default(false)
+  isChampionship  Boolean   @default(false)
+  enableFund      Boolean   @default(true)
   startDate    DateTime  @default(now())
   endDate      DateTime?
   tournamentId String    @unique
@@ -1274,6 +1294,27 @@ model SquadInvite {
 
   @@unique([squadId, playerId])
   @@index([playerId, status])
+}
+
+// ─── Championship ────────────────────────────────────────────
+
+/// Tracks team progression through championship phases (Heats → Wildcard → Finals).
+/// Created when admin generates teams for a championship tournament.
+model ChampionshipEntry {
+  id             String                   @id @default(uuid())
+  tournamentId   String
+  teamId         String                   @unique
+  group          String?                  // "A" or "B" (null for wildcard/finals)
+  phase          ChampionshipPhase        @default(HEATS)
+  status         ChampionshipTeamStatus   @default(ACTIVE)
+  registeredAt   DateTime                 @default(now())
+
+  tournament     Tournament               @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team           Team                     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, teamId])
+  @@index([tournamentId, phase])
+  @@index([tournamentId, status])
 }
 
 // ════════════════════════════════════════════════════════════════
