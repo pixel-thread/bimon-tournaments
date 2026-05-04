@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
             id: match.id,
             matchNumber: match.matchNumber,
             createdAt: match.createdAt,
+            phase: match.phase,
             teams: match.teamStats.map((ts) => {
                 // Players who have TPS records (present)
                 const tpsPlayers = ts.teamPlayerStats.map((tps) => ({

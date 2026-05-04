@@ -84,7 +84,21 @@ interface MatchOption {
     id: string;
     matchNumber: number;
     teamCount: number;
+    phase: string | null;
 }
+
+const PHASE_LABELS: Record<string, string> = {
+    HEATS_A: "Grp A",
+    HEATS_B: "Grp B",
+    WILDCARD: "Wildcard",
+    FINALS: "Finals",
+};
+
+const CHAMP_TABS = [
+    { key: "HEATS", label: "Heats", phases: ["HEATS_A", "HEATS_B"] },
+    { key: "WILDCARD", label: "Wildcard", phases: ["WILDCARD"] },
+    { key: "FINALS", label: "Finals", phases: ["FINALS"] },
+];
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -116,6 +130,8 @@ export default function TeamsPage() {
     const [tournamentId, setTournamentId] = useState("");
     const [matchId, setMatchId] = useState("all");
     const [search, setSearch] = useState("");
+    const [champPhase, setChampPhase] = useState<string | null>(null);
+    const [heatsGroup, setHeatsGroup] = useState<"A" | "B">("A");
 
     // Modal state
     const [showCreateTeam, setShowCreateTeam] = useState(false);
@@ -192,10 +208,11 @@ export default function TeamsPage() {
             const res = await fetch(`/api/matches?tournamentId=${tournamentId}`);
             if (!res.ok) return [];
             const json = await res.json();
-            return (json.data ?? []).map((m: { id: string; matchNumber: number }) => ({
+            return (json.data ?? []).map((m: { id: string; matchNumber: number; phase?: string | null }) => ({
                 id: m.id,
                 matchNumber: m.matchNumber,
                 teamCount: 0,
+                phase: m.phase ?? null,
             }));
         },
         enabled: !!tournamentId,
@@ -246,6 +263,59 @@ export default function TeamsPage() {
         () => matches.find((m) => m.id === matchId),
         [matches, matchId]
     );
+
+    // Championship phase detection & filtering
+    const isChamp = useMemo(() => matches.some(m => m.phase?.startsWith("HEATS")), [matches]);
+
+    // Fetch championship group assignments
+    const { data: champEntries } = useQuery<{ teamId: string; group: string | null }[]>({
+        queryKey: ["champ-entries", tournamentId],
+        queryFn: async () => {
+            const res = await fetch(`/api/tournaments/${tournamentId}/championship/status`);
+            if (!res.ok) return [];
+            const json = await res.json();
+            return (json.data?.entries ?? []).map((e: { teamId: string; group: string | null }) => ({
+                teamId: e.teamId,
+                group: e.group,
+            }));
+        },
+        enabled: isChamp && !!tournamentId,
+    });
+    const champGroupMap = useMemo(() => {
+        if (!champEntries) return null;
+        const map = new Map<string, string>();
+        champEntries.forEach(e => { if (e.group) map.set(e.teamId, e.group); });
+        return map.size > 0 ? map : null;
+    }, [champEntries]);
+    const availableTabs = useMemo(() => {
+        const matchPhases = new Set(matches.map(m => m.phase).filter(Boolean));
+        return CHAMP_TABS.filter(tab => tab.phases.some(p => matchPhases.has(p)));
+    }, [matches]);
+    const phaseFilteredMatches = useMemo(() => {
+        if (!isChamp || !champPhase) return matches;
+        if (champPhase === "HEATS") {
+            return matches.filter(m => m.phase === `HEATS_${heatsGroup}`);
+        }
+        const tab = CHAMP_TABS.find(t => t.key === champPhase);
+        if (!tab) return matches;
+        return matches.filter(m => m.phase && tab.phases.includes(m.phase));
+    }, [matches, isChamp, champPhase, heatsGroup]);
+
+    // Auto-select phase when championship detected
+    useEffect(() => {
+        if (isChamp && !champPhase && availableTabs.length > 0) {
+            setChampPhase(availableTabs[0].key);
+        } else if (!isChamp) {
+            setChampPhase(null);
+        }
+    }, [isChamp, champPhase, availableTabs]);
+
+    // Auto-select first match when phase or group changes
+    useEffect(() => {
+        if (isChamp && champPhase && phaseFilteredMatches.length > 0) {
+            setMatchId(phaseFilteredMatches[0].id);
+        }
+    }, [champPhase, heatsGroup]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Create match mutation ─────────────────────────────────
 
@@ -361,6 +431,45 @@ export default function TeamsPage() {
                     </Select>
                 </div>
 
+                {/* Championship Phase Tabs */}
+                {tournamentId && isChamp && availableTabs.length > 0 && (
+                    <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+                        {availableTabs.map((tab) => (
+                            <button
+                                key={tab.key}
+                                onClick={() => setChampPhase(tab.key)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                                    champPhase === tab.key
+                                        ? "bg-primary text-primary-foreground shadow-sm"
+                                        : "bg-default-100 text-foreground/50 hover:text-foreground/80 hover:bg-default-200"
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+
+                        {/* Group sub-selector for Heats */}
+                        {champPhase === "HEATS" && (
+                            <>
+                                <div className="w-px h-5 bg-default-200 mx-1" />
+                                {(["A", "B"] as const).map((g) => (
+                                    <button
+                                        key={g}
+                                        onClick={() => setHeatsGroup(g)}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                                            heatsGroup === g
+                                                ? g === "A" ? "bg-blue-500/20 text-blue-500 border border-blue-500/30" : "bg-purple-500/20 text-purple-500 border border-purple-500/30"
+                                                : "bg-default-100 text-foreground/40 hover:text-foreground/70 hover:bg-default-200 border border-transparent"
+                                        }`}
+                                    >
+                                        Group {g}
+                                    </button>
+                                ))}
+                            </>
+                        )}
+                    </div>
+                )}
+
                 {/* Match + Action Buttons — same row */}
                 {tournamentId && (
                     <div className="flex items-center gap-1.5 overflow-x-auto">
@@ -372,16 +481,22 @@ export default function TeamsPage() {
                             classNames={{ trigger: "bg-default-100 border-none shadow-none", value: "text-foreground" }}
                             aria-label="Match"
                             isLoading={isCreating}
-                            className="w-[120px] min-w-[120px]"
+                            className="w-[160px] min-w-[160px]"
                         >
                             {[
                                 <SelectItem key="all" textValue="All Matches">All Matches</SelectItem>,
-                                ...matches.map((m) => (
-                                    <SelectItem key={m.id} textValue={`Match ${m.matchNumber}`}>
-                                        Match {m.matchNumber}
-                                    </SelectItem>
-                                )),
-                                <SelectItem
+                                ...phaseFilteredMatches.map((m) => {
+                                    const phaseLabel = m.phase ? PHASE_LABELS[m.phase] : null;
+                                    const displayText = phaseLabel
+                                        ? `M${m.matchNumber} · ${phaseLabel}`
+                                        : `Match ${m.matchNumber}`;
+                                    return (
+                                        <SelectItem key={m.id} textValue={displayText}>
+                                            {displayText}
+                                        </SelectItem>
+                                    );
+                                }),
+                                ...(!isChamp ? [<SelectItem
                                     key="create-new"
                                     textValue="+ New"
                                     className="text-success data-[hover=true]:text-success"
@@ -390,7 +505,7 @@ export default function TeamsPage() {
                                         <Plus className="h-3 w-3" />
                                         New
                                     </span>
-                                </SelectItem>,
+                                </SelectItem>] : []),
                             ]}
                         </Select>
                         <Divider orientation="vertical" className="h-5" />
@@ -618,6 +733,8 @@ export default function TeamsPage() {
                 seasonName={seasons.find((s) => s.id === seasonId)?.name ?? ""}
                 backgroundImage={globalBg?.publicUrl || "/images/image.webp"}
                 allowSquads={allowSquads}
+                championshipGroups={champGroupMap ?? undefined}
+                phaseLabel={isChamp && champPhase ? (champPhase === "HEATS" ? `Group ${heatsGroup}` : PHASE_LABELS[champPhase] ?? champPhase) : undefined}
             />
 
             {/* Delete Match Confirmation */}

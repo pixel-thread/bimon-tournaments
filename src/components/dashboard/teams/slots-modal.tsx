@@ -24,6 +24,8 @@ interface Props {
     seasonName?: string;
     backgroundImage?: string;
     allowSquads?: boolean;
+    championshipGroups?: Map<string, string>;
+    phaseLabel?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────
@@ -36,6 +38,8 @@ export function SlotsModal({
     seasonName = "",
     backgroundImage = "/images/image.webp",
     allowSquads = false,
+    championshipGroups,
+    phaseLabel,
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
@@ -63,6 +67,21 @@ export function SlotsModal({
 
     // Show team name column only for squad (ranked) tournaments
     const hasSquadTeams = allowSquads;
+
+    // Championship grouping
+    const groupedTeams = useMemo(() => {
+        if (!championshipGroups || championshipGroups.size === 0) return null;
+        const groupA: TeamDTO[] = [];
+        const groupB: TeamDTO[] = [];
+        const other: TeamDTO[] = [];
+        for (const t of uniqueTeams) {
+            const g = championshipGroups.get(t.id);
+            if (g === "A") groupA.push(t);
+            else if (g === "B") groupB.push(t);
+            else other.push(t);
+        }
+        return { groupA, groupB, other };
+    }, [uniqueTeams, championshipGroups]);
 
     // ── Screenshot / Copy ─────────────────────────────────────
 
@@ -170,6 +189,39 @@ export function SlotsModal({
 
     if (!isOpen) return null;
 
+    // Helper to render team rows (reused for grouped/ungrouped)
+    function renderTeamRows(teamList: TeamDTO[], showSquad: boolean, maxCols: number) {
+        return teamList.map((team, index) => {
+            const players = team.players?.map((p) => p.displayName || p.username) || [];
+            const paddedPlayers = [...players, ...Array(maxCols - players.length).fill("")];
+            const textColor = index % 3 === 0 ? "text-zinc-200" : index % 3 === 1 ? "text-sky-300/70" : "text-amber-200/70";
+
+            return (
+                <tr
+                    key={team.id || index}
+                    className={`border-b border-white/5 last:border-b-0 ${index % 2 === 0 ? "bg-zinc-900/40" : "bg-zinc-800/30"} hover:bg-zinc-700/40 transition-colors`}
+                >
+                    <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium ${textColor}`}>
+                        {index + 2}
+                    </td>
+                    {showSquad && (
+                        <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[11px] sm:text-sm font-medium whitespace-nowrap ${textColor}`}>
+                            <span className="inline-flex items-center gap-1.5">
+                                <img src={team.clanLogo || GAME.iconUrl} alt={team.clanTag || GAME.name} className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                {team.name}
+                            </span>
+                        </td>
+                    )}
+                    {paddedPlayers.map((playerName, pi) => (
+                        <td key={pi} className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm whitespace-nowrap ${playerName ? textColor : "text-zinc-600"}`}>
+                            {playerName || "\u2014"}
+                        </td>
+                    ))}
+                </tr>
+            );
+        });
+    }
+
     return (
         <>
             <style jsx>{`
@@ -260,52 +312,35 @@ export function SlotsModal({
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {uniqueTeams.map((team, index) => {
-                                            const players = team.players?.map((p) =>
-                                                p.displayName || p.username
-                                            ) || [];
-                                            const paddedPlayers = [
-                                                ...players,
-                                                ...Array(maxPlayers - players.length).fill(""),
-                                            ];
-
-                                            const textColor = index % 3 === 0
-                                                ? "text-zinc-200"
-                                                : index % 3 === 1
-                                                    ? "text-sky-300/70"
-                                                    : "text-amber-200/70";
-
-                                            return (
-                                                <tr
-                                                    key={team.id || index}
-                                                    className={`border-b border-white/5 last:border-b-0 ${index % 2 === 0 ? "bg-zinc-900/40" : "bg-zinc-800/30"} hover:bg-zinc-700/40 transition-colors`}
-                                                >
-                                                    <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium ${textColor}`}>
-                                                        {index + 2}
-                                                    </td>
-                                                    {hasSquadTeams && (
-                                                        <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[11px] sm:text-sm font-medium whitespace-nowrap ${textColor}`}>
-                                                            <span className="inline-flex items-center gap-1.5">
-                                                                <img
-                                                                    src={team.clanLogo || GAME.iconUrl}
-                                                                    alt={team.clanTag || GAME.name}
-                                                                    className="w-4 h-4 rounded-full object-cover shrink-0"
-                                                                />
-                                                                {team.name}
-                                                            </span>
-                                                        </td>
-                                                    )}
-                                                    {paddedPlayers.map((playerName, pi) => (
-                                                        <td
-                                                            key={pi}
-                                                            className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm whitespace-nowrap ${playerName ? textColor : "text-zinc-600"}`}
-                                                        >
-                                                            {playerName || "\u2014"}
-                                                        </td>
-                                                    ))}
-                                                </tr>
-                                            );
-                                        })}
+                                        {groupedTeams ? (
+                                            <>
+                                                {groupedTeams.groupA.length > 0 && (
+                                                    <>
+                                                        <tr>
+                                                            <td colSpan={1 + (hasSquadTeams ? 1 : 0) + maxPlayers} className="px-3 py-2 bg-blue-500/10 border-b border-blue-500/20">
+                                                                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Group A</span>
+                                                                <span className="text-[10px] text-blue-400/60 ml-2">{groupedTeams.groupA.length} teams</span>
+                                                            </td>
+                                                        </tr>
+                                                        {renderTeamRows(groupedTeams.groupA, hasSquadTeams, maxPlayers)}
+                                                    </>
+                                                )}
+                                                {groupedTeams.groupB.length > 0 && (
+                                                    <>
+                                                        <tr>
+                                                            <td colSpan={1 + (hasSquadTeams ? 1 : 0) + maxPlayers} className="px-3 py-2 bg-purple-500/10 border-b border-purple-500/20">
+                                                                <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">Group B</span>
+                                                                <span className="text-[10px] text-purple-400/60 ml-2">{groupedTeams.groupB.length} teams</span>
+                                                            </td>
+                                                        </tr>
+                                                        {renderTeamRows(groupedTeams.groupB, hasSquadTeams, maxPlayers)}
+                                                    </>
+                                                )}
+                                                {groupedTeams.other.length > 0 && renderTeamRows(groupedTeams.other, hasSquadTeams, maxPlayers)}
+                                            </>
+                                        ) : (
+                                            renderTeamRows(uniqueTeams, hasSquadTeams, maxPlayers)
+                                        )}
                                     </tbody>
                                 </table>
                             </div>

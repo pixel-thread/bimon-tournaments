@@ -31,9 +31,6 @@ export async function GET(request: NextRequest) {
         }
 
         const q = request.nextUrl.searchParams.get("q")?.trim() || "";
-        if (q.length < 2) {
-            return SuccessResponse({ data: [], cache: CACHE.NONE });
-        }
 
         // Get players already in any clan
         const inClanPlayerIds = (
@@ -54,11 +51,12 @@ export async function GET(request: NextRequest) {
             where: {
                 id: { notIn: excludeIds },
                 isBanned: false,
-                OR: [
-                    { displayName: { contains: q, mode: "insensitive" } },
-                    { user: { username: { contains: q, mode: "insensitive" } } },
-                    { user: { email: { contains: q, mode: "insensitive" } } },
-                ],
+                ...(q.length > 0 && {
+                    OR: [
+                        { displayName: { contains: q, mode: "insensitive" } },
+                        { user: { username: { contains: q, mode: "insensitive" } } },
+                    ],
+                }),
             },
             select: {
                 id: true,
@@ -67,7 +65,8 @@ export async function GET(request: NextRequest) {
                 category: true,
                 user: { select: { username: true, imageUrl: true } },
             },
-            take: 20,
+            orderBy: { createdAt: "desc" },
+            take: 50,
         });
 
         const data = players.map((p) => ({

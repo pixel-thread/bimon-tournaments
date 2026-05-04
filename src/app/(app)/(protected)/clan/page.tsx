@@ -601,6 +601,7 @@ function InvitePlayerModal({
 }) {
     const [search, setSearch] = useState("");
     const [inviting, setInviting] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
     const { data: results, isLoading: searching } = useQuery<SearchResult[]>({
         queryKey: ["clan-search-players", search],
@@ -610,7 +611,7 @@ function InvitePlayerModal({
             const json = await res.json();
             return json.data ?? [];
         },
-        enabled: isOpen && search.length >= 2,
+        enabled: isOpen,
         staleTime: 15_000,
     });
 
@@ -624,8 +625,7 @@ function InvitePlayerModal({
             });
             if (res.ok) {
                 onInvited();
-                // Remove from results by re-searching
-                setSearch((s) => s); // trigger re-fetch
+                queryClient.invalidateQueries({ queryKey: ["clan-search-players"] });
             } else {
                 const json = await res.json();
                 toast.error(json.message || "Failed to invite");
@@ -665,19 +665,13 @@ function InvitePlayerModal({
                         autoFocus
                     />
 
-                    {search.length < 2 && (
-                        <p className="text-xs text-foreground/40 text-center py-4">
-                            Type at least 2 characters to search
-                        </p>
-                    )}
-
                     {searching && (
                         <div className="flex justify-center py-4">
                             <Spinner size="sm" />
                         </div>
                     )}
 
-                    {results && results.length === 0 && search.length >= 2 && !searching && (
+                    {results && results.length === 0 && !searching && (
                         <p className="text-xs text-foreground/40 text-center py-4">
                             No players found
                         </p>

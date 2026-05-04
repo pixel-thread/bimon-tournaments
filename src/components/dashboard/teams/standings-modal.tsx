@@ -37,6 +37,7 @@ interface MatchTeam {
 interface MatchData {
     id: string;
     matchNumber: number;
+    phase: string | null;
     teams: MatchTeam[];
 }
 
@@ -64,6 +65,7 @@ interface Props {
     seasonName?: string;
     backgroundImage?: string;
     allowSquads?: boolean;
+    isChampionship?: boolean;
 }
 
 // ── Placement Points (BGMI scoring) ───────────────────────────
@@ -82,11 +84,13 @@ export function StandingsModal({
     seasonName = "",
     backgroundImage = "/images/image.webp",
     allowSquads = false,
+    isChampionship = false,
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [compareMatches, setCompareMatches] = useState(1);
+    const [champGroup, setChampGroup] = useState<"ALL" | "A" | "B">("ALL");
 
     // Fetch match data
     const { data: matchData, isLoading, refetch } = useQuery<MatchData[]>({
@@ -112,16 +116,31 @@ export function StandingsModal({
         }
     }, [matchData, compareMatches]);
 
+    // Auto-detect championship from match phases
+    const detectedChampionship = useMemo(() => {
+        if (isChampionship) return true;
+        if (!matchData) return false;
+        return matchData.some(m => m.phase?.startsWith("HEATS"));
+    }, [matchData, isChampionship]);
+
     // ── Compute standings with position change tracking ────────
 
+    // Championship: filter matches by group phase
+    const filteredMatchData = useMemo(() => {
+        if (!matchData || !detectedChampionship || champGroup === "ALL") return matchData;
+        const phaseFilter = champGroup === "A" ? "HEATS_A" : "HEATS_B";
+        return matchData.filter(m => m.phase === phaseFilter);
+    }, [matchData, detectedChampionship, champGroup]);
+
     const standings = useMemo<StandingRow[]>(() => {
-        if (!matchData || matchData.length === 0) return [];
+        const data = filteredMatchData;
+        if (!data || data.length === 0) return [];
 
         // Helper: compute standings for a subset of matches
-        function computeRanking(matches: MatchData[]): Map<string, StandingRow> {
+        function computeRanking(matchArr: MatchData[]): Map<string, StandingRow> {
             const map = new Map<string, StandingRow>();
-            const totalMatchCount = matches.length;
-            for (const match of matches) {
+            const totalMatchCount = matchArr.length;
+            for (const match of matchArr) {
                 for (const t of match.teams) {
                     let row = map.get(t.teamId);
                     if (!row) {
@@ -166,12 +185,12 @@ export function StandingsModal({
         }
 
         // Current standings (all matches)
-        const currentMap = computeRanking(matchData);
+        const currentMap = computeRanking(data);
         const currentSorted = sortRows(Array.from(currentMap.values()));
 
         // Previous standings (excluding last N matches) for position change
-        if (matchData.length > compareMatches) {
-            const prevMatches = matchData.slice(0, matchData.length - compareMatches);
+        if (data.length > compareMatches) {
+            const prevMatches = data.slice(0, data.length - compareMatches);
             const prevMap = computeRanking(prevMatches);
             const prevSorted = sortRows(Array.from(prevMap.values()));
 
@@ -190,7 +209,7 @@ export function StandingsModal({
         }
 
         return currentSorted;
-    }, [matchData, compareMatches]);
+    }, [filteredMatchData, compareMatches]);
 
     // ── Screenshot / Copy ─────────────────────────────────────
 
@@ -420,6 +439,27 @@ export function StandingsModal({
                                     <span className="text-xs font-medium text-zinc-300">Overall Rankings</span>
                                 </div>
                             </div>
+
+                            {/* Championship Group Toggle */}
+                            {detectedChampionship && (
+                                <div className="flex items-center justify-center gap-2 mt-4">
+                                    {(["ALL", "A", "B"] as const).map((g) => (
+                                        <button
+                                            key={g}
+                                            onClick={() => setChampGroup(g)}
+                                            className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
+                                                champGroup === g
+                                                    ? g === "A" ? "bg-blue-500/20 text-blue-400 border border-blue-500/40"
+                                                    : g === "B" ? "bg-purple-500/20 text-purple-400 border border-purple-500/40"
+                                                    : "bg-orange-500/20 text-orange-400 border border-orange-500/40"
+                                                    : "bg-white/5 text-zinc-500 border border-white/10 hover:bg-white/10"
+                                            }`}
+                                        >
+                                            {g === "ALL" ? "Combined" : `Group ${g}`}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Standings Table */}
@@ -429,7 +469,7 @@ export function StandingsModal({
                             </div>
                         ) : (
                             <div className="rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-2xl shadow-black/50 p-4 sm:p-6">
-                                <StandingsTable standings={standings} allowSquads={allowSquads} />
+                                <StandingsTable standings={standings} allowSquads={allowSquads} isChampionship={detectedChampionship} champGroup={champGroup} />
                             </div>
                         )}
 
@@ -483,10 +523,20 @@ function PositionChangeIndicator({ change }: { change: number }) {
     return <span className="inline-flex items-center gap-0.5 text-red-400 text-[10px] font-bold"><ChevronDown className="w-3.5 h-3.5" /><span>{Math.abs(change)}</span></span>;
 }
 
+// ── Championship zone styling ─────────────────────────────────
+
+function getChampionshipZone(rank: number, total: number): { zone: string; color: string; border: string } | null {
+    if (total < 8) return null; // Not enough teams for zones
+    if (rank <= 4) return { zone: "QUALIFIED", color: "text-emerald-400", border: "border-l-emerald-400 bg-emerald-500/10" };
+    if (rank <= 12) return { zone: "WILDCARD", color: "text-amber-400", border: "border-l-amber-400 bg-amber-500/8" };
+    return { zone: "ELIMINATED", color: "text-red-400/60", border: "border-l-red-400 bg-red-500/8" };
+}
+
 // ── Standings Table — Podium Top 3 + Two-column rest ──────────
 
-function StandingsTable({ standings, allowSquads = false }: { standings: StandingRow[]; allowSquads?: boolean }) {
+function StandingsTable({ standings, allowSquads = false, isChampionship = false, champGroup = "ALL" }: { standings: StandingRow[]; allowSquads?: boolean; isChampionship?: boolean; champGroup?: string }) {
     const hasSquadTeams = allowSquads;
+    const showZones = isChampionship && champGroup !== "ALL";
     const top3 = standings.slice(0, 3);
     const rest = standings.slice(3);
 
@@ -521,7 +571,12 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
         },
     };
 
-    const renderTable = (slice: StandingRow[], startIndex: number) => (
+    const renderTable = (slice: StandingRow[], startIndex: number) => {
+        const totalTeams = standings.length;
+        // Identify zone boundary positions (4→5 and 12→13) for separator rendering
+        const zoneBoundaries = showZones ? [4, 12] : [];
+
+        return (
         <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm">
             <table className="w-full border-collapse">
                 <thead>
@@ -539,47 +594,73 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                     {slice.map((row, idx) => {
                         const rank = startIndex + idx + 1;
                         const styles = getRankStyles(rank);
+                        const zone = showZones ? getChampionshipZone(rank, totalTeams) : null;
+                        const isZoneBoundary = zoneBoundaries.includes(rank);
+
                         return (
-                            <tr
-                                key={row.teamId}
-                                className={`border-b border-white/5 last:border-b-0 transition-all duration-200 ${styles.row}`}
-                            >
-                                <td className="px-1 py-1.5 text-center align-middle">
-                                    <span className={`inline-flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold ${styles.badge}`}>
-                                        {rank}
-                                    </span>
-                                </td>
-                                <td className="px-0 py-1.5 text-center align-middle">
-                                    <PositionChangeIndicator change={row.positionChange} />
-                                </td>
-                                <td className="px-1 py-1 text-left align-middle">
-                                    <div className="flex flex-col min-h-[28px] justify-center">
-                                        <div className="flex items-center gap-1.5">
-                                            {hasSquadTeams && (
-                                                <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                            <>
+                                {isZoneBoundary && (
+                                    <tr key={`zone-sep-${rank}`} className="border-b border-white/5">
+                                        <td colSpan={7} className="py-0.5">
+                                            <div className={`h-px w-full ${
+                                                rank === 4 ? "bg-gradient-to-r from-emerald-500/40 via-amber-500/30 to-transparent" :
+                                                "bg-gradient-to-r from-amber-500/40 via-red-500/30 to-transparent"
+                                            }`} />
+                                        </td>
+                                    </tr>
+                                )}
+                                <tr
+                                    key={row.teamId}
+                                    className={`border-b border-white/5 last:border-b-0 transition-all duration-200 ${
+                                        zone ? `border-l-2 ${zone.border}` : styles.row
+                                    }`}
+                                >
+                                    <td className="px-1 py-1.5 text-center align-middle">
+                                        <span className={`inline-flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold ${
+                                            zone
+                                                ? zone.zone === "QUALIFIED" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                                : zone.zone === "WILDCARD" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                                                : "bg-red-500/15 text-red-400/60 border border-red-500/20"
+                                                : styles.badge
+                                        }`}>
+                                            {rank}
+                                        </span>
+                                    </td>
+                                    <td className="px-0 py-1.5 text-center align-middle">
+                                        <PositionChangeIndicator change={row.positionChange} />
+                                    </td>
+                                    <td className="px-1 py-1 text-left align-middle">
+                                        <div className="flex flex-col min-h-[28px] justify-center">
+                                            <div className="flex items-center gap-1.5">
+                                                {hasSquadTeams && (
+                                                    <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                                )}
+                                                <span className={`text-[11px] leading-tight font-semibold ${
+                                                    zone?.zone === "ELIMINATED" ? "text-zinc-500" : "text-zinc-300"
+                                                } ${hasSquadTeams ? "whitespace-nowrap" : ""}`} style={hasSquadTeams ? undefined : { wordBreak: "break-word" }}>
+                                                    {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                                                </span>
+                                            </div>
+                                            {row.wins > 0 && (
+                                                <span className="text-[9px] mt-0.5 text-yellow-400">
+                                                    🍗 {row.wins} win{row.wins > 1 ? "s" : ""}
+                                                </span>
                                             )}
-                                            <span className={`text-[11px] leading-tight font-semibold text-zinc-300 ${hasSquadTeams ? "whitespace-nowrap" : ""}`} style={hasSquadTeams ? undefined : { wordBreak: "break-word" }}>
-                                                {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
-                                            </span>
                                         </div>
-                                        {row.wins > 0 && (
-                                            <span className="text-[9px] mt-0.5 text-yellow-400">
-                                                🍗 {row.wins} win{row.wins > 1 ? "s" : ""}
-                                            </span>
-                                        )}
-                                    </div>
-                                </td>
-                                <td className="px-1 py-1.5 text-center align-middle text-zinc-500 tabular-nums font-mono text-xs">{row.matchCount}</td>
-                                <td className="px-1 py-1.5 text-center align-middle text-zinc-300 font-medium tabular-nums font-mono text-xs">{row.placementPts}</td>
-                                <td className="px-1 py-1.5 text-center align-middle text-zinc-400 tabular-nums font-mono text-xs">{row.totalKills}</td>
-                                <td className="px-1 py-1.5 text-center align-middle text-orange-400 font-bold tabular-nums font-mono text-xs">{row.totalPoints}</td>
-                            </tr>
+                                    </td>
+                                    <td className="px-1 py-1.5 text-center align-middle text-zinc-500 tabular-nums font-mono text-xs">{row.matchCount}</td>
+                                    <td className="px-1 py-1.5 text-center align-middle text-zinc-300 font-medium tabular-nums font-mono text-xs">{row.placementPts}</td>
+                                    <td className="px-1 py-1.5 text-center align-middle text-zinc-400 tabular-nums font-mono text-xs">{row.totalKills}</td>
+                                    <td className="px-1 py-1.5 text-center align-middle text-orange-400 font-bold tabular-nums font-mono text-xs">{row.totalPoints}</td>
+                                </tr>
+                            </>
                         );
                     })}
                 </tbody>
             </table>
         </div>
-    );
+        );
+    };
 
     const restHalf = Math.ceil(rest.length / 2);
 
@@ -642,10 +723,19 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                     {rest.map((row, index) => {
                         const rank = index + 4;
                         const styles = getRankStyles(rank);
+                        const zone = showZones ? getChampionshipZone(rank, standings.length) : null;
                         return (
-                            <div key={row.teamId} className={`rounded-lg border border-white/10 bg-black/40 backdrop-blur-sm px-3 py-2.5 flex items-start gap-3 transition-all ${styles.row}`}>
+                            <div key={row.teamId} className={`rounded-lg border backdrop-blur-sm px-3 py-2.5 flex items-start gap-3 transition-all ${
+                                zone ? `border-l-2 ${zone.border} border-white/10` : `border-white/10 bg-black/40 ${styles.row}`
+                            }`}>
                                 <div className="flex flex-col items-center gap-0.5">
-                                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${styles.badge}`}>
+                                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                                        zone
+                                            ? zone.zone === "QUALIFIED" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                            : zone.zone === "WILDCARD" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                                            : "bg-red-500/15 text-red-400/60 border border-red-500/20"
+                                            : styles.badge
+                                    }`}>
                                         {rank}
                                     </div>
                                     <PositionChangeIndicator change={row.positionChange} />
@@ -653,7 +743,7 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
                                         <div className="team-name-marquee flex-1 min-w-0">
-                                            <span className={`marquee-inner text-sm font-semibold whitespace-nowrap text-zinc-200`}>
+                                            <span className={`marquee-inner text-sm font-semibold whitespace-nowrap ${zone?.zone === "ELIMINATED" ? "text-zinc-500" : "text-zinc-200"}`}>
                                                 <span className="inline-flex items-center gap-1.5">
                                                     {hasSquadTeams && (
                                                         <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0 inline" />
@@ -676,6 +766,11 @@ function StandingsTable({ standings, allowSquads = false }: { standings: Standin
                                             <span className="text-orange-400/70">TOTAL</span>
                                             <span className="font-bold text-orange-400">{row.totalPoints}</span>
                                         </span>
+                                        {zone && (
+                                            <span className={`text-[9px] font-bold uppercase tracking-wider ${zone.color}`}>
+                                                {zone.zone === "QUALIFIED" ? "✓ Finals" : zone.zone === "WILDCARD" ? "⚡ Wildcard" : "✗ Out"}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
