@@ -178,6 +178,16 @@ export async function GET(request: Request) {
             isUCExempt = playerFlags?.isUCExempt ?? false;
         }
 
+        // Sort: polls with scheduledDate nearest to now first, then by createdAt
+        data.sort((a: any, b: any) => {
+            const aDate = a.scheduledDate ? new Date(a.scheduledDate).getTime() : null;
+            const bDate = b.scheduledDate ? new Date(b.scheduledDate).getTime() : null;
+            if (aDate && bDate) return aDate - bDate; // Both have dates: nearest first
+            if (aDate && !bDate) return -1;            // a has date, b doesn't: a first
+            if (!aDate && bDate) return 1;             // b has date, a doesn't: b first
+            return 0;                                  // Neither has date: keep original order
+        });
+
         return SuccessResponse({ data: { polls: data, currentPlayerId: playerId ?? null, isCouponVerifier, isUCExempt }, cache: CACHE.NONE });
     } catch (error) {
         console.error("[GET /api/polls] Error:", error);

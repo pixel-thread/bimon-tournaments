@@ -114,7 +114,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setAllowSquads(GAME.features.hasSquads);
             setIsChampionship(false);
             setScheduledDate("");
-            setEnableFund(true);
+            setEnableFund(GAME.features.hasBR);
             setArenaMode("none");
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
@@ -339,8 +339,8 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                         </div>
                     )}
 
-                    {/* Allow Squads toggle — for games that support squads */}
-                    {GAME.features.hasSquads && arenaMode === "none" && (
+                    {/* Allow Squads toggle — for BR games with squad support (MLBB always has squads on) */}
+                    {GAME.features.hasSquads && GAME.features.hasTeamSizes && arenaMode === "none" && (
                         <div className="flex items-center justify-between rounded-lg bg-default-100 px-3 py-2">
                             <div>
                                 <span className="text-sm">Allow Squads</span>
@@ -362,8 +362,8 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                         </div>
                     )}
 
-                    {/* Championship toggle — only when allowSquads is ON */}
-                    {GAME.features.hasSquads && allowSquads && arenaMode === "none" && (
+                    {/* Championship toggle — only for BR games when allowSquads is ON */}
+                    {GAME.features.hasBR && GAME.features.hasSquads && allowSquads && arenaMode === "none" && (
                         <div className="flex items-center justify-between rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
                             <div>
                                 <span className="text-sm">🏆 Championship</span>
@@ -441,8 +441,8 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                         </Select>
                     )}
 
-                    {/* Fund toggle — shown when allowSquads is on (default OFF for squads) */}
-                    {GAME.features.hasSquads && allowSquads && (
+                    {/* Fund toggle — shown for BR games when allowSquads is on (default OFF for squads) */}
+                    {GAME.features.hasTeamSizes && GAME.features.hasSquads && allowSquads && (
                         <div className="flex items-center justify-between rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
                             <div>
                                 <span className="text-sm">Enable Fund</span>

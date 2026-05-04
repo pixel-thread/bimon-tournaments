@@ -1209,7 +1209,16 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showCasualInfo ? 'rotate-180' : ''}`} />
                             </button>
                         )}
-                        {poll.days && (
+                        {poll.scheduledDate ? (
+                            <>
+                                {(poll.allowSquads || (!poll.allowSquads && GAME.features.hasTeamSizes)) && (
+                                    <span className="h-3 w-px bg-foreground/15" />
+                                )}
+                                <span className="text-[11px] text-foreground/60 font-medium py-1">
+                                    📅 {new Date(poll.scheduledDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                                </span>
+                            </>
+                        ) : poll.days ? (
                             <>
                                 {(poll.allowSquads || (!poll.allowSquads && GAME.features.hasTeamSizes)) && (
                                     <span className="h-3 w-px bg-foreground/15" />
@@ -1223,7 +1232,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showScheduleInfo ? 'rotate-180' : ''}`} />
                                 </button>
                             </>
-                        )}
+                        ) : null}
                     </div>
 
                     {/* Expanded info panels */}
