@@ -270,7 +270,7 @@ function SquadCard({
                     <style>{`
                         @property --champion-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
                         @keyframes champion-spin { to { --champion-angle: 360deg; } }
-                        .champion-border-glow { animation: champion-spin 4s linear infinite; }
+                        .champion-border-glow { animation: champion-spin 4s linear 1 forwards; }
                         @keyframes champion-bg-shift {
                             0% { background-position: 0% 50%; }
                             50% { background-position: 100% 50%; }
@@ -279,12 +279,12 @@ function SquadCard({
                         .champion-inner-bg {
                             background: linear-gradient(270deg, #fffbeb, #fef3c7, #fde68a, #fef3c7, #fffbeb);
                             background-size: 300% 100%;
-                            animation: champion-bg-shift 6s ease-in-out infinite;
+                            animation: champion-bg-shift 6s ease-in-out 1 forwards;
                         }
                         .dark .champion-inner-bg {
                             background: linear-gradient(270deg, #1c1917, #292524, #44403c, #292524, #1c1917);
                             background-size: 300% 100%;
-                            animation: champion-bg-shift 6s ease-in-out infinite;
+                            animation: champion-bg-shift 6s ease-in-out 1 forwards;
                         }
                     `}
                     </style>
