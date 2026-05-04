@@ -1231,9 +1231,9 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 <button
                                     type="button"
                                     onClick={() => { setShowScheduleInfo(!showScheduleInfo); setShowSquadInfo(false); setShowCasualInfo(false); }}
-                                    className="flex items-center gap-1 text-[11px] text-foreground/60 font-medium hover:text-foreground/80 transition-colors py-1"
+                                    className="flex items-center gap-1 text-[11px] text-foreground/40 hover:text-foreground/60 transition-colors py-1"
                                 >
-                                    📅 {new Date(poll.scheduledDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                                    📅 Schedule
                                     <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showScheduleInfo ? 'rotate-180' : ''}`} />
                                 </button>
                             </>

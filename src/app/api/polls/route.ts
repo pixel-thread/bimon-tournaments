@@ -179,13 +179,29 @@ export async function GET(request: Request) {
             isUCExempt = playerFlags?.isUCExempt ?? false;
         }
 
-        // Sort: among polls with scheduledDate, nearest date first; undated polls keep original order
-        data.sort((a: any, b: any) => {
-            const aDate = a.scheduledDate ? new Date(a.scheduledDate).getTime() : null;
-            const bDate = b.scheduledDate ? new Date(b.scheduledDate).getTime() : null;
-            if (aDate && bDate) return aDate - bDate; // Both have dates: nearest first
-            return 0;                                  // Mixed or neither: keep original order
-        });
+        // Sort: nearest play date first (works for both scheduledDate and day-name polls)
+        const DAY_NAMES: Record<string, number> = {
+            sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tuesday: 2,
+            wed: 3, wednesday: 3, thu: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6,
+        };
+        const getEffectiveDate = (poll: any): number => {
+            if (poll.scheduledDate) return new Date(poll.scheduledDate).getTime();
+            if (poll.days) {
+                const lower = poll.days.toLowerCase();
+                for (const [name, idx] of Object.entries(DAY_NAMES)) {
+                    const pos = lower.indexOf(name);
+                    if (pos >= 0 && (pos === 0 || /\W/.test(lower[pos - 1]))) {
+                        const now = new Date();
+                        const diff = (idx - now.getDay() + 7) % 7;
+                        const next = new Date(now);
+                        next.setDate(next.getDate() + diff);
+                        return next.getTime();
+                    }
+                }
+            }
+            return Infinity;
+        };
+        data.sort((a: any, b: any) => getEffectiveDate(a) - getEffectiveDate(b));
 
         return SuccessResponse({ data: { polls: data, currentPlayerId: playerId ?? null, isCouponVerifier, isUCExempt }, cache: CACHE.NONE });
     } catch (error) {
