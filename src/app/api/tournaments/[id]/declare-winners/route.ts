@@ -65,7 +65,7 @@ export async function POST(
         // ── 1. Fetch tournament ──────────────────────────────
         const tournament = await prisma.tournament.findUnique({
             where: { id },
-            select: { id: true, name: true, fee: true, seasonId: true, isWinnerDeclared: true, type: true },
+            select: { id: true, name: true, fee: true, seasonId: true, isWinnerDeclared: true, type: true, season: { select: { name: true } } },
         });
         if (!tournament) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
         if (!dryRun && tournament.isWinnerDeclared) return NextResponse.json({ error: "Winners already declared" }, { status: 400 });
@@ -350,7 +350,7 @@ export async function POST(
                             playerId: captain.playerId,
                             userId: captain.userId,
                             finalAmount: placement.amount,
-                            message: `${getOrdinal(placement.position)} Place - ${tournament.name} (Leader Prize)`,
+                            message: `${getOrdinal(placement.position)} Place - ${tournament.name}${tournament.season?.name ? ` · ${tournament.season.name}` : ''} (Leader Prize)`,
                             details: {
                                 tournamentId: id,
                                 tournamentName: tournament.name,
@@ -430,7 +430,7 @@ export async function POST(
                         playerId: player.playerId,
                         userId: player.userId,
                         finalAmount,
-                        message: `${getOrdinal(placement.position)} Place - ${tournament.name}`,
+                        message: `${getOrdinal(placement.position)} Place - ${tournament.name}${tournament.season?.name ? ` · ${tournament.season.name}` : ''}`,
                         details: {
                             tournamentId: id,
                             tournamentName: tournament.name,
@@ -705,7 +705,7 @@ async function declareBracketWinners({
     placements: customPlacements,
     dryRun,
 }: {
-    tournament: { id: string; name: string; fee: number | null; seasonId: string | null; type: string };
+    tournament: { id: string; name: string; fee: number | null; seasonId: string | null; type: string; season: { name: string } | null };
     placements?: { position: number; amount: number; diamondAmount?: number; teamId?: string; players?: { playerId: string; amount: number }[] }[];
     dryRun?: boolean;
     req: Request;
@@ -930,7 +930,7 @@ async function declareBracketWinners({
                     amount: p.finalAmount,
                     diamondAmount: p.diamondAmount ?? 0,
                     position: p.position,
-                    message: `${getOrdinal(p.position)} Place - ${tournament.name}`,
+                    message: `${getOrdinal(p.position)} Place - ${tournament.name}${tournament.season?.name ? ` · ${tournament.season.name}` : ''}`,
                     details: {
                         tournamentId: id,
                         tournamentName: tournament.name,
