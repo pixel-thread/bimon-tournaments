@@ -699,12 +699,13 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     // Participants = IN + SOLO
     const participantCount = poll.inVotes + poll.soloVotes;
     const entryFee = tournament?.fee ?? 0;
+    const poolFee = poll.prizePoolFee ?? entryFee; // Per-entry amount going to prize pool (org cut deducted)
     const donationTotal = poll.donations?.total ?? 0;
     // Squad polls: fee is per-team → squads + estimated random teams from IN voters
     const estimatedTeams = poll.allowSquads && GAME.squadSize > 1
         ? (poll.squadCount ?? 0) + Math.floor(participantCount / GAME.squadSize)
         : participantCount; // Regular: fee × players
-    const prizePool = (entryFee * estimatedTeams) + donationTotal;
+    const prizePool = (poolFee * estimatedTeams) + donationTotal;
     const hasPrizePool = prizePool > 0;
     const hasEntryFee = entryFee > 0;
     const showThemedHeader = hasPrizePool || hasEntryFee;

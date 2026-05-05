@@ -789,6 +789,7 @@ model Poll {
   scheduledDate   DateTime?
   scheduledTime   String    @default("20:00")
   enableFund      Boolean   @default(true)
+  prizePoolFee    Int?      // Per-entry amount going to prize pool (null = same as tournament fee)
   startDate    DateTime  @default(now())
   endDate      DateTime?
   tournamentId String    @unique
@@ -928,6 +929,7 @@ model Income {
   tournamentName String?
   parentId       String?
   isSubIncome    Boolean @default(false)
+  isExpense      Boolean @default(false) // Manual org expenses (room cards, etc.)
   createdBy      String
 
   tournament Tournament? @relation(fields: [tournamentId], references: [id], onDelete: SetNull)

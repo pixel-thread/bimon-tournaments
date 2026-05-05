@@ -130,6 +130,7 @@ export async function GET(request: Request) {
                 scheduledDate: poll.scheduledDate,
                 scheduledTime: poll.scheduledTime,
                 enableFund: poll.enableFund,
+                prizePoolFee: poll.prizePoolFee,
                 tournament: poll.tournament ? {
                     id: poll.tournament.id,
                     name: poll.tournament.name,
@@ -223,7 +224,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, isChampionship, enableFund, scheduledDate, scheduledTime, isTDM: tdmFlag, isWoW: wowFlag } = body;
+        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, isChampionship, enableFund, prizePoolFee, scheduledDate, scheduledTime, isTDM: tdmFlag, isWoW: wowFlag } = body;
 
         if (!question || !tournamentId) {
             return ErrorResponse({ message: "question and tournamentId are required", status: 400 });
@@ -290,6 +291,7 @@ export async function POST(request: Request) {
                 scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
                 scheduledTime: scheduledTime || "20:00",
                 enableFund: enableFund ?? true,
+                prizePoolFee: prizePoolFee != null ? Number(prizePoolFee) : null,
                 tournamentId,
                 options: {
                     create: pollOptions,
@@ -319,7 +321,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, isChampionship, enableFund, scheduledDate, scheduledTime } = body;
+        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, isChampionship, enableFund, prizePoolFee, scheduledDate, scheduledTime } = body;
 
         if (!id) {
             return ErrorResponse({ message: "id is required", status: 400 });
@@ -333,6 +335,7 @@ export async function PATCH(request: Request) {
         if (allowSquads !== undefined) updateData.allowSquads = allowSquads;
         if (isChampionship !== undefined) updateData.isChampionship = isChampionship;
         if (enableFund !== undefined) updateData.enableFund = enableFund;
+        if (prizePoolFee !== undefined) updateData.prizePoolFee = prizePoolFee != null ? Number(prizePoolFee) : null;
         if (scheduledDate !== undefined) updateData.scheduledDate = scheduledDate ? new Date(scheduledDate) : null;
         if (scheduledTime !== undefined) updateData.scheduledTime = scheduledTime;
 

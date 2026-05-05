@@ -34,6 +34,7 @@ interface PollDTO {
     scheduledDate?: string | null;
     scheduledTime?: string;
     enableFund?: boolean;
+    prizePoolFee?: number | null;
     isActive: boolean;
     options?: PollOptionDTO[];
     tournament?: { id: string; name: string; fee: number; type?: string };
@@ -73,6 +74,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [allowSquads, setAllowSquads] = useState(false);
     const [isChampionship, setIsChampionship] = useState(false);
     const [enableFund, setEnableFund] = useState(true);
+    const [prizePoolFee, setPrizePoolFee] = useState<string>("");
     const [arenaMode, setArenaMode] = useState<"none" | "tdm" | "wow">("none");
     const [scheduledDate, setScheduledDate] = useState("");
     const [scheduledTime, setScheduledTime] = useState("20:00");
@@ -105,6 +107,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setScheduledDate(poll.scheduledDate ? new Date(poll.scheduledDate).toISOString().split("T")[0] : "");
             setScheduledTime(poll.scheduledTime || "20:00");
             setEnableFund(poll.enableFund ?? true);
+            setPrizePoolFee(poll.prizePoolFee != null ? String(poll.prizePoolFee) : "");
             setArenaMode("none"); // Arena mode is determined by tournament flags, not poll
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
         } else {
@@ -119,6 +122,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setScheduledDate("");
             setScheduledTime("20:00");
             setEnableFund(GAME.features.hasBR);
+            setPrizePoolFee("");
             setArenaMode("none");
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
@@ -144,6 +148,11 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         }
     }, [tournaments, isEdit, tournamentId]);
 
+    // Derive fee from the selected tournament
+    const selectedTournamentFee = isEdit
+        ? (poll?.tournament?.fee ?? 0)
+        : (tournaments?.find(t => t.id === tournamentId)?.fee ?? 0);
+
     const handleSave = useCallback(async () => {
         if (!question.trim()) {
             toast.error("Question is required");
@@ -165,6 +174,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             const body = isEdit
                 ? {
                     id: poll!.id, question, days: actualDays, teamType, isActive, allowSquads, isChampionship, enableFund,
+                    prizePoolFee: prizePoolFee ? Number(prizePoolFee) : null,
                     scheduledDate: scheduledDate || null,
                     scheduledTime,
                     options: options.map(o => ({ id: o.id, name: o.name })),
@@ -173,6 +183,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                 }
                 : {
                     question, days: actualDays, teamType, tournamentId, allowSquads, isChampionship, enableFund,
+                    prizePoolFee: prizePoolFee ? Number(prizePoolFee) : null,
                     scheduledDate: scheduledDate || null,
                     scheduledTime,
                     // For PES or arena modes: send format so poll creation can update tournament type
@@ -475,6 +486,20 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                                 onValueChange={setEnableFund}
                             />
                         </div>
+                    )}
+
+                    {/* Prize Pool Per Entry — org cut per entry */}
+                    {selectedTournamentFee > 0 && (
+                        <Input
+                            label={`Prize Pool Per Entry (${GAME.currency})`}
+                            placeholder={`e.g. ${selectedTournamentFee}`}
+                            description={prizePoolFee ? `Org cut: ${selectedTournamentFee - Number(prizePoolFee)} ${GAME.currency} per entry` : `Defaults to full entry fee (${selectedTournamentFee} ${GAME.currency})`}
+                            value={prizePoolFee}
+                            onValueChange={(v) => setPrizePoolFee(v.replace(/\D/g, ""))}
+                            size="sm"
+                            type="number"
+                            inputMode="numeric"
+                        />
                     )}
 
                     {/* Editable poll options */}

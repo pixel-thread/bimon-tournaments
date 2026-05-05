@@ -15,6 +15,7 @@ export interface PollDTO {
     scheduledDate: string | null;
     scheduledTime: string;
     enableFund?: boolean;
+    prizePoolFee?: number | null;
     tournament: {
         id: string;
         name: string;

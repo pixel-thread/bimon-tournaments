@@ -172,16 +172,17 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
         }),
         prisma.poll.findUnique({
             where: { tournamentId },
-            select: { allowSquads: true, id: true },
+            select: { allowSquads: true, id: true, prizePoolFee: true },
         }),
     ]);
     const totalDonations = donations.reduce((sum: number, d: { amount: number }) => sum + d.amount, 0);
     const isSquadTournament = pollForTournament?.allowSquads ?? false;
     const entryFee = tournament.fee ?? 0;
+    const poolFee = pollForTournament?.prizePoolFee ?? entryFee;
     // Squad tournaments: captain pays per team, not per player
     const prizePool = isSquadTournament
-        ? (entryFee * teamCount) + totalDonations
-        : (entryFee * allPlayerIds.size) + totalDonations;
+        ? (poolFee * teamCount) + totalDonations
+        : (poolFee * allPlayerIds.size) + totalDonations;
 
     // For squad tournaments: build captain map (teamId → captainId/captainName)
     let captainMap: Record<string, { id: string; name: string }> = {};
@@ -340,10 +341,16 @@ async function handleBracketRankings(tournamentId: string, tournament: any) {
 
     const ucExemptCount = players.filter(p => p.isUCExempt).length;
 
-    const donations = await prisma.prizePoolDonation.findMany({
-        where: { tournamentId },
-        select: { amount: true },
-    });
+    const [donations, pollForBracket] = await Promise.all([
+        prisma.prizePoolDonation.findMany({
+            where: { tournamentId },
+            select: { amount: true },
+        }),
+        prisma.poll.findUnique({
+            where: { tournamentId },
+            select: { prizePoolFee: true },
+        }),
+    ]);
     const totalDonations = donations.reduce((sum: number, d: { amount: number }) => sum + d.amount, 0);
 
     return NextResponse.json({
@@ -352,7 +359,7 @@ async function handleBracketRankings(tournamentId: string, tournament: any) {
         meta: {
             entryFee: tournament.fee ?? 0,
             totalPlayers: playerIds.length,
-            prizePool: ((tournament.fee ?? 0) * playerIds.length) + totalDonations,
+            prizePool: ((pollForBracket?.prizePoolFee ?? tournament.fee ?? 0) * playerIds.length) + totalDonations,
             donations: totalDonations,
             teamType: "SOLO",
             isWinnerDeclared: tournament.isWinnerDeclared,

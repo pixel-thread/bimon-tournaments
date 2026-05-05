@@ -81,7 +81,7 @@ export async function POST(
         // Check poll-level fund override (squad polls default fund OFF)
         const pollForTournament = await prisma.poll.findUnique({
             where: { tournamentId: id },
-            select: { allowSquads: true, enableFund: true },
+            select: { allowSquads: true, enableFund: true, prizePoolFee: true },
         });
         const isRanked = pollForTournament?.allowSquads ?? false;
 
@@ -217,6 +217,7 @@ export async function POST(
         }
 
         const entryFee = tournament.fee ?? 0;
+        const poolFee = pollForTournament?.prizePoolFee ?? entryFee; // Per-entry amount going to prize pool
         const totalPlayers = allPlayerIds.size;
 
         // Include voluntary donations in the prize pool
@@ -231,8 +232,8 @@ export async function POST(
         const teamSize = isSquadTournament ? 1 : (teamCount > 0 ? Math.round(totalPlayers / teamCount) : 2);
         // Squad tournaments: captain pays per team, not per player
         const prizePool = isSquadTournament
-            ? (entryFee * teamCount) + totalDonations
-            : (entryFee * totalPlayers) + totalDonations;
+            ? (poolFee * teamCount) + totalDonations
+            : (poolFee * totalPlayers) + totalDonations;
 
         const placementsToUse = placements && placements.length > 0
             ? placements
@@ -716,7 +717,7 @@ async function declareBracketWinners({
     // Check poll-level fund override (squad polls default fund OFF)
     const pollForTournament = await prisma.poll.findUnique({
         where: { tournamentId: id },
-        select: { allowSquads: true, enableFund: true },
+        select: { allowSquads: true, enableFund: true, prizePoolFee: true },
     });
     const isRanked = pollForTournament?.allowSquads ?? false;
 
@@ -801,6 +802,7 @@ async function declareBracketWinners({
 
     // ── Prize pool ────────────────────────────────────────────────
     const entryFee = tournament.fee ?? 0;
+    const poolFee = pollForTournament?.prizePoolFee ?? entryFee;
     const totalPlayers = new Set(
         allMatches.flatMap(m => [m.player1Id, m.player2Id]).filter(Boolean)
     ).size;
@@ -809,7 +811,7 @@ async function declareBracketWinners({
         select: { amount: true },
     });
     const totalDonations = donations.reduce((s, d) => s + d.amount, 0);
-    const prizePool = entryFee * totalPlayers + totalDonations;
+    const prizePool = poolFee * totalPlayers + totalDonations;
 
     // Org cut (computed based on mode)
     const orgAmount = orgCutMode === "percent"

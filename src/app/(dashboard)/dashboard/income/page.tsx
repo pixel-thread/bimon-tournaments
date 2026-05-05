@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import {
     Card,
@@ -9,14 +9,22 @@ import {
     Select,
     SelectItem,
     Skeleton,
+    Input,
+    Button,
+    Chip,
 } from "@heroui/react";
 import {
     DollarSign,
     TrendingUp,
     TrendingDown,
     AlertCircle,
+    Plus,
+    Trash2,
+    Receipt,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
+import { GAME } from "@/lib/game-config";
+import { toast } from "sonner";
 
 interface Income {
     id: string;
@@ -28,6 +36,13 @@ interface Income {
     children: { id: string; amount: number; description: string }[];
 }
 
+interface Expense {
+    id: string;
+    amount: number;
+    description: string;
+    createdAt: string;
+}
+
 interface Deduction {
     category: string;
     total: number;
@@ -36,6 +51,7 @@ interface Deduction {
 
 interface IncomeData {
     records: Income[];
+    expenses: Expense[];
     summary: {
         totalOrgIncome: number;
         rpIncome: number;
@@ -43,6 +59,7 @@ interface IncomeData {
         nameChangeIncome: number;
         nameChangeCount: number;
         totalDeductions: number;
+        totalExpenses: number;
         netProfit: number;
         deductions: Deduction[];
     };
@@ -53,8 +70,14 @@ interface Season {
     name: string;
 }
 
+const isBGMI = GAME.name === "BGMI";
+
 export default function IncomePage() {
-    const [selectedSeason, setSelectedSeason] = useState<string>("");
+    const queryClient = useQueryClient();
+    const [selectedSeason, setSelectedSeason] = useState<string>("all");
+    const [showExpenseForm, setShowExpenseForm] = useState(false);
+    const [expenseAmount, setExpenseAmount] = useState("");
+    const [expenseDesc, setExpenseDesc] = useState("");
 
     // Fetch seasons
     const { data: seasons } = useQuery<Season[]>({
@@ -67,10 +90,10 @@ export default function IncomePage() {
         },
     });
 
-    // Set default to latest season
+    // Set default to "all"
     useEffect(() => {
         if (seasons && seasons.length > 0 && !selectedSeason) {
-            setSelectedSeason(seasons[0].id);
+            setSelectedSeason("all");
         }
     }, [seasons, selectedSeason]);
 
@@ -87,6 +110,50 @@ export default function IncomePage() {
         staleTime: 60 * 1000,
     });
 
+    // Add expense mutation
+    const addExpense = useMutation({
+        mutationFn: async () => {
+            const res = await fetch("/api/income", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    amount: parseInt(expenseAmount),
+                    description: expenseDesc.trim(),
+                }),
+            });
+            if (!res.ok) throw new Error("Failed");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["income"] });
+            setExpenseAmount("");
+            setExpenseDesc("");
+            setShowExpenseForm(false);
+            toast.success("Expense added");
+        },
+        onError: () => toast.error("Failed to add expense"),
+    });
+
+    // Delete expense mutation
+    const deleteExpense = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await fetch(`/api/income?id=${id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("Failed");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["income"] });
+            toast.success("Expense removed");
+        },
+        onError: () => toast.error("Failed to delete expense"),
+    });
+
+    // Build season options — prepend "All Seasons"
+    const seasonOptions = [
+        { id: "all", name: "All Seasons" },
+        ...(seasons ?? []),
+    ];
+
     return (
         <div className="space-y-4 p-4">
             {/* Header + Season Selector */}
@@ -94,10 +161,10 @@ export default function IncomePage() {
                 <div>
                     <h1 className="text-lg font-bold">Income Tracking</h1>
                     <p className="text-xs text-foreground/40">
-                        Revenue & expenses per season
+                        {selectedSeason === "all" ? "All seasons from 4.3+" : "Revenue & expenses per season"}
                     </p>
                 </div>
-                {seasons && seasons.length > 0 && (
+                {seasonOptions.length > 0 && (
                     <Select
                         size="sm"
                         selectedKeys={selectedSeason ? [selectedSeason] : []}
@@ -108,7 +175,7 @@ export default function IncomePage() {
                         className="w-44"
                         aria-label="Select season"
                     >
-                        {seasons.map((s) => (
+                        {seasonOptions.map((s) => (
                             <SelectItem key={s.id}>{s.name}</SelectItem>
                         ))}
                     </Select>
@@ -187,12 +254,130 @@ export default function IncomePage() {
                                             <span className="text-danger">-₹{d.total.toLocaleString()}</span>
                                         </div>
                                     ))}
+                                    {data.summary.totalExpenses > 0 && (
+                                        <div className="flex justify-between">
+                                            <span className="text-foreground/50">Manual Expenses <span className="text-foreground/30">({data.expenses.length})</span></span>
+                                            <span className="text-danger">-₹{data.summary.totalExpenses.toLocaleString()}</span>
+                                        </div>
+                                    )}
                                     <div className="border-t border-divider pt-1.5 flex justify-between font-bold">
                                         <span className="text-foreground/70">Net</span>
                                         <span className={data.summary.netProfit >= 0 ? "text-success" : "text-danger"}>
                                             {data.summary.netProfit >= 0 ? "+" : "-"}₹{Math.abs(data.summary.netProfit).toLocaleString()}
                                         </span>
                                     </div>
+                                </div>
+                            </CardBody>
+                        </Card>
+                    </motion.div>
+
+                    {/* Expenses Section */}
+                    <motion.div
+                        key={`expenses-${selectedSeason}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.08 }}
+                    >
+                        <Card className="border border-divider">
+                            <CardHeader className="pb-2 flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <Receipt className="h-4 w-4 text-foreground/50" />
+                                    <h2 className="text-sm font-bold">Manual Expenses</h2>
+                                </div>
+                                <Button
+                                    size="sm"
+                                    variant="flat"
+                                    color="danger"
+                                    startContent={<Plus className="h-3 w-3" />}
+                                    onPress={() => setShowExpenseForm(!showExpenseForm)}
+                                >
+                                    Add
+                                </Button>
+                            </CardHeader>
+                            <CardBody className="pt-0">
+                                {/* Add Expense Form */}
+                                <AnimatePresence>
+                                    {showExpenseForm && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="flex gap-2 mb-3 p-3 rounded-lg bg-default-100/50 border border-divider">
+                                                <Input
+                                                    size="sm"
+                                                    type="number"
+                                                    placeholder="Amount"
+                                                    value={expenseAmount}
+                                                    onValueChange={setExpenseAmount}
+                                                    startContent={<span className="text-foreground/40 text-xs">₹</span>}
+                                                    className="w-28"
+                                                    classNames={{ inputWrapper: "border border-divider" }}
+                                                />
+                                                <Input
+                                                    size="sm"
+                                                    placeholder="e.g. Room Card"
+                                                    value={expenseDesc}
+                                                    onValueChange={setExpenseDesc}
+                                                    className="flex-1"
+                                                    classNames={{ inputWrapper: "border border-divider" }}
+                                                />
+                                                <Button
+                                                    size="sm"
+                                                    color="danger"
+                                                    isLoading={addExpense.isPending}
+                                                    isDisabled={!expenseAmount || !expenseDesc.trim()}
+                                                    onPress={() => addExpense.mutate()}
+                                                >
+                                                    Save
+                                                </Button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Expense List */}
+                                <div className="divide-y divide-divider/50">
+                                    {(!data.expenses || data.expenses.length === 0) ? (
+                                        <div className="flex flex-col items-center gap-2 py-8 text-center">
+                                            <Receipt className="h-8 w-8 text-foreground/20" />
+                                            <p className="text-xs text-foreground/40">No manual expenses recorded</p>
+                                        </div>
+                                    ) : (
+                                        data.expenses.map((exp) => (
+                                            <div
+                                                key={exp.id}
+                                                className="flex items-center justify-between py-2.5 group"
+                                            >
+                                                <div>
+                                                    <p className="text-sm font-medium">{exp.description}</p>
+                                                    <p className="text-xs text-foreground/30">
+                                                        {new Date(exp.createdAt).toLocaleDateString("en-US", {
+                                                            month: "short",
+                                                            day: "numeric",
+                                                            year: "numeric",
+                                                        })}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-danger">
+                                                        -₹{exp.amount.toLocaleString()}
+                                                    </span>
+                                                    <Button
+                                                        size="sm"
+                                                        isIconOnly
+                                                        variant="light"
+                                                        color="danger"
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 min-w-6"
+                                                        onPress={() => deleteExpense.mutate(exp.id)}
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </CardBody>
                         </Card>
@@ -218,7 +403,7 @@ export default function IncomePage() {
                                         <div className="flex flex-col items-center gap-3 py-12 text-center">
                                             <DollarSign className="h-10 w-10 text-foreground/20" />
                                             <p className="text-sm text-foreground/50">
-                                                No income records for this season
+                                                No income records {selectedSeason === "all" ? "" : "for this season"}
                                             </p>
                                         </div>
                                     ) : (
