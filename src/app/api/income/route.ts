@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
         const expenses = await prisma.income.findMany({
             where: {
                 isExpense: true,
-                createdAt: { gte: seasonStart, lte: seasonEnd },
+                ...(isAllSeasons ? {} : { createdAt: { gte: seasonStart, lte: seasonEnd } }),
             },
             orderBy: { createdAt: "desc" },
             select: {
