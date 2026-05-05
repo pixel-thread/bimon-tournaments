@@ -23,7 +23,6 @@ import {
     Receipt,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { GAME } from "@/lib/game-config";
 import { toast } from "sonner";
 
 interface Income {
@@ -70,7 +69,6 @@ interface Season {
     name: string;
 }
 
-const isBGMI = GAME.name === "BGMI";
 
 export default function IncomePage() {
     const queryClient = useQueryClient();
@@ -161,7 +159,7 @@ export default function IncomePage() {
                 <div>
                     <h1 className="text-lg font-bold">Income Tracking</h1>
                     <p className="text-xs text-foreground/40">
-                        {selectedSeason === "all" ? "All seasons from 4.3+" : "Revenue & expenses per season"}
+                        {selectedSeason === "all" ? "Revenue & expenses across all seasons" : "Revenue & expenses per season"}
                     </p>
                 </div>
                 {seasonOptions.length > 0 && (
@@ -304,33 +302,34 @@ export default function IncomePage() {
                                             exit={{ height: 0, opacity: 0 }}
                                             className="overflow-hidden"
                                         >
-                                            <div className="flex gap-2 mb-3 p-3 rounded-lg bg-default-100/50 border border-divider">
-                                                <Input
-                                                    size="sm"
-                                                    type="number"
-                                                    placeholder="Amount"
-                                                    value={expenseAmount}
-                                                    onValueChange={setExpenseAmount}
-                                                    startContent={<span className="text-foreground/40 text-xs">₹</span>}
-                                                    className="w-28"
-                                                    classNames={{ inputWrapper: "border border-divider" }}
-                                                />
-                                                <Input
-                                                    size="sm"
-                                                    placeholder="e.g. Room Card"
-                                                    value={expenseDesc}
-                                                    onValueChange={setExpenseDesc}
-                                                    className="flex-1"
-                                                    classNames={{ inputWrapper: "border border-divider" }}
-                                                />
+                                            <div className="flex flex-col gap-2 mb-3 p-3 rounded-lg bg-default-100/50 border border-divider">
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        type="number"
+                                                        placeholder="Amount"
+                                                        value={expenseAmount}
+                                                        onValueChange={setExpenseAmount}
+                                                        startContent={<span className="text-foreground/40">₹</span>}
+                                                        className="w-36"
+                                                        classNames={{ inputWrapper: "border border-divider" }}
+                                                    />
+                                                    <Input
+                                                        placeholder="e.g. Room Card, UC Top-up"
+                                                        value={expenseDesc}
+                                                        onValueChange={setExpenseDesc}
+                                                        className="flex-1"
+                                                        classNames={{ inputWrapper: "border border-divider" }}
+                                                    />
+                                                </div>
                                                 <Button
-                                                    size="sm"
                                                     color="danger"
+                                                    variant="flat"
                                                     isLoading={addExpense.isPending}
                                                     isDisabled={!expenseAmount || !expenseDesc.trim()}
                                                     onPress={() => addExpense.mutate()}
+                                                    className="w-full"
                                                 >
-                                                    Save
+                                                    Add Expense
                                                 </Button>
                                             </div>
                                         </motion.div>
