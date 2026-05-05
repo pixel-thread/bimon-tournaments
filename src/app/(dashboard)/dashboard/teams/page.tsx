@@ -72,6 +72,7 @@ interface TeamDTO {
 interface TournamentOption {
     id: string;
     name: string;
+    isChampionship: boolean;
 }
 
 interface SeasonOption {
@@ -186,9 +187,10 @@ export default function TeamsPage() {
             const res = await fetch(url);
             if (!res.ok) return [];
             const json = await res.json();
-            return json.data.map((t: { id: string; name: string }) => ({
+            return json.data.map((t: { id: string; name: string; isChampionship?: boolean }) => ({
                 id: t.id,
                 name: t.name,
+                isChampionship: t.isChampionship ?? false,
             }));
         },
         staleTime: 60_000,
@@ -530,9 +532,11 @@ export default function TeamsPage() {
                             </Button>
                         )}
                         <Divider orientation="vertical" className="h-5" />
-                        <Button size="sm" variant="flat" isIconOnly onPress={() => setShowChampionship(true)} className="h-8 w-8 min-w-8 shrink-0" title="Championship">
-                            <Trophy className="h-3.5 w-3.5" />
-                        </Button>
+                        {tournaments.find(t => t.id === tournamentId)?.isChampionship && (
+                            <Button size="sm" variant="flat" isIconOnly onPress={() => setShowChampionship(true)} className="h-8 w-8 min-w-8 shrink-0" title="Championship">
+                                <Trophy className="h-3.5 w-3.5" />
+                            </Button>
+                        )}
                     </div>
                 )}
 

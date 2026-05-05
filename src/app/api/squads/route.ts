@@ -329,6 +329,7 @@ export async function POST(request: NextRequest) {
                         clanId,
                         status: "FORMING",
                         entryFee,
+                        createdAt: new Date(), // Reset so re-registered squad appears as latest
                         invites: {
                             create: {
                                 playerId,

@@ -128,6 +128,7 @@ export async function GET(request: NextRequest) {
                 type: t.type,
                 isWinnerDeclared: t.isWinnerDeclared,
                 maxPlacements: t.maxPlacements,
+                isChampionship: (t as unknown as { isChampionship: boolean }).isChampionship ?? false,
                 season: t.season,
                 startDate: t.startDate,
                 createdAt: t.createdAt,
