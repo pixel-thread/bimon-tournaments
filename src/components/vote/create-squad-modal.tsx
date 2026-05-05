@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
     Modal,
     ModalContent,
@@ -46,7 +46,7 @@ export function CreateSquadModal({
 }: CreateSquadModalProps) {
     const [step, setStep] = useState<"name" | "done">("name");
     const [squadName, setSquadName] = useState("");
-    const [useClan, setUseClan] = useState(true);
+    const [useClan, setUseClan] = useState(false);
 
     const createMutation = useCreateSquad();
 
@@ -63,26 +63,35 @@ export function CreateSquadModal({
         staleTime: 60_000,
     });
 
+    // Auto-enable clan toggle when valid clan data loads
+    const hasClan = !!myClan?.name;
+    useEffect(() => {
+        if (isOpen && hasClan) {
+            setUseClan(true);
+        }
+    }, [isOpen, hasClan]);
+
     const handleCreate = useCallback(async () => {
-        if (!useClan && !squadName.trim()) return;
+        const effectiveUseClan = useClan && hasClan;
+        if (!effectiveUseClan && !squadName.trim()) return;
         createMutation.mutate(
-            { pollId, name: useClan ? "" : squadName.trim(), useClan },
+            { pollId, name: effectiveUseClan ? "" : squadName.trim(), useClan: effectiveUseClan },
             {
                 onSuccess: () => {
                     setStep("done");
                 },
             }
         );
-    }, [pollId, squadName, useClan, createMutation]);
+    }, [pollId, squadName, useClan, hasClan, createMutation]);
 
     const handleClose = useCallback(() => {
         setStep("name");
         setSquadName("");
-        setUseClan(false);
+        setUseClan(hasClan); // Reset to clan default for next open
         onClose();
-    }, [onClose]);
+    }, [onClose, hasClan]);
 
-    const canSubmit = useClan || !!squadName.trim();
+    const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
     return (
         <Modal
@@ -127,8 +136,8 @@ export function CreateSquadModal({
                                     </div>
                                 </div>
 
-                                {/* Clan Toggle */}
-                                {myClan && (
+                                {/* Clan Toggle — only show when user has a valid clan */}
+                                {hasClan && myClan && (
                                     <div className="flex items-center gap-3 p-3 rounded-lg bg-default-50 border border-divider">
                                         {myClan.logoUrl && (
                                             <img
@@ -149,8 +158,8 @@ export function CreateSquadModal({
                                     </div>
                                 )}
 
-                                {/* Squad Name Input (hidden when using clan) */}
-                                {!useClan && (
+                                {/* Squad Name Input — show when NOT using clan identity */}
+                                {(!useClan || !hasClan) && (
                                     <Input
                                         label="Squad Name"
                                         placeholder="e.g. Team Alpha"
@@ -163,9 +172,9 @@ export function CreateSquadModal({
                                     />
                                 )}
 
-                                {useClan && (
+                                {useClan && hasClan && myClan && (
                                     <div className="p-3 rounded-lg bg-success-50/50 border border-success-100 text-sm text-success-700 dark:text-success-400 dark:bg-success-900/20 dark:border-success-800">
-                                        Team will be named <strong>&ldquo;{myClan?.name}&rdquo;</strong> with your clan logo.
+                                        Team will be named <strong>&ldquo;{myClan.name}&rdquo;</strong> with your clan logo.
                                         {/* Auto-increments if multiple clan squads exist */}
                                     </div>
                                 )}
