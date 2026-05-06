@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Input, Button, Spinner } from "@heroui/react";
@@ -46,6 +46,7 @@ export default function JoinPage() {
     const [teamName, setTeamName] = useState(searchParams.get("team") ?? "");
     const [step, setStep] = useState<"form" | "creating" | "done">("form");
     const createMutation = useCreateSquad();
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Fetch tournament info
     const { data, isLoading, error } = useQuery<PollPublicData>({
@@ -66,6 +67,16 @@ export default function JoinPage() {
             router.replace(`/vote?tab=ranked&poll=${pollId}`);
         }
     }, [data?.hasSquad, pollId, router]);
+
+    // Auto-focus team name input once data loads
+    useEffect(() => {
+        if (data && !data.hasSquad && data.isActive && data.allowSquads) {
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 400); // wait for entrance animation
+            return () => clearTimeout(timer);
+        }
+    }, [data]);
 
     // Auto-create team if returning from sign-in with ?team= param
     useEffect(() => {
@@ -262,6 +273,7 @@ export default function JoinPage() {
                         {!isFull && (
                             <div className="space-y-3">
                                 <Input
+                                    ref={inputRef}
                                     label="Team Name"
                                     placeholder="e.g. Never Give Up"
                                     value={teamName}
