@@ -62,7 +62,7 @@ export function CurrencyIcon({ size = 16, className, variant = "entry" }: Curren
         );
     }
 
-    // Text-based currency (e.g. "UC" for BGMI)
+    // Text-based currency (e.g. "BP" for BGMI)
     const fontSize = Math.max(size * 0.85, 10);
     return (
         <span

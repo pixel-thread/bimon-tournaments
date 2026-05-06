@@ -314,7 +314,7 @@ export default function IncomePage() {
                                                         classNames={{ inputWrapper: "border border-divider" }}
                                                     />
                                                     <Input
-                                                        placeholder="e.g. Room Card, UC Top-up"
+                                                        placeholder="e.g. Room Card, BP Top-up"
                                                         value={expenseDesc}
                                                         onValueChange={setExpenseDesc}
                                                         className="flex-1"

@@ -386,7 +386,7 @@ export async function GET(req: NextRequest) {
                 totalUCExemptCost += (team.tournament?.fee ?? 0) * team.players.length;
             }
             if (totalUCExemptCost > 0) {
-                orgCategories.set("UC Exempt", {
+                orgCategories.set("BP Exempt", {
                     total: totalUCExemptCost,
                     count: exemptTeams.length,
                     players: new Set(exemptIdArray),

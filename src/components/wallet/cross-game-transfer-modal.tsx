@@ -96,7 +96,7 @@ export function CrossGameTransferModal({
     const targetInRate = selectedGame ? (GAME_CONFIGS[selectedGame]?.exchangeRateIn ?? 1) : 1;
     const combinedRate = sourceOutRate * targetInRate;
     const hasConversion = Math.abs(combinedRate - 1) > 0.001;
-    const targetCurrencyLabel = selectedGame ? (GAME_CONFIGS[selectedGame]?.entryCurrency || GAME_CONFIGS[selectedGame]?.currency || "UC") : GAME.currency;
+    const targetCurrencyLabel = selectedGame ? (GAME_CONFIGS[selectedGame]?.entryCurrency || GAME_CONFIGS[selectedGame]?.currency || "BP") : GAME.currency;
     const sourceCurrencyLabel = GAME.entryCurrency || GAME.currency;
 
     // Find minimum step for clean conversion (no rounding)

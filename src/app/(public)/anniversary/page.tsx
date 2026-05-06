@@ -152,7 +152,7 @@ async function getAnniversaryData(): Promise<AnniversaryData> {
             period: "Jan – Mar 2026",
             tournaments: 21,
             desc: "Wallet system, Royal Pass, merit ratings — the platform evolved.",
-            highlight: "UC economy launched",
+            highlight: "BP economy launched",
         },
         {
             name: "Season 4.3",

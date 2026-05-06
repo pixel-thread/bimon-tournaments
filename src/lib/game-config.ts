@@ -43,7 +43,7 @@ interface GameConfig {
     name: string;                // App/brand name
     fullName: string;            // Full display name
     gameName: string;            // Actual game name
-    currency: string;            // "UC" or "Diamonds" or "Coins"
+    currency: string;            // "BP" or "Diamonds" or "Coins"
     currencyLabel: string;       // Compact inline label
     currencyEmoji: string;       // Emoji for currency
     currencyIconPath?: string;   // Optional PNG path (overrides emoji in UI)
@@ -96,11 +96,11 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         name: "PUBGMI",
         fullName: "PUBG Mobile India Tournament Platform",
         gameName: "BGMI",
-        currency: "UC",
-        currencyLabel: "UC",
+        currency: "BP",
+        currencyLabel: "BP",
         currencyEmoji: "💰",
         currencyIconPath: "",
-        currencyPlural: "UC",
+        currencyPlural: "BP",
         passName: "Royal Pass",
         passEmoji: "👑",
         idLabel: "BGMI ID",
