@@ -43,7 +43,9 @@ export function PhoneGuard() {
         isSignedIn &&
         !completed &&
         profile?.player &&
-        !profile.player.phoneNumber;
+        !profile.player.phoneNumber &&
+        // Skip if user just completed onboarding (phone was collected there)
+        !(typeof window !== "undefined" && Number(localStorage.getItem("onboarded-at") || 0) > Date.now() - 30_000);
 
     const handleSave = async () => {
         const digits = phone.replace(/\D/g, "");
