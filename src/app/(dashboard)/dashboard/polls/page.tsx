@@ -44,6 +44,13 @@ interface PollDTO {
     soloVotes: number;
     totalVotes: number;
     createdAt: string;
+    allowSquads?: boolean;
+    isChampionship?: boolean;
+    enableFund?: boolean;
+    prizePoolFee?: number | null;
+    expectedPrizePool?: number | null;
+    scheduledDate?: string | null;
+    scheduledTime?: string;
     options?: { id: string; name: string; vote: string }[];
     tournament?: { id: string; name: string; fee: number; type: string };
 }

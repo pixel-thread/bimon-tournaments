@@ -258,6 +258,47 @@ export default function JoinPage() {
                             </div>
                         </div>
 
+                        {/* ── Team Name Input ── */}
+                        {!isFull && (
+                            <div className="space-y-3">
+                                <Input
+                                    label="Team Name"
+                                    placeholder="e.g. Never Give Up"
+                                    value={teamName}
+                                    onValueChange={setTeamName}
+                                    maxLength={30}
+                                    size="lg"
+                                    description={`${teamName.length}/30 characters`}
+                                    classNames={{
+                                        input: "text-base",
+                                        inputWrapper: "shadow-sm",
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && canSubmit) handleSubmit();
+                                    }}
+                                />
+
+                                {/* ── Submit Button ── */}
+                                <Button
+                                    color="primary"
+                                    size="lg"
+                                    className="w-full font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 shadow-lg shadow-blue-500/20"
+                                    isDisabled={!canSubmit}
+                                    isLoading={step === "creating"}
+                                    startContent={step !== "creating" ? <Shield className="w-4 h-4" /> : undefined}
+                                    onPress={handleSubmit}
+                                >
+                                    {step === "creating" ? "Creating Team..." : "Register Team"}
+                                </Button>
+                            </div>
+                        )}
+
+                        {isFull && (
+                            <div className="text-center py-3 rounded-xl bg-danger/5 border border-danger/20">
+                                <span className="text-sm font-bold text-danger">Registration Full</span>
+                            </div>
+                        )}
+
                         {/* ── Info Cards ── */}
                         <div className="grid grid-cols-2 gap-3">
                             {data.expectedPrizePool != null && data.expectedPrizePool > 0 && (
@@ -307,72 +348,32 @@ export default function JoinPage() {
                             </div>
                         </div>
 
-                        {/* ── Teams count ── */}
-                        <div className="flex items-center justify-between px-1">
-                            <span className="text-sm text-foreground/50">
-                                {data.squadCount}/{data.maxSquads} teams registered
-                            </span>
-                            {isFull && (
-                                <span className="text-xs font-bold text-danger px-2 py-0.5 rounded-full bg-danger/10">
-                                    FULL
-                                </span>
+                        {/* ── Info bullets ── */}
+                        <div className="text-xs text-foreground/40 space-y-1 px-1">
+                            {data.entryFee > 0 && (
+                                <p>• Leader pays <strong>{data.entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
                             )}
+                            <p>• Roster: up to <strong>{data.maxTeamSize}</strong> players ({data.teamSize} active + {data.maxTeamSize - data.teamSize} subs)</p>
+                            <p>• Teammates join for free — no fee required</p>
+                            <p>• Prize goes to leader when team wins 🏆</p>
                         </div>
 
-                        {/* ── Progress bar ── */}
-                        <div className="h-2 rounded-full bg-default-100 overflow-hidden">
-                            <motion.div
-                                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${Math.min((data.squadCount / data.maxSquads) * 100, 100)}%` }}
-                                transition={{ duration: 0.8, ease: "easeOut" }}
-                            />
-                        </div>
-
-                        {/* ── Team Name Input ── */}
-                        {!isFull && (
-                            <div className="space-y-4">
-                                <Input
-                                    label="Team Name"
-                                    placeholder="e.g. Never Give Up"
-                                    value={teamName}
-                                    onValueChange={setTeamName}
-                                    maxLength={30}
-                                    size="lg"
-                                    description={`${teamName.length}/30 characters`}
-                                    classNames={{
-                                        input: "text-base",
-                                        inputWrapper: "shadow-sm",
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter" && canSubmit) handleSubmit();
-                                    }}
-                                />
-
-                                {/* ── Info bullets ── */}
-                                <div className="text-xs text-foreground/40 space-y-1 px-1">
-                                    {data.entryFee > 0 && (
-                                        <p>• Leader pays <strong>{data.entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
-                                    )}
-                                    <p>• Roster: up to <strong>{data.maxTeamSize}</strong> players ({data.teamSize} active + {data.maxTeamSize - data.teamSize} subs)</p>
-                                    <p>• Teammates join for free — no fee required</p>
-                                    <p>• Prize goes to leader when team wins 🏆</p>
-                                </div>
-
-                                {/* ── Submit Button ── */}
-                                <Button
-                                    color="primary"
-                                    size="lg"
-                                    className="w-full font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 shadow-lg shadow-blue-500/20"
-                                    isDisabled={!canSubmit}
-                                    isLoading={step === "creating"}
-                                    startContent={step !== "creating" ? <Shield className="w-4 h-4" /> : undefined}
-                                    onPress={handleSubmit}
-                                >
-                                    {step === "creating" ? "Creating Team..." : "Register Team"}
-                                </Button>
+                        {/* ── Teams count + Progress ── */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between px-1">
+                                <span className="text-sm text-foreground/50">
+                                    {data.squadCount}/{data.maxSquads} teams registered
+                                </span>
                             </div>
-                        )}
+                            <div className="h-2 rounded-full bg-default-100 overflow-hidden">
+                                <motion.div
+                                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500"
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${Math.min((data.squadCount / data.maxSquads) * 100, 100)}%` }}
+                                    transition={{ duration: 0.8, ease: "easeOut" }}
+                                />
+                            </div>
+                        </div>
 
                         {/* ── Browse link ── */}
                         <button
