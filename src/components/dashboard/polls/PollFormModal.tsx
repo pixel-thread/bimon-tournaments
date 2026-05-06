@@ -15,7 +15,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Vote, Loader2 } from "lucide-react";
+import { Vote, Loader2, Link as LinkIcon, Check } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
 interface PollOptionDTO {
@@ -35,6 +35,7 @@ interface PollDTO {
     scheduledTime?: string;
     enableFund?: boolean;
     prizePoolFee?: number | null;
+    expectedPrizePool?: number | null;
     isActive: boolean;
     options?: PollOptionDTO[];
     tournament?: { id: string; name: string; fee: number; type?: string };
@@ -75,11 +76,13 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [isChampionship, setIsChampionship] = useState(false);
     const [enableFund, setEnableFund] = useState(true);
     const [prizePoolFee, setPrizePoolFee] = useState<string>("");
+    const [expectedPrizePool, setExpectedPrizePool] = useState<string>("");
     const [arenaMode, setArenaMode] = useState<"none" | "tdm" | "wow">("none");
     const [scheduledDate, setScheduledDate] = useState("");
     const [scheduledTime, setScheduledTime] = useState("20:00");
     const [options, setOptions] = useState<PollOptionDTO[]>([]);
     const [saving, setSaving] = useState(false);
+    const [linkCopied, setLinkCopied] = useState(false);
 
     // Load tournaments for select
     const { data: tournaments } = useQuery<TournamentOption[]>({
@@ -108,6 +111,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setScheduledTime(poll.scheduledTime || "20:00");
             setEnableFund(poll.enableFund ?? true);
             setPrizePoolFee(poll.prizePoolFee != null ? String(poll.prizePoolFee) : "");
+            setExpectedPrizePool(poll.expectedPrizePool != null ? String(poll.expectedPrizePool) : "");
             setArenaMode("none"); // Arena mode is determined by tournament flags, not poll
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
         } else {
@@ -123,6 +127,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setScheduledTime("20:00");
             setEnableFund(GAME.features.hasBR);
             setPrizePoolFee("");
+            setExpectedPrizePool("");
             setArenaMode("none");
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
@@ -175,6 +180,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                 ? {
                     id: poll!.id, question, days: actualDays, teamType, isActive, allowSquads, isChampionship, enableFund,
                     prizePoolFee: prizePoolFee ? Number(prizePoolFee) : null,
+                    expectedPrizePool: expectedPrizePool ? Number(expectedPrizePool) : null,
                     scheduledDate: scheduledDate || null,
                     scheduledTime,
                     options: options.map(o => ({ id: o.id, name: o.name })),
@@ -213,7 +219,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, isChampionship, enableFund, scheduledDate, scheduledTime, arenaMode, options, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, isChampionship, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, arenaMode, options, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -500,6 +506,40 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                             type="number"
                             inputMode="numeric"
                         />
+                    )}
+
+                    {/* Expected Prize Pool — shown on share/registration links */}
+                    {allowSquads && (
+                        <Input
+                            label={`Expected Prize Pool (${GAME.currency})`}
+                            placeholder="e.g. 500"
+                            description="Shown on the team registration share link"
+                            value={expectedPrizePool}
+                            onValueChange={(v) => setExpectedPrizePool(v.replace(/\D/g, ""))}
+                            size="sm"
+                            type="number"
+                            inputMode="numeric"
+                        />
+                    )}
+
+                    {/* Copy Registration Link — only for squad polls in edit mode */}
+                    {isEdit && poll && allowSquads && (
+                        <Button
+                            variant="flat"
+                            size="sm"
+                            className="w-full"
+                            startContent={linkCopied ? <Check className="h-3.5 w-3.5 text-success" /> : <LinkIcon className="h-3.5 w-3.5" />}
+                            color={linkCopied ? "success" : "default"}
+                            onPress={() => {
+                                const url = `${window.location.origin}/join/${poll.id}`;
+                                navigator.clipboard.writeText(url);
+                                setLinkCopied(true);
+                                toast.success("Registration link copied!");
+                                setTimeout(() => setLinkCopied(false), 2000);
+                            }}
+                        >
+                            {linkCopied ? "Link Copied!" : "Copy Registration Link"}
+                        </Button>
                     )}
 
                     {/* Editable poll options */}

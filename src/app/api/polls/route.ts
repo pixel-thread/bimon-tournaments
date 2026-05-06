@@ -321,7 +321,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, isChampionship, enableFund, prizePoolFee, scheduledDate, scheduledTime } = body;
+        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, isChampionship, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime } = body;
 
         if (!id) {
             return ErrorResponse({ message: "id is required", status: 400 });
@@ -336,6 +336,7 @@ export async function PATCH(request: Request) {
         if (isChampionship !== undefined) updateData.isChampionship = isChampionship;
         if (enableFund !== undefined) updateData.enableFund = enableFund;
         if (prizePoolFee !== undefined) updateData.prizePoolFee = prizePoolFee != null ? Number(prizePoolFee) : null;
+        if (expectedPrizePool !== undefined) updateData.expectedPrizePool = expectedPrizePool != null ? Number(expectedPrizePool) : null;
         if (scheduledDate !== undefined) updateData.scheduledDate = scheduledDate ? new Date(scheduledDate) : null;
         if (scheduledTime !== undefined) updateData.scheduledTime = scheduledTime;
 

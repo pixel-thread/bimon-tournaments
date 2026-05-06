@@ -790,6 +790,7 @@ model Poll {
   scheduledTime   String    @default("20:00")
   enableFund      Boolean   @default(true)
   prizePoolFee    Int?      // Per-entry amount going to prize pool (null = same as tournament fee)
+  expectedPrizePool Int?    // Admin-set expected prize pool for share/registration links
   startDate    DateTime  @default(now())
   endDate      DateTime?
   tournamentId String    @unique

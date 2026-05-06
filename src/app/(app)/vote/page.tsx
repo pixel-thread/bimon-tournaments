@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { usePolls, useVote, useEntryMutation } from "@/hooks/use-polls";
 import { PollCard } from "@/components/vote/poll-card";
 import { MeritRatingSection } from "@/components/vote/merit-rating-gate";
@@ -27,7 +28,13 @@ export default function VotePage() {
     const voteMutation = useVote();
     const entryMutation = useEntryMutation();
     const { requireAuth } = useAuthGate();
-    const [tab, setTab] = useState<TabKey>("casual");
+    const searchParams = useSearchParams();
+    const [tab, setTab] = useState<TabKey>(() => {
+        const t = searchParams.get("tab");
+        if (t === "ranked" || t === "casual" || t === "tdm" || t === "wow") return t;
+        return "casual";
+    });
+    const scrolledRef = useRef(false);
 
     const polls = data?.polls;
     const currentPlayerId = data?.currentPlayerId ?? undefined;
@@ -55,6 +62,25 @@ export default function VotePage() {
     function handleTabChange(newTab: TabKey) {
         setTab(newTab);
     }
+
+    // Auto-scroll to a specific poll card when ?poll= is present
+    useEffect(() => {
+        const targetPollId = searchParams.get("poll");
+        if (!targetPollId || !filteredPolls || scrolledRef.current) return;
+
+        // Wait a tick for DOM to render
+        const timer = setTimeout(() => {
+            const el = document.querySelector(`[data-poll-id="${targetPollId}"]`);
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                // Brief highlight
+                el.classList.add("ring-2", "ring-primary/40", "rounded-xl");
+                setTimeout(() => el.classList.remove("ring-2", "ring-primary/40", "rounded-xl"), 2000);
+                scrolledRef.current = true;
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [filteredPolls, searchParams]);
 
     function handleVote(pollId: string, vote: "IN" | "OUT" | "SOLO") {
         requireAuth(() => voteMutation.mutate({ pollId, vote }));
@@ -211,18 +237,19 @@ export default function VotePage() {
                         </motion.div>
                     ) : (
                         filteredPolls.map((poll, i) => (
-                            <PollCard
-                                key={`poll-slot-${i}`}
-                                poll={poll}
-                                onVote={handleVote}
-                                votingPollId={pendingPollId}
-                                votingVote={pendingVote}
-                                currentPlayerId={currentPlayerId}
-                                onRefetch={() => refetch()}
-                                onEntryChange={(pollId, action) => entryMutation.mutate({ pollId, action })}
-                                entryPending={entryMutation.isPending && entryMutation.variables?.pollId === poll.id}
-                                isCouponVerifier={isCouponVerifier}
-                            />
+                            <div key={`poll-slot-${i}`} data-poll-id={poll.id}>
+                                <PollCard
+                                    poll={poll}
+                                    onVote={handleVote}
+                                    votingPollId={pendingPollId}
+                                    votingVote={pendingVote}
+                                    currentPlayerId={currentPlayerId}
+                                    onRefetch={() => refetch()}
+                                    onEntryChange={(pollId, action) => entryMutation.mutate({ pollId, action })}
+                                    entryPending={entryMutation.isPending && entryMutation.variables?.pollId === poll.id}
+                                    isCouponVerifier={isCouponVerifier}
+                                />
+                            </div>
                         ))
                     )}
                 </div>
