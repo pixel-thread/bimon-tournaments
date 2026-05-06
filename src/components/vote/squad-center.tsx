@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import {
     Modal,
     ModalContent,
@@ -782,6 +782,10 @@ export function SquadCenter({
     const [showCreate, setShowCreate] = useState(false);
     const { data: squadsResult, isLoading, refetch } = useSquads(pollId);
     const squads = squadsResult?.squads;
+
+    // Always refetch when the squad center opens to prevent stale data
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { refetch(); }, []);
     const cancelMutation = useCancelSquad();
     const respondMutation = useRespondToInvite();
     const requestJoinMutation = useRequestJoin();
