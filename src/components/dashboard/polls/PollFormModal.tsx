@@ -263,9 +263,29 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     )}
 
                     {isEdit && poll?.tournament && (
-                        <div className="rounded-lg bg-default-100 px-3 py-2 text-sm">
-                            <span className="text-foreground/50">Tournament: </span>
-                            <span className="font-medium">{poll.tournament.name}</span>
+                        <div className="space-y-2">
+                            <div className="rounded-lg bg-default-100 px-3 py-2 text-sm">
+                                <span className="text-foreground/50">Tournament: </span>
+                                <span className="font-medium">{poll.tournament.name}</span>
+                            </div>
+                            {allowSquads && (
+                                <Button
+                                    variant="flat"
+                                    size="sm"
+                                    className="w-full"
+                                    startContent={linkCopied ? <Check className="h-3.5 w-3.5 text-success" /> : <LinkIcon className="h-3.5 w-3.5" />}
+                                    color={linkCopied ? "success" : "default"}
+                                    onPress={() => {
+                                        const url = `${window.location.origin}/join/${poll.id}`;
+                                        navigator.clipboard.writeText(url);
+                                        setLinkCopied(true);
+                                        toast.success("Registration link copied!");
+                                        setTimeout(() => setLinkCopied(false), 2000);
+                                    }}
+                                >
+                                    {linkCopied ? "Link Copied!" : "📋 Copy Registration Link"}
+                                </Button>
+                            )}
                         </div>
                     )}
 
@@ -522,25 +542,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                         />
                     )}
 
-                    {/* Copy Registration Link — only for squad polls in edit mode */}
-                    {isEdit && poll && allowSquads && (
-                        <Button
-                            variant="flat"
-                            size="sm"
-                            className="w-full"
-                            startContent={linkCopied ? <Check className="h-3.5 w-3.5 text-success" /> : <LinkIcon className="h-3.5 w-3.5" />}
-                            color={linkCopied ? "success" : "default"}
-                            onPress={() => {
-                                const url = `${window.location.origin}/join/${poll.id}`;
-                                navigator.clipboard.writeText(url);
-                                setLinkCopied(true);
-                                toast.success("Registration link copied!");
-                                setTimeout(() => setLinkCopied(false), 2000);
-                            }}
-                        >
-                            {linkCopied ? "Link Copied!" : "Copy Registration Link"}
-                        </Button>
-                    )}
+
 
                     {/* Editable poll options */}
                     {options.length > 0 && (
