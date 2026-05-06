@@ -80,7 +80,7 @@ export async function createTeamsByPoll({
         throw new Error("Invalid group size");
     }
 
-    // Race-condition guard: prevent duplicate team generation
+    // Race-condition guard: prevent duplicate team generation (initial fast-fail)
     if (!dryRun) {
         const existingTeams = await prisma.team.count({ where: { tournamentId } });
         if (existingTeams > 0) {
@@ -463,6 +463,12 @@ export async function createTeamsByPoll({
     // Persist in transaction
     const result = await prisma.$transaction(
         async (tx) => {
+            // Authoritative duplicate guard (inside transaction — race-safe)
+            const existingTeamCount = await tx.team.count({ where: { tournamentId } });
+            if (existingTeamCount > 0) {
+                throw new Error("Teams already exist for this tournament. Refresh the page to see them.");
+            }
+
             // Create match
             const existingMatchCount = await tx.match.count({ where: { tournamentId } });
             const match = await tx.match.create({
