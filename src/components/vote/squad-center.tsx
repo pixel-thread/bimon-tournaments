@@ -798,7 +798,7 @@ export function SquadCenter({
     );
     const otherSquads = squads?.filter((s) => s.id !== mySquad?.id) ?? [];
     const isGuest = !currentPlayerId;
-    const canCreateSquad = !mySquad;
+    const canCreateSquad = !mySquad && !isLoading && !!squads;
 
     const [respondAction, setRespondAction] = useState<"accept" | "decline" | null>(null);
     const [respondRequestAction, setRespondRequestAction] = useState<"accept" | "decline" | null>(null);

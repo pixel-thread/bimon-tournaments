@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal, ModalContent, ModalBody, Input, Button } from "@heroui/react";
 import { Phone, Shield } from "lucide-react";
@@ -22,6 +22,13 @@ export function PhoneGuard() {
     const [error, setError] = useState("");
     const [saving, setSaving] = useState(false);
     const [completed, setCompleted] = useState(false);
+    const [ready, setReady] = useState(false);
+
+    // Delay showing the modal so page content renders first
+    useEffect(() => {
+        const timer = setTimeout(() => setReady(true), 2000);
+        return () => clearTimeout(timer);
+    }, []);
 
     const { data: profile } = useQuery<{
         player: {
@@ -40,6 +47,7 @@ export function PhoneGuard() {
     });
 
     const needsPhone =
+        ready &&
         isSignedIn &&
         !completed &&
         profile?.player &&
