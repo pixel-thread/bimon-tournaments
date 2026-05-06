@@ -6,6 +6,7 @@ import { AuthGateProvider } from "@/components/common/auth-gate-provider";
 import { ReferralPromoModal } from "@/components/common/referral-promo-modal";
 import { PwaInstallPrompt } from "@/components/common/pwa-install-prompt";
 import { LocationGuard } from "@/components/common/location-guard";
+import { PhoneGuard } from "@/components/common/phone-guard";
 import { AdSenseScript } from "@/components/common/adsense-script";
 
 
@@ -31,6 +32,7 @@ export default function AppLayout({
                     <ReferralPromoModal />
                     <PwaInstallPrompt />
                     <LocationGuard />
+                    <PhoneGuard />
                     <AdSenseScript />
 
                 </div>

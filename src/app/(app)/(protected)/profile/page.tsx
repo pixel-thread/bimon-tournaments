@@ -230,7 +230,7 @@ export default function ProfilePage() {
                 body: JSON.stringify({
                     ...(newIGN.trim() ? { displayName: newIGN.trim() } : {}),
                     ...(newUID.trim() ? { uid: newUID.trim() } : {}),
-                    ...(!GAME.features.hasBR ? { phoneNumber: newPhone.trim() } : {}),
+                    ...(newPhone.trim() ? { phoneNumber: newPhone.trim() } : {}),
                     ...(newBio !== undefined ? { bio: newBio.trim() } : {}),
                     ...(forceChange ? { forceChange: true } : {}),
                 }),
@@ -1001,8 +1001,8 @@ export default function ProfilePage() {
                                         </div>
                                     )}
 
-                                    {/* Phone number — PES only */}
-                                    {!GAME.features.hasBR && (
+                                    {/* Phone number */}
+                                    {(
                                         <div>
                                             <label className="text-sm font-medium text-foreground/70 mb-2 block">
                                                 Phone Number
@@ -1100,7 +1100,7 @@ export default function ProfilePage() {
                                             </>
                                         )}
 
-                                        {!GAME.features.hasBR && player.phoneNumber && (
+                                        {player.phoneNumber && (
                                             <>
                                                 <span className="text-xs text-foreground/40">Phone</span>
                                                 <span className="text-sm font-mono">{player.phoneNumber}</span>

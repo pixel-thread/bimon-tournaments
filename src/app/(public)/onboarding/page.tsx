@@ -44,7 +44,7 @@ export default function OnboardingPage() {
     const [phoneFocused, setPhoneFocused] = useState(false);
     const ignCheckTimer = useRef<NodeJS.Timeout | null>(null);
     const ignTutorial = useIGNTutorial({ autoOpen: GAME.pasteOnlyIGN });
-    const requiresPhone = !GAME.features.hasBR; // PES only
+    const requiresPhone = true; // All games require phone now
 
     // Redirect already-onboarded users to home
     useEffect(() => {
