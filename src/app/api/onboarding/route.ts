@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
                         displayName: (displayName ?? "").trim(),
                         realName: authRealName || null,
                         ...(uid?.trim() && { uid: uid.trim() }),
-                        ...(requiresPhone && phoneNumber && {
+                        ...(phoneNumber && {
                             phoneNumber: `+91${phoneNumber.replace(/\D/g, "").slice(-10)}`,
                         }),
                     },
