@@ -104,43 +104,27 @@ export async function createTeamsByPoll({
         }
     }
 
-    const tournament = await prisma.tournament.findUnique({
-        where: { id: tournamentId },
-        select: { name: true },
-    });
+    // Parallel lookups for tournament, poll, and season data
+    const [tournament, poll, tournamentCountInSeason, currentSeason] = await Promise.all([
+        prisma.tournament.findUnique({
+            where: { id: tournamentId },
+            select: { name: true },
+        }),
+        pollId ? prisma.poll.findUnique({
+            where: { id: pollId },
+            select: { luckyVoterId: true, allowSquads: true, isChampionship: true },
+        }) : null,
+        prisma.tournament.count({ where: { seasonId } }),
+        prisma.season.findUnique({
+            where: { id: seasonId },
+            select: { startDate: true },
+        }),
+    ]);
+
     const tournamentName = tournament?.name ?? "Tournament";
-
-    // Get lucky voter from the poll
-    let luckyVoterId: string | null = null;
-    let pollAllowSquads = false;
-    if (pollId) {
-        const poll = await prisma.poll.findUnique({
-            where: { id: pollId },
-            select: { luckyVoterId: true, allowSquads: true },
-        });
-        luckyVoterId = poll?.luckyVoterId || null;
-        pollAllowSquads = poll?.allowSquads ?? false;
-    }
-
-    // Championship flag
-    let isChampionship = false;
-    if (pollId) {
-        const pollData = await prisma.poll.findUnique({
-            where: { id: pollId },
-            select: { isChampionship: true },
-        });
-        isChampionship = pollData?.isChampionship ?? false;
-    }
-
-    // Season scoring config
-    const tournamentCountInSeason = await prisma.tournament.count({
-        where: { seasonId },
-    });
-
-    const currentSeason = await prisma.season.findUnique({
-        where: { id: seasonId },
-        select: { startDate: true },
-    });
+    let luckyVoterId: string | null = poll?.luckyVoterId || null;
+    const pollAllowSquads = poll?.allowSquads ?? false;
+    const isChampionship = poll?.isChampionship ?? false;
 
     let previousSeasonId: string | undefined;
     if (currentSeason) {
@@ -158,7 +142,7 @@ export async function createTeamsByPoll({
         tournamentCountInSeason,
     };
 
-    // Fetch eligible players
+    // Fetch eligible players — narrowed includes to only what's needed
     const players = await prisma.player.findMany({
         where: {
             isBanned: false,
@@ -170,10 +154,9 @@ export async function createTeamsByPoll({
             },
         },
         include: {
-            stats: true,
-            pollVotes: true,
-            user: true,
-            wallet: true,
+            stats: { where: { seasonId } },
+            pollVotes: { where: { pollId } },
+            user: { select: { email: true, dateOfBirth: true } },
         },
     });
 

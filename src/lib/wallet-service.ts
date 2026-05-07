@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from "./database";
 import { GAME } from "./game-config";
 
@@ -157,62 +156,59 @@ export async function getTransactions(
 
 /**
  * Credit currency to a user's wallet.
+ * Uses atomic increment to prevent race conditions on concurrent updates.
  */
 export async function creditWallet(
     email: string,
     amount: number,
     description: string,
     _reason: string = "OTHER",
-    _metadata?: Record<string, unknown>,
-    _name?: string | null,
-    _imageUrl?: string | null,
-): Promise<{ balance: number; transaction: any }> {
+): Promise<{ balance: number; transaction: unknown }> {
     const user = await getLocalPlayerByEmail(email);
     if (!user?.player) throw new Error("Player not found");
-    const currentBalance = user.player.wallet?.balance ?? 0;
-    const newBalance = currentBalance + amount;
-    const [, tx] = await prisma.$transaction([
+    const playerId = user.player.id;
+    const [wallet, tx] = await prisma.$transaction([
         prisma.wallet.upsert({
-            where: { playerId: user.player.id },
-            create: { playerId: user.player.id, balance: newBalance },
-            update: { balance: newBalance },
+            where: { playerId },
+            create: { playerId, balance: amount },
+            update: { balance: { increment: amount } },
         }),
         prisma.transaction.create({
-            data: { playerId: user.player.id, amount, type: "CREDIT", description },
+            data: { playerId, amount, type: "CREDIT", description },
         }),
     ]);
-    return { balance: newBalance, transaction: tx };
+    return { balance: wallet.balance, transaction: tx };
 }
 
 /**
  * Debit currency from a user's wallet.
+ * Uses atomic decrement to prevent race conditions on concurrent updates.
  */
 export async function debitWallet(
     email: string,
     amount: number,
     description: string,
     _reason: string = "OTHER",
-    _metadata?: Record<string, unknown>,
-): Promise<{ balance: number; transaction: any }> {
+): Promise<{ balance: number; transaction: unknown }> {
     const user = await getLocalPlayerByEmail(email);
     if (!user?.player) throw new Error("Player not found");
-    const currentBalance = user.player.wallet?.balance ?? 0;
-    const newBalance = currentBalance - amount;
-    const [, tx] = await prisma.$transaction([
+    const playerId = user.player.id;
+    const [wallet, tx] = await prisma.$transaction([
         prisma.wallet.upsert({
-            where: { playerId: user.player.id },
-            create: { playerId: user.player.id, balance: newBalance },
-            update: { balance: newBalance },
+            where: { playerId },
+            create: { playerId, balance: -amount },
+            update: { balance: { decrement: amount } },
         }),
         prisma.transaction.create({
-            data: { playerId: user.player.id, amount, type: "DEBIT", description },
+            data: { playerId, amount, type: "DEBIT", description },
         }),
     ]);
-    return { balance: newBalance, transaction: tx };
+    return { balance: wallet.balance, transaction: tx };
 }
 
 /**
  * Transfer currency between two users.
+ * Uses atomic increment/decrement to prevent race conditions.
  */
 export async function transferWallet(
     fromEmail: string,
@@ -225,24 +221,24 @@ export async function transferWallet(
         getLocalPlayerByEmail(toEmail),
     ]);
     if (!fromUser?.player || !toUser?.player) throw new Error("Player not found");
-    const fromBalance = fromUser.player.wallet?.balance ?? 0;
-    const toBalance = toUser.player.wallet?.balance ?? 0;
+    const fromPlayerId = fromUser.player.id;
+    const toPlayerId = toUser.player.id;
     await prisma.$transaction([
         prisma.wallet.upsert({
-            where: { playerId: fromUser.player.id },
-            create: { playerId: fromUser.player.id, balance: fromBalance - amount },
-            update: { balance: fromBalance - amount },
+            where: { playerId: fromPlayerId },
+            create: { playerId: fromPlayerId, balance: -amount },
+            update: { balance: { decrement: amount } },
         }),
         prisma.wallet.upsert({
-            where: { playerId: toUser.player.id },
-            create: { playerId: toUser.player.id, balance: toBalance + amount },
-            update: { balance: toBalance + amount },
+            where: { playerId: toPlayerId },
+            create: { playerId: toPlayerId, balance: amount },
+            update: { balance: { increment: amount } },
         }),
         prisma.transaction.create({
-            data: { playerId: fromUser.player.id, amount, type: "DEBIT", description: description || "Transfer to player" },
+            data: { playerId: fromPlayerId, amount, type: "DEBIT", description: description || "Transfer to player" },
         }),
         prisma.transaction.create({
-            data: { playerId: toUser.player.id, amount, type: "CREDIT", description: description || "Transfer from player" },
+            data: { playerId: toPlayerId, amount, type: "CREDIT", description: description || "Transfer from player" },
         }),
     ]);
 }
@@ -259,52 +255,52 @@ export async function getDiamondBalance(email: string): Promise<number> {
 
 /**
  * Credit Diamond to a user's wallet (reward-only, admin use).
+ * Uses atomic increment.
  */
 export async function creditDiamond(
     email: string,
     amount: number,
     description: string,
-): Promise<{ diamondBalance: number; transaction: any }> {
+): Promise<{ diamondBalance: number; transaction: unknown }> {
     const user = await getLocalPlayerByEmail(email);
     if (!user?.player) throw new Error("Player not found");
-    const currentBalance = user.player.wallet?.diamondBalance ?? 0;
-    const newBalance = currentBalance + amount;
-    const [, tx] = await prisma.$transaction([
+    const playerId = user.player.id;
+    const [wallet, tx] = await prisma.$transaction([
         prisma.wallet.upsert({
-            where: { playerId: user.player.id },
-            create: { playerId: user.player.id, balance: 0, diamondBalance: newBalance },
-            update: { diamondBalance: newBalance },
+            where: { playerId },
+            create: { playerId, balance: 0, diamondBalance: amount },
+            update: { diamondBalance: { increment: amount } },
         }),
         prisma.transaction.create({
-            data: { playerId: user.player.id, amount, type: "CREDIT", currency: "DIAMOND", description },
+            data: { playerId, amount, type: "CREDIT", currency: "DIAMOND", description },
         }),
     ]);
-    return { diamondBalance: newBalance, transaction: tx };
+    return { diamondBalance: wallet.diamondBalance, transaction: tx };
 }
 
 /**
  * Debit Diamond from a user's wallet (admin use).
+ * Uses atomic decrement.
  */
 export async function debitDiamond(
     email: string,
     amount: number,
     description: string,
-): Promise<{ diamondBalance: number; transaction: any }> {
+): Promise<{ diamondBalance: number; transaction: unknown }> {
     const user = await getLocalPlayerByEmail(email);
     if (!user?.player) throw new Error("Player not found");
-    const currentBalance = user.player.wallet?.diamondBalance ?? 0;
-    const newBalance = currentBalance - amount;
-    const [, tx] = await prisma.$transaction([
+    const playerId = user.player.id;
+    const [wallet, tx] = await prisma.$transaction([
         prisma.wallet.upsert({
-            where: { playerId: user.player.id },
-            create: { playerId: user.player.id, balance: 0, diamondBalance: newBalance },
-            update: { diamondBalance: newBalance },
+            where: { playerId },
+            create: { playerId, balance: 0, diamondBalance: -amount },
+            update: { diamondBalance: { decrement: amount } },
         }),
         prisma.transaction.create({
-            data: { playerId: user.player.id, amount, type: "DEBIT", currency: "DIAMOND", description },
+            data: { playerId, amount, type: "DEBIT", currency: "DIAMOND", description },
         }),
     ]);
-    return { diamondBalance: newBalance, transaction: tx };
+    return { diamondBalance: wallet.diamondBalance, transaction: tx };
 }
 
 /**

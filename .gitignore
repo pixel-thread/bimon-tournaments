@@ -51,3 +51,4 @@ NOTES_*.md
 # Migration scripts (local only)
 scripts/
 .env*.local
+WALLET_TEAMGEN_PHONEGUARD_CHANGES.txt

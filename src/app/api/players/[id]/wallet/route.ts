@@ -51,15 +51,16 @@ export async function POST(
             const result = type === "CREDIT"
                 ? await creditDiamond(email, amount, description)
                 : await debitDiamond(email, amount, description);
+            const tx = result.transaction as { id: string; amount: number; type: string; description: string; createdAt: Date } | null;
 
             return NextResponse.json({
                 diamondBalance: result.diamondBalance,
-                transaction: result.transaction ? {
-                    id: result.transaction.id,
-                    amount: result.transaction.amount,
-                    type: result.transaction.type,
-                    description: result.transaction.description,
-                    createdAt: result.transaction.createdAt,
+                transaction: tx ? {
+                    id: tx.id,
+                    amount: tx.amount,
+                    type: tx.type,
+                    description: tx.description,
+                    createdAt: tx.createdAt,
                 } : null,
             });
         }
@@ -68,15 +69,16 @@ export async function POST(
         const result = type === "CREDIT"
             ? await creditWallet(email, amount, description, "ADMIN_ADJUSTMENT")
             : await debitWallet(email, amount, description, "ADMIN_ADJUSTMENT");
+        const tx = result.transaction as { id: string; amount: number; type: string; description: string; createdAt: Date } | null;
 
         return NextResponse.json({
             balance: result.balance,
-            transaction: result.transaction ? {
-                id: result.transaction.id,
-                amount: result.transaction.amount,
-                type: result.transaction.type,
-                description: result.transaction.description,
-                createdAt: result.transaction.createdAt,
+            transaction: tx ? {
+                id: tx.id,
+                amount: tx.amount,
+                type: tx.type,
+                description: tx.description,
+                createdAt: tx.createdAt,
             } : null,
         });
     } catch (error) {

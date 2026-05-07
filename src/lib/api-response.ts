@@ -69,8 +69,10 @@ export function ErrorResponse({
         } else if (error instanceof SyntaxError) {
             note = "bad_request";
         } else if (error instanceof Error) {
-            // Include first 80 chars of message (safe, no stack)
-            note = error.message.slice(0, 80);
+            // Only include error message details in development
+            note = process.env.NODE_ENV === "development"
+                ? error.message.slice(0, 80)
+                : "server_error";
         }
     }
 

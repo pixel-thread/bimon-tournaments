@@ -281,79 +281,72 @@ export async function POST(request: NextRequest) {
                 const seasonId = poll.tournament?.seasonId;
                 let lossChance = 5; // base 5% for everyone
 
-                // Skip if player already won lucky voter in this season
+                // Run independent lookups in parallel
                 let alreadyWonThisSeason = false;
                 if (seasonId) {
-                    const existingWin = await prisma.poll.findFirst({
-                        where: {
-                            luckyVoterId: playerId,
-                            tournament: { seasonId },
-                        },
-                        select: { id: true },
-                    });
-                    alreadyWonThisSeason = !!existingWin;
-                }
-
-                if (!alreadyWonThisSeason && seasonId) {
-                    // Get total fees paid in this season (team count × fee per tournament)
-                    const seasonTeams = await prisma.team.findMany({
-                        where: {
-                            seasonId,
-                            players: { some: { id: playerId } },
-                            tournament: { fee: { gt: 0 } },
-                        },
-                        select: {
-                            tournament: { select: { fee: true } },
-                        },
-                    });
-                    const totalFeesPaid = seasonTeams.reduce(
-                        (sum, t) => sum + (t.tournament?.fee ?? 0),
-                        0
-                    );
-
-                    // Get total prizes won in this season
-                    const prizeTransactions = await prisma.transaction.findMany({
-                        where: {
-                            playerId,
-                            type: "CREDIT",
-                            description: { contains: "place" },
-                        },
-                        select: { amount: true },
-                    });
-                    const totalPrizes = prizeTransactions.reduce(
-                        (sum, t) => sum + t.amount,
-                        0
-                    );
-
-                    // Net loss (positive = losing money)
-                    const netLoss = totalFeesPaid - totalPrizes;
-
-                    // Scale chance: 5% base → up to 40% for biggest losers
-                    // Every 30 UC of loss adds ~5% chance, capped at 40%
-                    if (netLoss > 0) {
-                        lossChance = Math.min(40, 5 + Math.floor(netLoss / 30) * 5);
-                    }
-
-                    // Razorpay top-up boost: players who topped up this season
-                    // get 35% minimum chance (close to 40% biggest loser cap)
-                    const season = await prisma.season.findUnique({
-                        where: { id: seasonId },
-                        select: { startDate: true, endDate: true },
-                    });
-                    if (season) {
-                        const hasRazorpayTopUp = await prisma.payment.findFirst({
-                            where: {
-                                playerId,
-                                status: "paid",
-                                createdAt: {
-                                    gte: season.startDate,
-                                    lte: season.endDate ?? new Date(),
-                                },
-                            },
+                    const [existingWin, seasonTeams, prizeTransactions, season] = await Promise.all([
+                        // Check if player already won lucky voter in this season
+                        prisma.poll.findFirst({
+                            where: { luckyVoterId: playerId, tournament: { seasonId } },
                             select: { id: true },
-                        });
-                        if (hasRazorpayTopUp) {
-                            lossChance = Math.max(lossChance, 35);
+                        }),
+                        // Get total fees paid in this season
+                        prisma.team.findMany({
+                            where: {
+                                seasonId,
+                                players: { some: { id: playerId } },
+                                tournament: { fee: { gt: 0 } },
+                            },
+                            select: { tournament: { select: { fee: true } } },
+                        }),
+                        // Get total prizes won in this season
+                        prisma.transaction.findMany({
+                            where: { playerId, type: "CREDIT", description: { contains: "place" } },
+                            select: { amount: true },
+                        }),
+                        // Get season dates for Razorpay top-up check
+                        prisma.season.findUnique({
+                            where: { id: seasonId },
+                            select: { startDate: true, endDate: true },
+                        }),
+                    ]);
+
+                    alreadyWonThisSeason = !!existingWin;
+
+                    if (!alreadyWonThisSeason) {
+                        const totalFeesPaid = seasonTeams.reduce(
+                            (sum, t) => sum + (t.tournament?.fee ?? 0), 0
+                        );
+                        const totalPrizes = prizeTransactions.reduce(
+                            (sum, t) => sum + t.amount, 0
+                        );
+
+                        // Net loss (positive = losing money)
+                        const netLoss = totalFeesPaid - totalPrizes;
+
+                        // Scale chance: 5% base → up to 40% for biggest losers
+                        // Every 30 UC of loss adds ~5% chance, capped at 40%
+                        if (netLoss > 0) {
+                            lossChance = Math.min(40, 5 + Math.floor(netLoss / 30) * 5);
+                        }
+
+                        // Razorpay top-up boost: players who topped up this season
+                        // get 35% minimum chance (close to 40% biggest loser cap)
+                        if (season) {
+                            const hasRazorpayTopUp = await prisma.payment.findFirst({
+                                where: {
+                                    playerId,
+                                    status: "paid",
+                                    createdAt: {
+                                        gte: season.startDate,
+                                        lte: season.endDate ?? new Date(),
+                                    },
+                                },
+                                select: { id: true },
+                            });
+                            if (hasRazorpayTopUp) {
+                                lossChance = Math.max(lossChance, 35);
+                            }
                         }
                     }
                 }
