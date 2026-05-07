@@ -95,13 +95,7 @@ interface ProfileData {
             winRate: number;
             top10Rate: number;
             avgKillsPerMatch: number;
-            ucPlacements: {
-                first: number;
-                second: number;
-                third: number;
-                fourth: number;
-                fifth: number;
-            };
+
         } | null;
         wallet: { balance: number };
         streak: { current: number; longest: number } | null;
@@ -129,7 +123,7 @@ export default function ProfilePage() {
     const [previewCharacter, setPreviewCharacter] = useState<{ url: string; isVideo: boolean } | null>(null);
     const [pendingCharacterFile, setPendingCharacterFile] = useState<File | null>(null);
     const [showCharacterPreview, setShowCharacterPreview] = useState(false);
-    const [showUCBreakdown, setShowUCBreakdown] = useState(false);
+
     const [navigatingToWallet, setNavigatingToWallet] = useState(false);
     const [navigatingToClan, setNavigatingToClan] = useState(false);
     const [heroMuted, setHeroMuted] = useState(true);
@@ -673,13 +667,10 @@ export default function ProfilePage() {
                                         <div className="text-2xl font-bold">{stats.matches}</div>
                                         <p className="text-[10px] text-foreground/40 uppercase">Matches</p>
                                     </div>
-                                    <div
-                                        className="cursor-pointer hover:bg-default-100 rounded-lg py-1 transition-colors"
-                                        onClick={() => setShowUCBreakdown(!showUCBreakdown)}
-                                    >
+                                    <div>
                                         <div className="text-2xl font-bold text-success">{stats.wins}</div>
-                                        <p className="text-[10px] text-foreground/40 uppercase flex items-center justify-center gap-0.5">
-                                            Wins <ChevronDown className={`w-3 h-3 transition-transform ${showUCBreakdown ? "rotate-180" : ""}`} />
+                                        <p className="text-[10px] text-foreground/40 uppercase">
+                                            Wins
                                         </p>
                                     </div>
                                     {GAME.features.hasBR ? (
@@ -701,56 +692,7 @@ export default function ProfilePage() {
                                     )}
                                 </div>
 
-                                {/* UC Wins Breakdown */}
-                                <AnimatePresence>
-                                    {showUCBreakdown && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: "auto", opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="mt-3 pt-3 border-t border-divider">
-                                                {(stats.ucPlacements.first + stats.ucPlacements.second + stats.ucPlacements.third + stats.ucPlacements.fourth + stats.ucPlacements.fifth) === 0 ? (
-                                                    <p className="text-center text-sm text-foreground/40 py-2">No {GAME.currency} wins yet</p>
-                                                ) : (
-                                                    <div className="flex gap-4 justify-center flex-wrap">
-                                                        {stats.ucPlacements.first > 0 && (
-                                                            <div className="text-center">
-                                                                <div className="text-lg font-bold text-yellow-500">🥇{stats.ucPlacements.first}</div>
-                                                                <p className="text-[9px] text-foreground/40 uppercase">1st</p>
-                                                            </div>
-                                                        )}
-                                                        {stats.ucPlacements.second > 0 && (
-                                                            <div className="text-center">
-                                                                <div className="text-lg font-bold text-foreground/50">🥈{stats.ucPlacements.second}</div>
-                                                                <p className="text-[9px] text-foreground/40 uppercase">2nd</p>
-                                                            </div>
-                                                        )}
-                                                        {stats.ucPlacements.third > 0 && (
-                                                            <div className="text-center">
-                                                                <div className="text-lg font-bold text-orange-400">🥉{stats.ucPlacements.third}</div>
-                                                                <p className="text-[9px] text-foreground/40 uppercase">3rd</p>
-                                                            </div>
-                                                        )}
-                                                        {stats.ucPlacements.fourth > 0 && (
-                                                            <div className="text-center">
-                                                                <div className="text-lg font-bold text-foreground/40">{stats.ucPlacements.fourth}</div>
-                                                                <p className="text-[9px] text-foreground/40 uppercase">4th</p>
-                                                            </div>
-                                                        )}
-                                                        {stats.ucPlacements.fifth > 0 && (
-                                                            <div className="text-center">
-                                                                <div className="text-lg font-bold text-foreground/40">{stats.ucPlacements.fifth}</div>
-                                                                <p className="text-[9px] text-foreground/40 uppercase">5th</p>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+
                             </div>
 
                             {/* Performance */}

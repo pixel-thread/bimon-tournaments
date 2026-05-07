@@ -72,12 +72,20 @@ export async function GET(request: Request) {
             const seasonId = activeSeason?.id;
             const tpsSeasonFilter = seasonId ? { seasonId } : {};
 
-            // Mode filter: casual = random teams, ranked = squad teams
+            // Mode filter: casual = random teams (no poll OR poll.allowSquads=false), ranked = squad teams
             const modeFilter: Record<string, unknown> = {};
             if (mode === "ranked") {
                 modeFilter.match = { tournament: { poll: { allowSquads: true } } };
             } else if (mode === "casual") {
-                modeFilter.match = { tournament: { poll: { allowSquads: false } } };
+                // Include matches where poll is null (no poll = casual by default) OR allowSquads is false
+                modeFilter.match = {
+                    tournament: {
+                        OR: [
+                            { poll: null },
+                            { poll: { allowSquads: false } },
+                        ],
+                    },
+                };
             }
 
             // All stats queries in parallel
@@ -120,21 +128,15 @@ export async function GET(request: Request) {
             const totalMatches = statsAgg._count.matchId;
             const kd = totalMatches > 0 ? totalKills / totalMatches : 0;
 
-            // "Wins" = any UC-winning placement (positions 1–5)
-            const wins = teamPlacements.filter((t) => t.teamStats.position >= 1 && t.teamStats.position <= 5).length;
+            // "Wins" = 1st place finishes only
+            const wins = teamPlacements.filter((t) => t.teamStats.position === 1).length;
             const top10 = teamPlacements.filter((t) => t.teamStats.position >= 1 && t.teamStats.position <= 5).length;
             const totalTournaments = new Set(teamPlacements.map((t) => t.teamStats.tournamentId).filter(Boolean)).size;
             // Win rate & top 10 rate are per-match (teamPlacements is now per-match via TeamPlayerStats)
             const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0;
             const top10Rate = totalMatches > 0 ? Math.round((top10 / totalMatches) * 100) : 0;
 
-            const ucPlacements = {
-                first: teamPlacements.filter((t) => t.teamStats.position === 1).length,
-                second: teamPlacements.filter((t) => t.teamStats.position === 2).length,
-                third: teamPlacements.filter((t) => t.teamStats.position === 3).length,
-                fourth: teamPlacements.filter((t) => t.teamStats.position === 4).length,
-                fifth: teamPlacements.filter((t) => t.teamStats.position === 5).length,
-            };
+
 
             const bestMatchKills = bestKillRecord?.kills ?? 0;
             const lastMatchKills = lastTwoMatches[0]?.kills ?? 0;
@@ -164,7 +166,7 @@ export async function GET(request: Request) {
                 winRate,
                 top10Rate,
                 avgKillsPerMatch,
-                ucPlacements,
+
             };
         }
 

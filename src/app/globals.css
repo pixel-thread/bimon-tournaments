@@ -9,7 +9,7 @@
 
 :root {
   /* Typography */
-  --font-sans: var(--font-rajdhani), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-rajdhani), ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
 
   /* Accent */
   --color-primary: #6366f1;
