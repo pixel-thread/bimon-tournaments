@@ -43,7 +43,8 @@ export default function OnboardingPage() {
     const [isCheckingIGN, setIsCheckingIGN] = useState(false);
     const [phoneFocused, setPhoneFocused] = useState(false);
     const ignCheckTimer = useRef<NodeJS.Timeout | null>(null);
-    const ignTutorial = useIGNTutorial({ autoOpen: GAME.pasteOnlyIGN });
+    const showIGNTutorial = GAME.pasteOnlyIGN || GAME.features.hasBR;
+    const ignTutorial = useIGNTutorial({ autoOpen: showIGNTutorial, mandatory: showIGNTutorial });
     const requiresPhone = true; // All games require phone now
 
     // Redirect already-onboarded users to home
@@ -206,8 +207,8 @@ export default function OnboardingPage() {
 
     return (
         <div className="flex min-h-dvh items-center justify-center px-4" style={{ background: 'linear-gradient(to bottom, color-mix(in srgb, var(--game-primary) 5%, transparent), var(--game-bg, #0a0a0a))' }}>
-            {/* IGN Tutorial Modal (paste-only games) */}
-            {GAME.pasteOnlyIGN && ignTutorial.Modal}
+            {/* IGN Tutorial Modal (BGMI and paste-only games) */}
+            {showIGNTutorial && ignTutorial.Modal}
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -298,11 +299,11 @@ export default function OnboardingPage() {
                                 <label className="text-sm font-medium text-foreground/70">
                                     Enter your {GAME.gameName} {GAME.ignLabel}
                                 </label>
-                                {GAME.pasteOnlyIGN && ignTutorial.HelpButton}
+                                {showIGNTutorial && ignTutorial.HelpButton}
                             </div>
 
                             {GAME.pasteOnlyIGN ? (
-                                /* BGMI: paste-only input */
+                                /* Paste-only input */
                                 <>
                                     <GameNameInput
                                         value={displayName}
@@ -335,7 +336,7 @@ export default function OnboardingPage() {
                                     </p>
                                 </>
                             ) : (
-                                /* PES / Free Fire: free-text input */
+                                /* Free-text input */
                                 <>
                                     <Input
                                         value={displayName}
@@ -357,6 +358,17 @@ export default function OnboardingPage() {
                                             <span className="text-foreground/30 text-sm">🎮</span>
                                         }
                                     />
+                                    {showIGNTutorial && (
+                                        <p className="mt-2 text-xs text-foreground/40">
+                                            <button
+                                                type="button"
+                                                onClick={ignTutorial.openModal}
+                                                className="text-primary hover:underline font-medium"
+                                            >
+                                                Need help finding your name?
+                                            </button>
+                                        </p>
+                                    )}
                                 </>
                             )}
                         </div>

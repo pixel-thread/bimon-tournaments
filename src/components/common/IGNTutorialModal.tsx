@@ -21,13 +21,15 @@ const TUTORIAL_STEPS = [
 interface IGNTutorialProps {
     /** Whether to auto-open on mount (for onboarding) */
     autoOpen?: boolean;
+    /** When true, modal cannot be dismissed until user reaches the last step and clicks "Got it" */
+    mandatory?: boolean;
 }
 
 /**
  * IGN Tutorial — shows users how to copy their BGMI game name.
  * Returns { HelpButton, Modal, openModal } for flexible usage.
  */
-export function useIGNTutorial({ autoOpen = false }: IGNTutorialProps = {}) {
+export function useIGNTutorial({ autoOpen = false, mandatory }: IGNTutorialProps = {}) {
     const [showModal, setShowModal] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
@@ -52,11 +54,14 @@ export function useIGNTutorial({ autoOpen = false }: IGNTutorialProps = {}) {
         if (showModal) setCurrentStep(0);
     }, [showModal]);
 
+    const [isMandatory, setIsMandatory] = useState(mandatory ?? autoOpen);
+
     const openModal = () => {
         if (buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();
             setOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
         }
+        setIsMandatory(false); // manual open is never mandatory
         setIsClosing(false);
         setShowModal(true);
     };
@@ -117,7 +122,7 @@ export function useIGNTutorial({ autoOpen = false }: IGNTutorialProps = {}) {
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.3 }}
                         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                        onClick={isLast ? closeModal : undefined}
+                        onClick={(isMandatory && !isLast) ? undefined : (isLast ? closeModal : undefined)}
                     />
 
                     {/* Modal */}
