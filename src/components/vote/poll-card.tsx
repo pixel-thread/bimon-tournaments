@@ -199,7 +199,6 @@ function WaveBackground({ theme }: { theme: PollTheme }) {
 
 function PollOptionRow({
     label,
-    vote,
     isSelected,
     isLoading,
     disabled,
@@ -212,7 +211,6 @@ function PollOptionRow({
     onLongPress,
 }: {
     label: string;
-    vote: "IN" | "OUT" | "SOLO";
     isSelected: boolean;
     isLoading: boolean;
     disabled: boolean;
@@ -329,42 +327,30 @@ function PollOptionRow({
                     )}
                 </div>
 
-                {/* Right side: Character image (BGMI) or Voter avatars + count (other games) */}
-                {GAME.features.hasBR ? (
-                    <div className="flex-shrink-0 ml-2 h-12 w-16 relative overflow-hidden">
-                        <img
-                            src={`/images/vote-${vote.toLowerCase()}.png`}
-                            alt=""
-                            className="absolute right-0 top-1/2 -translate-y-1/2 h-full w-auto object-contain pointer-events-none select-none"
-                            style={{ filter: isSelected ? 'none' : 'grayscale(0.6) opacity(0.5)' }}
-                            draggable={false}
-                        />
+                {/* Voter avatars + count */}
+                {voteCount > 0 && (
+                    <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                        {voters.length > 0 && (
+                            <div className="flex -space-x-1.5">
+                                {displayVoters.slice(0, 2).map((v) => (
+                                    <Avatar
+                                        key={v.playerId}
+                                        src={v.imageUrl}
+                                        name={v.displayName}
+                                        size="sm"
+                                        className="w-6 h-6 border-2 border-white dark:border-gray-800"
+                                    />
+                                ))}
+                            </div>
+                        )}
+                        <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                            <SlotText value={String(voteCount)} charDelay={0.03} />
+                        </span>
                     </div>
-                ) : (
-                    voteCount > 0 && (
-                        <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
-                            {voters.length > 0 && (
-                                <div className="flex -space-x-1.5">
-                                    {displayVoters.slice(0, 2).map((v) => (
-                                        <Avatar
-                                            key={v.playerId}
-                                            src={v.imageUrl}
-                                            name={v.displayName}
-                                            size="sm"
-                                            className="w-6 h-6 border-2 border-white dark:border-gray-800"
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-                                <SlotText value={String(voteCount)} charDelay={0.03} />
-                            </span>
-                        </div>
-                    )
                 )}
             </div>
 
-            {/* Progress bar + count below */}
+            {/* Progress bar */}
             {voteCount > 0 && (
                 <div className="mt-3">
                     <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -382,29 +368,6 @@ function PollOptionRow({
                             transition={{ duration: 0.5, ease: "easeOut" }}
                         />
                     </div>
-                    {GAME.features.hasBR && (
-                        <div className="flex items-center justify-between mt-1">
-                            <div className="flex items-center gap-1.5">
-                                {voters.length > 0 && (
-                                    <div className="flex -space-x-1">
-                                        {displayVoters.slice(0, 3).map((v) => (
-                                            <Avatar
-                                                key={v.playerId}
-                                                src={v.imageUrl}
-                                                name={v.displayName}
-                                                size="sm"
-                                                className="w-4 h-4 border border-white dark:border-gray-800"
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                                <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500">
-                                    <SlotText value={String(voteCount)} charDelay={0.03} />
-                                    {voteCount === 1 ? " vote" : " votes"}
-                                </span>
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
         </button>
@@ -1057,7 +1020,6 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             <PollOptionRow
                                 key={opt.vote}
                                 label={opt.label}
-                                vote={opt.vote}
                                 isSelected={poll.userVote === opt.vote}
                                 isLoading={isThisPollVoting && votingVote === opt.vote}
                                 disabled={!poll.isActive || (isThisPollVoting && votingVote !== opt.vote)}
