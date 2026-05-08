@@ -913,10 +913,13 @@ export function SquadCenter({
             <Modal
                 isOpen={isOpen}
                 onClose={onClose}
-                placement="center"
+                placement="top"
                 size="md"
                 scrollBehavior="inside"
-                classNames={{ body: "px-4 py-3 max-h-[60vh] overflow-y-auto" }}
+                classNames={{
+                    wrapper: "items-start pt-[10dvh] sm:pt-[15dvh]",
+                    body: "px-4 py-3 max-h-[50dvh] overflow-y-auto",
+                }}
             >
                 <ModalContent>
                     <ModalHeader className="flex items-center gap-2 text-base pb-1">
@@ -1054,9 +1057,9 @@ export function SquadCenter({
                         )}
                     </ModalBody>
 
-                    <ModalFooter className="flex-col gap-2">
-                        {canCreateSquad && (
-                            isGuest ? (
+                    {canCreateSquad && (
+                        <ModalFooter>
+                            {isGuest ? (
                                 <Button
                                     className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
                                     color={theme ? undefined : "primary"}
@@ -1074,12 +1077,9 @@ export function SquadCenter({
                                 >
                                     Create Team
                                 </Button>
-                            )
-                        )}
-                        <Button variant="flat" className="w-full" onPress={onClose}>
-                            Close
-                        </Button>
-                    </ModalFooter>
+                            )}
+                        </ModalFooter>
+                    )}
                 </ModalContent>
             </Modal>
 
