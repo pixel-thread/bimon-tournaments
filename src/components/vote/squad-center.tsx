@@ -344,6 +344,20 @@ function SquadCard({
                             {squad.acceptedCount}/{squad.totalSlots}
                         </Chip>
                     )}
+                    {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const url = `${window.location.origin}/invite/${squad.id}`;
+                                navigator.clipboard.writeText(url);
+                                toast.success("📋 Link copied — share on WhatsApp!");
+                            }}
+                            className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center hover:bg-emerald-500/25 transition-colors"
+                        >
+                            <Link2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        </button>
+                    )}
                     <motion.div
                         animate={{ rotate: isExpanded ? 180 : 0 }}
                         transition={{ duration: 0.2 }}
@@ -431,24 +445,6 @@ function SquadCard({
                             ))}
                         </div>
 
-                        {/* Captain: Copy invite link for sharing */}
-                        {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
-                            <div className="px-4 py-2 border-t border-divider/50">
-                                <Button
-                                    size="sm"
-                                    variant="flat"
-                                    className="w-full font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
-                                    startContent={<Link2 className="w-3.5 h-3.5" />}
-                                    onPress={() => {
-                                        const url = `${window.location.origin}/invite/${squad.id}`;
-                                        navigator.clipboard.writeText(url);
-                                        toast.success("📋 Link copied — share on WhatsApp to invite teammates!");
-                                    }}
-                                >
-                                    Copy Invite Link
-                                </Button>
-                            </div>
-                        )}
 
                         {/* Captain: Invite Players */}
                         {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (

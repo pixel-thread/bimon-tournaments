@@ -11,7 +11,8 @@ import {
     Input,
     Switch,
 } from "@heroui/react";
-import { Shield } from "lucide-react";
+import { Shield, Link2, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad } from "@/hooks/use-squads";
 import { useQuery } from "@tanstack/react-query";
@@ -46,6 +47,7 @@ export function CreateSquadModal({
 }: CreateSquadModalProps) {
     const [step, setStep] = useState<"name" | "done">("name");
     const [squadName, setSquadName] = useState("");
+    const [createdSquadId, setCreatedSquadId] = useState<string | null>(null);
     const [useClan, setUseClan] = useState(false);
 
     const createMutation = useCreateSquad();
@@ -77,7 +79,8 @@ export function CreateSquadModal({
         createMutation.mutate(
             { pollId, name: effectiveUseClan ? "" : squadName.trim(), useClan: effectiveUseClan },
             {
-                onSuccess: () => {
+                onSuccess: (data) => {
+                    setCreatedSquadId(data?.data?.id ?? null);
                     setStep("done");
                 },
             }
@@ -87,6 +90,7 @@ export function CreateSquadModal({
     const handleClose = useCallback(() => {
         setStep("name");
         setSquadName("");
+        setCreatedSquadId(null);
         setUseClan(hasClan); // Reset to clan default for next open
         onClose();
     }, [onClose, hasClan]);
@@ -205,12 +209,23 @@ export function CreateSquadModal({
                                 <div>
                                     <p className="font-semibold text-lg">Team created!</p>
                                     <p className="text-sm text-foreground/60 mt-1">
-                                        Players can now request to join your squad from the <strong>View Teams</strong> page.
-                                    </p>
-                                    <p className="text-sm text-foreground/60 mt-1">
-                                        You&apos;ll get a notification when someone requests to join.
+                                        Share the invite link with your teammates on WhatsApp
                                     </p>
                                 </div>
+                                {createdSquadId && (
+                                    <Button
+                                        color="success"
+                                        className="w-full font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600"
+                                        startContent={<Link2 className="w-4 h-4" />}
+                                        onPress={() => {
+                                            const url = `${window.location.origin}/invite/${createdSquadId}`;
+                                            navigator.clipboard.writeText(url);
+                                            toast.success("📋 Link copied — share on WhatsApp!");
+                                        }}
+                                    >
+                                        Copy Invite Link
+                                    </Button>
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -235,8 +250,8 @@ export function CreateSquadModal({
                         </div>
                     ) : (
                         <Button
-                            color="primary"
-                            className="w-full font-semibold"
+                            variant="flat"
+                            className="w-full font-medium"
                             onPress={handleClose}
                         >
                             Done
