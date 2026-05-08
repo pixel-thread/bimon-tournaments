@@ -171,6 +171,22 @@ export default function OnboardingPage() {
             // Refresh auth cache immediately so coming back from WhatsApp
             // doesn't redirect to /onboarding again
             await refetch();
+
+            // Auto-join pending squad from invite link (if any)
+            const pendingSquad = localStorage.getItem("pending-squad-join");
+            if (pendingSquad) {
+                localStorage.removeItem("pending-squad-join");
+                try {
+                    const joinRes = await fetch(`/api/squads/${pendingSquad}/link-join`, { method: "POST" });
+                    const joinJson = await joinRes.json();
+                    if (joinRes.ok) {
+                        toast.success(joinJson.message || "Joined the squad! 🛡");
+                    }
+                } catch {
+                    // Non-critical — they can join manually later
+                }
+            }
+
             // Show WhatsApp groups before redirecting
             setShowWhatsApp(true);
         } catch {

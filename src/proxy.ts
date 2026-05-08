@@ -24,6 +24,7 @@ const publicRoutes = [
     "/community",  // guests can browse community
     "/winners",    // guests can see winners
     "/games",      // guests can play memory game
+    "/invite",     // guests can view squad invite links
     "/jobs",       // guests can see job listings
     "/help",       // guests can view help
     "/api/auth", // NextAuth handler

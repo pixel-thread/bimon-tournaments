@@ -14,7 +14,7 @@ import {
     Input,
 } from "@heroui/react";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
-import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, Search, MoreVertical, Swords } from "lucide-react";
+import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, Search, MoreVertical, Swords, Link2, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     useSquads,
@@ -430,6 +430,25 @@ function SquadCard({
                                 </div>
                             ))}
                         </div>
+
+                        {/* Captain: Copy invite link for sharing */}
+                        {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
+                            <div className="px-4 py-2 border-t border-divider/50">
+                                <Button
+                                    size="sm"
+                                    variant="flat"
+                                    className="w-full font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                                    startContent={<Link2 className="w-3.5 h-3.5" />}
+                                    onPress={() => {
+                                        const url = `${window.location.origin}/invite/${squad.id}`;
+                                        navigator.clipboard.writeText(url);
+                                        toast.success("📋 Link copied — share on WhatsApp to invite teammates!");
+                                    }}
+                                >
+                                    Copy Invite Link
+                                </Button>
+                            </div>
+                        )}
 
                         {/* Captain: Invite Players */}
                         {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
