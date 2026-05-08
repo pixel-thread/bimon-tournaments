@@ -57,7 +57,6 @@ export async function getReservedBalance(playerId: string): Promise<number> {
                 vote: { in: ["IN", "SOLO"] },
                 poll: {
                     isActive: true,
-                    allowSquads: false, // Skip squad polls — fees are handled via squad reservations
                     tournament: {
                         status: "ACTIVE",
                         bracketMatches: { none: {} }, // bracket not generated yet
