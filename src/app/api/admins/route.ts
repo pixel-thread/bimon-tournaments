@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getAuthEmail, userWhereEmail } from "@/lib/auth";
+import { userSearchFilter } from "@/lib/player-search";
 import { NextRequest } from "next/server";
 
 /**
@@ -34,11 +35,7 @@ export async function GET(request: NextRequest) {
             where.role = roleFilter;
         }
         if (search) {
-            where.OR = [
-                { username: { contains: search, mode: "insensitive" } },
-                { email: { contains: search, mode: "insensitive" } },
-                { player: { displayName: { contains: search, mode: "insensitive" } } },
-            ];
+            where.OR = userSearchFilter(search);
         }
 
         const users = await prisma.user.findMany({

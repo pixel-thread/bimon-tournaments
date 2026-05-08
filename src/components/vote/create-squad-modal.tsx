@@ -10,11 +10,13 @@ import {
     Button,
     Input,
     Switch,
+    Avatar,
+    Spinner,
 } from "@heroui/react";
-import { Shield, Link2, UserPlus } from "lucide-react";
+import { Shield, Copy, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { useCreateSquad } from "@/hooks/use-squads";
+import { useCreateSquad, useSearchPlayers, useInvitePlayer } from "@/hooks/use-squads";
 import { useQuery } from "@tanstack/react-query";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
@@ -48,9 +50,18 @@ export function CreateSquadModal({
     const [step, setStep] = useState<"name" | "done">("name");
     const [squadName, setSquadName] = useState("");
     const [createdSquadId, setCreatedSquadId] = useState<string | null>(null);
+    const [createdSquadName, setCreatedSquadName] = useState<string>("");
     const [useClan, setUseClan] = useState(false);
+    const [inviteSearch, setInviteSearch] = useState("");
+    const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
+    const [linkCopied, setLinkCopied] = useState(false);
 
     const createMutation = useCreateSquad();
+    const inviteMutation = useInvitePlayer();
+    const { data: searchResults, isLoading: isSearching } = useSearchPlayers(
+        inviteSearch,
+        pollId
+    );
 
     // Fetch player's clan membership (lightweight)
     const { data: myClan } = useQuery<MyClan | null>({
@@ -81,6 +92,7 @@ export function CreateSquadModal({
             {
                 onSuccess: (data) => {
                     setCreatedSquadId(data?.data?.id ?? null);
+                    setCreatedSquadName(data?.data?.name ?? squadName.trim());
                     setStep("done");
                 },
             }
@@ -91,9 +103,22 @@ export function CreateSquadModal({
         setStep("name");
         setSquadName("");
         setCreatedSquadId(null);
+        setCreatedSquadName("");
+        setInviteSearch("");
+        setInvitingPlayerId(null);
+        setLinkCopied(false);
         setUseClan(hasClan); // Reset to clan default for next open
         onClose();
     }, [onClose, hasClan]);
+
+    const handleCopyLink = useCallback(() => {
+        if (!createdSquadId) return;
+        const url = `${window.location.origin}/invite/${createdSquadId}`;
+        navigator.clipboard.writeText(url);
+        setLinkCopied(true);
+        toast.success("📋 Link copied — share on WhatsApp!");
+        setTimeout(() => setLinkCopied(false), 3000);
+    }, [createdSquadId]);
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
@@ -115,7 +140,7 @@ export function CreateSquadModal({
                     </div>
                     <div className="flex-1 min-w-0">
                         <span className="truncate block">
-                            {step === "name" ? "Create Team" : "Team Created! 🎉"}
+                            {step === "name" ? "Create Team" : `${createdSquadName} Created! 🎉`}
                         </span>
                         <span className="text-xs font-normal text-foreground/50">{tournamentName}</span>
                     </div>
@@ -197,35 +222,87 @@ export function CreateSquadModal({
                                 key="done-step"
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="flex flex-col items-center gap-4 py-6 text-center"
+                                className="space-y-4"
                             >
-                                <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
-                                    {useClan && myClan?.logoUrl ? (
-                                        <img src={myClan.logoUrl} alt={myClan.tag} className="w-12 h-12 rounded-full object-cover" />
-                                    ) : (
-                                        <Shield className="w-7 h-7 text-emerald-500" />
+                                {/* Copy link row — compact */}
+                                {createdSquadId && (
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyLink}
+                                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors cursor-pointer"
+                                    >
+                                        <div className="flex-1 min-w-0 text-left">
+                                            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                                {linkCopied ? "Copied! ✅" : "Copy Invite Link"}
+                                            </p>
+                                            <p className="text-[11px] text-emerald-600/60 dark:text-emerald-400/60">
+                                                Share with your teammates on WhatsApp
+                                            </p>
+                                        </div>
+                                        <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                            <Copy className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                        </div>
+                                    </button>
+                                )}
+
+                                {/* Search & Invite players */}
+                                <div className="space-y-2">
+                                    <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
+                                        Or invite existing players
+                                    </p>
+                                    <Input
+                                        placeholder="Search player..."
+                                        value={inviteSearch}
+                                        onValueChange={setInviteSearch}
+                                        size="sm"
+                                        startContent={<Search className="w-3.5 h-3.5 text-default-400" />}
+                                        endContent={inviteSearch ? (
+                                            <button type="button" onClick={() => setInviteSearch("")} className="p-0.5">
+                                                <X className="w-3 h-3 text-default-400" />
+                                            </button>
+                                        ) : undefined}
+                                    />
+                                    {isSearching && (
+                                        <div className="flex justify-center py-2">
+                                            <Spinner size="sm" />
+                                        </div>
+                                    )}
+                                    {searchResults && searchResults.length > 0 && (
+                                        <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                                            {searchResults.map((player) => (
+                                                <div key={player.id} className="flex items-center gap-2 py-1.5">
+                                                    <Avatar
+                                                        src={player.imageUrl}
+                                                        name={player.displayName}
+                                                        size="sm"
+                                                        className="w-7 h-7 shrink-0"
+                                                    />
+                                                    <span className="text-sm font-medium truncate flex-1">
+                                                        {player.displayName}
+                                                    </span>
+                                                    <Button
+                                                        size="sm"
+                                                        color="primary"
+                                                        variant="flat"
+                                                        className="min-w-0 px-3 h-7"
+                                                        isLoading={inviteMutation.isPending && invitingPlayerId === player.id}
+                                                        isDisabled={inviteMutation.isPending && invitingPlayerId !== player.id}
+                                                        onPress={() => {
+                                                            if (!createdSquadId) return;
+                                                            setInvitingPlayerId(player.id);
+                                                            inviteMutation.mutate({ squadId: createdSquadId, playerId: player.id });
+                                                        }}
+                                                    >
+                                                        Invite
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {searchResults && searchResults.length === 0 && inviteSearch.length >= 2 && (
+                                        <p className="text-xs text-foreground/40 text-center py-2">No players found</p>
                                     )}
                                 </div>
-                                <div>
-                                    <p className="font-semibold text-lg">Team created!</p>
-                                    <p className="text-sm text-foreground/60 mt-1">
-                                        Share the invite link with your teammates on WhatsApp
-                                    </p>
-                                </div>
-                                {createdSquadId && (
-                                    <Button
-                                        color="success"
-                                        className="w-full font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600"
-                                        startContent={<Link2 className="w-4 h-4" />}
-                                        onPress={() => {
-                                            const url = `${window.location.origin}/invite/${createdSquadId}`;
-                                            navigator.clipboard.writeText(url);
-                                            toast.success("📋 Link copied — share on WhatsApp!");
-                                        }}
-                                    >
-                                        Copy Invite Link
-                                    </Button>
-                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -262,3 +339,4 @@ export function CreateSquadModal({
         </Modal>
     );
 }
+

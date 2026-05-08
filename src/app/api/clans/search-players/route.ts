@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getAuthEmail, userWhereEmail } from "@/lib/auth";
+import { playerSearchFilter } from "@/lib/player-search";
 import { type NextRequest } from "next/server";
 
 /**
@@ -52,10 +53,7 @@ export async function GET(request: NextRequest) {
                 id: { notIn: excludeIds },
                 isBanned: false,
                 ...(q.length > 0 && {
-                    OR: [
-                        { displayName: { contains: q, mode: "insensitive" } },
-                        { user: { username: { contains: q, mode: "insensitive" } } },
-                    ],
+                    OR: playerSearchFilter(q),
                 }),
             },
             select: {

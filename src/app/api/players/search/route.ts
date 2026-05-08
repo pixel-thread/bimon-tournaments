@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/database";
 import { requireAdmin } from "@/lib/auth";
 import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
+import { playerSearchFilter } from "@/lib/player-search";
 import { type NextRequest } from "next/server";
 
 /**
@@ -22,11 +23,7 @@ export async function GET(request: NextRequest) {
 
         const players = await prisma.player.findMany({
             where: {
-                OR: [
-                    { displayName: { contains: q, mode: "insensitive" } },
-                    { user: { username: { contains: q, mode: "insensitive" } } },
-                    { user: { email: { contains: q, mode: "insensitive" } } },
-                ],
+                OR: playerSearchFilter(q, { includeEmail: true }),
             },
             select: {
                 id: true,

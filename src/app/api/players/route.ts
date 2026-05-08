@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth";
+import { playerSearchFilter } from "@/lib/player-search";
 import { type NextRequest } from "next/server";
 import { getCategoryFromKDValue, getCategoryFromWinRate } from "@/lib/logic/categoryUtils";
 import { GAME } from "@/lib/game-config";
@@ -37,11 +38,7 @@ export async function GET(request: NextRequest) {
         const where: Record<string, unknown> = {};
 
         if (search) {
-            where.OR = [
-                { user: { username: { contains: search, mode: "insensitive" } } },
-                { user: { email: { contains: search, mode: "insensitive" } } },
-                { displayName: { contains: search, mode: "insensitive" } },
-            ];
+            where.OR = playerSearchFilter(search, { includeEmail: true });
         }
 
         // Note: tier filtering is done in JS after dynamic category computation (below)

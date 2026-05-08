@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth";
+import { playerSearchFilter } from "@/lib/player-search";
 import { type NextRequest } from "next/server";
 
 /**
@@ -48,10 +49,7 @@ export async function GET(request: NextRequest) {
             where: {
                 isBanned: false,
                 id: { notIn: [...excludePlayerIds] },
-                OR: [
-                    { displayName: { contains: q, mode: "insensitive" } },
-                    { user: { username: { contains: q, mode: "insensitive" } } },
-                ],
+                OR: playerSearchFilter(q),
             },
             select: {
                 id: true,

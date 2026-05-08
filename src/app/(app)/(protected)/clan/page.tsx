@@ -656,7 +656,7 @@ function InvitePlayerModal({
                 <ModalHeader className="pb-2">Invite Player</ModalHeader>
                 <ModalBody className="pb-4">
                     <Input
-                        placeholder="Search by name or username..."
+                        placeholder="Search player..."
                         value={search}
                         onValueChange={setSearch}
                         startContent={<Search className="h-4 w-4 text-foreground/40" />}
