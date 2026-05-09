@@ -85,6 +85,21 @@ function PrizeBreakdownTooltip({
         }
     }, [onDoubleTap]);
 
+    // Smooth eased scroll animation
+    const smoothScrollTo = useCallback((el: HTMLElement, target: number, duration: number) => {
+        const start = el.scrollTop;
+        const distance = target - start;
+        let startTime: number | null = null;
+        const ease = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
+        const step = (timestamp: number) => {
+            if (!startTime) startTime = timestamp;
+            const progress = Math.min((timestamp - startTime) / duration, 1);
+            el.scrollTop = start + distance * ease(progress);
+            if (progress < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    }, []);
+
     // Auto-scroll down and back up on first open
     useEffect(() => {
         if (!isOpen || hasAutoScrolled.current || !scrollRef.current) return;
@@ -93,13 +108,13 @@ function PrizeBreakdownTooltip({
         if (el.scrollHeight <= el.clientHeight) return;
         hasAutoScrolled.current = true;
         const scrollDown = setTimeout(() => {
-            el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-        }, 400);
+            smoothScrollTo(el, el.scrollHeight, 800);
+        }, 600);
         const scrollUp = setTimeout(() => {
-            el.scrollTo({ top: 0, behavior: "smooth" });
-        }, 1200);
+            smoothScrollTo(el, 0, 800);
+        }, 2000);
         return () => { clearTimeout(scrollDown); clearTimeout(scrollUp); };
-    }, [isOpen]);
+    }, [isOpen, smoothScrollTo]);
 
     return (
         <div
@@ -115,7 +130,7 @@ function PrizeBreakdownTooltip({
                         exit={{ opacity: 0, y: 5, scale: 0.98 }}
                         transition={{ type: "spring", stiffness: 400, damping: 25 }}
                         ref={scrollRef}
-                        className={`absolute bottom-0 right-full mr-2 z-50 rounded-xl px-4 py-2.5 text-sm shadow-2xl bg-gradient-to-br ${theme.header} backdrop-blur-sm border border-white/20`}
+                        className={`absolute bottom-0 right-full mr-2 z-50 rounded-xl px-4 py-2.5 text-sm shadow-2xl bg-gradient-to-br ${theme.header} backdrop-blur-sm border border-white/20 max-h-32 overflow-y-auto scrollbar-hide`}
                     >
                         <div className="space-y-0.5 whitespace-nowrap text-white">
                             {(() => {
@@ -872,13 +887,13 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                 </div>
             )}
             <div
-                className={`relative rounded-xl overflow-visible transition-all duration-700 ease-in-out ${theme
+                className={`relative rounded-xl overflow-hidden transition-all duration-700 ease-in-out ${theme
                     ? theme.card
                     : "bg-white dark:bg-gray-800 shadow-sm border game-card"
                     }`}
             >
                 {/* ─── Header with Prize Pool ─── */}
-                <div className={showThemedHeader ? "relative" : ""}>
+                <div className={showThemedHeader ? "relative overflow-hidden" : ""}>
                     {theme && <WaveBackground theme={theme} />}
 
                     <div
