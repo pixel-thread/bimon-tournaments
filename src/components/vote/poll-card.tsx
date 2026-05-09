@@ -70,6 +70,8 @@ function PrizeBreakdownTooltip({
     onDoubleTap?: () => void;
 }) {
     const [isOpen, setIsOpen] = useState(false);
+    // Data is ready as soon as prizePool is available
+    const isLoaded = prizePool > 0;
     const lastTapRef = useRef<number>(0);
     const scrollRef = useRef<HTMLDivElement>(null);
     const hasAutoScrolled = useRef(false);
@@ -84,6 +86,7 @@ function PrizeBreakdownTooltip({
             setIsOpen((o) => !o);
         }
     }, [onDoubleTap]);
+
 
     // Smooth eased scroll animation
     const smoothScrollTo = useCallback((el: HTMLElement, target: number, duration: number) => {
@@ -100,9 +103,9 @@ function PrizeBreakdownTooltip({
         requestAnimationFrame(step);
     }, []);
 
-    // Auto-scroll down and back up on first open
+    // Auto-scroll down and back up on first open (after content loaded)
     useEffect(() => {
-        if (!isOpen || hasAutoScrolled.current || !scrollRef.current) return;
+        if (!isOpen || !isLoaded || hasAutoScrolled.current || !scrollRef.current) return;
         const el = scrollRef.current;
         // Only auto-scroll if content overflows
         if (el.scrollHeight <= el.clientHeight) return;
@@ -114,13 +117,13 @@ function PrizeBreakdownTooltip({
             smoothScrollTo(el, 0, 800);
         }, 2000);
         return () => { clearTimeout(scrollDown); clearTimeout(scrollUp); };
-    }, [isOpen, smoothScrollTo]);
+    }, [isOpen, isLoaded, smoothScrollTo]);
 
     return (
         <div
             className="absolute bottom-2 right-3"
-            onMouseEnter={() => setIsOpen(true)}
-            onMouseLeave={() => setIsOpen(false)}
+            onPointerEnter={(e) => { if (e.pointerType === "mouse") setIsOpen(true); }}
+            onPointerLeave={(e) => { if (e.pointerType === "mouse") setIsOpen(false); }}
         >
             <AnimatePresence mode="wait">
                 {isOpen && (
@@ -132,29 +135,44 @@ function PrizeBreakdownTooltip({
                         ref={scrollRef}
                         className={`absolute bottom-0 right-full mr-2 z-50 rounded-xl px-4 py-2.5 text-sm shadow-2xl bg-gradient-to-br ${theme.header} backdrop-blur-sm border border-white/20 max-h-32 overflow-y-auto scrollbar-hide`}
                     >
-                        <div className="space-y-0.5 whitespace-nowrap text-white">
-                            {(() => {
-                                const distribution = getPrizeDistribution(prizePool, entryFee, teamSize, orgPercent, orgCutMode);
-                                const getMedal = (pos: number) => pos === 1 ? "🥇" : pos === 2 ? "🥈" : pos === 3 ? "🥉" : "🏅";
-                                return Array.from(distribution.prizes.entries())
-                                    .sort(([a], [b]) => a - b)
-                                    .map(([position, prize]) => {
-                                        const medal = getMedal(position);
-                                        const ordinal =
-                                            position === 1 ? "st" : position === 2 ? "nd" : position === 3 ? "rd" : "th";
-                                        return (
-                                            <div key={position} className="flex items-center justify-between gap-4">
-                                                <span>
-                                                    {medal} {position}{ordinal}
-                                                </span>
-                                                <span className="font-semibold">
-                                                    {prize.amount.toLocaleString()} <CurrencyIcon size={14} />
-                                                </span>
-                                            </div>
-                                        );
-                                    });
-                            })()}
-                        </div>
+                        {!isLoaded ? (
+                            <div className="flex items-center gap-2 text-white/70 py-1 whitespace-nowrap">
+                                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                <span className="text-xs font-medium">Loading prizes…</span>
+                            </div>
+                        ) : (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.2 }}
+                                className="space-y-0.5 whitespace-nowrap text-white"
+                            >
+                                {(() => {
+                                    const distribution = getPrizeDistribution(prizePool, entryFee, teamSize, orgPercent, orgCutMode);
+                                    const getMedal = (pos: number) => pos === 1 ? "🥇" : pos === 2 ? "🥈" : pos === 3 ? "🥉" : "🏅";
+                                    return Array.from(distribution.prizes.entries())
+                                        .sort(([a], [b]) => a - b)
+                                        .map(([position, prize]) => {
+                                            const medal = getMedal(position);
+                                            const ordinal =
+                                                position === 1 ? "st" : position === 2 ? "nd" : position === 3 ? "rd" : "th";
+                                            return (
+                                                <div key={position} className="flex items-center justify-between gap-4">
+                                                    <span>
+                                                        {medal} {position}{ordinal}
+                                                    </span>
+                                                    <span className="font-semibold">
+                                                        {prize.amount.toLocaleString()} <CurrencyIcon size={14} />
+                                                    </span>
+                                                </div>
+                                            );
+                                        });
+                                })()}
+                            </motion.div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
