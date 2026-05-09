@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Input, Button, Spinner } from "@heroui/react";
-import { Shield, Trophy, Users, Calendar, Clock, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Input, Button, Spinner, Avatar } from "@heroui/react";
+import { Shield, Trophy, Users, Calendar, Clock, ChevronRight, CheckCircle2, Copy, Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useCreateSquad } from "@/hooks/use-squads";
+import { useCreateSquad, useSearchPlayers, useInvitePlayer } from "@/hooks/use-squads";
 import { useAuthGate } from "@/components/common/auth-gate-provider";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+import { toast } from "sonner";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -45,7 +46,16 @@ export default function JoinPage() {
 
     const [teamName, setTeamName] = useState(searchParams.get("team") ?? "");
     const [step, setStep] = useState<"form" | "creating" | "done">("form");
+    const [createdSquadId, setCreatedSquadId] = useState<string | null>(null);
+    const [inviteSearch, setInviteSearch] = useState("");
+    const [linkCopied, setLinkCopied] = useState(false);
+    const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
     const createMutation = useCreateSquad();
+    const inviteMutation = useInvitePlayer();
+    const { data: searchResults, isLoading: isSearching } = useSearchPlayers(
+        inviteSearch,
+        pollId
+    );
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Fetch tournament info
@@ -97,12 +107,9 @@ export default function JoinPage() {
         createMutation.mutate(
             { pollId, name, useClan: false },
             {
-                onSuccess: () => {
+                onSuccess: (data) => {
+                    setCreatedSquadId(data?.data?.id ?? null);
                     setStep("done");
-                    // Redirect to vote page after brief success animation
-                    setTimeout(() => {
-                        router.push(`/vote?tab=ranked&poll=${pollId}`);
-                    }, 1500);
                 },
                 onError: () => {
                     setStep("form");
@@ -218,21 +225,120 @@ export default function JoinPage() {
                         key="done"
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="flex flex-col items-center gap-4 py-20 text-center"
+                        className="space-y-5"
                     >
-                        <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
-                            className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center"
+                        {/* Success header */}
+                        <div className="flex flex-col items-center gap-3 pt-4 pb-2 text-center">
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.1 }}
+                                className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center"
+                            >
+                                <CheckCircle2 className="w-8 h-8 text-success" />
+                            </motion.div>
+                            <h1 className="text-xl font-bold">Team Created! 🎉</h1>
+                            <p className="text-sm text-foreground/50">
+                                Now invite your teammates to join
+                            </p>
+                        </div>
+
+                        {/* Copy invite link */}
+                        {createdSquadId && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const link = `${window.location.origin}/invite/${createdSquadId}`;
+                                    navigator.clipboard.writeText(link);
+                                    setLinkCopied(true);
+                                    toast.success("Invite link copied!");
+                                    setTimeout(() => setLinkCopied(false), 3000);
+                                }}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors cursor-pointer"
+                            >
+                                <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                        {linkCopied ? "Copied! ✅" : "Copy Invite Link"}
+                                    </p>
+                                    <p className="text-[11px] text-emerald-600/60 dark:text-emerald-400/60">
+                                        Share with your teammates on WhatsApp
+                                    </p>
+                                </div>
+                                <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                    <Copy className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                </div>
+                            </button>
+                        )}
+
+                        {/* Search & invite players */}
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
+                                Or invite existing players
+                            </p>
+                            <Input
+                                placeholder="Search player..."
+                                value={inviteSearch}
+                                onValueChange={setInviteSearch}
+                                size="sm"
+                                startContent={<Search className="w-3.5 h-3.5 text-default-400" />}
+                                endContent={inviteSearch ? (
+                                    <button type="button" onClick={() => setInviteSearch("")} className="p-0.5">
+                                        <X className="w-3 h-3 text-default-400" />
+                                    </button>
+                                ) : undefined}
+                            />
+                            {isSearching && (
+                                <div className="flex justify-center py-2">
+                                    <Spinner size="sm" />
+                                </div>
+                            )}
+                            {searchResults && searchResults.length > 0 && (
+                                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                                    {searchResults.map((player) => (
+                                        <div key={player.id} className="flex items-center gap-2 py-1.5">
+                                            <Avatar
+                                                src={player.imageUrl}
+                                                name={player.displayName}
+                                                size="sm"
+                                                className="w-7 h-7 shrink-0"
+                                            />
+                                            <span className="text-sm font-medium truncate flex-1">
+                                                {player.displayName}
+                                            </span>
+                                            <Button
+                                                size="sm"
+                                                color="primary"
+                                                variant="flat"
+                                                className="min-w-0 px-3 h-7"
+                                                isLoading={inviteMutation.isPending && invitingPlayerId === player.id}
+                                                isDisabled={inviteMutation.isPending && invitingPlayerId !== player.id}
+                                                onPress={() => {
+                                                    if (!createdSquadId) return;
+                                                    setInvitingPlayerId(player.id);
+                                                    inviteMutation.mutate({ squadId: createdSquadId, playerId: player.id });
+                                                }}
+                                            >
+                                                Invite
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {searchResults && searchResults.length === 0 && inviteSearch.length >= 2 && (
+                                <p className="text-xs text-foreground/40 text-center py-2">No players found</p>
+                            )}
+                        </div>
+
+                        {/* Go to tournament button */}
+                        <Button
+                            color="primary"
+                            size="lg"
+                            className="w-full font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 shadow-lg shadow-blue-500/20"
+                            onPress={() => router.push(`/vote?tab=ranked&poll=${pollId}`)}
+                            startContent={<ChevronRight className="w-4 h-4" />}
                         >
-                            <CheckCircle2 className="w-10 h-10 text-success" />
-                        </motion.div>
-                        <h1 className="text-2xl font-bold">Team Created! 🎉</h1>
-                        <p className="text-foreground/50">
-                            Redirecting to tournament page...
-                        </p>
-                        <Spinner size="sm" className="mt-2" />
+                            Go to Tournament
+                        </Button>
                     </motion.div>
                 ) : (
                     <motion.div
