@@ -33,6 +33,9 @@ interface PollCardProps {
     onEntryChange?: (pollId: string, action: "ADD_ENTRY" | "REMOVE_ENTRY") => void;
     entryPending?: boolean;
     isCouponVerifier?: boolean;
+    /** Controlled collapse: undefined = always expanded (no collapse UI) */
+    isExpanded?: boolean;
+    onToggleExpand?: () => void;
 }
 
 /* ─── Animated Counter ──────────────────────────────────────── */
@@ -680,7 +683,7 @@ function VotersDialog({
 
 /* ─── Main Poll Card ────────────────────────────────────────── */
 
-export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayerId, onRefetch, onEntryChange, entryPending, isCouponVerifier }: PollCardProps) {
+export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayerId, onRefetch, onEntryChange, entryPending, isCouponVerifier, isExpanded: controlledExpanded, onToggleExpand }: PollCardProps) {
     const { tk } = useLocale();
     const isThisPollVoting = votingPollId === poll.id;
     const { tournament } = poll;
@@ -694,6 +697,9 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const [showDonate, setShowDonate] = useState(false);
     const [showDonors, setShowDonors] = useState(false);
     const [squadVoteWarning, setSquadVoteWarning] = useState<{ vote: "IN" | "OUT" | "SOLO"; squadName: string; isCaptain: boolean } | null>(null);
+    // Collapse: controlled by parent (accordion) or always expanded
+    const isCollapsible = controlledExpanded !== undefined;
+    const isExpanded = controlledExpanded ?? true;
 
     // Squad data for vote warning (only fetched for squad polls)
     const { data: squadsResult } = useSquads(poll.allowSquads ? poll.id : undefined);
@@ -911,7 +917,10 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     }`}
             >
                 {/* ─── Header with Prize Pool ─── */}
-                <div className={showThemedHeader ? "relative overflow-hidden" : ""}>
+                <div
+                    className={`${showThemedHeader ? "relative overflow-hidden" : ""} ${isCollapsible && !isExpanded ? "cursor-pointer" : ""}`}
+                    onClick={isCollapsible && !isExpanded ? onToggleExpand : undefined}
+                >
                     {theme && <WaveBackground theme={theme} />}
 
                     <div
@@ -1050,7 +1059,29 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             </>
                         )}
                     </div>
+
+                    {/* Expand hint — overlaid on header bottom when collapsed */}
+                    {isCollapsible && !isExpanded && (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 animate-bounce">
+                            <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-white/30 backdrop-blur-md border border-white/20 shadow-lg">
+                                <span className="text-[11px] font-semibold text-white drop-shadow-sm">Tap to expand</span>
+                                <ChevronDown className="h-3.5 w-3.5 text-white" />
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+
+                {/* ─── Collapsible Body ─── */}
+                <AnimatePresence initial={false}>
+                {(!isCollapsible || isExpanded) && (
+                <motion.div
+                    initial={isCollapsible ? { height: 0, opacity: 0 } : false}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    style={{ overflow: "hidden" }}
+                >
 
                 {/* ─── Options ─── */}
                 {(
@@ -1345,6 +1376,9 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                     })()}
                     </div>
                 </div>
+                </motion.div>
+                )}
+                </AnimatePresence>
 
                 {/* ─── Voters Dialog ─── */}
                 <VotersDialog
