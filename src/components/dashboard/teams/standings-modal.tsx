@@ -630,28 +630,24 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                         <PositionChangeIndicator change={row.positionChange} />
                                     </td>
                                     <td className="px-1 py-1 text-left align-middle">
-                                        <div className="flex flex-col min-h-[28px] justify-center">
-                                            <div className="flex items-center gap-1.5">
-                                                {hasSquadTeams && (
-                                                    <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
-                                                )}
-                                                <span className={`text-[11px] leading-tight font-semibold ${
-                                                    zone?.zone === "ELIMINATED" ? "text-zinc-500" : "text-zinc-300"
-                                                } ${hasSquadTeams ? "whitespace-nowrap" : ""}`} style={hasSquadTeams ? undefined : { wordBreak: "break-word" }}>
-                                                    {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
-                                                </span>
-                                            </div>
-                                            {row.wins > 0 && (
-                                                <span className="text-[9px] mt-0.5 text-yellow-400">
-                                                    🍗 {row.wins} win{row.wins > 1 ? "s" : ""}
-                                                </span>
+                                        <div className="flex items-center gap-1.5 min-h-[28px]">
+                                            {hasSquadTeams && (
+                                                <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
                                             )}
+                                            <span className={`text-[11px] leading-tight font-semibold ${
+                                                zone?.zone === "ELIMINATED" ? "text-zinc-500" : "text-zinc-300"
+                                            } ${hasSquadTeams ? "whitespace-nowrap" : ""}`} style={hasSquadTeams ? undefined : { wordBreak: "break-word" }}>
+                                                {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                                            </span>
                                         </div>
                                     </td>
                                     <td className="px-1 py-1.5 text-center align-middle text-zinc-500 tabular-nums font-mono text-xs">{row.matchCount}</td>
                                     <td className="px-1 py-1.5 text-center align-middle text-zinc-300 font-medium tabular-nums font-mono text-xs">{row.placementPts}</td>
                                     <td className="px-1 py-1.5 text-center align-middle text-zinc-400 tabular-nums font-mono text-xs">{row.totalKills}</td>
-                                    <td className="px-1 py-1.5 text-center align-middle text-orange-400 font-bold tabular-nums font-mono text-xs">{row.totalPoints}</td>
+                                    <td className="px-1 py-1.5 text-center align-middle">
+                                        <span className="text-orange-400 font-bold tabular-nums font-mono text-xs">{row.totalPoints}</span>
+                                        {row.wins > 0 && <span className="ml-0.5 text-[9px] text-yellow-400">🍗{row.wins}</span>}
+                                    </td>
                                 </tr>
                             </>
                         );
@@ -700,15 +696,15 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
 
                                     {/* Stats */}
                                     <div className={`mt-1.5 w-full rounded-lg border bg-gradient-to-b ${ps.bg} px-2 py-1.5 backdrop-blur-sm`}>
-                                        <p className="text-orange-400 font-bold text-sm tabular-nums">{row.totalPoints}</p>
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span className="text-orange-400 font-bold text-sm tabular-nums">{row.totalPoints}</span>
+                                            {row.wins > 0 && <span className="text-[9px] text-yellow-400 font-semibold">🍗{row.wins}</span>}
+                                        </div>
                                         <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] text-zinc-400">
                                             <span>{row.totalKills} kills</span>
                                             <span className="text-zinc-600">|</span>
                                             <span>{row.placementPts} pts</span>
                                         </div>
-                                        {row.wins > 0 && (
-                                            <p className="text-[9px] mt-0.5 text-yellow-400 font-semibold">🍗 {row.wins} win{row.wins > 1 ? "s" : ""}</p>
-                                        )}
                                     </div>
                                 </div>
                             );
