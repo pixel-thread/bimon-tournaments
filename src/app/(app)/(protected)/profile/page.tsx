@@ -174,6 +174,7 @@ export default function ProfilePage() {
         },
         staleTime: 5 * 60 * 1000,
         initialData: () => getCachedProfile(statsMode),
+        initialDataUpdatedAt: 0, // Always refetch — localStorage is just a placeholder for instant load
         placeholderData: (prev) => prev, // Keep previous mode's data visible while fetching
     });
 
