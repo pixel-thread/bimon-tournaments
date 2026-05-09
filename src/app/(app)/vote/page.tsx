@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePolls, useVote, useEntryMutation } from "@/hooks/use-polls";
 import { PollCard } from "@/components/vote/poll-card";
+import { PollCarousel } from "@/components/vote/poll-carousel";
+import { getPollTheme } from "@/components/vote/pollTheme";
 import { MeritRatingSection } from "@/components/vote/merit-rating-gate";
 import { RoomInfoGenerator } from "@/components/vote/room-info-generator";
 import { VotePageJobListings } from "@/components/vote/vote-page-jobs";
@@ -235,6 +237,33 @@ export default function VotePage() {
                             </div>
                             <AdSlot format="banner" className="mt-4 w-full rounded-lg overflow-hidden" />
                         </motion.div>
+                    ) : filteredPolls.length >= 2 ? (
+                        <PollCarousel
+                            pollIds={filteredPolls.map((p) => p.id)}
+                            headerGradients={filteredPolls.map((p: any) => {
+                                const participantCount = (p.inVotes ?? 0) + (p.soloVotes ?? 0);
+                                const estimatedTeams = p.allowSquads && GAME.squadSize > 1
+                                    ? (p.squadCount ?? 0) + Math.floor(participantCount / GAME.squadSize)
+                                    : participantCount;
+                                const pc = p.allowSquads ? estimatedTeams * (GAME.squadSize ?? 4) : participantCount;
+                                return getPollTheme(Math.max(pc, 1))?.header ?? "from-gray-500 via-gray-400 to-gray-500";
+                            })}
+                        >
+                            {filteredPolls.map((poll, i) => (
+                                <PollCard
+                                    key={`poll-${poll.id}`}
+                                    poll={poll}
+                                    onVote={handleVote}
+                                    votingPollId={pendingPollId}
+                                    votingVote={pendingVote}
+                                    currentPlayerId={currentPlayerId}
+                                    onRefetch={() => refetch()}
+                                    onEntryChange={(pollId, action) => entryMutation.mutate({ pollId, action })}
+                                    entryPending={entryMutation.isPending && entryMutation.variables?.pollId === poll.id}
+                                    isCouponVerifier={isCouponVerifier}
+                                />
+                            ))}
+                        </PollCarousel>
                     ) : (
                         filteredPolls.map((poll, i) => (
                             <div key={`poll-slot-${i}`} data-poll-id={poll.id}>
