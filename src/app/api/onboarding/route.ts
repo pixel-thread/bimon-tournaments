@@ -5,6 +5,7 @@ import { type NextRequest } from "next/server";
 import { getSettings } from "@/lib/settings";
 import { GAME } from "@/lib/game-config";
 import { checkPlayerForDuplicates } from "@/lib/duplicate-check";
+import { validatePhone } from "@/lib/phone-validation";
 
 /**
  * POST /api/onboarding
@@ -38,13 +39,13 @@ export async function POST(request: NextRequest) {
         // ── Phone-only update for existing PES players ──────────────────
         // Called when addPhone=1 param is set (existing user missing phone)
         if (user?.isOnboarded && user.player && requiresPhone) {
-            const cleaned = phoneNumber?.replace(/\D/g, "") ?? "";
-            if (!cleaned || cleaned.length < 10) {
-                return ErrorResponse({ message: "Enter a valid 10-digit phone number", status: 400 });
+            const result = validatePhone(phoneNumber ?? "");
+            if (!result.valid) {
+                return ErrorResponse({ message: result.error, status: 400 });
             }
             await db.player.update({
                 where: { id: user.player.id },
-                data: { phoneNumber: `+91${cleaned.slice(-10)}` },
+                data: { phoneNumber: result.phone },
             });
             return SuccessResponse({ message: "Phone number saved" });
         }
@@ -59,9 +60,9 @@ export async function POST(request: NextRequest) {
 
         // Phone is required for PES
         if (requiresPhone) {
-            const cleaned = phoneNumber?.replace(/\D/g, "") ?? "";
-            if (!cleaned || cleaned.length < 10) {
-                return ErrorResponse({ message: "Enter a valid 10-digit phone number", status: 400 });
+            const result = validatePhone(phoneNumber ?? "");
+            if (!result.valid) {
+                return ErrorResponse({ message: result.error, status: 400 });
             }
         }
 
@@ -109,9 +110,10 @@ export async function POST(request: NextRequest) {
                         displayName: (displayName ?? "").trim(),
                         realName: authRealName || null,
                         ...(uid?.trim() && { uid: uid.trim() }),
-                        ...(phoneNumber && {
-                            phoneNumber: `+91${phoneNumber.replace(/\D/g, "").slice(-10)}`,
-                        }),
+                        ...(phoneNumber && (() => {
+                            const result = validatePhone(phoneNumber);
+                            return result.valid ? { phoneNumber: result.phone } : {};
+                        })()),
                     },
                 });
 

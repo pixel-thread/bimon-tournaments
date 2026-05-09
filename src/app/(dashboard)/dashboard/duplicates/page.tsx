@@ -29,6 +29,7 @@ import {
     Ban,
     Merge,
     ArrowRight,
+    MessageCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
@@ -397,6 +398,29 @@ export default function DuplicatesPage() {
                                                 >
                                                     Merge
                                                 </Button>
+                                                {/* WhatsApp buttons — one per player with a phone */}
+                                                {[alert.player1, alert.player2].filter(p => p.phoneNumber).map((p) => {
+                                                    const cleanPhone = (p.phoneNumber || "").replace(/[^0-9]/g, "");
+                                                    const pName = p.displayName || p.user?.username || "?";
+                                                    const p1Name = alert.player1.displayName || alert.player1.user?.username || "Account 1";
+                                                    const p2Name = alert.player2.displayName || alert.player2.user?.username || "Account 2";
+                                                    const p1Email = alert.player1.user?.email || "no email";
+                                                    const p2Email = alert.player2.user?.email || "no email";
+                                                    const msg = `Hi! We noticed you have 2 accounts on BGMI Bimon Tournament:\n\n1️⃣ *${p1Name}* (${p1Email})\n2️⃣ *${p2Name}* (${p2Email})\n\nPlease reply which account you want to *keep*. The other one will be deleted.\n\n⚠️ If this is a wrong detection and these are not your accounts, please clarify so we can resolve it.`;
+                                                    return (
+                                                        <Tooltip key={p.id} content={`WhatsApp ${pName}`} delay={200}>
+                                                            <Button
+                                                                size="sm"
+                                                                isIconOnly
+                                                                variant="flat"
+                                                                className="bg-green-500/10 text-green-600 dark:text-green-400 min-w-8"
+                                                                onPress={() => window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, "_blank")}
+                                                            >
+                                                                <MessageCircle className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </Tooltip>
+                                                    );
+                                                })}
                                                 <Button
                                                     size="sm"
                                                     color="success"

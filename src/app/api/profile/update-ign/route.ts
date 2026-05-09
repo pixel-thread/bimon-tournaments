@@ -6,6 +6,7 @@ import { getSettings } from "@/lib/settings";
 import { GAME } from "@/lib/game-config";
 import { debitWallet } from "@/lib/wallet-service";
 import { censorProfanity } from "@/lib/logic/profanityFilter";
+import { validatePhone } from "@/lib/phone-validation";
 
 const NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 
@@ -111,7 +112,17 @@ export async function POST(req: NextRequest) {
         }
         if (bio !== undefined) updateData.bio = censorProfanity(bio);
         if (uid !== undefined) updateData.uid = uid;
-        if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber || null;
+        if (phoneNumber !== undefined) {
+            if (phoneNumber) {
+                const phoneResult = validatePhone(phoneNumber);
+                if (!phoneResult.valid) {
+                    return ErrorResponse({ message: phoneResult.error, status: 400 });
+                }
+                updateData.phoneNumber = phoneResult.phone;
+            } else {
+                updateData.phoneNumber = null;
+            }
+        }
 
         if (Object.keys(updateData).length === 0) {
             return SuccessResponse({ message: "Nothing to update" });
