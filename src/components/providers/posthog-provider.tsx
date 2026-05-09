@@ -5,6 +5,7 @@ import { PostHogProvider as PHProvider, usePostHog } from "posthog-js/react";
 import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { GAME, GAME_MODE } from "@/lib/game-config";
 
 if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
     posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
@@ -13,6 +14,8 @@ if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
         capture_pageleave: true,
         persistence: "localStorage",
     });
+    // Tag every event with the game so we can filter BGMI vs MLBB in one project
+    posthog.register({ game: GAME_MODE, game_name: GAME.name });
 }
 
 /** Track page views on route change */
