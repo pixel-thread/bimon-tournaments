@@ -235,35 +235,35 @@ export default function HomePage() {
                             <div className="mt-4 space-y-2 text-sm text-foreground/70">
                                 <div className="flex justify-between border-b border-foreground/5 pb-1">
                                     <span>🥇 1st Place (Chicken Dinner)</span>
-                                    <span className="font-bold text-amber-400">15 pts</span>
+                                    <span className="font-bold text-amber-400">10 pts</span>
                                 </div>
                                 <div className="flex justify-between border-b border-foreground/5 pb-1">
                                     <span>🥈 2nd Place</span>
-                                    <span className="font-bold">12 pts</span>
-                                </div>
-                                <div className="flex justify-between border-b border-foreground/5 pb-1">
-                                    <span>🥉 3rd Place</span>
-                                    <span className="font-bold">10 pts</span>
-                                </div>
-                                <div className="flex justify-between border-b border-foreground/5 pb-1">
-                                    <span>4th Place</span>
-                                    <span className="font-bold">8 pts</span>
-                                </div>
-                                <div className="flex justify-between border-b border-foreground/5 pb-1">
-                                    <span>5th Place</span>
                                     <span className="font-bold">6 pts</span>
                                 </div>
                                 <div className="flex justify-between border-b border-foreground/5 pb-1">
-                                    <span>6th Place</span>
+                                    <span>🥉 3rd Place</span>
+                                    <span className="font-bold">5 pts</span>
+                                </div>
+                                <div className="flex justify-between border-b border-foreground/5 pb-1">
+                                    <span>4th Place</span>
                                     <span className="font-bold">4 pts</span>
                                 </div>
                                 <div className="flex justify-between border-b border-foreground/5 pb-1">
-                                    <span>7th–8th Place</span>
+                                    <span>5th Place</span>
+                                    <span className="font-bold">3 pts</span>
+                                </div>
+                                <div className="flex justify-between border-b border-foreground/5 pb-1">
+                                    <span>6th Place</span>
                                     <span className="font-bold">2 pts</span>
+                                </div>
+                                <div className="flex justify-between border-b border-foreground/5 pb-1">
+                                    <span>7th–8th Place</span>
+                                    <span className="font-bold">1 pt</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>9th–16th Place</span>
-                                    <span className="font-bold">1 pt</span>
+                                    <span className="font-bold text-foreground/40">0 pts</span>
                                 </div>
                             </div>
                         </div>
