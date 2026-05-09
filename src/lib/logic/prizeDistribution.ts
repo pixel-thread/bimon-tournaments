@@ -1,32 +1,31 @@
 /**
- * Prize Distribution Utility
+ * Prize Distribution Utility — BGIS-Style Geometric Decay
  * 
- * Dynamic prize distribution based on "Money Milestones" - the total prize pool.
- * Tier thresholds determine the number of winners and distribution percentages.
+ * Each position gets ~50% of the one above (geometric decay).
+ * Last position gets entry fee refund.
+ * Any position that would fall below refund is floored to refund.
  * 
  * Rules:
- * 1. Org takes a fixed amount from pool (from settings)
+ * 1. Org takes a cut from total pool (fixed or percentage)
  * 2. Fund gets ₹0 from prize pool (fund only accumulates from solo/b2b taxes)
- * 3. UC-exempt cost is deducted from prize pool (reduces winners, NOT org)
- * 4. Winners get: totalPool - org - ucExemptCost
- * 5. Odd prize amounts cascade up (lower positions → higher, finally 1st → org)
+ * 3. Winners get: totalPool - orgFee
+ * 4. Last place gets entry fee × team size as refund (tier 2+)
+ * 5. Positions are calculated via geometric decay (ratio 0.50)
+ * 6. Any position < refund is floored to refund
+ * 7. Odd amounts cascade up, remainder goes to 1st or org
  */
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type PrizeTierLevel = 1 | 2 | 3 | 4;
+export type PrizeTierLevel = number;
 
 export interface PrizeTierConfig {
     level: PrizeTierLevel;
     minPool: number;
     maxPool: number | null; // null for unlimited
-    orgFeePercent: number;
-    fundPercent: number; // legacy, kept for type compat but not used in calculations
     winnerCount: number;
-    /** Percentages for positions 1, 2, 3, etc. */
-    percentages: number[];
     description: string;
 }
 
@@ -44,16 +43,16 @@ export interface PrizeDistributionResult {
     fundAmount: number; // Always 0 — fund only gets taxes
     totalWinnerPayout: number;
     prizes: Map<number, PositionPrize>;
-    /** Human-readable summary like "Top 3 paid: 50%/25%/15%" */
+    /** Human-readable summary like "Top 6 paid: 50% decay + ₹100 refund" */
     summaryText: string;
-    /** Short format like "50/25/15" */
+    /** Short format like "50% decay" */
     splitText: string;
     /** Refund amount for last place */
     refundAmount: number;
 }
 
 export interface FinalDistributionResult extends PrizeDistributionResult {
-    /** Org amount (fixed amount from settings, unaffected by UC exempt) */
+    /** Org amount (always orgPercent% of pool, unaffected by UC exempt) */
     finalOrgAmount: number;
     /** Fund amount — always 0 from prize pool */
     finalFundAmount: number;
@@ -62,51 +61,20 @@ export interface FinalDistributionResult extends PrizeDistributionResult {
 }
 
 // ============================================================================
-// Tier Configurations
+// Tier Configurations — only winnerCount needed, decay handles the rest
 // ============================================================================
 
 const TIER_CONFIGS: PrizeTierConfig[] = [
-    {
-        level: 1,
-        minPool: 0,
-        maxPool: 1199,
-        orgFeePercent: 0,
-        fundPercent: 0,
-        winnerCount: 2,
-        percentages: [57, 29],
-        description: "Top 2 paid",
-    },
-    {
-        level: 2,
-        minPool: 1200,
-        maxPool: 3000,
-        orgFeePercent: 0,
-        fundPercent: 0,
-        winnerCount: 3,
-        percentages: [62, 33],
-        description: "Top 3 paid",
-    },
-    {
-        level: 3,
-        minPool: 3001,
-        maxPool: 5000,
-        orgFeePercent: 0,
-        fundPercent: 0,
-        winnerCount: 4,
-        percentages: [43, 29, 19],
-        description: "Top 4 paid",
-    },
-    {
-        level: 4,
-        minPool: 5001,
-        maxPool: null,
-        orgFeePercent: 0,
-        fundPercent: 0,
-        winnerCount: 5,
-        percentages: [38, 26, 19, 12],
-        description: "Top 5 paid",
-    },
+    { level: 1, minPool: 0, maxPool: 1199, winnerCount: 2, description: "Top 2 paid" },
+    { level: 2, minPool: 1200, maxPool: 3000, winnerCount: 4, description: "Top 4 paid" },
+    { level: 3, minPool: 3001, maxPool: 5000, winnerCount: 6, description: "Top 6 paid" },
+    { level: 4, minPool: 5001, maxPool: 10000, winnerCount: 6, description: "Top 6 paid" },
+    { level: 5, minPool: 10001, maxPool: 25000, winnerCount: 8, description: "Top 8 paid" },
+    { level: 6, minPool: 25001, maxPool: null, winnerCount: 10, description: "Top 10 paid" },
 ];
+
+// Geometric decay ratio — each position gets this fraction of the one above
+const DECAY_RATIO = 0.50;
 
 // Org cut mode type
 export type OrgCutMode = "percent" | "fixed";
@@ -143,12 +111,136 @@ function makeEven(amount: number): { evenAmount: number; remainder: number } {
 }
 
 /**
+ * Calculate geometric decay prizes.
+ * 
+ * Algorithm:
+ * 1. Last position = refund (entry × teamSize), capped so it doesn't exceed higher positions
+ * 2. Remaining pool split geometrically among positions 1 to (n-1)
+ * 3. Any position < refund is floored to refund
+ * 4. When flooring occurs, recalculate non-floored positions from remaining pool
+ * 5. Remainder goes to 1st place
+ */
+function computeGeometricPrizes(
+    winnerPool: number,
+    winnerCount: number,
+    refundAmount: number,
+    hasRefund: boolean,
+): Map<number, PositionPrize> {
+    const prizes = new Map<number, PositionPrize>();
+
+    if (winnerCount <= 0 || winnerPool <= 0) return prizes;
+
+    // Single winner: gets everything
+    if (winnerCount === 1) {
+        prizes.set(1, { position: 1, percentage: null, amount: winnerPool, isFixed: false });
+        return prizes;
+    }
+
+    const r = DECAY_RATIO;
+
+    if (!hasRefund) {
+        // Tier 1: No refund, pure geometric split for all positions
+        const geoSum = (1 - Math.pow(r, winnerCount)) / (1 - r);
+        const a = winnerPool / geoSum;
+
+        let totalAssigned = 0;
+        for (let i = 0; i < winnerCount; i++) {
+            const amount = Math.floor(a * Math.pow(r, i));
+            prizes.set(i + 1, { position: i + 1, percentage: null, amount, isFixed: false });
+            totalAssigned += amount;
+        }
+
+        // Remainder to 1st
+        const rem = winnerPool - totalAssigned;
+        if (rem > 0) {
+            const first = prizes.get(1)!;
+            prizes.set(1, { ...first, amount: first.amount + rem });
+        }
+
+        return prizes;
+    }
+
+    // Tier 2+: Last position = refund, rest = geometric decay
+    const lastPos = winnerCount;
+    const geoCount = winnerCount - 1; // positions to compute geometrically
+
+    // Cap refund so it doesn't exceed the winner pool
+    const actualRefund = Math.min(refundAmount, winnerPool);
+
+    // Compute geometric on available pool (after reserving refund for last place)
+    let availableForGeo = winnerPool - actualRefund;
+    const geoSum = (1 - Math.pow(r, geoCount)) / (1 - r);
+    let a = availableForGeo / geoSum;
+
+    // Compute raw amounts
+    const rawAmounts: number[] = [];
+    for (let i = 0; i < geoCount; i++) {
+        rawAmounts.push(Math.floor(a * Math.pow(r, i)));
+    }
+
+    // Floor: any position < refund gets set to refund
+    let flooredCount = 0;
+    for (let i = rawAmounts.length - 1; i >= 0; i--) {
+        if (rawAmounts[i] < actualRefund) {
+            rawAmounts[i] = actualRefund;
+            flooredCount++;
+        }
+    }
+
+    // If flooring occurred, recalculate non-floored positions
+    if (flooredCount > 0) {
+        const flooredTotal = flooredCount * actualRefund;
+        const nonFlooredCount = geoCount - flooredCount;
+
+        if (nonFlooredCount > 0) {
+            const availableForNonFloored = availableForGeo - flooredTotal;
+            const newGeoSum = (1 - Math.pow(r, nonFlooredCount)) / (1 - r);
+            const newA = availableForNonFloored / newGeoSum;
+
+            for (let i = 0; i < nonFlooredCount; i++) {
+                rawAmounts[i] = Math.floor(newA * Math.pow(r, i));
+            }
+        }
+    }
+
+    // Set prizes for geometric positions
+    let totalAssigned = 0;
+    for (let i = 0; i < geoCount; i++) {
+        prizes.set(i + 1, {
+            position: i + 1,
+            percentage: null,
+            amount: rawAmounts[i],
+            isFixed: false,
+        });
+        totalAssigned += rawAmounts[i];
+    }
+
+    // Last position = refund
+    prizes.set(lastPos, {
+        position: lastPos,
+        percentage: null,
+        amount: actualRefund,
+        isFixed: true,
+    });
+    totalAssigned += actualRefund;
+
+    // Remainder to 1st
+    const rem = winnerPool - totalAssigned;
+    if (rem > 0) {
+        const first = prizes.get(1)!;
+        prizes.set(1, { ...first, amount: first.amount + rem });
+    }
+
+    return prizes;
+}
+
+/**
  * Calculate prize distribution based on total prize pool.
  * 
- * - Org takes a fixed amount from total pool
- * - Fund = ₹0 (fund only gets taxes, not from prize pool)
- * - Winners get totalPool - orgFee
- * - For Tiers 2-4, last position gets entry fee × team size as refund
+ * Uses BGIS-style geometric decay (50%):
+ * - Each position gets half the one above
+ * - Last position gets entry fee × team size as refund (tier 2+)
+ * - Positions that would drop below refund are floored to refund
  * 
  * @param totalPool - Total prize pool amount
  * @param entryFee - Entry fee per player
@@ -174,71 +266,19 @@ export function getPrizeDistribution(
         ? Math.floor(totalPool * (orgCut / 100))
         : Math.min(orgCut, totalPool);
     const fundAmount = 0;
-    const prizes = new Map<number, PositionPrize>();
 
-    // Winner pool = totalPool - org (no fund deduction)
+    // Winner pool = totalPool - org
     const winnerPool = totalPool - orgFee;
 
-    if (tier.level >= 2) {
-        // Tiers 2-4: Last position gets entry fee × team size as refund
-        const lastPosition = tier.winnerCount;
-        const teamRefund = entryFee * teamSize;
-        let refundAmount = Math.min(teamRefund, winnerPool);
-        const totalPct = tier.percentages.reduce((s, p) => s + p, 0);
+    // Refund for last position (tier 2+)
+    const hasRefund = tier.level >= 2;
+    const teamRefund = entryFee * teamSize;
+    const refundAmount = hasRefund ? Math.min(teamRefund, winnerPool) : 0;
 
-        // Calculate what the 2nd-to-last position would get if we use the full refund
-        // to ensure last place never exceeds any higher position
-        const secondToLastPct = tier.percentages[tier.percentages.length - 1];
-        const testRemaining = winnerPool - refundAmount;
-        const secondToLastAmount = Math.floor(testRemaining * (secondToLastPct / totalPct));
+    // Compute geometric prizes
+    const prizes = computeGeometricPrizes(winnerPool, tier.winnerCount, refundAmount, hasRefund);
 
-        // Cap refund if it would exceed the 2nd-to-last position
-        if (refundAmount > secondToLastAmount && secondToLastAmount > 0) {
-            // Solve: refund = floor((winnerPool - refund) * lastPct / totalPct)
-            // refund * totalPct = (winnerPool - refund) * lastPct
-            // refund * (totalPct + lastPct) = winnerPool * lastPct
-            // refund = winnerPool * lastPct / (totalPct + lastPct)
-            refundAmount = Math.floor(winnerPool * secondToLastPct / (totalPct + secondToLastPct));
-        }
-
-        const remainingForWinners = winnerPool - refundAmount;
-
-        // Distribute by relative percentage to all positions except last
-        tier.percentages.forEach((percent, idx) => {
-            const position = idx + 1;
-            const amount = Math.floor(remainingForWinners * (percent / totalPct));
-            prizes.set(position, {
-                position,
-                percentage: percent,
-                amount,
-                isFixed: false,
-            });
-        });
-
-        // Add last place with fixed refund
-        prizes.set(lastPosition, {
-            position: lastPosition,
-            percentage: null,
-            amount: Math.floor(refundAmount),
-            isFixed: true,
-        });
-    } else {
-        // Tier 1: Split winner pool by relative percentages
-        const totalPct = tier.percentages.reduce((s, p) => s + p, 0);
-
-        tier.percentages.forEach((percent, idx) => {
-            const position = idx + 1;
-            const amount = Math.floor(winnerPool * (percent / totalPct));
-            prizes.set(position, {
-                position,
-                percentage: percent,
-                amount,
-                isFixed: false,
-            });
-        });
-    }
-
-    // Cascade odd amounts: lower positions → higher, finally 1st
+    // Make all amounts even (cascade remainders upward)
     const positions = Array.from(prizes.keys()).sort((a, b) => b - a);
     let carryOver = 0;
 
@@ -246,16 +286,11 @@ export function getPrizeDistribution(
         const prize = prizes.get(position)!;
         const adjustedAmount = prize.amount + carryOver;
         const { evenAmount, remainder } = makeEven(adjustedAmount);
-
-        prizes.set(position, {
-            ...prize,
-            amount: evenAmount,
-        });
-
+        prizes.set(position, { ...prize, amount: evenAmount });
         carryOver = remainder;
     }
 
-    // Any remaining from rounding: goes to org if org > 0, otherwise to 1st place
+    // Remaining from rounding: goes to org if org > 0, otherwise to 1st
     let adjustedOrgFee = orgFee;
     if (orgCut > 0) {
         adjustedOrgFee += carryOver;
@@ -286,10 +321,10 @@ export function getPrizeDistribution(
     }
 
     // Generate summary texts
-    const teamRefund = entryFee * teamSize;
-    const actualRefund = tier.level >= 2 ? Math.min(teamRefund, winnerPool) : 0;
-    const splitText = tier.percentages.join("/");
-    const summaryText = tier.level >= 2
+    const actualRefund = hasRefund ? (prizes.get(tier.winnerCount)?.amount ?? 0) : 0;
+    const decayPct = Math.round(DECAY_RATIO * 100);
+    const splitText = `${decayPct}% decay`;
+    const summaryText = hasRefund
         ? `${tier.description}: ${splitText} + ₹${actualRefund} refund`
         : `${tier.description}: ${splitText}`;
 
@@ -310,7 +345,7 @@ export function getPrizeDistribution(
  * Calculate final distribution with UC-exempt cost.
  * 
  * Rules:
- * 1. Org gets a fixed amount from totalPool (always, unaffected by UC exempt)
+ * 1. Org gets a fixed/percent cut from totalPool (always, unaffected by UC exempt)
  * 2. Fund = ₹0 from prize pool (fund only gets solo/b2b taxes)
  * 3. UC-exempt cost reduces winners' payouts, NOT org
  * 
@@ -373,9 +408,9 @@ export function getFinalDistribution(
 export function getPrizeForPosition(
     totalPool: number,
     position: number,
-    fifthPlaceRefund: number = 200
+    entryFee: number = 200
 ): number {
-    const distribution = getPrizeDistribution(totalPool, fifthPlaceRefund);
+    const distribution = getPrizeDistribution(totalPool, entryFee);
     return distribution.prizes.get(position)?.amount ?? 0;
 }
 

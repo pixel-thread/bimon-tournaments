@@ -71,6 +71,8 @@ function PrizeBreakdownTooltip({
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const lastTapRef = useRef<number>(0);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const hasAutoScrolled = useRef(false);
 
     const handleTap = useCallback(() => {
         const now = Date.now();
@@ -82,6 +84,22 @@ function PrizeBreakdownTooltip({
             setIsOpen((o) => !o);
         }
     }, [onDoubleTap]);
+
+    // Auto-scroll down and back up on first open
+    useEffect(() => {
+        if (!isOpen || hasAutoScrolled.current || !scrollRef.current) return;
+        const el = scrollRef.current;
+        // Only auto-scroll if content overflows
+        if (el.scrollHeight <= el.clientHeight) return;
+        hasAutoScrolled.current = true;
+        const scrollDown = setTimeout(() => {
+            el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+        }, 400);
+        const scrollUp = setTimeout(() => {
+            el.scrollTo({ top: 0, behavior: "smooth" });
+        }, 1200);
+        return () => { clearTimeout(scrollDown); clearTimeout(scrollUp); };
+    }, [isOpen]);
 
     return (
         <div
@@ -96,17 +114,17 @@ function PrizeBreakdownTooltip({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 5, scale: 0.98 }}
                         transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                        className={`absolute bottom-0 right-full mr-2 z-50 rounded-lg px-4 py-2 text-sm shadow-2xl bg-gradient-to-br ${theme.header} max-h-48 overflow-y-auto`}
+                        ref={scrollRef}
+                        className={`absolute bottom-0 right-full mr-2 z-50 rounded-xl px-4 py-2.5 text-sm shadow-2xl bg-gradient-to-br ${theme.header} backdrop-blur-sm border border-white/20`}
                     >
-                        <div className="absolute inset-0 bg-black/10 rounded-lg" />
-                        <div className="relative space-y-0.5 whitespace-nowrap text-white">
+                        <div className="space-y-0.5 whitespace-nowrap text-white">
                             {(() => {
                                 const distribution = getPrizeDistribution(prizePool, entryFee, teamSize, orgPercent, orgCutMode);
-                                const medals = ["🥇", "🥈", "🥉", "🏅", "🎖️"];
+                                const getMedal = (pos: number) => pos === 1 ? "🥇" : pos === 2 ? "🥈" : pos === 3 ? "🥉" : "🏅";
                                 return Array.from(distribution.prizes.entries())
                                     .sort(([a], [b]) => a - b)
                                     .map(([position, prize]) => {
-                                        const medal = medals[position - 1] || "🏅";
+                                        const medal = getMedal(position);
                                         const ordinal =
                                             position === 1 ? "st" : position === 2 ? "nd" : position === 3 ? "rd" : "th";
                                         return (
@@ -854,13 +872,13 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                 </div>
             )}
             <div
-                className={`relative rounded-xl overflow-hidden transition-all duration-700 ease-in-out ${theme
+                className={`relative rounded-xl overflow-visible transition-all duration-700 ease-in-out ${theme
                     ? theme.card
                     : "bg-white dark:bg-gray-800 shadow-sm border game-card"
                     }`}
             >
                 {/* ─── Header with Prize Pool ─── */}
-                <div className={showThemedHeader ? "relative overflow-hidden" : ""}>
+                <div className={showThemedHeader ? "relative" : ""}>
                     {theme && <WaveBackground theme={theme} />}
 
                     <div
