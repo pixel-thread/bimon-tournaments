@@ -928,12 +928,11 @@ export function SquadCenter({
             <Modal
                 isOpen={isOpen}
                 onClose={onClose}
-                placement="top"
+                placement="center"
                 size="md"
                 scrollBehavior="inside"
                 classNames={{
-                    wrapper: "items-start pt-[10dvh] sm:pt-[15dvh]",
-                    body: "px-4 py-3 max-h-[50dvh] overflow-y-auto",
+                    body: "px-4 py-3 max-h-[60dvh] overflow-y-auto",
                 }}
             >
                 <ModalContent>
