@@ -143,6 +143,21 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        // Auto-dismiss stale "Similar IGN" duplicate alerts for this player (fire-and-forget)
+        if (updateData.displayName) {
+            prisma.duplicateAlert.updateMany({
+                where: {
+                    matchType: "DISPLAY_NAME",
+                    isReviewed: false,
+                    OR: [
+                        { player1Id: player.id },
+                        { player2Id: player.id },
+                    ],
+                },
+                data: { isReviewed: true, reviewNote: "Auto-dismissed: IGN changed" },
+            }).catch(() => {});
+        }
+
         return SuccessResponse({
             message: nameChangeFee > 0
                 ? `${GAME.ignLabel} updated (${nameChangeFee} ${GAME.currency} charged)`
