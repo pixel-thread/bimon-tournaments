@@ -237,7 +237,7 @@ export async function GET(request: Request) {
                     clan: clanData,
                     pendingClanInvites,
                     level: detailedStats
-                        ? getLevelFromXP((detailedStats.kills * 5) + (detailedStats.matches * 15) + (detailedStats.wins * 15)).level
+                        ? getLevelFromXP((detailedStats.kills * 5) + (detailedStats.matches * 25) + (detailedStats.wins * 15)).level
                         : 1,
                 }
                 : null,

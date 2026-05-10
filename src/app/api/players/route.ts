@@ -245,7 +245,7 @@ export async function GET(request: NextRequest) {
                     }
                     : null,
                 clan: playerClan,
-                level: getLevelFromXP((st.kills * 5) + (totalMatches * 15) + (wins * 15)).level,
+                level: getLevelFromXP((st.kills * 5) + (totalMatches * 25) + (wins * 15)).level,
             };
         });
 
