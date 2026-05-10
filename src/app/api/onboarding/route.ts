@@ -6,6 +6,7 @@ import { getSettings } from "@/lib/settings";
 import { GAME } from "@/lib/game-config";
 import { checkPlayerForDuplicates } from "@/lib/duplicate-check";
 import { validatePhone } from "@/lib/phone-validation";
+import { isInvisibleName } from "@/lib/name-validation";
 
 /**
  * POST /api/onboarding
@@ -54,6 +55,12 @@ export async function POST(request: NextRequest) {
         if (!displayName?.trim() || displayName.trim().length < 3) {
             return ErrorResponse({
                 message: "Display name must be at least 3 characters",
+                status: 400,
+            });
+        }
+        if (isInvisibleName(displayName)) {
+            return ErrorResponse({
+                message: "Display name must contain readable characters (Latin letters, numbers, etc.)",
                 status: 400,
             });
         }

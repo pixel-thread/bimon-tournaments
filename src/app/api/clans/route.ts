@@ -116,7 +116,6 @@ export async function GET() {
  * POST /api/clans
  * Create a new clan. Requires:
  *  - Player not already in a clan
- *  - Player has participated in >= 15 tournaments
  */
 export async function POST(request: Request) {
     try {
@@ -148,8 +147,8 @@ export async function POST(request: Request) {
         if (cleanName.length < 3 || cleanName.length > 30) {
             return ErrorResponse({ message: `${GAME.clanLabel} name must be 3–30 characters`, status: 400 });
         }
-        if (cleanTag.length < 2 || cleanTag.length > 6) {
-            return ErrorResponse({ message: "Tag must be 2–6 characters", status: 400 });
+        if (cleanTag.length < 2 || cleanTag.length > 3) {
+            return ErrorResponse({ message: "Tag must be 2–3 characters", status: 400 });
         }
         if (!/^[A-Z0-9]+$/.test(cleanTag)) {
             return ErrorResponse({ message: "Tag can only contain letters and numbers", status: 400 });
@@ -163,18 +162,6 @@ export async function POST(request: Request) {
             return ErrorResponse({ message: `You are already in a ${GAME.clanLabel.toLowerCase()}`, status: 400 });
         }
 
-        // Check tournament count (>= 15)
-        const tournamentCount = await prisma.matchPlayerPlayed.findMany({
-            where: { playerId },
-            select: { tournamentId: true },
-            distinct: ["tournamentId"],
-        });
-        if (tournamentCount.length < 15) {
-            return ErrorResponse({
-                message: `You need at least 15 tournaments played to create a ${GAME.clanLabel.toLowerCase()}. You have ${tournamentCount.length}.`,
-                status: 400,
-            });
-        }
 
         // Check uniqueness
         const [nameExists, tagExists] = await Promise.all([

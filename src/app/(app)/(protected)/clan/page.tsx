@@ -548,10 +548,10 @@ function CreateClanModal({
                     />
                     <Input
                         label="Tag"
-                        placeholder="e.g. THNDR (2-6 chars)"
+                        placeholder="e.g. TSM (2-3 chars)"
                         value={tag}
-                        onValueChange={(v) => setTag(v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
-                        maxLength={6}
+                        onValueChange={(v) => setTag(v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3))}
+                        maxLength={3}
                         variant="bordered"
                         size="sm"
                         description="Letters and numbers only. Shown as [TAG] next to your name."

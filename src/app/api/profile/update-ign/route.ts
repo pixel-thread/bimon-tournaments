@@ -6,6 +6,7 @@ import { getSettings } from "@/lib/settings";
 import { GAME } from "@/lib/game-config";
 import { debitWallet } from "@/lib/wallet-service";
 import { censorProfanity } from "@/lib/logic/profanityFilter";
+import { isInvisibleName } from "@/lib/name-validation";
 import { validatePhone } from "@/lib/phone-validation";
 
 const NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
@@ -38,6 +39,9 @@ export async function POST(req: NextRequest) {
             }
             if (displayName.length > settings.maxIGNLength) {
                 return ErrorResponse({ message: `${GAME.ignLabel} must be ${settings.maxIGNLength} characters or less`, status: 400 });
+            }
+            if (isInvisibleName(displayName)) {
+                return ErrorResponse({ message: `${GAME.ignLabel} must contain readable characters (Latin letters, numbers, etc.)`, status: 400 });
             }
         }
 
