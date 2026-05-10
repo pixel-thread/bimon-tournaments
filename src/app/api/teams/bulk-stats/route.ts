@@ -2,7 +2,7 @@ import { prisma } from "@/lib/database";
 import { getCurrentUser } from "@/lib/auth";
 import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { type NextRequest } from "next/server";
-import { awardMatchXP } from "@/lib/clan-xp";
+import { awardMatchXP } from "@/lib/xp";
 
 interface TeamStatInput {
     teamId: string;

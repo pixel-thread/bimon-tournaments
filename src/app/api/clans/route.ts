@@ -2,7 +2,7 @@ import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getAuthEmail, userWhereEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
-import { getLevelFromXP } from "@/lib/clan-xp";
+import { getLevelFromXP } from "@/lib/xp";
 
 /**
  * GET /api/clans

@@ -515,6 +515,11 @@ export default function ProfilePage() {
                                 >
                                     {uploadingProfile ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
                                 </button>
+                                {player && (
+                                    <div className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white px-1 ring-1 ring-background">
+                                        {(player as any).level ?? 1}
+                                    </div>
+                                )}
                             </div>
                             <div className="pb-0.5 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">

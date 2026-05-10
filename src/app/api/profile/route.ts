@@ -4,6 +4,7 @@ import { getAuthEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { censorProfanity } from "@/lib/logic/profanityFilter";
 import { t } from "@/lib/translations";
+import { getLevelFromXP } from "@/lib/xp";
 
 /**
  * GET /api/profile
@@ -235,6 +236,9 @@ export async function GET(request: Request) {
                         : { current: 0, longest: 0 },
                     clan: clanData,
                     pendingClanInvites,
+                    level: detailedStats
+                        ? getLevelFromXP((detailedStats.kills * 5) + (detailedStats.matches * 15) + (detailedStats.wins * 15)).level
+                        : 1,
                 }
                 : null,
         };

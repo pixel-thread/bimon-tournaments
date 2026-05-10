@@ -33,6 +33,7 @@ export interface PlayerDTO {
         tag: string;
         logoUrl: string | null;
     } | null;
+    level: number;
 }
 
 export interface PlayersMeta {

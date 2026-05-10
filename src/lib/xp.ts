@@ -109,7 +109,7 @@ export async function awardMatchXP(
         const clanId = playerClanMap.get(s.playerId);
         if (!clanId) continue;
 
-        // +10 XP for playing a match (if not absent — kills !== null)
+        // +10 XP for playing a match (biggest source — rewards activity)
         if (s.kills !== null) {
             addXP(clanId, 10);
         }
@@ -119,13 +119,13 @@ export async function awardMatchXP(
             addXP(clanId, s.kills * 5);
         }
 
-        // Team-based bonuses (only award once per clan per team)
+        // Team-based bonuses
         const pos = teamPositions.get(s.teamId);
         if (pos !== null && pos !== undefined) {
             if (pos === 1) {
-                addXP(clanId, 12); // 50 XP total split ~4 ways ≈ 12 per member
+                addXP(clanId, 8);  // 30 XP total split ~4 ways ≈ 8 per member
             } else if (pos <= 3) {
-                addXP(clanId, 6);  // 25 XP total split ~4 ways ≈ 6 per member
+                addXP(clanId, 4);  // ~15 XP total split ~4 ways ≈ 4 per member
             }
         }
     }

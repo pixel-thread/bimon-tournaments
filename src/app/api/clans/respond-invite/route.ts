@@ -2,7 +2,7 @@ import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { getAuthEmail, userWhereEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
-import { awardClanXP } from "@/lib/clan-xp";
+import { awardClanXP } from "@/lib/xp";
 
 /**
  * POST /api/clans/respond-invite

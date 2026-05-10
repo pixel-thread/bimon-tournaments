@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { type NextRequest } from "next/server";
-import { getLevelFromXP } from "@/lib/clan-xp";
+import { getLevelFromXP } from "@/lib/xp";
 
 /**
  * GET /api/clans/public?search=xxx

@@ -280,11 +280,16 @@ export function PlayerStatsModal({
 
                         {/* Player info overlay */}
                         <div className="absolute bottom-4 left-4 flex items-end gap-3">
-                            <Avatar
-                                src={player.imageUrl || undefined}
-                                name={name}
-                                className="h-14 w-14 ring-2 ring-background"
-                            />
+                            <div className="relative">
+                                <Avatar
+                                    src={player.imageUrl || undefined}
+                                    name={name}
+                                    className="h-14 w-14 ring-2 ring-background"
+                                />
+                                <div className="absolute -bottom-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white px-1 ring-1 ring-background">
+                                    {player.level}
+                                </div>
+                            </div>
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h2
