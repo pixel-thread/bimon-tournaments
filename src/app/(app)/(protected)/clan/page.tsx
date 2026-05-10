@@ -16,6 +16,12 @@ import {
     ModalHeader,
     ModalBody,
     ModalFooter,
+    Dropdown,
+    DropdownTrigger,
+    DropdownMenu,
+    DropdownItem,
+    Progress,
+    Switch,
 } from "@heroui/react";
 import {
     Shield,
@@ -31,6 +37,15 @@ import {
     Ban,
     Loader2,
     Camera,
+    MoreVertical,
+    ShieldCheck,
+    ShieldOff,
+    ArrowUpRight,
+    Wallet,
+    ArrowDownToLine,
+    ArrowUpFromLine,
+    Eye,
+    EyeOff,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -45,7 +60,7 @@ interface ClanMember {
     id: string;
     displayName: string;
     imageUrl: string | null;
-    role: "LEADER" | "MEMBER";
+    role: "LEADER" | "CO_LEADER" | "MEMBER";
     joinedAt: string;
 }
 
@@ -56,8 +71,31 @@ interface ClanData {
     description: string | null;
     logoUrl: string | null;
     leaderId: string;
-    myRole: "LEADER" | "MEMBER";
+    level: number;
+    levelProgress: number;
+    myRole: "LEADER" | "CO_LEADER" | "MEMBER";
     members: ClanMember[];
+}
+
+interface TreasuryData {
+    balance: number;
+    showTreasuryPublic: boolean;
+    isLeaderOrCoLeader: boolean;
+    pendingRequests: {
+        id: string;
+        amount: number;
+        message: string | null;
+        createdAt: string;
+        player: { id: string; displayName: string; imageUrl: string | null };
+    }[];
+    transactions: {
+        id: string;
+        amount: number;
+        type: string;
+        description: string;
+        createdAt: string;
+        playerName: string;
+    }[];
 }
 
 interface PendingInvite {
@@ -90,6 +128,42 @@ export default function ClanPage() {
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [kickTarget, setKickTarget] = useState<ClanMember | null>(null);
     const [uploadingLogo, setUploadingLogo] = useState(false);
+    const [changingRole, setChangingRole] = useState<string | null>(null);
+
+    // Treasury state
+    const [showDepositModal, setShowDepositModal] = useState(false);
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+    const [depositAmount, setDepositAmount] = useState("");
+    const [withdrawAmount, setWithdrawAmount] = useState("");
+    const [withdrawMessage, setWithdrawMessage] = useState("");
+    const [treasuryLoading, setTreasuryLoading] = useState(false);
+
+    const handleRoleChange = async (memberId: string, action: "PROMOTE_CO_LEADER" | "DEMOTE" | "TRANSFER_LEADER") => {
+        if (action === "TRANSFER_LEADER" && !confirm("Transfer leadership? You will become a regular member. This cannot be undone.")) return;
+        setChangingRole(memberId);
+        try {
+            const res = await fetch("/api/clans/change-role", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ targetPlayerId: memberId, action }),
+            });
+            if (res.ok) {
+                toast.success(
+                    action === "PROMOTE_CO_LEADER" ? "Promoted to Co-Leader" :
+                    action === "DEMOTE" ? "Demoted to Member" :
+                    "Leadership transferred"
+                );
+                invalidate();
+            } else {
+                const json = await res.json();
+                toast.error(json.message || "Failed");
+            }
+        } catch {
+            toast.error("Network error");
+        } finally {
+            setChangingRole(null);
+        }
+    };
 
     // Fetch clan data + pending invites
     const { data, isLoading } = useQuery<{
@@ -109,11 +183,104 @@ export default function ClanPage() {
     const clan = data?.clan ?? null;
     const pendingInvites = data?.pendingInvites ?? [];
     const isLeader = clan?.myRole === "LEADER";
+    const isLeaderOrCoLeader = clan?.myRole === "LEADER" || clan?.myRole === "CO_LEADER";
 
     const invalidate = () => {
         queryClient.invalidateQueries({ queryKey: ["my-clan"] });
         queryClient.invalidateQueries({ queryKey: ["clan-invite-count"] });
         queryClient.invalidateQueries({ queryKey: ["profile"] });
+        queryClient.invalidateQueries({ queryKey: ["clan-treasury"] });
+    };
+
+    // Fetch treasury data
+    const { data: treasury } = useQuery<TreasuryData>({
+        queryKey: ["clan-treasury"],
+        queryFn: async () => {
+            const res = await fetch("/api/clans/treasury");
+            if (!res.ok) return null;
+            const json = await res.json();
+            return json.data;
+        },
+        enabled: !!clan,
+        staleTime: 15_000,
+    });
+
+    const handleDeposit = async () => {
+        const amount = parseInt(depositAmount);
+        if (!amount || amount <= 0) return toast.error("Enter a valid amount");
+        setTreasuryLoading(true);
+        try {
+            const res = await fetch("/api/clans/treasury/deposit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ amount }),
+            });
+            const json = await res.json();
+            if (res.ok) {
+                toast.success(json.message);
+                setShowDepositModal(false);
+                setDepositAmount("");
+                invalidate();
+            } else {
+                toast.error(json.message);
+            }
+        } catch { toast.error("Network error"); }
+        finally { setTreasuryLoading(false); }
+    };
+
+    const handleWithdrawRequest = async () => {
+        const amount = parseInt(withdrawAmount);
+        if (!amount || amount <= 0) return toast.error("Enter a valid amount");
+        setTreasuryLoading(true);
+        try {
+            const res = await fetch("/api/clans/treasury/withdraw-request", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ amount, message: withdrawMessage }),
+            });
+            const json = await res.json();
+            if (res.ok) {
+                toast.success(json.message);
+                setShowWithdrawModal(false);
+                setWithdrawAmount("");
+                setWithdrawMessage("");
+                invalidate();
+            } else {
+                toast.error(json.message);
+            }
+        } catch { toast.error("Network error"); }
+        finally { setTreasuryLoading(false); }
+    };
+
+    const handleReviewRequest = async (requestId: string, action: "APPROVE" | "REJECT") => {
+        try {
+            const res = await fetch("/api/clans/treasury/review", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ requestId, action }),
+            });
+            const json = await res.json();
+            if (res.ok) {
+                toast.success(json.message);
+                invalidate();
+            } else {
+                toast.error(json.message);
+            }
+        } catch { toast.error("Network error"); }
+    };
+
+    const handleToggleTreasuryPublic = async (value: boolean) => {
+        try {
+            const res = await fetch("/api/clans/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ showTreasuryPublic: value }),
+            });
+            if (res.ok) {
+                toast.success(value ? "Treasury visible on public page" : "Treasury hidden from public");
+                invalidate();
+            }
+        } catch { toast.error("Network error"); }
     };
 
     // ─── Loading State ──────────────────────────────────────
@@ -143,13 +310,21 @@ export default function ClanPage() {
                         {clan ? `[${clan.tag}] ${clan.name}` : `Create or join a ${labelLower}`}
                     </p>
                 </div>
+                {/* Browse clans link */}
+                <button
+                    onClick={() => router.push("/clans")}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-default-100 text-foreground/60 text-xs font-medium hover:bg-default-200 transition-colors"
+                >
+                    <Users className="h-3.5 w-3.5" />
+                    Browse
+                </button>
                 {isAdmin && (
                     <button
                         onClick={() => router.push("/dashboard/clan")}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
                     >
                         <Shield className="h-3.5 w-3.5" />
-                        All {label}s
+                        Admin
                     </button>
                 )}
             </div>
@@ -291,7 +466,130 @@ export default function ClanPage() {
                         </Button>
                     )}
 
-                    {/* Member list */}
+                    {/* ─── Level Bar ─── */}
+                    <div className="flex items-center gap-3 p-3 rounded-xl border border-divider bg-default-50">
+                        <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10">
+                            <span className="text-sm font-bold text-primary">{clan.level}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-medium">Level {clan.level}</span>
+                                <span className="text-[10px] text-foreground/40">{clan.levelProgress}%</span>
+                            </div>
+                            <Progress
+                                value={clan.levelProgress}
+                                size="sm"
+                                color="primary"
+                                classNames={{ track: "h-1.5", indicator: "h-1.5" }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* ─── Treasury ─── */}
+                    {treasury && (
+                        <div className="space-y-2">
+                            <div className="p-3 rounded-xl border border-divider bg-default-50">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <Wallet className="h-4 w-4 text-primary" />
+                                        <span className="text-xs font-semibold">Treasury</span>
+                                    </div>
+                                    <span className="text-sm font-bold">{treasury.balance.toLocaleString()} {GAME.currency}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="flat"
+                                        color="success"
+                                        className="flex-1 text-xs"
+                                        startContent={<ArrowDownToLine className="h-3 w-3" />}
+                                        onPress={() => setShowDepositModal(true)}
+                                    >
+                                        Deposit
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="flat"
+                                        color="warning"
+                                        className="flex-1 text-xs"
+                                        startContent={<ArrowUpFromLine className="h-3 w-3" />}
+                                        onPress={() => setShowWithdrawModal(true)}
+                                    >
+                                        Request
+                                    </Button>
+                                </div>
+
+                                {/* Public visibility toggle — Leader only */}
+                                {isLeader && (
+                                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-divider">
+                                        <div className="flex items-center gap-1.5">
+                                            {treasury.showTreasuryPublic ? <Eye className="h-3 w-3 text-foreground/40" /> : <EyeOff className="h-3 w-3 text-foreground/40" />}
+                                            <span className="text-[10px] text-foreground/40">Show on public page</span>
+                                        </div>
+                                        <Switch
+                                            size="sm"
+                                            isSelected={treasury.showTreasuryPublic}
+                                            onValueChange={handleToggleTreasuryPublic}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Pending Requests — Leader/Co-Leader */}
+                            {isLeaderOrCoLeader && treasury.pendingRequests.length > 0 && (
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider flex items-center gap-1.5">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
+                                        Pending Requests ({treasury.pendingRequests.length})
+                                    </p>
+                                    {treasury.pendingRequests.map((req) => (
+                                        <div key={req.id} className="p-3 rounded-xl border border-warning/30 bg-warning/5">
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                                <Avatar src={req.player.imageUrl || undefined} name={req.player.displayName} className="h-6 w-6" />
+                                                <span className="text-xs font-medium flex-1 truncate">{req.player.displayName}</span>
+                                                <span className="text-xs font-bold">{req.amount} {GAME.currency}</span>
+                                            </div>
+                                            {req.message && (
+                                                <p className="text-[10px] text-foreground/40 mb-2 italic">&quot;{req.message}&quot;</p>
+                                            )}
+                                            <div className="flex gap-2">
+                                                <Button size="sm" color="success" variant="flat" className="flex-1 text-xs h-7" onPress={() => handleReviewRequest(req.id, "APPROVE")}>
+                                                    <Check className="h-3 w-3" /> Approve
+                                                </Button>
+                                                <Button size="sm" color="danger" variant="flat" className="flex-1 text-xs h-7" onPress={() => handleReviewRequest(req.id, "REJECT")}>
+                                                    <X className="h-3 w-3" /> Reject
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Transaction History */}
+                            {treasury.transactions.length > 0 && (
+                                <div>
+                                    <p className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider mb-1.5">Recent Activity</p>
+                                    <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
+                                        {treasury.transactions.map((tx) => (
+                                            <div key={tx.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg">
+                                                <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 ${tx.type === "CREDIT" ? "bg-success/10" : "bg-danger/10"}`}>
+                                                    {tx.type === "CREDIT"
+                                                        ? <ArrowDownToLine className="h-2.5 w-2.5 text-success" />
+                                                        : <ArrowUpFromLine className="h-2.5 w-2.5 text-danger" />
+                                                    }
+                                                </div>
+                                                <span className="text-[10px] text-foreground/60 flex-1 min-w-0 truncate">{tx.description}</span>
+                                                <span className="text-[10px] text-foreground/30 shrink-0">
+                                                    {new Date(tx.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div>
                         <p className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider mb-2">
                             Members
@@ -315,19 +613,65 @@ export default function ClanPage() {
                                             {member.role === "LEADER" && (
                                                 <Crown className="h-3 w-3 text-yellow-500 shrink-0" />
                                             )}
+                                            {member.role === "CO_LEADER" && (
+                                                <ShieldCheck className="h-3 w-3 text-primary shrink-0" />
+                                            )}
                                         </div>
                                         <p className="text-[10px] text-foreground/30">
+                                            {member.role === "LEADER" ? "Leader" : member.role === "CO_LEADER" ? "Co-Leader" : "Member"}
+                                            {" · "}
                                             Joined {new Date(member.joinedAt).toLocaleDateString()}
                                         </p>
                                     </div>
                                     {isLeader && member.id !== clan.leaderId && (
-                                        <button
-                                            onClick={() => setKickTarget(member)}
-                                            className="p-1.5 rounded-full hover:bg-danger/10 text-foreground/30 hover:text-danger transition-colors"
-                                            title="Kick member"
-                                        >
-                                            <X className="h-3.5 w-3.5" />
-                                        </button>
+                                        <Dropdown placement="bottom-end">
+                                            <DropdownTrigger>
+                                                <button
+                                                    className="p-1.5 rounded-full hover:bg-default-200 text-foreground/40 hover:text-foreground/70 transition-colors"
+                                                    disabled={changingRole === member.id}
+                                                >
+                                                    {changingRole === member.id
+                                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        : <MoreVertical className="h-3.5 w-3.5" />
+                                                    }
+                                                </button>
+                                            </DropdownTrigger>
+                                            <DropdownMenu aria-label="Member actions">
+                                                {member.role === "MEMBER" ? (
+                                                    <DropdownItem
+                                                        key="promote"
+                                                        startContent={<ShieldCheck className="h-3.5 w-3.5" />}
+                                                        onPress={() => handleRoleChange(member.id, "PROMOTE_CO_LEADER")}
+                                                    >
+                                                        Promote to Co-Leader
+                                                    </DropdownItem>
+                                                ) : (
+                                                    <DropdownItem
+                                                        key="demote"
+                                                        startContent={<ShieldOff className="h-3.5 w-3.5" />}
+                                                        onPress={() => handleRoleChange(member.id, "DEMOTE")}
+                                                    >
+                                                        Demote to Member
+                                                    </DropdownItem>
+                                                )}
+                                                <DropdownItem
+                                                    key="transfer"
+                                                    startContent={<ArrowUpRight className="h-3.5 w-3.5" />}
+                                                    onPress={() => handleRoleChange(member.id, "TRANSFER_LEADER")}
+                                                    className="text-warning"
+                                                >
+                                                    Appoint as Leader
+                                                </DropdownItem>
+                                                <DropdownItem
+                                                    key="kick"
+                                                    color="danger"
+                                                    startContent={<X className="h-3.5 w-3.5" />}
+                                                    onPress={() => setKickTarget(member)}
+                                                >
+                                                    Kick
+                                                </DropdownItem>
+                                            </DropdownMenu>
+                                        </Dropdown>
                                     )}
                                 </div>
                             ))}
@@ -368,6 +712,61 @@ export default function ClanPage() {
                     }}
                 />
             )}
+
+            {/* Deposit Modal */}
+            <Modal isOpen={showDepositModal} onClose={() => setShowDepositModal(false)} size="sm">
+                <ModalContent>
+                    <ModalHeader className="text-sm">Deposit to Treasury</ModalHeader>
+                    <ModalBody>
+                        <Input
+                            type="number"
+                            label={`Amount (${GAME.currency})`}
+                            placeholder="Enter amount"
+                            value={depositAmount}
+                            onValueChange={setDepositAmount}
+                            variant="bordered"
+                            size="sm"
+                        />
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button variant="flat" size="sm" onPress={() => setShowDepositModal(false)}>Cancel</Button>
+                        <Button color="success" size="sm" isLoading={treasuryLoading} onPress={handleDeposit}>Deposit</Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* Withdraw Request Modal */}
+            <Modal isOpen={showWithdrawModal} onClose={() => setShowWithdrawModal(false)} size="sm">
+                <ModalContent>
+                    <ModalHeader className="text-sm">Request Withdrawal</ModalHeader>
+                    <ModalBody>
+                        <Input
+                            type="number"
+                            label={`Amount (${GAME.currency})`}
+                            placeholder="Enter amount"
+                            value={withdrawAmount}
+                            onValueChange={setWithdrawAmount}
+                            variant="bordered"
+                            size="sm"
+                        />
+                        <Input
+                            label="Reason (optional)"
+                            placeholder="Why do you need the funds?"
+                            value={withdrawMessage}
+                            onValueChange={setWithdrawMessage}
+                            variant="bordered"
+                            size="sm"
+                        />
+                        <p className="text-[10px] text-foreground/40">
+                            Your request will be reviewed by the Leader or Co-Leader.
+                        </p>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button variant="flat" size="sm" onPress={() => setShowWithdrawModal(false)}>Cancel</Button>
+                        <Button color="warning" size="sm" isLoading={treasuryLoading} onPress={handleWithdrawRequest}>Submit Request</Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
 
             {/* Leave Confirm Modal */}
             <LeaveConfirmModal
@@ -548,10 +947,10 @@ function CreateClanModal({
                     />
                     <Input
                         label="Tag"
-                        placeholder="e.g. TSM (2-3 chars)"
+                        placeholder="e.g. TSM (2-4 chars)"
                         value={tag}
-                        onValueChange={(v) => setTag(v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3))}
-                        maxLength={3}
+                        onValueChange={(v) => setTag(v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4))}
+                        maxLength={4}
                         variant="bordered"
                         size="sm"
                         description="Letters and numbers only. Shown as [TAG] next to your name."
@@ -694,7 +1093,6 @@ function InvitePlayerModal({
                                             {p.displayName}
                                         </span>
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-[10px] text-foreground/40">@{p.username}</span>
                                             <CategoryBadge category={p.category} size="sm" />
                                         </div>
                                     </div>

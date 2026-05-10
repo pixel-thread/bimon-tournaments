@@ -2,6 +2,7 @@ import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getAuthEmail, userWhereEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
+import { getLevelFromXP } from "@/lib/clan-xp";
 
 /**
  * GET /api/clans
@@ -78,6 +79,8 @@ export async function GET() {
                 description: membership.clan.description,
                 logoUrl: membership.clan.logoUrl,
                 leaderId: membership.clan.leaderId,
+                level: membership.clan.level,
+                levelProgress: getLevelFromXP(membership.clan.xp).progress,
                 myRole: membership.role,
                 members: membership.clan.members.map((m) => ({
                     id: m.player.id,
@@ -147,8 +150,8 @@ export async function POST(request: Request) {
         if (cleanName.length < 3 || cleanName.length > 30) {
             return ErrorResponse({ message: `${GAME.clanLabel} name must be 3–30 characters`, status: 400 });
         }
-        if (cleanTag.length < 2 || cleanTag.length > 3) {
-            return ErrorResponse({ message: "Tag must be 2–3 characters", status: 400 });
+        if (cleanTag.length < 2 || cleanTag.length > 4) {
+            return ErrorResponse({ message: "Tag must be 2–4 characters", status: 400 });
         }
         if (!/^[A-Z0-9]+$/.test(cleanTag)) {
             return ErrorResponse({ message: "Tag can only contain letters and numbers", status: 400 });

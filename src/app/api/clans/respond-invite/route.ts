@@ -2,6 +2,7 @@ import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { getAuthEmail, userWhereEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
+import { awardClanXP } from "@/lib/clan-xp";
 
 /**
  * POST /api/clans/respond-invite
@@ -90,6 +91,13 @@ export async function POST(request: Request) {
                 data: { status: "DECLINED", respondedAt: new Date() },
             }),
         ]);
+
+        // Award clan XP for new member joining
+        try {
+            await awardClanXP(invite.clanId, 20, prisma);
+        } catch {
+            // Don't fail if XP awarding fails
+        }
 
         return SuccessResponse({ data: { status: "ACCEPTED", clanName: invite.clan.name } });
     } catch (error) {

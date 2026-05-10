@@ -259,6 +259,9 @@ model Player {
   clanLed               Clan?              @relation("ClanLeader")
   clanMembership        ClanMember?
   clanInvites           ClanInvite[]
+  clanTransactions      ClanTransaction[]
+  clanWithdrawRequests  ClanWithdrawRequest[] @relation("ClanWithdrawRequester")
+  clanWithdrawReviews   ClanWithdrawRequest[] @relation("ClanWithdrawReviewer")
 
   // Sponsor coupons
   isCouponVerifier      Boolean            @default(false)
@@ -1458,16 +1461,27 @@ model Clan {
   logoUrl     String?                            // Clan logo image (ImgBB)
   leaderId    String   @unique                   // One clan per leader
 
+  // Leveling (XP is hidden from players)
+  xp                 Int     @default(0)
+  level              Int     @default(1)
+
+  // Treasury
+  balance            Int     @default(0)
+  showTreasuryPublic Boolean @default(false)     // Leader toggle
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  leader      Player       @relation("ClanLeader", fields: [leaderId], references: [id], onDelete: Cascade)
-  members     ClanMember[]
-  invites     ClanInvite[]
-  squads      Squad[]
-  teams       Team[]    @relation("ClanTeams")
+  leader           Player               @relation("ClanLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+  members          ClanMember[]
+  invites          ClanInvite[]
+  squads           Squad[]
+  teams            Team[]               @relation("ClanTeams")
+  transactions     ClanTransaction[]
+  withdrawRequests ClanWithdrawRequest[]
 
   @@index([name])
+  @@index([level(sort: Desc)])
 }
 
 /// Membership in a clan. A player can only be in ONE clan.
@@ -1502,4 +1516,49 @@ model ClanInvite {
   @@unique([clanId, playerId])
   @@index([playerId, status])
   @@index([clanId, status])
+}
+
+/// Clan treasury transaction ledger.
+model ClanTransaction {
+  id          String          @id @default(uuid())
+  clanId      String
+  playerId    String
+  amount      Int
+  type        TransactionType // CREDIT (deposit) or DEBIT (withdrawal)
+  description String
+
+  createdAt DateTime @default(now())
+
+  clan   Clan   @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([clanId, createdAt(sort: Desc)])
+}
+
+/// Withdrawal request from a clan member — requires Leader/Co-Leader approval.
+model ClanWithdrawRequest {
+  id         String                    @id @default(uuid())
+  clanId     String
+  playerId   String
+  amount     Int
+  status     ClanWithdrawRequestStatus @default(PENDING)
+  message    String?                   // Requester's reason
+  reviewerId String?                   // Who approved/rejected
+  reviewNote String?                   // Reviewer's note
+
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+
+  clan     Clan    @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  player   Player  @relation("ClanWithdrawRequester", fields: [playerId], references: [id], onDelete: Cascade)
+  reviewer Player? @relation("ClanWithdrawReviewer", fields: [reviewerId], references: [id])
+
+  @@index([clanId, status])
+  @@index([playerId])
+}
+
+enum ClanWithdrawRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

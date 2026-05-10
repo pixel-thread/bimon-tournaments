@@ -2,6 +2,7 @@ import { prisma } from "@/lib/database";
 import { getCurrentUser } from "@/lib/auth";
 import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { type NextRequest } from "next/server";
+import { awardMatchXP } from "@/lib/clan-xp";
 
 interface TeamStatInput {
     teamId: string;
@@ -122,6 +123,21 @@ export async function PUT(request: NextRequest) {
                     });
                 }
             }
+        }
+
+        // Award clan XP silently
+        try {
+            const xpStats = stats.flatMap((ts) =>
+                ts.players.map((p) => ({
+                    playerId: p.playerId,
+                    kills: p.present ? p.kills : null,
+                    position: ts.position,
+                    teamId: ts.teamId,
+                }))
+            );
+            await awardMatchXP(xpStats, prisma);
+        } catch {
+            // Don't fail the request if XP awarding fails
         }
 
         return SuccessResponse({ message: "Stats updated successfully" });
