@@ -1404,6 +1404,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             currentPlayerId={currentPlayerId ?? ""}
                             theme={theme}
                             hasVotedIn={poll.userVote === "IN" || poll.userVote === "SOLO"}
+                            whatsappGroupLink={poll.whatsappGroupLink}
                             inVoters={(votersByVote["IN"] ?? []).map(v => ({
                                 playerId: v.playerId,
                                 displayName: v.displayName,
@@ -1417,6 +1418,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             pollId={poll.id}
                             tournamentName={tournament?.name || poll.question}
                             entryFee={entryFee}
+                            whatsappGroupLink={poll.whatsappGroupLink}
                         />
                     </>
                 )}

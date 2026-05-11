@@ -798,6 +798,7 @@ model Poll {
   enableFund      Boolean   @default(true)
   prizePoolFee    Int?      // Per-entry amount going to prize pool (null = same as tournament fee)
   expectedPrizePool Int?    // Admin-set expected prize pool for share/registration links
+  whatsappGroupLink String?  // WhatsApp group invite link for squad captains
   startDate    DateTime  @default(now())
   endDate      DateTime?
   tournamentId String    @unique

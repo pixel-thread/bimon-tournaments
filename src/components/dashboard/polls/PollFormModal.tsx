@@ -36,6 +36,7 @@ interface PollDTO {
     enableFund?: boolean;
     prizePoolFee?: number | null;
     expectedPrizePool?: number | null;
+    whatsappGroupLink?: string | null;
     isActive: boolean;
     options?: PollOptionDTO[];
     tournament?: { id: string; name: string; fee: number; type?: string };
@@ -83,6 +84,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [options, setOptions] = useState<PollOptionDTO[]>([]);
     const [saving, setSaving] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
+    const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
 
     // Load tournaments for select
     const { data: tournaments } = useQuery<TournamentOption[]>({
@@ -114,6 +116,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setExpectedPrizePool(poll.expectedPrizePool != null ? String(poll.expectedPrizePool) : "");
             setArenaMode("none"); // Arena mode is determined by tournament flags, not poll
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
+            setWhatsappGroupLink(poll.whatsappGroupLink ?? "");
         } else {
             setQuestion("");
             setDays("Monday");
@@ -129,6 +132,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setPrizePoolFee("");
             setExpectedPrizePool("");
             setArenaMode("none");
+            setWhatsappGroupLink("");
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
                 ? [
@@ -184,6 +188,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     scheduledDate: scheduledDate || null,
                     scheduledTime,
                     options: options.map(o => ({ id: o.id, name: o.name })),
+                    whatsappGroupLink: whatsappGroupLink.trim() || null,
                     // Send tournament format on edit too (PES)
                     ...(!GAME.features.hasTeamSizes && { tournamentType: tournamentFormat }),
                 }
@@ -200,6 +205,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     ...(arenaMode === "wow" && { isWoW: true }),
                     // Send custom option names
                     options: options.map(o => ({ name: o.name, vote: o.vote })),
+                    whatsappGroupLink: whatsappGroupLink.trim() || null,
                 };
 
             const res = await fetch("/api/polls", {
@@ -219,7 +225,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, isChampionship, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, arenaMode, options, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, isChampionship, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, arenaMode, options, whatsappGroupLink, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -539,6 +545,19 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                             size="sm"
                             type="number"
                             inputMode="numeric"
+                        />
+                    )}
+
+                    {/* WhatsApp Group Link — for squad captains */}
+                    {allowSquads && (
+                        <Input
+                            label="WhatsApp Group Link"
+                            placeholder="https://chat.whatsapp.com/..."
+                            description="Squad captains will see this link to join the tournament group"
+                            value={whatsappGroupLink}
+                            onValueChange={setWhatsappGroupLink}
+                            size="sm"
+                            startContent={<span className="text-sm">💬</span>}
                         />
                     )}
 
