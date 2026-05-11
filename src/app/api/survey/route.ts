@@ -42,14 +42,14 @@ export async function POST(req: NextRequest) {
         const { maps, timing, device } = body;
 
         // Validate maps — exactly 2, from valid list
-        if (!Array.isArray(maps) || maps.length !== 2) {
-            return ErrorResponse({ message: "Please select exactly 2 maps", status: 400 });
+        if (!Array.isArray(maps) || maps.length !== 3) {
+            return ErrorResponse({ message: "Please select exactly 3 maps", status: 400 });
         }
         if (!maps.every((m: string) => VALID_MAPS.includes(m))) {
             return ErrorResponse({ message: "Invalid map selection", status: 400 });
         }
-        if (maps[0] === maps[1]) {
-            return ErrorResponse({ message: "Please select 2 different maps", status: 400 });
+        if (new Set(maps).size !== 3) {
+            return ErrorResponse({ message: "Please select 3 different maps", status: 400 });
         }
 
         // Validate timing

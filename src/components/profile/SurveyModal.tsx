@@ -73,11 +73,11 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
     const [device, setDevice] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
-    // Toggle map selection (max 2 — 3rd click replaces the 2nd)
+    // Toggle map selection (max 3 — 4th click replaces the 3rd)
     const toggleMap = (name: string) => {
         setSelectedMaps((prev) => {
             if (prev.includes(name)) return prev.filter((m) => m !== name);
-            if (prev.length >= 2) return [prev[0], name]; // replace 2nd pick
+            if (prev.length >= 3) return [...prev.slice(0, 2), name]; // replace 3rd pick
             return [...prev, name];
         });
     };
@@ -90,7 +90,7 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
     const effectiveTiming = customTiming ? customTimeInput.trim() : selectedTiming;
 
     const canSubmit =
-        selectedMaps.length === 2 &&
+        selectedMaps.length === 3 &&
         effectiveTiming.length > 0 &&
         device.length > 0;
 
@@ -191,7 +191,7 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
                                         <div className="flex items-center gap-1.5 mb-2">
                                             <MapPin className="w-3.5 h-3.5 text-primary" />
                                             <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wider">
-                                                Favourite Maps <span className="text-foreground/30">(pick 2)</span>
+                                                Favourite Maps <span className="text-foreground/30">(pick 3)</span>
                                             </p>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
