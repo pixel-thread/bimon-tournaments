@@ -57,15 +57,18 @@ export default function SocialsPage() {
         });
     }
 
+    const groupLabels = ["📢 Main Group", "🎮 Casual Room ID", "💬 Community Chat"];
+    const groupDescs = ["Announcements & updates", "Get room ID & password for casual matches", "Open chat — discuss with the community"];
+
     whatsappGroups.forEach((url, i) => {
         if (url) {
             links.push({
-                label: i === 0 ? "WhatsApp Group" : `WhatsApp Group ${i + 1}`,
+                label: groupLabels[i] || `WhatsApp Group ${i + 1}`,
                 url,
                 icon: <WhatsAppIcon className="h-6 w-6" />,
                 color: "text-[#25D366]",
                 bgColor: "bg-[#25D366]/10 border-[#25D366]/20",
-                description: i === 0 ? "Join the main community group" : "Join our second group",
+                description: groupDescs[i] || "Join our WhatsApp group",
                 action: "Join",
             });
         }

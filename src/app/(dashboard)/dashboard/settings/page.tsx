@@ -750,29 +750,44 @@ export default function SettingsPage() {
                     </div>
                 </CardHeader>
                 <CardBody className="gap-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-3">
                         <Input
-                            label="WhatsApp Group 1"
+                            label="📢 Main Group (Announcements)"
                             size="sm"
                             value={(settings.whatsAppGroups || [])[0] || ""}
                             onValueChange={(v) => {
-                                const groups = [...(settings.whatsAppGroups || ["", ""])];
+                                const groups = [...(settings.whatsAppGroups || ["", "", ""])];
                                 groups[0] = v;
-                                update("whatsAppGroups", groups.filter((_, i) => i < 2));
+                                update("whatsAppGroups", groups.slice(0, 3));
                             }}
                             placeholder="https://chat.whatsapp.com/..."
+                            description="Shown after onboarding — every new player must join"
                             startContent={<WhatsAppIcon className="w-4 h-4 text-[#25D366]" />}
                         />
                         <Input
-                            label="WhatsApp Group 2"
+                            label="🎮 Casual Room ID Group"
                             size="sm"
                             value={(settings.whatsAppGroups || [])[1] || ""}
                             onValueChange={(v) => {
-                                const groups = [...(settings.whatsAppGroups || ["", ""])];
+                                const groups = [...(settings.whatsAppGroups || ["", "", ""])];
                                 groups[1] = v;
-                                update("whatsAppGroups", groups.filter((_, i) => i < 2));
+                                update("whatsAppGroups", groups.slice(0, 3));
                             }}
                             placeholder="https://chat.whatsapp.com/..."
+                            description="Casual players join for room ID & password"
+                            startContent={<WhatsAppIcon className="w-4 h-4 text-[#25D366]" />}
+                        />
+                        <Input
+                            label="💬 Community Chat Group"
+                            size="sm"
+                            value={(settings.whatsAppGroups || [])[2] || ""}
+                            onValueChange={(v) => {
+                                const groups = [...(settings.whatsAppGroups || ["", "", ""])];
+                                groups[2] = v;
+                                update("whatsAppGroups", groups.slice(0, 3));
+                            }}
+                            placeholder="https://chat.whatsapp.com/..."
+                            description="Open chat group — shown on the community page"
                             startContent={<WhatsAppIcon className="w-4 h-4 text-[#25D366]" />}
                         />
                     </div>

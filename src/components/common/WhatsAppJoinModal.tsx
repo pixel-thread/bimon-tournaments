@@ -59,11 +59,12 @@ export function WhatsAppJoinModal({
             .then((res) => res.json())
             .then((json) => {
                 const links: string[] = json.data?.whatsAppGroups || [];
+                const groupNames = ["📢 Main Group", "🎮 Casual Room ID", "💬 Community Chat"];
                 const groups = links
                     .filter((link) => link && link.trim())
                     .map((link, i) => ({
                         id: `group${i + 1}`,
-                        name: `Group ${i + 1}`,
+                        name: groupNames[i] || `Group ${i + 1}`,
                         link: link.trim(),
                     }));
                 setLoadedGroups(groups);
