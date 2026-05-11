@@ -6,7 +6,7 @@ import { usePolls, useVote, useEntryMutation } from "@/hooks/use-polls";
 import { PollCard } from "@/components/vote/poll-card";
 
 import { MeritRatingSection } from "@/components/vote/merit-rating-gate";
-import { RoomInfoGenerator } from "@/components/vote/room-info-generator";
+
 import { VotePageJobListings } from "@/components/vote/vote-page-jobs";
 import { AdSlot } from "@/components/common/AdSlot";
 import { Skeleton, Card, CardBody, Divider } from "@heroui/react";
@@ -57,7 +57,6 @@ export default function VotePage() {
     const polls = data?.polls;
     const currentPlayerId = data?.currentPlayerId ?? undefined;
     const isCouponVerifier = data?.isCouponVerifier ?? false;
-    const isUCExempt = data?.isUCExempt ?? false;
     const pendingPollId = voteMutation.isPending ? voteMutation.variables?.pollId : undefined;
     const pendingVote = voteMutation.isPending ? voteMutation.variables?.vote : undefined;
 
@@ -159,10 +158,7 @@ export default function VotePage() {
             {/* ── Merit Rating (non-blocking, above polls) ────── */}
             <MeritRatingSection />
 
-            {/* ── Room Info Generator (UC-exempt room creators only) ── */}
-            {isUCExempt && (
-                <RoomInfoGenerator />
-            )}
+
 
             {/* ── Casual / Ranked Tabs (premium animated) ── */}
             {hasBothTypes && (

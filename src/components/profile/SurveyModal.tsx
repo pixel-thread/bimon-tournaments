@@ -72,6 +72,13 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
     const [platform, setPlatform] = useState("");
     const [device, setDevice] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [showSkip, setShowSkip] = useState(false);
+
+    // Delay skip button visibility by 5 seconds
+    useEffect(() => {
+        const timer = setTimeout(() => setShowSkip(true), 5000);
+        return () => clearTimeout(timer);
+    }, []);
 
     // Toggle map selection (max 4 — 5th click replaces the 4th)
     const toggleMap = (name: string) => {
@@ -122,7 +129,7 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                    onClick={handleSkip}
+                    onClick={showSkip ? handleSkip : undefined}
                 />
 
                 {/* Modal */}
@@ -156,13 +163,18 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
                                     >
                                         Take Survey
                                     </Button>
-                                    <button
-                                        type="button"
-                                        onClick={handleSkip}
-                                        className="text-xs text-foreground/30 hover:text-foreground/50 transition-colors cursor-pointer"
-                                    >
-                                        Skip for now
-                                    </button>
+                                    {showSkip && (
+                                        <motion.button
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.4 }}
+                                            type="button"
+                                            onClick={handleSkip}
+                                            className="text-xs text-foreground/30 hover:text-foreground/50 transition-colors cursor-pointer"
+                                        >
+                                            Skip for now
+                                        </motion.button>
+                                    )}
                                 </div>
                             </motion.div>
                         ) : (
@@ -176,12 +188,6 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
                                 {/* Header */}
                                 <div className="flex items-center justify-between px-5 pt-5 pb-3">
                                     <h2 className="text-base font-bold">🎯 Quick Survey</h2>
-                                    <button
-                                        onClick={handleSkip}
-                                        className="text-foreground/30 hover:text-foreground/60 transition-colors"
-                                    >
-                                        <X className="w-5 h-5" />
-                                    </button>
                                 </div>
 
                                 {/* Scrollable form body */}
