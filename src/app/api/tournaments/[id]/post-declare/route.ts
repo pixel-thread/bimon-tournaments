@@ -50,7 +50,7 @@ export async function POST(
         })).map(m => m.id);
 
         const allPlayerStats = await prisma.teamPlayerStats.findMany({
-            where: { matchId: { in: matchIds } },
+            where: { matchId: { in: matchIds }, present: true },
             select: { playerId: true },
             distinct: ["playerId"],
         });
