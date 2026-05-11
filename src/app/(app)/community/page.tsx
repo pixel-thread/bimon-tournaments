@@ -326,6 +326,11 @@ export default function CommunityPage() {
         staleTime: 5 * 60 * 1000,
     });
     const communityChatLink = (publicSettings?.whatsAppGroups || [])[2] || "";
+    const [communityWADismissed, setCommunityWADismissed] = useState(() =>
+        typeof window !== "undefined" ? !!localStorage.getItem("community_wa_joined") : false
+    );
+    const [communityConfirmOpen, setCommunityConfirmOpen] = useState(false);
+    const [communityConfirmText, setCommunityConfirmText] = useState("");
 
     // Poll creation form
     const [pollQuestion, setPollQuestion] = useState("");
@@ -576,28 +581,64 @@ export default function CommunityPage() {
             </motion.div>
 
             {/* WhatsApp Community Chat banner */}
-            {communityChatLink && (
-                <a
-                    href={communityChatLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors"
-                >
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                        <WhatsAppIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                            Join WhatsApp Community Chat
-                        </p>
-                        <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60">
-                            Chat with other players, discuss matches & more
-                        </p>
-                    </div>
-                    <span className="shrink-0 px-3 py-1 rounded-lg bg-emerald-500 text-white text-xs font-bold">
-                        Join
-                    </span>
-                </a>
+            {communityChatLink && !communityWADismissed && (
+                <div className="space-y-1">
+                    <a
+                        href={communityChatLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                            <WhatsAppIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                Join WhatsApp Community Chat
+                            </p>
+                            <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60">
+                                Chat with other players, discuss matches & more
+                            </p>
+                        </div>
+                        <span className="shrink-0 px-3 py-1 rounded-lg bg-emerald-500 text-white text-xs font-bold">
+                            Join
+                        </span>
+                    </a>
+                    {!communityConfirmOpen ? (
+                        <button
+                            type="button"
+                            onClick={() => setCommunityConfirmOpen(true)}
+                            className="w-full text-center text-[10px] text-emerald-600/50 dark:text-emerald-400/50 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors py-0.5"
+                        >
+                            ✓ I have already joined
+                        </button>
+                    ) : (
+                        <div className="space-y-1 px-1">
+                            <p className="text-[10px] text-foreground/40 text-center">Type <span className="font-semibold text-foreground/60">joined</span> below to dismiss permanently</p>
+                            <div className="flex items-center gap-1.5">
+                            <input
+                                type="text"
+                                placeholder='joined'
+                                value={communityConfirmText}
+                                onChange={(e) => setCommunityConfirmText(e.target.value)}
+                                className="flex-1 text-[11px] bg-transparent border border-emerald-500/30 rounded-lg px-2 py-1 text-foreground/70 placeholder:text-foreground/30 outline-none focus:border-emerald-500/60"
+                                autoFocus
+                            />
+                            <button
+                                type="button"
+                                disabled={communityConfirmText.toLowerCase().trim() !== "joined"}
+                                onClick={() => {
+                                    setCommunityWADismissed(true);
+                                    localStorage.setItem("community_wa_joined", "1");
+                                }}
+                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-emerald-500 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+                            >
+                                OK
+                            </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* Cross-game promo — shows other games we run */}

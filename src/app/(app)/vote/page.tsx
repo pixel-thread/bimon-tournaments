@@ -50,6 +50,9 @@ export default function VotePage() {
     // WhatsApp casual room ID modal
     const [showCasualWA, setShowCasualWA] = useState(false);
     const hasSeenCasualWA = useRef(false);
+    const [casualWADismissed, setCasualWADismissed] = useState(false);
+    const [casualConfirmOpen, setCasualConfirmOpen] = useState(false);
+    const [casualConfirmText, setCasualConfirmText] = useState("");
 
     const polls = data?.polls;
     const currentPlayerId = data?.currentPlayerId ?? undefined;
@@ -74,6 +77,7 @@ export default function VotePage() {
     // Check if player has acknowledged the casual WA group
     useEffect(() => {
         hasSeenCasualWA.current = !!localStorage.getItem("casual_wa_seen");
+        setCasualWADismissed(!!localStorage.getItem("casual_wa_joined"));
     }, []);
 
     // Filter polls by tab
@@ -227,28 +231,64 @@ export default function VotePage() {
             )}
 
             {/* ── Casual WhatsApp Room ID Banner ── */}
-            {tab === "casual" && casualRoomIdLink && (
-                <a
-                    href={casualRoomIdLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 mb-4 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors"
-                >
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                        <WhatsAppIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                            Join WhatsApp for Room ID & Password
-                        </p>
-                        <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60">
-                            Get match details before each casual tournament
-                        </p>
-                    </div>
-                    <span className="shrink-0 px-3 py-1 rounded-lg bg-emerald-500 text-white text-xs font-bold">
-                        Join
-                    </span>
-                </a>
+            {tab === "casual" && casualRoomIdLink && !casualWADismissed && (
+                <div className="mb-4 space-y-1">
+                    <a
+                        href={casualRoomIdLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                            <WhatsAppIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                Join WhatsApp for Room ID & Password
+                            </p>
+                            <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60">
+                                Get match details before each casual tournament
+                            </p>
+                        </div>
+                        <span className="shrink-0 px-3 py-1 rounded-lg bg-emerald-500 text-white text-xs font-bold">
+                            Join
+                        </span>
+                    </a>
+                    {!casualConfirmOpen ? (
+                        <button
+                            type="button"
+                            onClick={() => setCasualConfirmOpen(true)}
+                            className="w-full text-center text-[10px] text-emerald-600/50 dark:text-emerald-400/50 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors py-0.5"
+                        >
+                            ✓ I have already joined
+                        </button>
+                    ) : (
+                        <div className="space-y-1 px-1">
+                            <p className="text-[10px] text-foreground/40 text-center">Type <span className="font-semibold text-foreground/60">joined</span> below to dismiss permanently</p>
+                            <div className="flex items-center gap-1.5">
+                            <input
+                                type="text"
+                                placeholder='joined'
+                                value={casualConfirmText}
+                                onChange={(e) => setCasualConfirmText(e.target.value)}
+                                className="flex-1 text-[11px] bg-transparent border border-emerald-500/30 rounded-lg px-2 py-1 text-foreground/70 placeholder:text-foreground/30 outline-none focus:border-emerald-500/60"
+                                autoFocus
+                            />
+                            <button
+                                type="button"
+                                disabled={casualConfirmText.toLowerCase().trim() !== "joined"}
+                                onClick={() => {
+                                    setCasualWADismissed(true);
+                                    localStorage.setItem("casual_wa_joined", "1");
+                                }}
+                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-emerald-500 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+                            >
+                                OK
+                            </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* ── First-time casual WhatsApp modal ── */}
