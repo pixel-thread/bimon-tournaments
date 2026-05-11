@@ -399,6 +399,7 @@ export default function OnboardingPage() {
                                         errorMessage={displayNameError}
                                         classNames={{
                                             input: "placeholder:text-foreground/30",
+                                            inputWrapper: "!border-default-400",
                                         }}
                                         startContent={
                                             <span className="text-foreground/30 text-sm">🎮</span>
@@ -444,6 +445,9 @@ export default function OnboardingPage() {
                                     errorMessage={phoneError}
                                     color={phoneError ? "danger" : "default"}
                                     description={!phoneError ? "WhatsApp preferred — visible to your match opponent only" : undefined}
+                                    classNames={{
+                                        inputWrapper: "!border-default-400",
+                                    }}
                                     startContent={
                                         <span className="text-sm font-semibold text-foreground/60 select-none pr-2 border-r border-divider mr-1 flex items-center gap-1">
                                             <Phone className="h-3 w-3" /> +91
@@ -472,6 +476,9 @@ export default function OnboardingPage() {
                                     }}
                                     description={`Copy from ${GAME.gameName} profile or type your ID`}
                                     isDisabled={isSubmitting}
+                                    classNames={{
+                                        inputWrapper: "!border-default-400",
+                                    }}
                                     startContent={
                                         <span className="text-foreground/30 text-sm">🆔</span>
                                     }
