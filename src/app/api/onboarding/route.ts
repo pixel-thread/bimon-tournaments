@@ -44,6 +44,14 @@ export async function POST(request: NextRequest) {
             if (!result.valid) {
                 return ErrorResponse({ message: result.error, status: 400 });
             }
+            // Check if phone is already used by another player
+            const existing = await db.player.findFirst({
+                where: { phoneNumber: result.phone, id: { not: user.player.id } },
+                select: { id: true },
+            });
+            if (existing) {
+                return ErrorResponse({ message: "This phone number is already registered to another account", status: 400 });
+            }
             await db.player.update({
                 where: { id: user.player.id },
                 data: { phoneNumber: result.phone },
@@ -70,6 +78,14 @@ export async function POST(request: NextRequest) {
             const result = validatePhone(phoneNumber ?? "");
             if (!result.valid) {
                 return ErrorResponse({ message: result.error, status: 400 });
+            }
+            // Check if phone is already used by another player
+            const existing = await db.player.findFirst({
+                where: { phoneNumber: result.phone, ...(user?.player ? { id: { not: user.player.id } } : {}) },
+                select: { id: true },
+            });
+            if (existing) {
+                return ErrorResponse({ message: "This phone number is already registered to another account", status: 400 });
             }
         }
 

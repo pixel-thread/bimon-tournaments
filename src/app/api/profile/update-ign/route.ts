@@ -122,6 +122,14 @@ export async function POST(req: NextRequest) {
                 if (!phoneResult.valid) {
                     return ErrorResponse({ message: phoneResult.error, status: 400 });
                 }
+                // Check if phone is already used by another player
+                const existing = await prisma.player.findFirst({
+                    where: { phoneNumber: phoneResult.phone, id: { not: user.player.id } },
+                    select: { id: true },
+                });
+                if (existing) {
+                    return ErrorResponse({ message: "This phone number is already registered to another account", status: 400 });
+                }
                 updateData.phoneNumber = phoneResult.phone;
             } else {
                 updateData.phoneNumber = null;
