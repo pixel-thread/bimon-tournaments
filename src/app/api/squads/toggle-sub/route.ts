@@ -2,6 +2,7 @@ import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { getAuthEmail } from "@/lib/auth";
 import { type NextRequest } from "next/server";
+import { GAME } from "@/lib/game-config";
 
 /**
  * POST /api/squads/toggle-sub
@@ -53,6 +54,23 @@ export async function POST(request: NextRequest) {
         }
 
         const newIsSub = !invite.isSub;
+
+        // When marking as sub, ensure active count doesn't drop below squadSize
+        if (newIsSub) {
+            const activeCount = await prisma.squadInvite.count({
+                where: {
+                    squadId: invite.squadId,
+                    status: "ACCEPTED",
+                    isSub: false,
+                },
+            });
+            if (activeCount <= GAME.squadSize) {
+                return ErrorResponse({
+                    message: `Cannot mark as sub — need at least ${GAME.squadSize} active players`,
+                    status: 400,
+                });
+            }
+        }
 
         await prisma.squadInvite.update({
             where: { id: inviteId },
