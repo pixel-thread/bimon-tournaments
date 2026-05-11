@@ -204,18 +204,48 @@ export default function OnboardingPage() {
         );
     }
 
-    // Show WhatsApp groups after successful onboarding
+    // Fetch main group link for onboarding
+    const [mainGroupLink, setMainGroupLink] = useState<string | null>(null);
+    useEffect(() => {
+        if (!showWhatsApp) return;
+        fetch("/api/settings/public")
+            .then((r) => r.json())
+            .then((json) => {
+                const link = (json.data?.whatsAppGroups || [])[0] || "";
+                setMainGroupLink(link);
+            })
+            .catch(() => setMainGroupLink(""));
+    }, [showWhatsApp]);
+
+    // Show WhatsApp main group after successful onboarding
     if (showWhatsApp) {
+        // Skip if no main group configured
+        if (mainGroupLink === "") {
+            refetch().then(() => { router.push("/vote"); router.refresh(); });
+            return null;
+        }
+        if (mainGroupLink === null) {
+            return (
+                <div className="flex min-h-dvh items-center justify-center">
+                    <PubgmiLogo variant="hero" className="text-3xl" />
+                </div>
+            );
+        }
         return (
             <div className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-primary/5 via-background to-background px-4">
                 <WhatsAppJoinModal
                     isOpen={true}
                     onClose={async () => {
-                        await refetch(); // Refresh auth cache so OnboardingGuard sees isOnboarded=true
+                        await refetch();
                         router.push("/vote");
                         router.refresh();
                     }}
                     mandatory={true}
+                    groups={[{
+                        id: "main-group",
+                        name: "📢 Main Group",
+                        link: mainGroupLink,
+                    }]}
                 />
             </div>
         );
