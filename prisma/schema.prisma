@@ -267,6 +267,9 @@ model Player {
   clanWithdrawRequests  ClanWithdrawRequest[] @relation("ClanWithdrawRequester")
   clanWithdrawReviews   ClanWithdrawRequest[] @relation("ClanWithdrawReviewer")
 
+  // Survey
+  survey                PlayerSurvey?
+
   // Sponsor coupons
   isCouponVerifier      Boolean            @default(false)
   couponsCreated        SponsorCoupon[]     @relation("CouponsCreated")
@@ -1566,4 +1569,19 @@ enum ClanWithdrawRequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+// ─── Player Survey ──────────────────────────────────────────
+
+model PlayerSurvey {
+  id        String   @id @default(cuid())
+  playerId  String   @unique
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  maps      String[] // top 2 maps, e.g. ["Erangel", "Miramar"]
+  timing    String   // e.g. "8:30 PM" or custom
+  device    String   // e.g. "iPhone", "Android Phone", "PC / Emulator"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([playerId])
 }

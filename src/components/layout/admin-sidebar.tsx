@@ -24,6 +24,7 @@ import {
     HelpCircle,
     MapPin,
     UserX,
+    ClipboardList,
 } from "lucide-react";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useState, useEffect, useCallback } from "react";
@@ -77,6 +78,7 @@ const sidebarItems: SidebarSection[] = [
             { label: "Referrals", href: "/dashboard/refer", icon: Users, superAdminOnly: true, feature: "hasReferrals" },
             { label: "Lucky Voters", href: "/dashboard/lucky-voters", icon: Clover, feature: "hasLuckyVoters" },
             { label: "Income", href: "/dashboard/income", icon: DollarSign },
+            { label: "Surveys", href: "/dashboard/surveys", icon: ClipboardList },
         ],
     },
     {

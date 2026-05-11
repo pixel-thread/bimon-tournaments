@@ -54,6 +54,7 @@ import { GAME } from "@/lib/game-config";
 import { LocationModal } from "@/components/common/location-modal";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { ModeTabs } from "@/components/common/ModeTabs";
+import { SurveyModal, useShouldShowSurvey } from "@/components/profile/SurveyModal";
 
 interface ProfileData {
     id: string;
@@ -152,6 +153,10 @@ export default function ProfilePage() {
     const [showLocationModal, setShowLocationModal] = useState(false);
     const [statsMode, setStatsMode] = useState<"casual" | "ranked">("casual");
 
+    // Survey popup (BGMI only)
+    const shouldShowSurvey = useShouldShowSurvey();
+    const [showSurvey, setShowSurvey] = useState(false);
+
     const getProfileCacheKey = (mode: string) => `profile_cache_${mode}`;
 
     const getCachedProfile = (mode: string): ProfileData | undefined => {
@@ -178,6 +183,14 @@ export default function ProfilePage() {
         initialDataUpdatedAt: 0, // Always refetch — localStorage is just a placeholder for instant load
         placeholderData: (prev) => prev, // Keep previous mode's data visible while fetching
     });
+
+    // Show survey after profile loads
+    useEffect(() => {
+        if (GAME.features.hasBR && shouldShowSurvey && profile?.player) {
+            const t = setTimeout(() => setShowSurvey(true), 1500);
+            return () => clearTimeout(t);
+        }
+    }, [shouldShowSurvey, profile?.player]);
 
     const [onCooldown, setOnCooldown] = useState(false);
 
@@ -1496,6 +1509,11 @@ export default function ProfilePage() {
                     </Button>
                 </div>
             </div>
+
+            {/* Survey popup — BGMI only */}
+            {showSurvey && (
+                <SurveyModal onDismiss={() => setShowSurvey(false)} />
+            )}
         </div>
     );
 }
