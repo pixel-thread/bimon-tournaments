@@ -67,71 +67,107 @@ export async function awardClanXP(
         });
     }
 }
+/**
+ * Award XP to a player and auto-update the level.
+ * Uses atomic increment to prevent race conditions.
+ */
+export async function awardPlayerXP(
+    playerId: string,
+    amount: number,
+    prismaClient: PrismaClient | any,
+): Promise<void> {
+    if (amount <= 0) return;
+
+    const player = await prismaClient.player.update({
+        where: { id: playerId },
+        data: { xp: { increment: amount } },
+        select: { xp: true, level: true },
+    });
+
+    const { level: newLevel } = getLevelFromXP(player.xp);
+    if (newLevel !== player.level) {
+        await prismaClient.player.update({
+            where: { id: playerId },
+            data: { level: newLevel },
+        });
+    }
+}
 
 /**
- * Calculate and award XP for match stats.
+ * Award XP for match stats — handles BOTH player and clan XP in one pass.
  * Call this after bulk stats are saved.
  *
- * @param stats - Array of { playerId, kills, position } for the match
- * @param prismaClient - Prisma instance (or transaction client)
+ * Player XP: +25 per match, +5 per kill, +15 for chicken dinner
+ * Clan XP:   +10 per match, +5 per kill, +8 for 1st, +4 for top 3
  */
 export async function awardMatchXP(
     stats: { playerId: string; kills: number | null; position: number | null; teamId: string }[],
     prismaClient: PrismaClient | any,
 ): Promise<void> {
-    // Get clan memberships for all players in this match
     const playerIds = stats.map((s) => s.playerId);
+
+    // Get clan memberships for players in this match
     const memberships = await prismaClient.clanMember.findMany({
         where: { playerId: { in: playerIds } },
         select: { playerId: true, clanId: true },
     });
-
-    if (memberships.length === 0) return;
-
     const playerClanMap = new Map<string, string>();
     for (const m of memberships) {
         playerClanMap.set(m.playerId, m.clanId);
     }
 
-    // Accumulate XP per clan
-    const clanXP = new Map<string, number>();
-    const addXP = (clanId: string, amount: number) => {
-        clanXP.set(clanId, (clanXP.get(clanId) ?? 0) + amount);
-    };
-
-    // Group stats by team to check for chicken dinner / top 3
+    // Group stats by team for position bonuses
     const teamPositions = new Map<string, number | null>();
     for (const s of stats) {
         if (s.position !== null) teamPositions.set(s.teamId, s.position);
     }
 
+    // Accumulate XP
+    const playerXP = new Map<string, number>();
+    const clanXP = new Map<string, number>();
+    const addPlayerXP = (pid: string, amount: number) => {
+        playerXP.set(pid, (playerXP.get(pid) ?? 0) + amount);
+    };
+    const addClanXP = (cid: string, amount: number) => {
+        clanXP.set(cid, (clanXP.get(cid) ?? 0) + amount);
+    };
+
     for (const s of stats) {
         const clanId = playerClanMap.get(s.playerId);
-        if (!clanId) continue;
+        const isPresent = s.kills !== null;
 
-        // +10 XP for playing a match (biggest source — rewards activity)
-        if (s.kills !== null) {
-            addXP(clanId, 10);
+        if (isPresent) {
+            // Player XP: +25 per match
+            addPlayerXP(s.playerId, 25);
+            // Clan XP: +10 per match
+            if (clanId) addClanXP(clanId, 10);
         }
 
-        // +5 XP per kill
+        // Kill XP (same for both)
         if (s.kills && s.kills > 0) {
-            addXP(clanId, s.kills * 5);
+            addPlayerXP(s.playerId, s.kills * 5);
+            if (clanId) addClanXP(clanId, s.kills * 5);
         }
 
-        // Team-based bonuses
+        // Position bonuses
         const pos = teamPositions.get(s.teamId);
         if (pos !== null && pos !== undefined) {
             if (pos === 1) {
-                addXP(clanId, 8);  // 30 XP total split ~4 ways ≈ 8 per member
+                addPlayerXP(s.playerId, 15); // Chicken dinner
+                if (clanId) addClanXP(clanId, 8);
             } else if (pos <= 3) {
-                addXP(clanId, 4);  // ~15 XP total split ~4 ways ≈ 4 per member
+                if (clanId) addClanXP(clanId, 4);
             }
         }
     }
 
-    // Award XP to each clan
-    for (const [clanId, amount] of clanXP) {
-        await awardClanXP(clanId, amount, prismaClient);
+    // Award all XP
+    const awards: Promise<void>[] = [];
+    for (const [playerId, amount] of playerXP) {
+        awards.push(awardPlayerXP(playerId, amount, prismaClient));
     }
+    for (const [clanId, amount] of clanXP) {
+        awards.push(awardClanXP(clanId, amount, prismaClient));
+    }
+    await Promise.all(awards);
 }

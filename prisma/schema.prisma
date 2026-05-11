@@ -209,6 +209,10 @@ model Player {
   soloMatchesNeeded Int            @default(0)
   hasRoyalPass      Boolean        @default(false)
 
+  // Leveling (lifetime, never resets)
+  xp               Int            @default(0)
+  level            Int            @default(1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

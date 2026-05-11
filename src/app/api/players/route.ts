@@ -7,7 +7,6 @@ import { getCategoryFromKDValue, getCategoryFromWinRate } from "@/lib/logic/cate
 import { GAME } from "@/lib/game-config";
 import { censorProfanity } from "@/lib/logic/profanityFilter";
 import { t } from "@/lib/translations";
-import { getLevelFromXP } from "@/lib/xp";
 
 /**
  * GET /api/players
@@ -245,7 +244,7 @@ export async function GET(request: NextRequest) {
                     }
                     : null,
                 clan: playerClan,
-                level: getLevelFromXP((st.kills * 5) + (totalMatches * 25) + (wins * 15)).level,
+                level: p.level,
             };
         });
 
