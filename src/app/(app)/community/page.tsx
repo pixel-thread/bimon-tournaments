@@ -582,12 +582,12 @@ export default function CommunityPage() {
 
             {/* WhatsApp Community Chat banner */}
             {communityChatLink && !communityWADismissed && (
-                <div className="space-y-1">
+                <div className="relative">
                     <a
                         href={communityChatLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors"
+                        className="flex items-center gap-2.5 p-2.5 pr-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors"
                     >
                         <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
                             <WhatsAppIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -604,40 +604,61 @@ export default function CommunityPage() {
                             Join
                         </span>
                     </a>
-                    {!communityConfirmOpen ? (
-                        <button
-                            type="button"
-                            onClick={() => setCommunityConfirmOpen(true)}
-                            className="w-full text-center text-[10px] text-emerald-600/50 dark:text-emerald-400/50 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors py-0.5"
-                        >
-                            ✓ I have already joined
-                        </button>
-                    ) : (
-                        <div className="space-y-1 px-1">
-                            <p className="text-[10px] text-foreground/40 text-center">Type <span className="font-semibold text-foreground/60">joined</span> below to dismiss permanently</p>
-                            <div className="flex items-center gap-1.5">
-                            <input
-                                type="text"
-                                placeholder='joined'
-                                value={communityConfirmText}
-                                onChange={(e) => setCommunityConfirmText(e.target.value)}
-                                className="flex-1 text-[11px] bg-transparent border border-emerald-500/30 rounded-lg px-2 py-1 text-foreground/70 placeholder:text-foreground/30 outline-none focus:border-emerald-500/60"
-                                autoFocus
-                            />
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setCommunityConfirmOpen(true); }}
+                        className="absolute top-1.5 right-1.5 w-5 h-5 flex items-center justify-center rounded-full text-foreground/30 hover:text-foreground/60 hover:bg-foreground/10 transition-colors text-[10px]"
+                        title="Dismiss"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
+
+            {/* Community WA dismiss confirmation modal */}
+            {communityConfirmOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setCommunityConfirmOpen(false); setCommunityConfirmText(""); }} />
+                    <div className="relative bg-background border border-divider rounded-2xl shadow-2xl mx-4 max-w-xs w-full p-5 space-y-3">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                <WhatsAppIcon className="w-4 h-4 text-emerald-500" />
+                            </div>
+                            <h3 className="text-sm font-bold">Dismiss this banner?</h3>
+                        </div>
+                        <p className="text-xs text-foreground/50">
+                            Type <span className="font-semibold text-foreground/80">joined</span> to confirm you have joined the group. This will hide the banner permanently.
+                        </p>
+                        <input
+                            type="text"
+                            placeholder="joined"
+                            value={communityConfirmText}
+                            onChange={(e) => setCommunityConfirmText(e.target.value)}
+                            className="w-full text-sm bg-transparent border border-divider rounded-lg px-3 py-2 text-foreground placeholder:text-foreground/30 outline-none focus:border-emerald-500/60"
+                            autoFocus
+                        />
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => { setCommunityConfirmOpen(false); setCommunityConfirmText(""); }}
+                                className="flex-1 text-xs font-medium py-2 rounded-lg bg-default-100 hover:bg-default-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
                             <button
                                 type="button"
                                 disabled={communityConfirmText.toLowerCase().trim() !== "joined"}
                                 onClick={() => {
                                     setCommunityWADismissed(true);
                                     localStorage.setItem("community_wa_joined", "1");
+                                    setCommunityConfirmOpen(false);
                                 }}
-                                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-emerald-500 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+                                className="flex-1 text-xs font-bold py-2 rounded-lg bg-emerald-500 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
                             >
-                                OK
+                                Confirm
                             </button>
-                            </div>
                         </div>
-                    )}
+                    </div>
                 </div>
             )}
 
