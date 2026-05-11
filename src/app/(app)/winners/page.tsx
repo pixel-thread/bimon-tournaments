@@ -6,7 +6,7 @@ import { Card, CardBody, Skeleton } from "@heroui/react";
 import { Trophy, Medal, AlertCircle } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
-import { GAME } from "@/lib/game-config";
+import { ModeTabs, getModeLabel } from "@/components/common/ModeTabs";
 
 interface TournamentResult {
     id: string;
@@ -39,6 +39,7 @@ const rankColors = [
     "bg-amber-600 text-white",  // 3rd
 ];
 
+
 export default function WinnersPage() {
     const [mode, setMode] = useState<ModeKey>("casual");
 
@@ -53,56 +54,14 @@ export default function WinnersPage() {
         staleTime: 5 * 60 * 1000,
     });
 
-    const tabs: { key: ModeKey; label: string; icon: string }[] = [
-        { key: "casual", label: "Casual", icon: "🎮" },
-        { key: "ranked", label: "Ranked", icon: "🏆" },
-        ...(GAME.features.hasTDM ? [{ key: "tdm" as ModeKey, label: "TDM", icon: "⚔️" }] : []),
-        ...(GAME.features.hasWoW ? [{ key: "wow" as ModeKey, label: "WoW", icon: "🌍" }] : []),
-    ];
-
     return (
         <div className="mx-auto max-w-2xl space-y-5 px-4 py-6 pb-24 sm:pb-6">
             {/* Mode tabs */}
-            {tabs.length > 1 && (
-                <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100 relative">
-                    {tabs.map(({ key, label, icon }) => (
-                        <button
-                            key={key}
-                            type="button"
-                            onClick={() => setMode(key)}
-                            className="flex-1 relative flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium cursor-pointer z-[1]"
-                        >
-                            {mode === key && (
-                                <motion.div
-                                    layoutId="winners-tab-indicator"
-                                    className="absolute inset-0 bg-background rounded-lg shadow-sm"
-                                    style={{ zIndex: -1 }}
-                                    transition={{
-                                        type: "spring",
-                                        stiffness: 500,
-                                        damping: 35,
-                                        mass: 0.8,
-                                    }}
-                                />
-                            )}
-                            <motion.span
-                                animate={{ scale: mode === key ? 1.05 : 1 }}
-                                transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                            >
-                                {icon}
-                            </motion.span>
-                            <motion.span
-                                animate={{
-                                    color: mode === key ? "var(--foreground)" : "var(--foreground-500)",
-                                }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                {label}
-                            </motion.span>
-                        </button>
-                    ))}
-                </div>
-            )}
+            <ModeTabs
+                mode={mode}
+                onSelect={(m) => setMode(m as ModeKey)}
+                layoutId="winners-tab"
+            />
 
             {/* Loading */}
             {isLoading && (

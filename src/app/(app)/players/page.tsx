@@ -8,8 +8,7 @@ import { PlayerPodium } from "@/components/players/player-podium";
 import { PlayerTable } from "@/components/players/player-table";
 import { PlayerStatsModal } from "@/components/players/player-stats-modal";
 import { PlayersSkeleton } from "@/components/players/players-skeleton";
-import { GAME } from "@/lib/game-config";
-import { ArenaDropdown } from "@/components/players/arena-dropdown";
+import { ModeTabs } from "@/components/common/ModeTabs";
 
 
 /**
@@ -59,39 +58,11 @@ export default function PlayersPage() {
         <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
             <div className="space-y-6">
                 {/* Ranked / Casual / Arena mode tabs */}
-                {(GAME.features.hasRankedCasual || GAME.features.hasTDM || GAME.features.hasWoW) && (
-                    <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100">
-                        {GAME.features.hasRankedCasual && ([
-                            { key: "casual", label: "Casual", icon: "🎮" },
-                            { key: "ranked", label: "Ranked", icon: "🏆" },
-                        ] as const).map(({ key, label, icon }) => (
-                            <button
-                                key={key}
-                                type="button"
-                                onClick={() => filters.setTeamMode(key)}
-                                className={`
-                                    flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium
-                                    transition-all duration-200 cursor-pointer
-                                    ${teamMode === key
-                                        ? "bg-background shadow-sm text-foreground"
-                                        : "text-foreground/50 hover:text-foreground/70"
-                                    }
-                                `}
-                            >
-                                <span>{icon}</span>
-                                <span>{label}</span>
-                            </button>
-                        ))}
-                        {(GAME.features.hasTDM || GAME.features.hasWoW) && (
-                            <ArenaDropdown
-                                teamMode={teamMode}
-                                onSelect={filters.setTeamMode}
-                                hasTDM={GAME.features.hasTDM}
-                                hasWoW={GAME.features.hasWoW}
-                            />
-                        )}
-                    </div>
-                )}
+                <ModeTabs
+                    mode={teamMode}
+                    onSelect={(m) => filters.setTeamMode(m as any)}
+                    layoutId="players-tab"
+                />
 
                 <PlayerFiltersBar {...filters} />
 

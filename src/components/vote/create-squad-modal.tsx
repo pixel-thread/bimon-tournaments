@@ -239,7 +239,7 @@ export function CreateSquadModal({
                                                 Join WhatsApp Group
                                             </p>
                                             <p className="text-[11px] text-emerald-600/60 dark:text-emerald-400/60">
-                                                Join to receive room ID & password
+                                                Join to receive room ID, password, points table, slot number & more
                                             </p>
                                         </div>
                                         <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">

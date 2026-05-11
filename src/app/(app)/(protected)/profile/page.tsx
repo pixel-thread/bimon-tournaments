@@ -53,6 +53,7 @@ import { CharacterPreviewModal } from "@/components/profile/character-preview-mo
 import { GAME } from "@/lib/game-config";
 import { LocationModal } from "@/components/common/location-modal";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+import { ModeTabs } from "@/components/common/ModeTabs";
 
 interface ProfileData {
     id: string;
@@ -613,29 +614,11 @@ export default function ProfilePage() {
 
                 {/* Ranked / Casual toggle — only for games with ranked/casual split */}
                 {GAME.features.hasRankedCasual && stats && (
-                    <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100">
-                        {([
-                            { key: "casual" as const, label: "Casual", icon: "🎮" },
-                            { key: "ranked" as const, label: "Ranked", icon: "🏆" },
-                        ]).map(({ key, label, icon }) => (
-                            <button
-                                key={key}
-                                type="button"
-                                onClick={() => setStatsMode(key)}
-                                className={`
-                                    flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium
-                                    transition-all duration-200 cursor-pointer
-                                    ${statsMode === key
-                                        ? "bg-background shadow-sm text-foreground"
-                                        : "text-foreground/50 hover:text-foreground/70"
-                                    }
-                                `}
-                            >
-                                <span>{icon}</span>
-                                <span>{label}</span>
-                            </button>
-                        ))}
-                    </div>
+                    <ModeTabs
+                        mode={statsMode}
+                        onSelect={(m) => setStatsMode(m as "casual" | "ranked")}
+                        layoutId="profile-tab"
+                    />
                 )}
 
                 {/* ── Stats Section ── */}

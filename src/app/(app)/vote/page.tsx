@@ -12,8 +12,8 @@ import { AdSlot } from "@/components/common/AdSlot";
 import { Skeleton, Card, CardBody, Divider } from "@heroui/react";
 import { Vote, AlertCircle } from "lucide-react";
 import { useAuthGate } from "@/components/common/auth-gate-provider";
+import { ModeTabs } from "@/components/common/ModeTabs";
 import { GAME } from "@/lib/game-config";
-import { ArenaDropdown } from "@/components/players/arena-dropdown";
 import { motion, AnimatePresence, LayoutGroup } from "motion/react";
 import { WhatsAppJoinModal } from "@/components/common/WhatsAppJoinModal";
 import { useQuery } from "@tanstack/react-query";
@@ -166,68 +166,16 @@ export default function VotePage() {
 
             {/* ── Casual / Ranked Tabs (premium animated) ── */}
             {hasBothTypes && (
-            <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100 mb-4 relative">
-                {tabs.map(({ key, label, icon, count }) => (
-                    <button
-                        key={key}
-                        type="button"
-                        onClick={() => handleTabChange(key)}
-                        className="flex-1 relative flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium cursor-pointer z-[1]"
-                    >
-                        {/* Sliding background indicator */}
-                        {tab === key && (
-                            <motion.div
-                                layoutId="vote-tab-indicator"
-                                className="absolute inset-0 bg-background rounded-lg shadow-sm"
-                                style={{ zIndex: -1 }}
-                                transition={{
-                                    type: "spring",
-                                    stiffness: 500,
-                                    damping: 35,
-                                    mass: 0.8,
-                                }}
-                            />
-                        )}
-                        <motion.span
-                            animate={{ scale: tab === key ? 1.05 : 1 }}
-                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                        >
-                            {icon}
-                        </motion.span>
-                        <motion.span
-                            animate={{
-                                color: tab === key ? "var(--foreground)" : "var(--foreground-500)",
-                            }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            {label}
-                        </motion.span>
-                        {!isLoading && count > 0 && (
-                            <motion.span
-                                className={`
-                                    ml-0.5 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1
-                                    ${tab === key ? "bg-primary/10 text-primary" : "bg-foreground/10 text-foreground/40"}
-                                `}
-                                animate={{
-                                    scale: tab === key ? 1 : 0.9,
-                                    opacity: tab === key ? 1 : 0.7,
-                                }}
-                                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                            >
-                                {count}
-                            </motion.span>
-                        )}
-                    </button>
-                ))}
-                {(GAME.features.hasTDM || GAME.features.hasWoW) && (tdmCount > 0 || wowCount > 0) && (
-                    <ArenaDropdown
-                        teamMode={tab}
-                        onSelect={(mode) => handleTabChange(mode)}
-                        hasTDM={GAME.features.hasTDM && tdmCount > 0}
-                        hasWoW={GAME.features.hasWoW && wowCount > 0}
+                <div className="mb-4">
+                    <ModeTabs
+                        mode={tab}
+                        onSelect={(m) => handleTabChange(m as TabKey)}
+                        counts={{ casual: casualCount, ranked: rankedCount, tdm: tdmCount, wow: wowCount }}
+                        hideEmpty
+                        isLoading={isLoading}
+                        layoutId="vote-tab-indicator"
                     />
-                )}
-            </div>
+                </div>
             )}
 
             {/* ── Casual WhatsApp Room ID Banner ── */}
