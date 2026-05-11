@@ -6,19 +6,41 @@ import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
  * Returns last 6 tournament results with winners, player leaderboard,
  * and total fund amount for the public winners page.
  */
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const mode = searchParams.get("mode") || "casual"; // casual | ranked | tdm | wow
+
         // Find the current active season
         const activeSeason = await prisma.season.findFirst({
             where: { status: "ACTIVE" },
             select: { id: true },
         });
 
+        // Build mode-specific where clause
+        const modeFilter: any = {};
+        if (mode === "tdm") {
+            modeFilter.isTDM = true;
+            modeFilter.isWoW = false;
+        } else if (mode === "wow") {
+            modeFilter.isWoW = true;
+        } else if (mode === "ranked") {
+            modeFilter.isTDM = false;
+            modeFilter.isWoW = false;
+            modeFilter.poll = { allowSquads: true };
+        } else {
+            // casual (default)
+            modeFilter.isTDM = false;
+            modeFilter.isWoW = false;
+            modeFilter.poll = { allowSquads: false };
+        }
+
         // 1. Fetch last 6 tournaments that have declared winners (active season only)
         const tournaments = await prisma.tournament.findMany({
             where: {
                 isWinnerDeclared: true,
                 ...(activeSeason ? { seasonId: activeSeason.id } : {}),
+                ...modeFilter,
             },
             orderBy: { startDate: "desc" },
             take: 6,

@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardBody, Skeleton } from "@heroui/react";
 import { Trophy, Medal, AlertCircle } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
+import { GAME } from "@/lib/game-config";
 
 interface TournamentResult {
     id: string;
@@ -29,6 +31,8 @@ interface WinnersData {
     totalFunds: number;
 }
 
+type ModeKey = "casual" | "ranked" | "tdm" | "wow";
+
 const rankColors = [
     "bg-yellow-400 text-white", // 1st
     "bg-gray-300 text-white",   // 2nd
@@ -36,10 +40,12 @@ const rankColors = [
 ];
 
 export default function WinnersPage() {
+    const [mode, setMode] = useState<ModeKey>("casual");
+
     const { data, isLoading, error } = useQuery<WinnersData>({
-        queryKey: ["public-winners"],
+        queryKey: ["public-winners", mode],
         queryFn: async () => {
-            const res = await fetch("/api/winners/recent");
+            const res = await fetch(`/api/winners/recent?mode=${mode}`);
             if (!res.ok) throw new Error("Failed to fetch");
             const json = await res.json();
             return json.data;
@@ -47,8 +53,57 @@ export default function WinnersPage() {
         staleTime: 5 * 60 * 1000,
     });
 
+    const tabs: { key: ModeKey; label: string; icon: string }[] = [
+        { key: "casual", label: "Casual", icon: "🎮" },
+        { key: "ranked", label: "Ranked", icon: "🏆" },
+        ...(GAME.features.hasTDM ? [{ key: "tdm" as ModeKey, label: "TDM", icon: "⚔️" }] : []),
+        ...(GAME.features.hasWoW ? [{ key: "wow" as ModeKey, label: "WoW", icon: "🌍" }] : []),
+    ];
+
     return (
         <div className="mx-auto max-w-2xl space-y-5 px-4 py-6 pb-24 sm:pb-6">
+            {/* Mode tabs */}
+            {tabs.length > 1 && (
+                <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100 relative">
+                    {tabs.map(({ key, label, icon }) => (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setMode(key)}
+                            className="flex-1 relative flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium cursor-pointer z-[1]"
+                        >
+                            {mode === key && (
+                                <motion.div
+                                    layoutId="winners-tab-indicator"
+                                    className="absolute inset-0 bg-background rounded-lg shadow-sm"
+                                    style={{ zIndex: -1 }}
+                                    transition={{
+                                        type: "spring",
+                                        stiffness: 500,
+                                        damping: 35,
+                                        mass: 0.8,
+                                    }}
+                                />
+                            )}
+                            <motion.span
+                                animate={{ scale: mode === key ? 1.05 : 1 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                            >
+                                {icon}
+                            </motion.span>
+                            <motion.span
+                                animate={{
+                                    color: mode === key ? "var(--foreground)" : "var(--foreground-500)",
+                                }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                {label}
+                            </motion.span>
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {/* Loading */}
             {isLoading && (
                 <div className="space-y-5">
@@ -89,8 +144,8 @@ export default function WinnersPage() {
 
             {data && (
                 <>
-                    {/* Fund Banner */}
-                    {data.totalFunds > 0 && (
+                    {/* Fund Banner — only for casual */}
+                    {mode === "casual" && data.totalFunds > 0 && (
                         <motion.div
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -116,6 +171,7 @@ export default function WinnersPage() {
                     {/* Leaderboard */}
                     {(data.playerPlacements?.length ?? 0) > 0 && (
                         <motion.div
+                            key={`lb-${mode}`}
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                         >
@@ -126,7 +182,7 @@ export default function WinnersPage() {
                                         <h2 className="text-sm font-bold">Leaderboard</h2>
                                     </div>
                                     <p className="mb-3 text-xs text-foreground/40">
-                                        Top performers this season
+                                        Top {mode === "casual" ? "casual" : mode === "ranked" ? "ranked" : mode === "tdm" ? "TDM" : "WoW"} performers this season
                                     </p>
                                     <div className="max-h-[400px] divide-y divide-divider/50 overflow-y-auto">
                                         {data.playerPlacements.map((player, i) => (
@@ -182,6 +238,7 @@ export default function WinnersPage() {
 
                     {/* Recent Winners */}
                     <motion.div
+                        key={`rw-${mode}`}
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
@@ -193,7 +250,7 @@ export default function WinnersPage() {
                                     <h2 className="text-sm font-bold">Recent Winners</h2>
                                 </div>
                                 <p className="mb-3 text-xs text-foreground/40">
-                                    Recent tournament results this season
+                                    Recent {mode === "casual" ? "casual" : mode === "ranked" ? "ranked" : mode === "tdm" ? "TDM" : "WoW"} tournament results this season
                                 </p>
 
                                 {(data.tournaments?.length ?? 0) === 0 ? (
