@@ -94,6 +94,12 @@ export function WhatsAppJoinModal({
         updated.add(groupId);
         setJoinedGroups(updated);
         localStorage.setItem("whatsapp_joined_groups", JSON.stringify([...updated]));
+
+        // Auto-dismiss after 2s so user switches to WhatsApp first
+        const allNowJoined = loadedGroups.every((g) => updated.has(g.id));
+        if (allNowJoined) {
+            setTimeout(() => onClose(), 2000);
+        }
     };
 
     if (!isHydrated || isLoading) return null;
