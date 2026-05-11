@@ -594,6 +594,9 @@ export default function CommunityPage() {
                             Chat with other players, discuss matches & more
                         </p>
                     </div>
+                    <span className="shrink-0 px-3 py-1 rounded-lg bg-emerald-500 text-white text-xs font-bold">
+                        Join
+                    </span>
                 </a>
             )}
 

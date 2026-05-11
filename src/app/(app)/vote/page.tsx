@@ -245,6 +245,9 @@ export default function VotePage() {
                             Get match details before each casual tournament
                         </p>
                     </div>
+                    <span className="shrink-0 px-3 py-1 rounded-lg bg-emerald-500 text-white text-xs font-bold">
+                        Join
+                    </span>
                 </a>
             )}
 
