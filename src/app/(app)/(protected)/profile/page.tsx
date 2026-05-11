@@ -184,12 +184,28 @@ export default function ProfilePage() {
         placeholderData: (prev) => prev, // Keep previous mode's data visible while fetching
     });
 
-    // Show survey after profile loads
+    // Show survey after profile loads (once only, cross-device check)
+    const surveyTriggered = useRef(false);
     useEffect(() => {
-        if (GAME.features.hasBR && shouldShowSurvey && profile?.player) {
-            const t = setTimeout(() => setShowSurvey(true), 1500);
-            return () => clearTimeout(t);
-        }
+        if (surveyTriggered.current) return;
+        if (!GAME.features.hasBR || !shouldShowSurvey || !profile?.player) return;
+        surveyTriggered.current = true;
+
+        // Check DB in case already submitted on another device
+        fetch("/api/survey")
+            .then((r) => r.json())
+            .then((json) => {
+                if (json.data) {
+                    // Already submitted — sync localStorage
+                    localStorage.setItem("survey_completed", "true");
+                } else {
+                    setTimeout(() => setShowSurvey(true), 1500);
+                }
+            })
+            .catch(() => {
+                // On error, still show survey
+                setTimeout(() => setShowSurvey(true), 1500);
+            });
     }, [shouldShowSurvey, profile?.player]);
 
     const [onCooldown, setOnCooldown] = useState(false);
