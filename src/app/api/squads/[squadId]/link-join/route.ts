@@ -178,10 +178,11 @@ export async function POST(
             return ErrorResponse({ message: "You're the captain of this squad", status: 400 });
         }
 
-        // Check if already in another squad for this poll
+        // Check if already in ANOTHER squad for this poll
         const existingSquad = await prisma.squad.findFirst({
             where: {
                 pollId: squad.poll.id,
+                id: { not: squadId }, // exclude this squad — we handle existing invites below
                 status: { in: ["FORMING", "FULL"] },
                 invites: { some: { playerId, status: { in: ["PENDING", "ACCEPTED"] } } },
             },
