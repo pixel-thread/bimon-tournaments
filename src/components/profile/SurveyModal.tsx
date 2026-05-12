@@ -70,6 +70,7 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
     const [platform, setPlatform] = useState("");
     const [device, setDevice] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [shakeHint, setShakeHint] = useState("");
 
 
     // Toggle map selection (max 4 — 5th click replaces the 4th)
@@ -110,7 +111,7 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center">
                 {/* Backdrop */}
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -333,16 +334,47 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
 
                                 {/* Submit footer */}
                                 <div className="px-5 pb-5 pt-2 border-t border-divider">
-                                    <Button
-                                        color="primary"
-                                        className="w-full font-bold"
-                                        size="lg"
-                                        isDisabled={!canSubmit}
-                                        isLoading={submitting}
-                                        onPress={handleSubmit}
+                                    <motion.div
+                                        animate={shakeHint ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : {}}
+                                        transition={{ duration: 0.4 }}
+                                        onAnimationComplete={() => setShakeHint("")}
                                     >
-                                        Submit
-                                    </Button>
+                                        <Button
+                                            color="primary"
+                                            className="w-full font-bold"
+                                            size="lg"
+                                            isLoading={submitting}
+                                            onPress={() => {
+                                                if (selectedMaps.length < 4) {
+                                                    setShakeHint(`Pick ${4 - selectedMaps.length} more map${4 - selectedMaps.length > 1 ? "s" : ""}`);
+                                                    return;
+                                                }
+                                                if (!effectiveTiming) {
+                                                    setShakeHint("Pick a timing");
+                                                    return;
+                                                }
+                                                if (!device) {
+                                                    setShakeHint("Select your device");
+                                                    return;
+                                                }
+                                                handleSubmit();
+                                            }}
+                                        >
+                                            Submit
+                                        </Button>
+                                    </motion.div>
+                                    <AnimatePresence>
+                                        {shakeHint && (
+                                            <motion.p
+                                                initial={{ opacity: 0, y: -4 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0 }}
+                                                className="text-xs text-danger text-center mt-2 font-medium"
+                                            >
+                                                ⚠️ {shakeHint}
+                                            </motion.p>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                             </motion.div>
                         )}

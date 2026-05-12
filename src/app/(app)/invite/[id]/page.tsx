@@ -94,7 +94,14 @@ export default function InvitePage() {
             });
             const json = await res.json();
             if (!res.ok) {
-                toast.error(json.message || "Failed to join");
+                const msg = json.message || "Failed to join";
+                // If already in the squad, redirect to vote page
+                if (msg.toLowerCase().includes("already")) {
+                    toast.success("You're already in this team!");
+                    router.push("/vote");
+                    return;
+                }
+                toast.error(msg);
                 setJoining(false);
                 return;
             }
