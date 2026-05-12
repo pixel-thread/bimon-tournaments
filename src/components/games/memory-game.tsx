@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Tabs, Tab, Avatar, Skeleton, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
+import { Button, Tabs, Tab, Avatar, Skeleton, Popover, PopoverTrigger, PopoverContent, Modal, ModalContent, ModalBody } from "@heroui/react";
 import { RotateCcw, Trophy, Timer, MousePointerClick, Gamepad2, Medal, Heart, Square, Lock, ArrowLeft } from "lucide-react";
 import { AdSlot } from "@/components/common/AdSlot";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
@@ -548,9 +548,9 @@ export function MemoryGame() {
                             )}
 
                             {/* Win modal */}
-                            {gameWon && (
-                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-                                    <div className="w-full max-w-sm rounded-2xl bg-background border border-divider p-6 text-center space-y-4 shadow-2xl">
+                            <Modal isOpen={gameWon} hideCloseButton isDismissable={false} placement="center" size="sm" classNames={{ backdrop: "bg-black/60 backdrop-blur-sm" }}>
+                                <ModalContent>
+                                    <ModalBody className="py-6 text-center space-y-4">
                                         <div className="text-5xl">🎉</div>
                                         <div>
                                             <p className="text-lg font-bold text-success">{isNewBest ? "New Personal Best! 🏆" : "You won!"}</p>
@@ -567,9 +567,9 @@ export function MemoryGame() {
                                             <Button variant="flat" onPress={() => { startGame(); setTab("leaderboard"); }} startContent={<Trophy className="h-4 w-4" />}>Leaderboard</Button>
                                         </div>
                                         {gameCount >= 3 && gameCount % 3 === 0 && <AdSlot format="banner" className="mt-2 rounded-lg overflow-hidden" />}
-                                    </div>
-                                </div>
-                            )}
+                                    </ModalBody>
+                                </ModalContent>
+                            </Modal>
                         </>
                     )}
                 </>

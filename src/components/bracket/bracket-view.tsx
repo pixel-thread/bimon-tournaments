@@ -32,7 +32,11 @@ export function BracketView({ rounds, totalRounds, currentPlayerId, isAdmin, win
         );
     }
     const positive = rounds.filter(r => r.round > 0).sort((a, b) => a.round - b.round);
-    const isLeague = positive.length > 0 && positive[0].matches.length > 1 && rounds.every(r => r.round > 0);
+    // A league has roughly equal match counts per round; knockout halves each round
+    const isLeague = positive.length > 1
+        && positive[0].matches.length > 1
+        && rounds.every(r => r.round > 0)
+        && positive.every(r => r.matches.length === positive[0].matches.length);
     if (isLeague) {
         return <LeagueView rounds={positive} currentPlayerId={currentPlayerId} isAdmin={isAdmin}
             onSubmitResult={onSubmitResult} onConfirmResult={onConfirmResult} onDispute={onDispute} onViewResult={onViewResult} />;
