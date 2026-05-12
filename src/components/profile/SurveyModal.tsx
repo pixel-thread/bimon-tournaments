@@ -149,6 +149,7 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
                                         onPress={() => setStage("form")}
                                     >
                                         Take Survey
+                                    </Button>
                                 </div>
                             </motion.div>
                         ) : (
