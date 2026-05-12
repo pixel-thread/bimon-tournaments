@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@heroui/react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, MapPin, Clock, Smartphone, Check } from "lucide-react";
+import { MapPin, Clock, Smartphone, Check } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -54,8 +54,6 @@ const SUB_DEVICES: Record<string, { key: string; label: string }[]> = {
 };
 
 const LS_COMPLETED = "survey_completed";
-const LS_SKIPPED = "survey_skipped_at";
-const SKIP_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 
 /* ─── Component ────────────────────────────────────────────── */
 
@@ -72,13 +70,7 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
     const [platform, setPlatform] = useState("");
     const [device, setDevice] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const [showSkip, setShowSkip] = useState(false);
 
-    // Delay skip button visibility by 5 seconds
-    useEffect(() => {
-        const timer = setTimeout(() => setShowSkip(true), 5000);
-        return () => clearTimeout(timer);
-    }, []);
 
     // Toggle map selection (max 4 — 5th click replaces the 4th)
     const toggleMap = (name: string) => {
@@ -89,10 +81,6 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
         });
     };
 
-    const handleSkip = () => {
-        localStorage.setItem(LS_SKIPPED, Date.now().toString());
-        onDismiss();
-    };
 
     const effectiveTiming = customTiming ? customTimeInput.trim() : selectedTiming;
 
@@ -129,7 +117,6 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                    onClick={showSkip ? handleSkip : undefined}
                 />
 
                 {/* Modal */}
@@ -162,19 +149,6 @@ export function SurveyModal({ onDismiss }: SurveyModalProps) {
                                         onPress={() => setStage("form")}
                                     >
                                         Take Survey
-                                    </Button>
-                                    {showSkip && (
-                                        <motion.button
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ duration: 0.4 }}
-                                            type="button"
-                                            onClick={handleSkip}
-                                            className="text-xs text-foreground/30 hover:text-foreground/50 transition-colors cursor-pointer"
-                                        >
-                                            Skip for now
-                                        </motion.button>
-                                    )}
                                 </div>
                             </motion.div>
                         ) : (
@@ -390,13 +364,6 @@ export function useShouldShowSurvey(): boolean {
     useEffect(() => {
         const completed = localStorage.getItem(LS_COMPLETED);
         if (completed) return;
-
-        const skippedAt = localStorage.getItem(LS_SKIPPED);
-        if (skippedAt) {
-            const elapsed = Date.now() - parseInt(skippedAt, 10);
-            if (elapsed < SKIP_COOLDOWN_MS) return;
-        }
-
         setShow(true);
     }, []);
 
