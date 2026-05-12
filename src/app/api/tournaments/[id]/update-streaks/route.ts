@@ -19,10 +19,10 @@ export async function POST(
         await requireAdmin();
         const { id: tournamentId } = await params;
 
-        // Get tournament + season
+        // Get tournament + season + fee
         const tournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
-            select: { id: true, seasonId: true, isWinnerDeclared: true },
+            select: { id: true, seasonId: true, isWinnerDeclared: true, fee: true },
         });
 
         if (!tournament) {
@@ -44,7 +44,23 @@ export async function POST(
             distinct: ["playerId"],
         });
 
-        const playerIds = matchPlayed.map((m) => m.playerId);
+        let playerIds = matchPlayed.map((m) => m.playerId);
+
+        // For paid tournaments, only count players who were actually present
+        // in at least one match. Subs who never played don't get streak credit.
+        // Casual (free) tournaments: everyone on a team gets credit.
+        if ((tournament.fee ?? 0) > 0 && playerIds.length > 0) {
+            const presentPlayers = await prisma.teamPlayerStats.findMany({
+                where: {
+                    playerId: { in: playerIds },
+                    teamStats: { tournamentId },
+                    present: true,
+                },
+                select: { playerId: true },
+                distinct: ["playerId"],
+            });
+            playerIds = presentPlayers.map((p) => p.playerId);
+        }
 
         if (playerIds.length === 0) {
             return NextResponse.json({
