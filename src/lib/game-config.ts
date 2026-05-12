@@ -64,6 +64,7 @@ interface GameConfig {
     disputeWindowMinutes: number; // Minutes opponent has to confirm/dispute a submitted result
     hasBR: boolean;              // Whether this game supports BR tournaments.
     squadSize: number;           // Number of players per squad (5 for MLBB, 4 for BGMI/FF)
+    winLabel: string;            // Label for 1st place wins: "🍗 Chicken", "🔥 Booyah", "Wins"
     maxSquadSize: number;        // Max roster size including subs (squadSize + 2 for BR games)
     maxSquadTeams: number;       // Max squads per match (64 players / squadSize for BR)
     tdmTeamSizes: number[];      // Supported TDM team sizes (e.g. [4, 8] for 4v4/8v8)
@@ -117,6 +118,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasBR: true,
         disputeWindowMinutes: 30,
         squadSize: 4,
+        winLabel: "🍗 Chicken",
         maxSquadSize: 6,           // 4 active + 2 subs
         maxSquadTeams: 16,         // 64 players / 4 = 16 squads max
         tdmTeamSizes: [4, 8],      // 4v4 and 8v8 TDM
@@ -169,6 +171,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasBR: true,
         disputeWindowMinutes: 30,
         squadSize: 4,
+        winLabel: "🔥 Booyah",
         maxSquadSize: 6,           // 4 active + 2 subs
         maxSquadTeams: 16,         // 64 players / 4 = 16 squads max
         tdmTeamSizes: [],          // No TDM for Free Fire (yet)
@@ -221,6 +224,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasBR: false,
         disputeWindowMinutes: 30,
         squadSize: 1,
+        winLabel: "Wins",
         maxSquadSize: 1,           // 1v1, no subs
         maxSquadTeams: 64,         // No practical limit for 1v1
         tdmTeamSizes: [],          // No TDM for PES
@@ -273,6 +277,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         hasBR: false,
         disputeWindowMinutes: 30,
         squadSize: 5,              // MLBB is 5v5
+        winLabel: "Wins",
         maxSquadSize: 7,           // 5 active + 2 subs
         maxSquadTeams: 16,         // Cap at 16 squads per match
         tdmTeamSizes: [],          // No TDM for MLBB

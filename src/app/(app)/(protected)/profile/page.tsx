@@ -688,7 +688,7 @@ export default function ProfilePage() {
                                     <div>
                                         <div className="text-2xl font-bold text-success">{stats.wins}</div>
                                         <p className="text-[10px] text-foreground/40 uppercase">
-                                            Wins
+                                            {GAME.winLabel}
                                         </p>
                                     </div>
                                     {GAME.features.hasBR ? (
