@@ -325,6 +325,29 @@ export default function InvitePage() {
                     </div>
                 </div>
 
+                {/* ── Action Buttons ── */}
+                <div className="space-y-3">
+                    <Button
+                        color="success"
+                        size="lg"
+                        className="w-full font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/20"
+                        isLoading={joining}
+                        startContent={!joining ? <Check className="w-5 h-5" /> : undefined}
+                        onPress={handleAccept}
+                    >
+                        {!isSignedIn ? "Sign In & Join Squad" : joining ? "Joining..." : "Accept & Join Squad"}
+                    </Button>
+                    <Button
+                        variant="flat"
+                        size="lg"
+                        className="w-full font-medium"
+                        startContent={!isSignedIn ? <LogIn className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                        onPress={handleDecline}
+                    >
+                        {!isSignedIn ? "Sign In Without Joining" : "Decline"}
+                    </Button>
+                </div>
+
                 {/* ── Info Cards ── */}
                 <div className="grid grid-cols-2 gap-3">
                     {data.expectedPrizePool != null && data.expectedPrizePool > 0 && (
@@ -379,28 +402,7 @@ export default function InvitePage() {
                     <p>• Prize goes to leader when team wins 🏆</p>
                 </div>
 
-                {/* ── Action Buttons ── */}
-                <div className="space-y-3 pt-1">
-                    <Button
-                        color="success"
-                        size="lg"
-                        className="w-full font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/20"
-                        isLoading={joining}
-                        startContent={!joining ? <Check className="w-5 h-5" /> : undefined}
-                        onPress={handleAccept}
-                    >
-                        {!isSignedIn ? "Sign In & Join Squad" : joining ? "Joining..." : "Accept & Join Squad"}
-                    </Button>
-                    <Button
-                        variant="flat"
-                        size="lg"
-                        className="w-full font-medium"
-                        startContent={!isSignedIn ? <LogIn className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                        onPress={handleDecline}
-                    >
-                        {!isSignedIn ? "Sign In Without Joining" : "Decline"}
-                    </Button>
-                </div>
+
             </motion.div>
         </div>
     );

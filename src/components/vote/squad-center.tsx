@@ -351,12 +351,12 @@ function SquadCard({
                             onClick={(e) => {
                                 e.stopPropagation();
                                 const url = `${window.location.origin}/invite/${squad.id}`;
-                                navigator.clipboard.writeText(url);
-                                toast.success("📋 Link copied — share on WhatsApp!");
+                                const text = `Join my team "${squad.name}"!\n${url}`;
+                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
                             }}
                             className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center hover:bg-emerald-500/25 transition-colors"
                         >
-                            <Copy className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <Link2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         </button>
                     )}
                     <motion.div
