@@ -408,7 +408,7 @@ function SquadCard({
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
-                                            <StatusBadge status={member.status} initiatedBy={member.initiatedBy} />
+                                            {isCaptain && <StatusBadge status={member.status} initiatedBy={member.initiatedBy} />}
                                             {showRemove && (
                                                 canToggleSub ? (
                                                     <MemberActions
