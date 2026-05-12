@@ -1306,7 +1306,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showCasualInfo ? 'rotate-180' : ''}`} />
                             </button>
                         )}
-                        {poll.scheduledDate ? (
+                        {GAME.features.hasBR && (poll.scheduledDate ? (
                             <>
                                 {(poll.allowSquads || (!poll.allowSquads && GAME.features.hasTeamSizes)) && (
                                     <span className="h-3 w-px bg-foreground/15" />
@@ -1334,7 +1334,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showScheduleInfo ? 'rotate-180' : ''}`} />
                                 </button>
                             </>
-                        ) : null}
+                        ) : null)}
                     </div>
 
                     {/* Expanded info panels */}

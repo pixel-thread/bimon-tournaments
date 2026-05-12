@@ -1,6 +1,7 @@
 import { Swords, Users, Trophy, Shield, Zap, Target, Star, ChevronRight, BarChart3, Award, Gamepad2 } from "lucide-react";
 import Link from "next/link";
 import { HeroCTA, HeroHeading } from "@/components/landing/hero-cta";
+import { AnimateOnScroll, StaggerContainer, StaggerItem } from "@/components/landing/animate-on-scroll";
 import { LastRouteRedirector } from "@/components/common/last-route-redirector";
 import { PwaInstallPrompt } from "@/components/common/pwa-install-prompt";
 import { GAME } from "@/lib/game-config";
@@ -37,21 +38,29 @@ export default function HomePage() {
                 <div className="absolute bottom-0 left-1/2 -z-10 h-40 w-[600px] -translate-x-1/2 rounded-full bg-cyan-600/10 blur-[80px]" />
 
                 <div className="mx-auto max-w-2xl text-center">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 px-4 py-1.5 text-xs font-medium text-foreground/60 backdrop-blur-sm">
-                        <Swords className="h-3.5 w-3.5 text-blue-400" />
-                        {GAME.gameName} Community Platform
-                    </div>
+                    <AnimateOnScroll variant="fadeIn" duration={0.8}>
+                        <div className="inline-flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 px-4 py-1.5 text-xs font-medium text-foreground/60 backdrop-blur-sm">
+                            <Swords className="h-3.5 w-3.5 text-blue-400" />
+                            {GAME.gameName} Community Platform
+                        </div>
+                    </AnimateOnScroll>
 
-                    <HeroHeading />
+                    <AnimateOnScroll variant="fadeUp" delay={0.2} duration={0.8}>
+                        <HeroHeading />
+                    </AnimateOnScroll>
 
-                    <p className="mx-auto mt-5 max-w-lg text-lg leading-relaxed text-foreground/50">
-                        Join organized {GAME.gameName} tournaments with skill-balanced teams,
-                        {GAME.currency} prize pools, and real-time stat tracking.
-                    </p>
+                    <AnimateOnScroll variant="fadeUp" delay={0.4}>
+                        <p className="mx-auto mt-5 max-w-lg text-lg leading-relaxed text-foreground/50">
+                            Join organized {GAME.gameName} tournaments with skill-balanced teams,
+                            {GAME.currency} prize pools, and real-time stat tracking.
+                        </p>
+                    </AnimateOnScroll>
 
-                    <div className="mt-10 flex items-center justify-center gap-4">
-                        <HeroCTA />
-                    </div>
+                    <AnimateOnScroll variant="scaleUp" delay={0.6}>
+                        <div className="mt-10 flex items-center justify-center gap-4">
+                            <HeroCTA />
+                        </div>
+                    </AnimateOnScroll>
                 </div>
             </section>
 
@@ -60,9 +69,12 @@ export default function HomePage() {
             {/* ═══════════════════════════════════════════════════════════ */}
             <section id="about" className="px-4 py-16 sm:px-6">
                 <div className="mx-auto max-w-3xl">
+                    <AnimateOnScroll variant="fadeUp">
                     <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                        What is Bimon Tournament?
+                        What is {GAME.name} Tournament?
                     </h2>
+                    </AnimateOnScroll>
+                    <AnimateOnScroll variant="fadeUp" delay={0.15}>
                     <div className="mt-6 space-y-4 text-base leading-relaxed text-foreground/70">
                         <p>
                             {GAME.name} is a community-driven esports platform built for {GAME.gameName} players.
@@ -91,6 +103,7 @@ export default function HomePage() {
                             fairness, and community that mobile esports deserves.
                         </p>
                     </div>
+                    </AnimateOnScroll>
                 </div>
             </section>
 
@@ -99,15 +112,17 @@ export default function HomePage() {
             {/* ═══════════════════════════════════════════════════════════ */}
             <section id="features" className="bg-foreground/[0.02] px-4 py-16 sm:px-6">
                 <div className="mx-auto max-w-4xl">
+                    <AnimateOnScroll variant="fadeUp">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                            Why Players Choose Bimon
+                            Why Players Choose {GAME.name}
                         </h2>
                         <p className="mx-auto mt-3 max-w-xl text-foreground/50">
                             Everything you need for a fair, competitive, and rewarding {GAME.gameName} experience.
                         </p>
                     </div>
-                    <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    </AnimateOnScroll>
+                    <StaggerContainer className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {GAME.features.hasBR && (
                             <FeatureCard
                                 icon={<Shield className="h-5 w-5" />}
@@ -175,7 +190,7 @@ export default function HomePage() {
                             }
                             gradient="from-cyan-500/20 to-blue-500/20"
                         />
-                    </div>
+                    </StaggerContainer>
                 </div>
             </section>
 
@@ -184,24 +199,31 @@ export default function HomePage() {
             {/* ═══════════════════════════════════════════════════════════ */}
             <section id="how-it-works" className="px-4 py-16 sm:px-6">
                 <div className="mx-auto max-w-3xl">
+                    <AnimateOnScroll variant="fadeUp">
                     <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
                         How It Works
                     </h2>
                     <p className="mt-3 text-foreground/50">
                         Getting started with {GAME.name} tournaments is simple. Here&apos;s how it works from sign-up to prize collection.
                     </p>
+                    </AnimateOnScroll>
 
-                    <div className="mt-10 space-y-8">
+                    <StaggerContainer className="mt-10 space-y-8">
+                        <StaggerItem>
                         <Step
                             number={1}
                             title="Create Your Account"
                             description={`Sign up with your email or social account, then link your ${GAME.gameName} ID. Your stats will be automatically tracked from your very first tournament.`}
                         />
+                        </StaggerItem>
+                        <StaggerItem>
                         <Step
                             number={2}
                             title="Register for a Tournament"
                             description="Browse active tournament polls and vote to register. Each poll shows the format, entry fee (if any), prize pool, and schedule. Your vote confirms your spot."
                         />
+                        </StaggerItem>
+                        <StaggerItem>
                         <Step
                             number={3}
                             title={GAME.features.hasBR ? "Get Matched into a Balanced Team" : "Get Seeded into the Bracket"}
@@ -210,6 +232,8 @@ export default function HomePage() {
                                 : "Once registration closes, the bracket is generated automatically. You'll see your opponent and match schedule right on the platform."
                             }
                         />
+                        </StaggerItem>
+                        <StaggerItem>
                         <Step
                             number={4}
                             title="Play the Match"
@@ -218,12 +242,15 @@ export default function HomePage() {
                                 : "Play your match, then submit the result. Your opponent has a fair window to confirm or dispute. No screenshots on WhatsApp — everything is tracked on the platform."
                             }
                         />
+                        </StaggerItem>
+                        <StaggerItem>
                         <Step
                             number={5}
                             title={`Earn ${GAME.currency} & Climb the Leaderboard`}
                             description={`Top performers earn ${GAME.currency} prizes deposited directly to their ${GAME.name} wallet. Your stats update in real-time on the leaderboard, building your competitive profile.`}
                         />
-                    </div>
+                        </StaggerItem>
+                    </StaggerContainer>
                 </div>
             </section>
 
@@ -232,56 +259,70 @@ export default function HomePage() {
             {/* ═══════════════════════════════════════════════════════════ */}
             <section id="formats" className="bg-foreground/[0.02] px-4 py-16 sm:px-6">
                 <div className="mx-auto max-w-4xl">
+                    <AnimateOnScroll variant="fadeUp">
                     <h2 className="text-2xl font-bold tracking-tight sm:text-3xl text-center">
                         Tournament Formats
                     </h2>
                     <p className="mx-auto mt-3 max-w-xl text-center text-foreground/50">
                         We run multiple tournament formats to keep competition diverse and engaging.
                     </p>
-                    <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    </AnimateOnScroll>
+                    <StaggerContainer className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {GAME.features.hasBR && (
+                            <StaggerItem>
                             <FormatCard
                                 icon={<Target className="h-6 w-6 text-blue-400" />}
                                 title="Battle Royale (Classic)"
                                 description={`The core format. Up to 64 players in skill-balanced squads compete in classic BR matches. Points are awarded for kills and placement using the ${GAME.gameName} scoring system.`}
                             />
+                            </StaggerItem>
                         )}
                         {GAME.features.hasTDM && (
+                            <StaggerItem>
                             <FormatCard
                                 icon={<Swords className="h-6 w-6 text-rose-400" />}
                                 title="Team Deathmatch (TDM)"
                                 description={`Fast-paced ${GAME.tdmTeamSizes.map(s => `${s}v${s}`).join(" or ")} elimination rounds. Pure combat skill matters here — no circle RNG, just aim and teamwork.`}
                             />
+                            </StaggerItem>
                         )}
                         {GAME.features.hasWoW && (
+                            <StaggerItem>
                             <FormatCard
                                 icon={<Gamepad2 className="h-6 w-6 text-emerald-400" />}
                                 title="World of Wonder (WoW)"
                                 description={`Creative custom map tournaments featuring unique game modes built in ${GAME.gameName}'s World of Wonder editor. Fresh experiences every week.`}
                             />
+                            </StaggerItem>
                         )}
                         {GAME.features.hasBracket && (
+                            <StaggerItem>
                             <FormatCard
                                 icon={<Swords className="h-6 w-6 text-rose-400" />}
                                 title="1v1 Knockout Bracket"
                                 description="Single-elimination bracket tournament. Win your match to advance, lose and you're out. Simple, intense, and rewarding."
                             />
+                            </StaggerItem>
                         )}
                         {GAME.features.hasLeague && (
+                            <StaggerItem>
                             <FormatCard
                                 icon={<BarChart3 className="h-6 w-6 text-violet-400" />}
                                 title="Round-Robin League"
                                 description="Play every opponent in your group. Points are tallied across all matches — consistency and stamina win the day."
                             />
+                            </StaggerItem>
                         )}
                         {GAME.features.hasGroupKnockout && (
+                            <StaggerItem>
                             <FormatCard
                                 icon={<Trophy className="h-6 w-6 text-amber-400" />}
                                 title="Group + Knockout (World Cup)"
                                 description="Group stage into knockout rounds — just like the FIFA World Cup. Survive your group, then battle through the bracket to the final."
                             />
+                            </StaggerItem>
                         )}
-                    </div>
+                    </StaggerContainer>
                 </div>
             </section>
 
@@ -292,12 +333,15 @@ export default function HomePage() {
             {GAME.features.hasBR && (
                 <section id="scoring" className="px-4 py-16 sm:px-6">
                     <div className="mx-auto max-w-3xl">
+                        <AnimateOnScroll variant="fadeUp">
                         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
                             Scoring & Points System
                         </h2>
                         <p className="mt-3 text-foreground/50">
                             Our scoring system rewards both survival and aggression. Here&apos;s how points are calculated in Battle Royale tournaments.
                         </p>
+                        </AnimateOnScroll>
+                        <AnimateOnScroll variant="fadeUp" delay={0.15}>
                         <div className="mt-8 grid gap-6 sm:grid-cols-2">
                             <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-5">
                                 <h3 className="flex items-center gap-2 text-lg font-bold">
@@ -360,6 +404,7 @@ export default function HomePage() {
                                 </div>
                             </div>
                         </div>
+                        </AnimateOnScroll>
                     </div>
                 </section>
             )}
@@ -368,12 +413,15 @@ export default function HomePage() {
             {GAME.features.hasBracket && (
                 <section id="scoring" className="px-4 py-16 sm:px-6">
                     <div className="mx-auto max-w-3xl">
+                        <AnimateOnScroll variant="fadeUp">
                         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
                             How Matches Work
                         </h2>
                         <p className="mt-3 text-foreground/50">
                             Simple, transparent, and fair — here&apos;s what happens in every match.
                         </p>
+                        </AnimateOnScroll>
+                        <AnimateOnScroll variant="fadeUp" delay={0.15}>
                         <div className="mt-8 grid gap-6 sm:grid-cols-2">
                             <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-5">
                                 <h3 className="flex items-center gap-2 text-lg font-bold">
@@ -396,6 +444,7 @@ export default function HomePage() {
                                 </div>
                             </div>
                         </div>
+                        </AnimateOnScroll>
                     </div>
                 </section>
             )}
@@ -405,6 +454,7 @@ export default function HomePage() {
             {/* ═══════════════════════════════════════════════════════════ */}
             <section id="community" className="bg-foreground/[0.02] px-4 py-16 sm:px-6">
                 <div className="mx-auto max-w-3xl">
+                    <AnimateOnScroll variant="fadeUp">
                     <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
                         Our Community
                     </h2>
@@ -420,6 +470,7 @@ export default function HomePage() {
                             and a supportive community that helps each other improve.
                         </p>
                     </div>
+                    </AnimateOnScroll>
 
                     <div className="mt-8 grid grid-cols-2 gap-4 text-center">
                         <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4">
