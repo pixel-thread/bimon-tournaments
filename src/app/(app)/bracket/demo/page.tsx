@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { BracketView, MyBracketMatch } from "@/components/bracket/bracket-view";
 import { SubmitResultModal } from "@/components/bracket/submit-result-modal";
-import { Trophy, Swords, Users, Globe, Eye, Upload } from "lucide-react";
-import { Chip, Tabs, Tab, Card, CardBody, Progress } from "@heroui/react";
+import { Trophy, Swords, Users, Globe, Eye, CheckCircle, XCircle } from "lucide-react";
+import { Chip, Tabs, Tab, Card, CardBody, Progress, Modal, ModalContent, ModalHeader, ModalBody } from "@heroui/react";
 
 /**
  * /bracket/demo — Demo page to preview all three tournament formats:
@@ -177,6 +177,8 @@ export default function BracketDemoPage() {
     type DemoMatch = { id: string; player1Id: string | null; player1Name: string | null; player1Avatar: string | null; player2Name: string | null; player2Avatar: string | null } | null;
     const [selectedMatch, setSelectedMatch] = useState<DemoMatch>(null);
     const [activeTab, setActiveTab] = useState("knockout");
+    type MatchResult = { home: string; away: string; score: string; winner: string } | null;
+    const [viewingResult, setViewingResult] = useState<MatchResult>(null);
 
     const allDemoMatches = [...KNOCKOUT_ROUNDS.flatMap(r => r.matches), ...GK_KNOCKOUT_ROUNDS.flatMap(r => r.matches)];
     const openSubmit = (matchId: string) => {
@@ -191,6 +193,21 @@ export default function BracketDemoPage() {
         });
     };
 
+    const viewResult = (home: string, away: string, score: string) => {
+        const [s1, s2] = score.split("-").map(Number);
+        const winner = s1 > s2 ? home : s2 > s1 ? away : "Draw";
+        setViewingResult({ home, away, score, winner });
+    };
+
+    const viewBracketResult = (matchId: string) => {
+        const m = allDemoMatches.find(x => x.id === matchId) as any;
+        if (!m) return;
+        const home = m.player1?.displayName ?? "TBD";
+        const away = m.player2?.displayName ?? "TBD";
+        const score = `${m.score1 ?? 0}-${m.score2 ?? 0}`;
+        viewResult(home, away, score);
+    };
+
     return (
         <div className="min-h-dvh bg-background text-foreground">
             <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
@@ -201,9 +218,8 @@ export default function BracketDemoPage() {
                     </div>
                     <div className="flex-1">
                         <h1 className="text-2xl font-bold">Tournament Formats</h1>
-                        <p className="text-sm text-foreground/50">Preview all three formats with demo data</p>
+                        <p className="text-sm text-foreground/50">Explore available tournament structures</p>
                     </div>
-                    <Chip color="warning" variant="flat" size="sm">DEMO</Chip>
                 </div>
 
                 {/* Format Tabs */}
@@ -239,8 +255,8 @@ export default function BracketDemoPage() {
                             rounds={KNOCKOUT_ROUNDS}
                             currentPlayerId={CURRENT_PLAYER_ID}
                             onSubmitResult={(id) => openSubmit(id)}
-                            onConfirmResult={(id) => alert(`Confirm match: ${id}`)}
-                            onDispute={(id) => alert(`Dispute match: ${id}`)}
+                            onConfirmResult={() => {}}
+                            onDispute={() => {}}
                         />
 
                         <div>
@@ -250,9 +266,9 @@ export default function BracketDemoPage() {
                                 totalRounds={3}
                                 currentPlayerId={CURRENT_PLAYER_ID}
                                 onSubmitResult={(id) => openSubmit(id)}
-                                onConfirmResult={(id) => alert(`Confirm: ${id}`)}
-                                onDispute={(id) => alert(`Dispute: ${id}`)}
-                                onViewResult={(id) => alert(`View: ${id}`)}
+                                onConfirmResult={() => {}}
+                                onDispute={() => {}}
+                                onViewResult={(id) => viewBracketResult(id)}
                             />
                         </div>
 
@@ -274,7 +290,7 @@ export default function BracketDemoPage() {
                                         </div>
                                     ))}
                                 </div>
-                                <p className="text-[10px] text-foreground/30 text-center">Org takes 5% (20 coins) • Semi-final losers play 3rd place match</p>
+                                <p className="text-[10px] text-foreground/30 text-center">Semi-final losers play 3rd place match</p>
                             </CardBody>
                         </Card>
                     </div>
@@ -391,14 +407,12 @@ export default function BracketDemoPage() {
                                                         {m.done ? (
                                                             <button
                                                                 className="p-1.5 rounded-lg hover:bg-foreground/10 transition-colors"
-                                                                onClick={() => alert(`${m.home} ${m.score} ${m.away}\n\n📸 Screenshot would show here in production`)}
+                                                                onClick={() => viewResult(m.home, m.away, m.score)}
                                                             >
                                                                 <Eye className="h-4 w-4 text-foreground/40" />
                                                             </button>
                                                         ) : isYou ? (
-                                                            <button className="p-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors">
-                                                                <Upload className="h-4 w-4 text-primary" />
-                                                            </button>
+                                                            <Chip size="sm" variant="flat" color="primary" className="text-[10px]">Upcoming</Chip>
                                                         ) : (
                                                             <div className="w-7 h-7" />
                                                         )}
@@ -523,14 +537,12 @@ export default function BracketDemoPage() {
                                                         {m.done ? (
                                                             <button
                                                                 className="p-1.5 rounded-lg hover:bg-foreground/10 transition-colors"
-                                                                onClick={() => alert(`${m.home} ${m.score} ${m.away}\n\n📸 Screenshot would show here in production`)}
+                                                                onClick={() => viewResult(m.home, m.away, m.score)}
                                                             >
                                                                 <Eye className="h-4 w-4 text-foreground/40" />
                                                             </button>
                                                         ) : isYou ? (
-                                                            <button className="p-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors">
-                                                                <Upload className="h-4 w-4 text-primary" />
-                                                            </button>
+                                                            <Chip size="sm" variant="flat" color="primary" className="text-[10px]">Upcoming</Chip>
                                                         ) : (
                                                             <div className="w-7 h-7" />
                                                         )}
@@ -553,16 +565,23 @@ export default function BracketDemoPage() {
                         </div>
 
                         {/* Knockout Bracket */}
-                        <div>
-                            <h2 className="text-lg font-bold mb-4">Knockout Stage</h2>
+                        <div className="space-y-4">
+                            <h2 className="text-lg font-bold">Knockout Stage</h2>
+                            <MyBracketMatch
+                                rounds={GK_KNOCKOUT_ROUNDS}
+                                currentPlayerId={CURRENT_PLAYER_ID}
+                                onSubmitResult={(id) => openSubmit(id)}
+                                onConfirmResult={() => {}}
+                                onDispute={() => {}}
+                            />
                             <BracketView
                                 rounds={GK_KNOCKOUT_ROUNDS}
                                 totalRounds={2}
                                 currentPlayerId={CURRENT_PLAYER_ID}
                                 onSubmitResult={(id) => openSubmit(id)}
-                                onConfirmResult={(id) => alert(`Confirm: ${id}`)}
-                                onDispute={(id) => alert(`Dispute: ${id}`)}
-                                onViewResult={(id) => alert(`View: ${id}`)}
+                                onConfirmResult={() => {}}
+                                onDispute={() => {}}
+                                onViewResult={(id) => viewBracketResult(id)}
                             />
                         </div>
                     </div>
@@ -593,6 +612,54 @@ export default function BracketDemoPage() {
                         currentPlayerId={CURRENT_PLAYER_ID}
                     />
                 )}
+
+                {/* Match Result Modal */}
+                <Modal isOpen={!!viewingResult} onClose={() => setViewingResult(null)} placement="center" size="sm">
+                    <ModalContent>
+                        {viewingResult && (
+                            <>
+                                <ModalHeader className="flex items-center gap-2 pb-1">
+                                    <CheckCircle className="h-4 w-4 text-success" />
+                                    Match Result
+                                </ModalHeader>
+                                <ModalBody className="pb-6">
+                                    <div className="flex items-center justify-center gap-4 py-4">
+                                        <div className="text-center flex-1">
+                                            <div className="w-12 h-12 rounded-full bg-foreground/10 flex items-center justify-center mx-auto text-lg font-bold">
+                                                {viewingResult.home.charAt(0)}
+                                            </div>
+                                            <p className={`mt-2 text-sm font-semibold ${viewingResult.winner === viewingResult.home ? "text-success" : ""}`}>
+                                                {viewingResult.home}
+                                            </p>
+                                            {viewingResult.winner === viewingResult.home && (
+                                                <Chip size="sm" color="success" variant="flat" className="mt-1">Winner</Chip>
+                                            )}
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-3xl font-black tracking-wider">{viewingResult.score}</p>
+                                            <p className="text-[10px] text-foreground/40 mt-1">FINAL</p>
+                                        </div>
+                                        <div className="text-center flex-1">
+                                            <div className="w-12 h-12 rounded-full bg-foreground/10 flex items-center justify-center mx-auto text-lg font-bold">
+                                                {viewingResult.away.charAt(0)}
+                                            </div>
+                                            <p className={`mt-2 text-sm font-semibold ${viewingResult.winner === viewingResult.away ? "text-success" : ""}`}>
+                                                {viewingResult.away}
+                                            </p>
+                                            {viewingResult.winner === viewingResult.away && (
+                                                <Chip size="sm" color="success" variant="flat" className="mt-1">Winner</Chip>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-foreground/40 justify-center">
+                                        <CheckCircle className="h-3 w-3 text-success" />
+                                        Result confirmed by both players
+                                    </div>
+                                </ModalBody>
+                            </>
+                        )}
+                    </ModalContent>
+                </Modal>
             </div>
         </div>
     );
