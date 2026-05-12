@@ -5,6 +5,7 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input
 import { Phone, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { GAME } from "@/lib/game-config";
 
 interface PhoneRequiredModalProps {
     isOpen: boolean;
@@ -58,7 +59,7 @@ export function PhoneRequiredModal({ isOpen }: PhoneRequiredModalProps) {
                         <span>Add Your Phone Number</span>
                     </div>
                     <p className="text-xs font-normal text-foreground/50 mt-0.5">
-                        Required to participate in matches. Used only for opponent coordination.
+                        We use this to keep you updated on match schedules and results.
                     </p>
                 </ModalHeader>
 
@@ -86,7 +87,7 @@ export function PhoneRequiredModal({ isOpen }: PhoneRequiredModalProps) {
                     />
                     <div className="flex items-start gap-2 text-xs text-foreground/40 px-1">
                         <ShieldCheck className="h-3.5 w-3.5 shrink-0 mt-0.5 text-success/60" />
-                        <span>Your number is only visible to your match opponent.</span>
+                        <span>Your number is kept private and never shared publicly.</span>
                     </div>
                 </ModalBody>
 

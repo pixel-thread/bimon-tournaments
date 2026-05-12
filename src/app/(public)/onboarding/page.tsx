@@ -444,7 +444,7 @@ export default function OnboardingPage() {
                                     isInvalid={!!phoneError}
                                     errorMessage={phoneError}
                                     color={phoneError ? "danger" : "default"}
-                                    description={!phoneError ? "WhatsApp preferred — visible to your match opponent only" : undefined}
+                                    description={!phoneError ? "WhatsApp preferred — keeps you updated on match details" : undefined}
                                     classNames={{
                                         inputWrapper: "!border-default-400",
                                     }}
