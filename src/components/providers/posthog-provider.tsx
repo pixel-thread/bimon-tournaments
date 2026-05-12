@@ -36,18 +36,32 @@ function PostHogPageView() {
     return null;
 }
 
-/** Identify logged-in users */
+/** Identify logged-in users with in-game display name */
 function PostHogIdentify() {
     const { data: session } = useSession();
     const ph = usePostHog();
 
     useEffect(() => {
-        if (session?.user && ph) {
-            ph.identify(session.user.email || session.user.id, {
-                email: session.user.email,
-                name: session.user.name,
+        if (!session?.user || !ph) return;
+        const user = session.user;
+
+        // Fetch player display name from auth-user API
+        fetch("/api/auth/me")
+            .then((res) => (res.ok ? res.json() : null))
+            .then((json) => {
+                const displayName = json?.data?.player?.displayName;
+                ph.identify(user.email || user.id, {
+                    email: user.email,
+                    name: displayName || user.name,
+                });
+            })
+            .catch(() => {
+                // Fallback: identify with auth provider name
+                ph.identify(user.email || user.id, {
+                    email: user.email,
+                    name: user.name,
+                });
             });
-        }
     }, [session, ph]);
 
     return null;
