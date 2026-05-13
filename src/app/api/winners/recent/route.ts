@@ -71,23 +71,18 @@ export async function GET(request: Request) {
 
         // 2. Transform tournaments into the expected format
         const tournamentResults = tournaments.map((t) => {
-            const getPlace = (position: number) => {
-                const winner = t.winners.find((w) => w.position === position);
-                if (!winner) return null;
-                return {
-                    players: winner.team.players.map(
-                        (p) => p.displayName || p.user.username
-                    ),
-                };
-            };
+            const places = t.winners.map((w) => ({
+                position: w.position,
+                players: w.team.players.map(
+                    (p) => p.displayName || p.user.username
+                ),
+            }));
 
             return {
                 id: t.id,
                 name: t.name,
                 createdAt: t.createdAt.toISOString(),
-                place1: getPlace(1),
-                place2: getPlace(2),
-                place3: getPlace(3),
+                places,
             };
         });
 
@@ -99,7 +94,7 @@ export async function GET(request: Request) {
 
         for (const t of tournaments) {
             for (const w of t.winners) {
-                if (w.position > 3) continue;
+                if (w.position > 4) continue;
                 for (const p of w.team.players) {
                     const name = p.displayName || p.user.username;
                     const entry = placementMap.get(name) || {

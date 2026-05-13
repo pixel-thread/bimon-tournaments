@@ -12,9 +12,7 @@ interface TournamentResult {
     id: string;
     name: string;
     createdAt: string;
-    place1: { players: string[] } | null;
-    place2: { players: string[] } | null;
-    place3: { players: string[] } | null;
+    places: { position: number; players: string[] }[];
 }
 
 interface PlayerPlacement {
@@ -229,35 +227,26 @@ export default function WinnersPage() {
                                                     </span>
                                                 </div>
 
-                                                {/* 1st place */}
-                                                {t.place1 && (
-                                                    <div className="mb-1 flex items-start gap-2">
-                                                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-[10px] font-bold text-white">1</span>
-                                                        <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">
-                                                            {t.place1.players.join(", ")}
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                {/* 2nd place */}
-                                                {t.place2 && (
-                                                    <div className="mb-1 flex items-start gap-2">
-                                                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-300 text-[10px] font-bold text-white">2</span>
-                                                        <span className="text-xs text-foreground/60">
-                                                            {t.place2.players.join(", ")}
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                {/* 3rd place */}
-                                                {t.place3 && (
-                                                    <div className="flex items-start gap-2">
-                                                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-600 text-[10px] font-bold text-white">3</span>
-                                                        <span className="text-xs text-foreground/50">
-                                                            {t.place3.players.join(", ")}
-                                                        </span>
-                                                    </div>
-                                                )}
+                                                {t.places.map((place) => {
+                                                    const badgeColor = place.position === 1
+                                                        ? "bg-yellow-400"
+                                                        : place.position === 2
+                                                        ? "bg-gray-300"
+                                                        : place.position === 3
+                                                        ? "bg-amber-600"
+                                                        : "bg-default-300";
+                                                    const textColor = place.position === 1
+                                                        ? "text-yellow-600 dark:text-yellow-400 font-medium"
+                                                        : "text-foreground/50";
+                                                    return (
+                                                        <div key={place.position} className="mb-1 flex items-start gap-2">
+                                                            <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${badgeColor} text-[10px] font-bold text-white`}>{place.position}</span>
+                                                            <span className={`text-xs ${textColor}`}>
+                                                                {place.players.join(", ")}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         ))}
                                     </div>
