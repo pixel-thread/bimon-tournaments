@@ -125,6 +125,9 @@ export function CreateSquadModal({
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
+    // On the done step, block dismiss until WhatsApp is joined (when a link exists)
+    const mustJoinWhatsapp = step === "done" && !!whatsappGroupLink && !whatsappJoined;
+
     return (
         <>
         <Modal
@@ -132,6 +135,9 @@ export function CreateSquadModal({
             onClose={handleClose}
             placement="center"
             size="md"
+            hideCloseButton={mustJoinWhatsapp}
+            isDismissable={!mustJoinWhatsapp}
+            isKeyboardDismissDisabled={mustJoinWhatsapp}
         >
             <ModalContent>
                 <ModalHeader className="flex items-center gap-2 text-base pb-1">
@@ -388,8 +394,9 @@ export function CreateSquadModal({
                             variant="flat"
                             className="w-full font-medium"
                             onPress={handleClose}
+                            isDisabled={mustJoinWhatsapp}
                         >
-                            Done
+                            {mustJoinWhatsapp ? "Join WhatsApp to continue" : "Done"}
                         </Button>
                     )}
                 </ModalFooter>
