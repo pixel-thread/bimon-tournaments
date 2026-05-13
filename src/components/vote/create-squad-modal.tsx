@@ -310,7 +310,7 @@ export function CreateSquadModal({
                                         </div>
                                     )}
                                     {searchResults && searchResults.length > 0 && (
-                                        <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                                        <div className="space-y-1.5 max-h-60 overflow-y-auto">
                                             {searchResults.map((player) => (
                                                 <div key={player.id} className="flex items-center gap-2 py-1.5">
                                                     <Avatar
@@ -341,8 +341,11 @@ export function CreateSquadModal({
                                             ))}
                                         </div>
                                     )}
+                                    {searchResults && searchResults.length >= 10 && (
+                                        <p className="text-[11px] text-foreground/40 text-center py-1.5">Player not found? Type more</p>
+                                    )}
                                     {searchResults && searchResults.length === 0 && inviteSearch.length >= 2 && (
-                                        <p className="text-xs text-foreground/40 text-center py-2">No players found</p>
+                                        <p className="text-xs text-foreground/40 text-center py-2">Player not found? Type more</p>
                                     )}
                                 </div>
                             </motion.div>

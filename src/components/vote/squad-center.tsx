@@ -33,6 +33,49 @@ import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import type { PollTheme } from "./pollTheme";
 
+/* ─── Share Button with Auto-Tooltip ──────────────────────── */
+
+function ShareButtonWithTooltip({ squad }: { squad: SquadDTO }) {
+    const [showTip, setShowTip] = useState(false);
+
+    useEffect(() => {
+        const showTimer = setTimeout(() => setShowTip(true), 2000);
+        const hideTimer = setTimeout(() => setShowTip(false), 7000);
+        return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
+    }, []);
+
+    return (
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setShowTip(false);
+                    const url = `${window.location.origin}/invite/${squad.id}`;
+                    const text = `Join my team "${squad.name}"!\n${url}`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                }}
+                className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center hover:bg-emerald-500/25 transition-colors"
+            >
+                <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            </button>
+            <AnimatePresence>
+                {showTip && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        className="absolute right-0 top-full mt-1.5 z-50 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-foreground text-background text-[11px] font-medium shadow-lg"
+                    >
+                        Share to teammates on WhatsApp
+                        <div className="absolute -top-1 right-3 w-2 h-2 bg-foreground rotate-45" />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
+
 /* ─── Types ─────────────────────────────────────────────────── */
 
 interface InVoter {
@@ -346,18 +389,7 @@ function SquadCard({
                         </Chip>
                     )}
                     {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                const url = `${window.location.origin}/invite/${squad.id}`;
-                                const text = `Join my team "${squad.name}"!\n${url}`;
-                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-                            }}
-                            className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center hover:bg-emerald-500/25 transition-colors"
-                        >
-                            <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                        </button>
+                        <ShareButtonWithTooltip squad={squad} />
                     )}
                     <motion.div
                         animate={{ rotate: isExpanded ? 180 : 0 }}
@@ -514,7 +546,7 @@ function SquadCard({
                                             </div>
                                         )}
                                         {searchResults && searchResults.length > 0 && (
-                                            <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                                            <div className="space-y-1.5 max-h-60 overflow-y-auto">
                                                 {searchResults
                                                     .filter(p => !squad.members.some(m => m.playerId === p.id))
                                                     .map((player) => (
@@ -544,8 +576,11 @@ function SquadCard({
                                                 ))}
                                             </div>
                                         )}
+                                        {searchResults && searchResults.filter(p => !squad.members.some(m => m.playerId === p.id)).length >= 10 && (
+                                            <p className="text-[11px] text-foreground/40 text-center py-1.5">Player not found? Type more</p>
+                                        )}
                                         {inviteSearch.length >= 2 && !isSearching && searchResults?.filter(p => !squad.members.some(m => m.playerId === p.id)).length === 0 && (
-                                            <p className="text-xs text-foreground/40 text-center py-2">No players found</p>
+                                            <p className="text-xs text-foreground/40 text-center py-2">Player not found? Type more</p>
                                         )}
                                     </div>
                                 )}

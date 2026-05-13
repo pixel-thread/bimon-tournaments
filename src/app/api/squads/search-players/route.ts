@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
                     },
                 },
             },
-            take: 8,
+            take: 15,
         });
 
         // Note: joiners don't pay — captain covers the full team fee.
