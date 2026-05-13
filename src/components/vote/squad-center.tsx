@@ -14,7 +14,7 @@ import {
     Input,
 } from "@heroui/react";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
-import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, Search, MoreVertical, Swords, Link2, CheckCheck, Copy } from "lucide-react";
+import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, Search, MoreVertical, Swords, Share2, CheckCheck, Copy } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     useSquads,
@@ -356,7 +356,7 @@ function SquadCard({
                             }}
                             className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center hover:bg-emerald-500/25 transition-colors"
                         >
-                            <Link2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         </button>
                     )}
                     <motion.div
