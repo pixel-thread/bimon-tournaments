@@ -76,9 +76,10 @@ export default function JoinPage() {
     // If user already has a squad → redirect to vote page
     useEffect(() => {
         if (data?.hasSquad) {
+            toast.info(`You're already in ${data.mySquadName ?? "a team"} — redirecting...`);
             router.replace(`/vote?tab=ranked&poll=${pollId}`);
         }
-    }, [data?.hasSquad, pollId, router]);
+    }, [data?.hasSquad, data?.mySquadName, pollId, router]);
 
     // Auto-focus team name input once data loads
     useEffect(() => {
