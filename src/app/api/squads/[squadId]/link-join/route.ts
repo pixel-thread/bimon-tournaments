@@ -51,6 +51,7 @@ export async function GET(
                         scheduledTime: true,
                         days: true,
                         expectedPrizePool: true,
+                        whatsappGroupLink: true,
                         tournament: {
                             select: { name: true, fee: true },
                         },
@@ -103,6 +104,7 @@ export async function GET(
                 scheduledDate: squad.poll.scheduledDate,
                 scheduledTime: squad.poll.scheduledTime ?? "20:00",
                 days: squad.poll.days,
+                whatsappGroupLink: squad.poll.whatsappGroupLink ?? null,
                 captain: {
                     id: squad.captain.id,
                     displayName: squad.captain.displayName ?? squad.captain.user.username,
