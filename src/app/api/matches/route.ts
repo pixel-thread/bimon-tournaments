@@ -147,6 +147,8 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "Tournament not found", status: 404 });
         }
 
+        const seasonId = tournament.seasonId;
+
         // Find the latest match to get its number and clone teams from it
         const prevMatch = await prisma.match.findFirst({
             where: { tournamentId },
@@ -166,16 +168,28 @@ export async function POST(request: NextRequest) {
         });
 
         const nextMatchNumber = (prevMatch?.matchNumber ?? 0) + 1;
-        const seasonId = tournament.seasonId;
 
-        // Create the new match
-        const match = await prisma.match.create({
-            data: {
-                matchNumber: nextMatchNumber,
-                tournamentId,
-                ...(seasonId ? { seasonId } : {}),
-            },
-        });
+        // Create the new match — unique constraint on [tournamentId, matchNumber]
+        // will reject if another admin already created this matchNumber.
+        let match;
+        try {
+            match = await prisma.match.create({
+                data: {
+                    matchNumber: nextMatchNumber,
+                    tournamentId,
+                    ...(seasonId ? { seasonId } : {}),
+                },
+            });
+        } catch (err: unknown) {
+            const isPrismaUnique = err instanceof Error && "code" in err && (err as { code: string }).code === "P2002";
+            if (isPrismaUnique) {
+                return ErrorResponse({
+                    message: "Another admin is already creating a match for this tournament. Please wait and refresh.",
+                    status: 409,
+                });
+            }
+            throw err;
+        }
 
         // Clone teams from previous match if it exists
         let teamCount = 0;

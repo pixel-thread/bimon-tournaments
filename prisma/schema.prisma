@@ -618,6 +618,7 @@ model Match {
   matchPlayerPlayed MatchPlayerPlayed[]
 
   @@index([tournamentId])
+  @@unique([tournamentId, matchNumber])
   @@index([tournamentId, matchNumber])
   @@index([seasonId])
 }
@@ -682,6 +683,7 @@ model Team {
   // Championship
   championshipEntry   ChampionshipEntry?
 
+  @@unique([tournamentId, teamNumber])
   @@index([tournamentId])
   @@index([seasonId])
   @@index([clanId])
