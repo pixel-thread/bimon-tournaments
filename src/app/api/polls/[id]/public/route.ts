@@ -31,6 +31,7 @@ export async function GET(
                 scheduledTime: true,
                 days: true,
                 expectedPrizePool: true,
+                whatsappGroupLink: true,
                 tournament: {
                     select: {
                         id: true,
@@ -101,6 +102,7 @@ export async function GET(
                 maxTeamSize: GAME.maxSquadSize,
                 hasSquad,
                 mySquadName,
+                whatsappGroupLink: poll.whatsappGroupLink ?? null,
             },
             cache: CACHE.NONE,
         });
