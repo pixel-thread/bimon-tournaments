@@ -287,6 +287,7 @@ function SquadCard({
     );
 
     return (
+        <>
         <motion.div
             ref={cardRef}
             initial={{ opacity: 0, y: 8 }}
@@ -482,108 +483,16 @@ function SquadCard({
                         {/* Captain: Invite Players */}
                         {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
                             <div className="px-4 py-3 border-t border-divider/50">
-                                {/* Hidden proxy input — focused immediately on tap to keep keyboard open on mobile */}
-                                <input
-                                    ref={proxyInputRef}
-                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    tabIndex={-1}
-                                    readOnly
-                                />
-                                {!showInvite ? (
-                                    <Button
-                                        size="sm"
-                                        variant="flat"
-                                        color="primary"
-                                        className="w-full font-medium"
-                                        startContent={<UserPlus className="w-3.5 h-3.5" />}
-                                        onPress={() => {
-                                            // Focus proxy immediately (within user gesture) to keep keyboard open
-                                            proxyInputRef.current?.focus();
-                                            setShowInvite(true);
-                                        }}
-                                    >
-                                        Invite Players
-                                    </Button>
-                                ) : (
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                ref={(el: HTMLDivElement | null) => {
-                                                    if (el) {
-                                                        const focusInput = () => {
-                                                            el.scrollIntoView({ behavior: "smooth", block: "center" });
-                                                            const input = el.querySelector("input");
-                                                            if (input) {
-                                                                input.focus();
-                                                                // Blur proxy after real input takes over
-                                                                proxyInputRef.current?.blur();
-                                                            }
-                                                        };
-                                                        setTimeout(focusInput, 150);
-                                                        setTimeout(focusInput, 400);
-                                                    }
-                                                }}
-                                                placeholder="Search player..."
-                                                value={inviteSearch}
-                                                onValueChange={setInviteSearch}
-                                                size="sm"
-                                                className="flex-1"
-                                                startContent={<Search className="w-3.5 h-3.5 text-default-400" />}
-                                            />
-                                            <Button
-                                                size="sm"
-                                                variant="light"
-                                                isIconOnly
-                                                onPress={() => { setShowInvite(false); setInviteSearch(""); }}
-                                                className="min-w-7 w-7 h-7"
-                                            >
-                                                <X className="w-3.5 h-3.5" />
-                                            </Button>
-                                        </div>
-                                        {isSearching && (
-                                            <div className="flex justify-center py-2">
-                                                <Spinner size="sm" />
-                                            </div>
-                                        )}
-                                        {searchResults && searchResults.length > 0 && (
-                                            <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                                                {searchResults
-                                                    .filter(p => !squad.members.some(m => m.playerId === p.id))
-                                                    .map((player) => (
-                                                    <div key={player.id} className="flex items-center gap-2 py-1.5">
-                                                        <Avatar
-                                                            src={player.imageUrl}
-                                                            name={player.displayName}
-                                                            size="sm"
-                                                            className="w-7 h-7 shrink-0"
-                                                        />
-                                                        <span className="text-sm font-medium truncate flex-1">{player.displayName}</span>
-                                                        <Button
-                                                            size="sm"
-                                                            color="primary"
-                                                            variant="flat"
-                                                            className="min-w-0 px-3 h-7"
-                                                            isLoading={inviteMutation.isPending && invitingPlayerId === player.id}
-                                                            isDisabled={inviteMutation.isPending && invitingPlayerId !== player.id}
-                                                            onPress={() => {
-                                                                setInvitingPlayerId(player.id);
-                                                                inviteMutation.mutate({ squadId: squad.id, playerId: player.id });
-                                                            }}
-                                                        >
-                                                            Invite
-                                                        </Button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {searchResults && searchResults.filter(p => !squad.members.some(m => m.playerId === p.id)).length >= 10 && (
-                                            <p className="text-[11px] text-foreground/40 text-center py-1.5">Player not found? Type more</p>
-                                        )}
-                                        {inviteSearch.length >= 2 && !isSearching && searchResults?.filter(p => !squad.members.some(m => m.playerId === p.id)).length === 0 && (
-                                            <p className="text-xs text-foreground/40 text-center py-2">Player not found? Type more</p>
-                                        )}
-                                    </div>
-                                )}
+                                <Button
+                                    size="sm"
+                                    variant="flat"
+                                    color="primary"
+                                    className="w-full font-medium"
+                                    startContent={<UserPlus className="w-3.5 h-3.5" />}
+                                    onPress={() => setShowInvite(true)}
+                                >
+                                    Invite Players
+                                </Button>
                             </div>
                         )}
 
@@ -751,6 +660,122 @@ function SquadCard({
             </AnimatePresence>
             </div>
         </motion.div>
+
+            {/* ── Full-screen Invite Modal ── */}
+            <Modal
+                isOpen={showInvite}
+                onClose={() => { setShowInvite(false); setInviteSearch(""); }}
+                placement="center"
+                size="full"
+                scrollBehavior="inside"
+                classNames={{
+                    wrapper: "z-[60]",
+                    body: "px-4 py-0",
+                }}
+            >
+                <ModalContent>
+                    <ModalHeader className="flex items-center gap-2 text-base pb-2">
+                        <UserPlus className="w-4 h-4 text-primary" />
+                        <div className="flex-1 min-w-0">
+                            <span className="truncate block">Invite Players</span>
+                            <span className="text-xs font-normal text-foreground/50">{squad.name}</span>
+                        </div>
+                    </ModalHeader>
+                    <ModalBody>
+                        {/* Share link */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const url = `${window.location.origin}/invite/${squad.id}`;
+                                const text = `Join my team "${squad.name}"!\n${url}`;
+                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                            }}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors mb-3"
+                        >
+                            <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div className="flex-1 min-w-0 text-left">
+                                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Share invite on WhatsApp</p>
+                                <p className="text-[11px] text-emerald-600/60 dark:text-emerald-400/60">Send link to your teammates</p>
+                            </div>
+                        </button>
+
+                        {/* Search input */}
+                        <Input
+                            ref={(el: HTMLDivElement | null) => {
+                                if (el) {
+                                    setTimeout(() => {
+                                        const input = el.querySelector("input");
+                                        input?.focus();
+                                    }, 300);
+                                }
+                            }}
+                            placeholder="Search player name..."
+                            value={inviteSearch}
+                            onValueChange={setInviteSearch}
+                            size="lg"
+                            startContent={<Search className="w-4 h-4 text-default-400" />}
+                            endContent={inviteSearch ? (
+                                <button type="button" onClick={() => setInviteSearch("")} className="p-0.5">
+                                    <X className="w-3.5 h-3.5 text-default-400" />
+                                </button>
+                            ) : undefined}
+                            classNames={{ input: "text-base" }}
+                        />
+
+                        {/* Results */}
+                        <div className="mt-3 space-y-1">
+                            {isSearching && (
+                                <div className="flex justify-center py-6">
+                                    <Spinner size="sm" />
+                                </div>
+                            )}
+                            {searchResults && searchResults.length > 0 && (
+                                <div className="space-y-0.5">
+                                    {searchResults
+                                        .filter(p => !squad.members.some(m => m.playerId === p.id))
+                                        .map((player) => (
+                                        <div key={player.id} className="flex items-center gap-3 py-2.5 px-1">
+                                            <Avatar
+                                                src={player.imageUrl}
+                                                name={player.displayName}
+                                                size="sm"
+                                                className="w-8 h-8 shrink-0"
+                                            />
+                                            <span className="text-sm font-medium truncate flex-1">{player.displayName}</span>
+                                            <Button
+                                                size="sm"
+                                                color="primary"
+                                                variant="flat"
+                                                className="min-w-0 px-4 h-8"
+                                                isLoading={inviteMutation.isPending && invitingPlayerId === player.id}
+                                                isDisabled={inviteMutation.isPending && invitingPlayerId !== player.id}
+                                                onPress={() => {
+                                                    setInvitingPlayerId(player.id);
+                                                    inviteMutation.mutate({ squadId: squad.id, playerId: player.id });
+                                                }}
+                                            >
+                                                Invite
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {searchResults && searchResults.filter(p => !squad.members.some(m => m.playerId === p.id)).length >= 10 && (
+                                <p className="text-xs text-foreground/40 text-center py-2">Player not found? Type more</p>
+                            )}
+                            {inviteSearch.length >= 2 && !isSearching && searchResults?.filter(p => !squad.members.some(m => m.playerId === p.id)).length === 0 && (
+                                <p className="text-xs text-foreground/40 text-center py-4">Player not found? Type more</p>
+                            )}
+                            {!inviteSearch && !isSearching && (
+                                <p className="text-sm text-foreground/30 text-center py-8">Type a name to search players</p>
+                            )}
+                        </div>
+                    </ModalBody>
+                </ModalContent>
+            </Modal>
+        </>
     );
 }
 
@@ -969,7 +994,8 @@ export function SquadCenter({
                 size="md"
                 scrollBehavior="inside"
                 classNames={{
-                    body: "px-4 py-3 max-h-[60dvh] overflow-y-auto",
+                    body: "px-4 py-3 max-h-[75dvh] overflow-y-auto",
+                    wrapper: "z-50",
                 }}
             >
                 <ModalContent>
