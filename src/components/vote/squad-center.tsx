@@ -861,6 +861,7 @@ export function SquadCenter({
     const { data: squadsResult, isLoading, refetch } = useSquads(pollId);
     const squads = squadsResult?.squads;
     const maxSquads = squadsResult?.maxSquads ?? GAME.maxSquadTeams;
+    const maxWaitlistSlots = (squadsResult?.maxSquadWaitlist ?? GAME.maxSquadWaitlist) - maxSquads;
     const [showWaitlist, setShowWaitlist] = useState(false);
 
     // Always refetch when the squad center opens to prevent stale data
@@ -1057,19 +1058,12 @@ export function SquadCenter({
                                     animate={{ opacity: 1 }}
                                     className="space-y-4"
                                 >
-                                    {/* Your Squad (or Your Random Team) */}
-                                    {mySquad && (
+                                    {/* Your Squad — only if CONFIRMED */}
+                                    {mySquad && confirmedIds.has(mySquad.id) && (
                                         <div>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
-                                                    Your Squad
-                                                </p>
-                                                {mySquad && !confirmedIds.has(mySquad.id) && (
-                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
-                                                        ⏳ Waitlisted
-                                                    </span>
-                                                )}
-                                            </div>
+                                            <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
+                                                Your Squad
+                                            </p>
                                             <SquadCard
                                                 squad={mySquad}
                                                 currentPlayerId={currentPlayerId}
@@ -1103,6 +1097,98 @@ export function SquadCenter({
                                             <RandomTeamCard team={myRandomTeam} defaultExpanded />
                                         </div>
                                     )}
+
+                                    {/* Waitlisted Squads — collapsible, includes own squad if waitlisted */}
+                                    {(() => {
+                                        const isMySquadWaitlisted = mySquad && !confirmedIds.has(mySquad.id);
+                                        const totalWaitlisted = waitlistedList.length + (isMySquadWaitlisted ? 1 : 0);
+                                        if (totalWaitlisted === 0) return null;
+                                        return (
+                                            <div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowWaitlist(!showWaitlist)}
+                                                    className="flex items-center gap-2 w-full text-left mb-2 cursor-pointer"
+                                                >
+                                                    <ChevronRight className={`w-3.5 h-3.5 text-amber-500 transition-transform ${showWaitlist ? "rotate-90" : ""}`} />
+                                                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
+                                                        Waitlist
+                                                    </p>
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
+                                                        {totalWaitlisted}/{maxWaitlistSlots}
+                                                    </span>
+                                                </button>
+                                                {showWaitlist && (
+                                                    <div className="space-y-3 border-l-2 border-amber-500/20 pl-3">
+                                                        {/* My squad first if waitlisted */}
+                                                        {isMySquadWaitlisted && (
+                                                            <div>
+                                                                <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-1.5">Your Squad</p>
+                                                                <SquadCard
+                                                                    squad={mySquad}
+                                                                    currentPlayerId={currentPlayerId}
+                                                                    pollIsActive={pollIsActive}
+                                                                    pollId={pollId}
+                                                                    onCancel={handleCancel}
+                                                                    onAccept={handleAccept}
+                                                                    onDecline={handleDecline}
+                                                                    onRequestJoin={handleRequestJoin}
+                                                                    onAcceptRequest={handleAcceptRequest}
+                                                                    onDeclineRequest={handleDeclineRequest}
+                                                                    onRemoveMember={handleRemoveMember}
+                                                                    onLeave={handleLeave}
+                                                                    isCancelling={cancelMutation.isPending}
+                                                                    isResponding={respondMutation.isPending}
+                                                                    respondingAction={respondMutation.isPending ? respondAction : null}
+                                                                    isRequesting={requestJoinMutation.isPending}
+                                                                    isRespondingRequest={respondRequestMutation.isPending}
+                                                                    respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
+                                                                    isRemoving={removeMemberMutation.isPending}
+                                                                    isLeaving={leaveMutation.isPending}
+                                                                    defaultExpanded
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        {waitlistedList.map((item) => {
+                                                            if (item.type === "squad") {
+                                                                return (
+                                                                    <SquadCard
+                                                                        key={item.data.id}
+                                                                        squad={item.data}
+                                                                        currentPlayerId={currentPlayerId}
+                                                                        pollIsActive={pollIsActive}
+                                                                        pollId={pollId}
+                                                                        onCancel={handleCancel}
+                                                                        onAccept={handleAccept}
+                                                                        onDecline={handleDecline}
+                                                                        onRequestJoin={handleRequestJoin}
+                                                                        onAcceptRequest={handleAcceptRequest}
+                                                                        onDeclineRequest={handleDeclineRequest}
+                                                                        onRemoveMember={handleRemoveMember}
+                                                                        onLeave={handleLeave}
+                                                                        isCancelling={cancelMutation.isPending}
+                                                                        isResponding={respondMutation.isPending}
+                                                                        respondingAction={respondMutation.isPending ? respondAction : null}
+                                                                        isRequesting={requestJoinMutation.isPending}
+                                                                        isRespondingRequest={respondRequestMutation.isPending}
+                                                                        respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
+                                                                        isRemoving={removeMemberMutation.isPending}
+                                                                        isLeaving={leaveMutation.isPending}
+                                                                    />
+                                                                );
+                                                            }
+                                                            return (
+                                                                <RandomTeamCard
+                                                                    key={item.data.id}
+                                                                    team={item.data}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Other Squads + Random Teams — confirmed */}
                                     {confirmedList.length > 0 && (
@@ -1147,64 +1233,6 @@ export function SquadCenter({
                                                     );
                                                 })}
                                             </div>
-                                        </div>
-                                    )}
-
-                                    {/* Waitlisted Squads — collapsible */}
-                                    {waitlistedList.length > 0 && (
-                                        <div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowWaitlist(!showWaitlist)}
-                                                className="flex items-center gap-2 w-full text-left mb-2 cursor-pointer"
-                                            >
-                                                <ChevronRight className={`w-3.5 h-3.5 text-amber-500 transition-transform ${showWaitlist ? "rotate-90" : ""}`} />
-                                                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
-                                                    Waitlist
-                                                </p>
-                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
-                                                    {waitlistedList.length}
-                                                </span>
-                                            </button>
-                                            {showWaitlist && (
-                                                <div className="space-y-3 border-l-2 border-amber-500/20 pl-3">
-                                                    {waitlistedList.map((item) => {
-                                                        if (item.type === "squad") {
-                                                            return (
-                                                                <SquadCard
-                                                                    key={item.data.id}
-                                                                    squad={item.data}
-                                                                    currentPlayerId={currentPlayerId}
-                                                                    pollIsActive={pollIsActive}
-                                                                    pollId={pollId}
-                                                                    onCancel={handleCancel}
-                                                                    onAccept={handleAccept}
-                                                                    onDecline={handleDecline}
-                                                                    onRequestJoin={handleRequestJoin}
-                                                                    onAcceptRequest={handleAcceptRequest}
-                                                                    onDeclineRequest={handleDeclineRequest}
-                                                                    onRemoveMember={handleRemoveMember}
-                                                                    onLeave={handleLeave}
-                                                                    isCancelling={cancelMutation.isPending}
-                                                                    isResponding={respondMutation.isPending}
-                                                                    respondingAction={respondMutation.isPending ? respondAction : null}
-                                                                    isRequesting={requestJoinMutation.isPending}
-                                                                    isRespondingRequest={respondRequestMutation.isPending}
-                                                                    respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
-                                                                    isRemoving={removeMemberMutation.isPending}
-                                                                    isLeaving={leaveMutation.isPending}
-                                                                />
-                                                            );
-                                                        }
-                                                        return (
-                                                            <RandomTeamCard
-                                                                key={item.data.id}
-                                                                team={item.data}
-                                                            />
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
                                         </div>
                                     )}
 
