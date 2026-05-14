@@ -21,10 +21,10 @@ import { useColorTheme, type ColorTheme } from "@/components/common/color-theme-
 
 const COLOR_THEMES: { value: ColorTheme; label: string; gradient: string }[] = [
     { value: "default", label: "Default", gradient: "linear-gradient(135deg, #888, #444)" },
-    { value: "bgmi", label: "Gold", gradient: "linear-gradient(135deg, #F2AA00, #8B6914)" },
-    { value: "freefire", label: "Fire", gradient: "linear-gradient(135deg, #FF6B00, #DC2626)" },
-    { value: "pes", label: "Blue", gradient: "linear-gradient(135deg, #2563EB, #1D4ED8)" },
-    { value: "mlbb", label: "Cyan", gradient: "linear-gradient(135deg, #06B6D4, #0891B2)" },
+    { value: "gold", label: "Gold", gradient: "linear-gradient(135deg, #F2AA00, #8B6914)" },
+    { value: "fire", label: "Fire", gradient: "linear-gradient(135deg, #FF6B00, #DC2626)" },
+    { value: "blue", label: "Blue", gradient: "linear-gradient(135deg, #2563EB, #1D4ED8)" },
+    { value: "cyan", label: "Cyan", gradient: "linear-gradient(135deg, #06B6D4, #0891B2)" },
 ];
 
 import { useLocale, type AppLocale } from "@/components/common/locale-provider";

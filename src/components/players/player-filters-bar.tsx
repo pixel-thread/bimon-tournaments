@@ -124,7 +124,7 @@ export function PlayerFiltersBar({
                     onValueChange={setSearch}
                     startContent={<Search className="h-4 w-4 text-default-400" />}
                     classNames={{
-                        inputWrapper: "bg-default-100 border-none shadow-none",
+                        inputWrapper: "bg-default-100 dark:bg-[var(--game-surface)] border-none shadow-none",
                     }}
                     className="flex-1 sm:max-w-xs"
                     size="sm"
@@ -137,7 +137,7 @@ export function PlayerFiltersBar({
                             size="sm"
                             variant="flat"
                             startContent={<SlidersHorizontal className="h-4 w-4" />}
-                            className="bg-default-100 shrink-0"
+                            className="bg-default-100 dark:bg-[var(--game-surface)] shrink-0"
                         >
                             <span className="hidden sm:inline">Filters</span>
                             {hasActiveFilters && (

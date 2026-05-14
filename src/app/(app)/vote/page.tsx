@@ -215,7 +215,7 @@ export default function VotePage() {
                             initial={{ opacity: 0, y: 12 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="flex flex-col items-center gap-3 rounded-xl bg-default-100 py-12 text-center"
+                            className="flex flex-col items-center gap-3 rounded-xl bg-default-100 dark:bg-[var(--game-surface)] py-12 text-center"
                         >
                             <Vote className="h-10 w-10 text-foreground/20" />
                             <div>

@@ -67,7 +67,7 @@ export function PlayerTable({
     return (
         <div className="space-y-2">
             {/* Table header - desktop only */}
-            <div className="hidden items-center gap-3 rounded-lg bg-default-100 px-4 py-2 text-xs font-semibold text-foreground/50 sm:flex">
+            <div className="hidden items-center gap-3 rounded-lg bg-default-100 dark:bg-[var(--game-surface)] px-4 py-2 text-xs font-semibold text-foreground/50 sm:flex">
                 <span className="w-8 text-center">#</span>
                 <span className="flex-1">Player</span>
                 <span className="w-14 text-center">Tier</span>
@@ -103,7 +103,7 @@ export function PlayerTable({
                                 ? "opacity-50 bg-danger/5 hover:bg-danger/10"
                                 : player.hasRoyalPass
                                 ? "bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/25"
-                                : "hover:bg-default-100 active:bg-default-200"
+                                : "hover:bg-[var(--game-surface)] active:bg-[var(--game-surface-hover)]"
                                 }`}
                         >
                             {/* Rank */}

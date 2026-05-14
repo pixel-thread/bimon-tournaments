@@ -913,7 +913,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
             <div
                 className={`relative rounded-xl overflow-hidden transition-all duration-700 ease-in-out ${theme
                     ? theme.card
-                    : "bg-white dark:bg-gray-800 shadow-sm border game-card"
+                    : "bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700"
                     }`}
             >
                 {/* ─── Header with Prize Pool ─── */}

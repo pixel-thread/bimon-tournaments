@@ -21,7 +21,7 @@
   --color-error: #ef4444;
   --color-warning: #f59e0b;
 
-  /* Game theming defaults (overridden per data-game) */
+  /* Color theme defaults (overridden per data-color-theme) */
   --game-primary: #6366f1;
   --game-primary-light: #818cf8;
   --game-primary-dark: #4f46e5;
@@ -40,87 +40,109 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   🎖️ BGMI / PUBG Mobile — Military Gold & Black
-   Brand: Gold #F2AA00, Military olive, dark backgrounds
+   🥇 Gold — Warm gold & olive
+   60% dark olive bg → 30% warm surface → 10% gold accents
    ═══════════════════════════════════════════════════════════════ */
-[data-game="bgmi"] {
+[data-color-theme="gold"] {
   --game-primary: #F2AA00;
   --game-primary-light: #FFD740;
   --game-primary-dark: #E09800;
   --game-accent: #4a5c3d;
-  --game-glow: rgba(242, 170, 0, 0.2);
-  --game-glow-strong: rgba(242, 170, 0, 0.35);
-  --game-bg: #0d0f0b;
-  --game-surface: #161a12;
-  --game-surface-hover: #1e2318;
-  --game-border: rgba(242, 170, 0, 0.06);
-  --game-border-strong: rgba(242, 170, 0, 0.12);
-  --game-nav-from: #0d0f0b;
-  --game-nav-to: #161a12;
+  --game-glow: rgba(242, 170, 0, 0.25);
+  --game-glow-strong: rgba(242, 170, 0, 0.4);
+  /* Dark: 60% deep olive → 30% warm brown-olive */
+  --game-bg: #0c0d09;
+  --game-surface: #1a1e14;
+  --game-surface-hover: #24291c;
+  --game-border: rgba(242, 170, 0, 0.15);
+  --game-border-strong: rgba(242, 170, 0, 0.30);
+  --game-nav-from: #0c0d09;
+  --game-nav-to: #1a1e14;
   --game-gradient: linear-gradient(135deg, #F2AA00, #FFD740);
+  /* Light: 60% warm cream → 30% white cards */
+  --game-bg-light: #f8f0dc;
+  --game-surface-light: #ffffff;
+  --game-surface-hover-light: #fdf5e1;
+  --game-border-light: rgba(194, 136, 0, 0.20);
+  --game-border-strong-light: rgba(194, 136, 0, 0.35);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   🔥 Free Fire — Fire Orange & Red on Black
-   Brand: Orange #FF6B00, Red #DC2626, dark ember backgrounds
+   🔥 Fire — Orange & red ember
+   60% dark charcoal → 30% warm ember → 10% orange accents
    ═══════════════════════════════════════════════════════════════ */
-[data-game="freefire"] {
+[data-color-theme="fire"] {
   --game-primary: #FF6B00;
   --game-primary-light: #FF8C00;
   --game-primary-dark: #E05500;
   --game-accent: #DC2626;
-  --game-glow: rgba(255, 107, 0, 0.2);
-  --game-glow-strong: rgba(255, 107, 0, 0.35);
-  --game-bg: #0a0806;
-  --game-surface: #1a1410;
-  --game-surface-hover: #231a14;
-  --game-border: rgba(255, 107, 0, 0.06);
-  --game-border-strong: rgba(255, 107, 0, 0.12);
-  --game-nav-from: #0a0806;
-  --game-nav-to: #1a1410;
+  --game-glow: rgba(255, 107, 0, 0.25);
+  --game-glow-strong: rgba(255, 107, 0, 0.4);
+  --game-bg: #0a0705;
+  --game-surface: #1e1510;
+  --game-surface-hover: #2a1e16;
+  --game-border: rgba(255, 107, 0, 0.15);
+  --game-border-strong: rgba(255, 107, 0, 0.30);
+  --game-nav-from: #0a0705;
+  --game-nav-to: #1e1510;
   --game-gradient: linear-gradient(135deg, #FF6B00, #FF8C00);
+  --game-bg-light: #fdf0e6;
+  --game-surface-light: #ffffff;
+  --game-surface-hover-light: #fef0e6;
+  --game-border-light: rgba(204, 86, 0, 0.18);
+  --game-border-strong-light: rgba(204, 86, 0, 0.32);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ⚽ eFootball / PES — Clean Blue & Yellow
-   Brand: Blue #2563EB, Yellow #EAB308, modern sport UI
+   💙 Blue — Cool blue & yellow
+   60% deep navy → 30% slate blue → 10% blue accents
    ═══════════════════════════════════════════════════════════════ */
-[data-game="pes"] {
+[data-color-theme="blue"] {
   --game-primary: #2563EB;
   --game-primary-light: #3B82F6;
   --game-primary-dark: #1D4ED8;
   --game-accent: #EAB308;
-  --game-glow: rgba(37, 99, 235, 0.2);
-  --game-glow-strong: rgba(37, 99, 235, 0.35);
-  --game-bg: #080a12;
-  --game-surface: #101420;
-  --game-surface-hover: #161c2c;
-  --game-border: rgba(37, 99, 235, 0.06);
-  --game-border-strong: rgba(37, 99, 235, 0.12);
-  --game-nav-from: #080a12;
-  --game-nav-to: #101420;
+  --game-glow: rgba(37, 99, 235, 0.25);
+  --game-glow-strong: rgba(37, 99, 235, 0.4);
+  --game-bg: #070a14;
+  --game-surface: #0f1524;
+  --game-surface-hover: #182030;
+  --game-border: rgba(37, 99, 235, 0.15);
+  --game-border-strong: rgba(37, 99, 235, 0.30);
+  --game-nav-from: #070a14;
+  --game-nav-to: #0f1524;
   --game-gradient: linear-gradient(135deg, #2563EB, #3B82F6);
+  --game-bg-light: #e8eef8;
+  --game-surface-light: #ffffff;
+  --game-surface-hover-light: #eaeffc;
+  --game-border-light: rgba(37, 99, 235, 0.16);
+  --game-border-strong-light: rgba(37, 99, 235, 0.30);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   🛡️ MLBB / Mobile Legends — Dark Blue, Cyan & Gold
-   Brand: Cyan #06B6D4, Gold #F59E0B, deep navy backgrounds
+   🌊 Cyan — Teal & gold
+   60% deep ocean → 30% navy → 10% teal accents
    ═══════════════════════════════════════════════════════════════ */
-[data-game="mlbb"] {
+[data-color-theme="cyan"] {
   --game-primary: #06B6D4;
   --game-primary-light: #22D3EE;
   --game-primary-dark: #0891B2;
   --game-accent: #F59E0B;
-  --game-glow: rgba(6, 182, 212, 0.2);
-  --game-glow-strong: rgba(6, 182, 212, 0.35);
-  --game-bg: #060B14;
-  --game-surface: #0C1624;
-  --game-surface-hover: #121e30;
-  --game-border: rgba(6, 182, 212, 0.06);
-  --game-border-strong: rgba(6, 182, 212, 0.12);
-  --game-nav-from: #060B14;
-  --game-nav-to: #0C1624;
+  --game-glow: rgba(6, 182, 212, 0.25);
+  --game-glow-strong: rgba(6, 182, 212, 0.4);
+  --game-bg: #050a12;
+  --game-surface: #0c1826;
+  --game-surface-hover: #142232;
+  --game-border: rgba(6, 182, 212, 0.15);
+  --game-border-strong: rgba(6, 182, 212, 0.30);
+  --game-nav-from: #050a12;
+  --game-nav-to: #0c1826;
   --game-gradient: linear-gradient(135deg, #06B6D4, #22D3EE);
+  --game-bg-light: #e6f4f8;
+  --game-surface-light: #ffffff;
+  --game-surface-hover-light: #e5f5fb;
+  --game-border-light: rgba(6, 146, 170, 0.16);
+  --game-border-strong-light: rgba(6, 146, 170, 0.30);
 }
 
 /* ─── Dark Mode Base ─── */
@@ -128,48 +150,164 @@
   color-scheme: dark;
 }
 
-/* ─── Game-Themed Dark Mode Backgrounds ─── */
-.dark[data-game="bgmi"],
-.dark[data-game="freefire"],
-.dark[data-game="pes"],
-.dark[data-game="mlbb"] {
+/* ═══════════════════════════════════════════════════════════════
+   🎨 GLOBAL THEME OVERRIDES — 60/30/10
+   60% = page background    (dominant)
+   30% = cards, surfaces    (secondary)
+   10% = buttons, accents   (highlight)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── 60% Dominant: Page background ─── */
+.dark[data-color-theme] {
   background-color: var(--game-bg);
 }
+[data-color-theme]:not(.dark) {
+  background-color: var(--game-bg-light);
+}
 
-/* ─── Game-Themed Navbar ─── */
-.dark[data-game] nav[data-slot="base"] {
+/* ─── 30% Secondary: All HeroUI Cards ─── */
+.dark[data-color-theme] [data-slot="base"] {
+  background-color: var(--game-surface) !important;
+  border-color: var(--game-border) !important;
+}
+.dark[data-color-theme] [data-slot="base"]:hover {
+  border-color: var(--game-border-strong) !important;
+}
+[data-color-theme]:not(.dark) [data-slot="base"] {
+  background-color: var(--game-surface-light) !important;
+  border-color: var(--game-border-light) !important;
+}
+[data-color-theme]:not(.dark) [data-slot="base"]:hover {
+  border-color: var(--game-border-strong-light) !important;
+}
+
+/* ─── 30% Secondary: Input wrappers ─── */
+.dark[data-color-theme] [data-slot="input-wrapper"] {
+  background-color: var(--game-surface-hover) !important;
+}
+[data-color-theme]:not(.dark) [data-slot="input-wrapper"] {
+  background-color: var(--game-surface-hover-light) !important;
+}
+
+/* ─── 30% Secondary: Popover / Dropdown content ─── */
+.dark[data-color-theme] [data-slot="content"] {
+  background-color: var(--game-surface) !important;
+  border-color: var(--game-border) !important;
+}
+[data-color-theme]:not(.dark) [data-slot="content"] {
+  background-color: var(--game-surface-light) !important;
+  border-color: var(--game-border-light) !important;
+}
+
+/* ─── 30% Secondary: Modal bodies ─── */
+.dark[data-color-theme] [data-slot="backdrop"] + div [data-slot="base"] {
+  background-color: var(--game-surface) !important;
+}
+
+/* ─── Navigation ─── */
+.dark[data-color-theme] nav[data-slot="base"] {
   background: color-mix(in srgb, var(--game-nav-from) 70%, transparent) !important;
   border-bottom-color: var(--game-border) !important;
 }
+[data-color-theme]:not(.dark) nav[data-slot="base"] {
+  background: color-mix(in srgb, var(--game-surface-light) 80%, white) !important;
+  border-bottom-color: var(--game-border-light) !important;
+}
 
-/* ─── Game-Themed Mobile Menu ─── */
-.dark[data-game] [data-slot="menu"] {
+.dark[data-color-theme] [data-slot="menu"] {
   background: color-mix(in srgb, var(--game-nav-from) 80%, transparent) !important;
   border-right-color: var(--game-border) !important;
 }
 
-/* ─── Game-Themed Bottom Nav ─── */
-.dark[data-game] .game-bottom-nav {
+/* ─── Bottom Nav ─── */
+.dark[data-color-theme] .game-bottom-nav {
   background: color-mix(in srgb, var(--game-bg) 85%, transparent) !important;
   border-top-color: var(--game-border) !important;
 }
+[data-color-theme]:not(.dark) .game-bottom-nav {
+  background: color-mix(in srgb, var(--game-surface-light) 90%, white) !important;
+  border-top-color: var(--game-border-light) !important;
+}
 
-/* Active bottom nav tab glow */
-.dark[data-game] .game-nav-active {
+/* ─── 10% Accent: Active nav items ─── */
+[data-color-theme] .game-nav-active {
   color: var(--game-primary) !important;
 }
-.dark[data-game] .game-nav-active-bar {
+[data-color-theme] .game-nav-active-bar {
   background: var(--game-gradient) !important;
   box-shadow: 0 0 8px var(--game-glow);
 }
 
-/* ─── Game-Themed Cards (HeroUI Card overrides) ─── */
-.dark[data-game] [data-slot="base"].game-themed-card {
-  background-color: var(--game-surface);
-  border-color: var(--game-border);
+/* ─── 10% Accent: Override HeroUI primary color ─── */
+[data-color-theme] {
+  --heroui-primary: var(--game-primary);
 }
-.dark[data-game] [data-slot="base"].game-themed-card:hover {
-  border-color: var(--game-border-strong);
+[data-color-theme] .bg-primary {
+  background-color: var(--game-primary) !important;
+}
+[data-color-theme] .text-primary {
+  color: var(--game-primary) !important;
+}
+[data-color-theme] .border-primary {
+  border-color: var(--game-primary) !important;
+}
+
+/* ─── 10% Accent: HeroUI Buttons ─── */
+[data-color-theme] button[data-slot="base"][data-variant="solid"][data-color="primary"],
+[data-color-theme] [data-slot="base"].bg-primary {
+  background-color: var(--game-primary) !important;
+}
+[data-color-theme] button[data-slot="base"][data-variant="flat"][data-color="primary"] {
+  background-color: color-mix(in srgb, var(--game-primary) 15%, transparent) !important;
+  color: var(--game-primary) !important;
+}
+[data-color-theme] button[data-slot="base"][data-variant="light"][data-color="primary"] {
+  color: var(--game-primary) !important;
+}
+
+/* ─── 10% Accent: HeroUI Chips ─── */
+[data-color-theme] [data-slot="base"].bg-primary\/10,
+[data-color-theme] .bg-primary\/10 {
+  background-color: color-mix(in srgb, var(--game-primary) 10%, transparent) !important;
+}
+[data-color-theme] [data-slot="base"].bg-primary\/15,
+[data-color-theme] .bg-primary\/15 {
+  background-color: color-mix(in srgb, var(--game-primary) 15%, transparent) !important;
+}
+
+/* ─── 10% Accent: Tabs cursor ─── */
+[data-color-theme] [data-slot="cursor"] {
+  background-color: var(--game-primary) !important;
+}
+[data-color-theme] [data-slot="tabContent"][data-selected="true"] {
+  color: var(--game-primary) !important;
+}
+
+/* ─── 30%: bg-default utility overrides ─── */
+.dark[data-color-theme] .bg-default-100 {
+  background-color: var(--game-surface) !important;
+}
+.dark[data-color-theme] .bg-default-50 {
+  background-color: color-mix(in srgb, var(--game-surface) 50%, var(--game-bg)) !important;
+}
+[data-color-theme]:not(.dark) .bg-default-100 {
+  background-color: var(--game-surface-hover-light) !important;
+}
+[data-color-theme]:not(.dark) .bg-default-50 {
+  background-color: var(--game-surface-light) !important;
+}
+
+/* ─── Themed border-divider override ─── */
+.dark[data-color-theme] .border-divider {
+  border-color: var(--game-border) !important;
+}
+[data-color-theme]:not(.dark) .border-divider {
+  border-color: var(--game-border-light) !important;
+}
+
+/* ─── 10% Accent: Focus/ring colors ─── */
+[data-color-theme] [data-focus-visible="true"] {
+  outline-color: var(--game-primary) !important;
 }
 
 /* ─── Reset & Base ─── */

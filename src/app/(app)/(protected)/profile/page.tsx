@@ -416,7 +416,7 @@ export default function ProfilePage() {
             </AnimatePresence>
             <div className="space-y-4">
                 {/* Hero card */}
-                <Card className="overflow-hidden border border-divider">
+                <Card className="overflow-hidden border border-[var(--game-border)] dark:border-[var(--game-border)]">
                     <div className="relative aspect-[3/4] w-full group">
                         {(previewCharacter?.url || player?.characterImage?.url) ? (
                             (previewCharacter?.isVideo || (!previewCharacter && player?.characterImage?.isVideo)) ? (
@@ -603,7 +603,7 @@ export default function ProfilePage() {
                             setNavigatingToWallet(true);
                             router.push("/wallet");
                         }}
-                        className="flex items-center justify-between rounded-xl border border-divider bg-default-50 px-4 py-3 hover:bg-default-100 active:scale-[0.98] transition-all cursor-pointer"
+                        className="flex items-center justify-between rounded-xl border border-[var(--game-border)] bg-default-50 dark:bg-[var(--game-surface)] px-4 py-3 hover:bg-default-100 dark:hover:bg-[var(--game-surface-hover)] active:scale-[0.98] transition-all cursor-pointer"
                     >
                         <div className="flex items-center gap-2.5">
                             <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10">
@@ -652,7 +652,7 @@ export default function ProfilePage() {
 
                 {/* ── Stats Section ── */}
                 {stats && (
-                    <Card className="border border-divider overflow-hidden">
+                    <Card className="border border-[var(--game-border)] dark:border-[var(--game-border)] overflow-hidden">
                         <CardBody className={`p-4 space-y-4 transition-opacity duration-200 ${(isFetching || isPlaceholderData) ? "opacity-40" : "opacity-100"}`}>
                             {/* Featured Stat — K/D for BR, Win Rate for bracket games */}
                             <div className="text-center">
@@ -714,7 +714,7 @@ export default function ProfilePage() {
                             </div>
 
                             {/* Performance */}
-                            <div className="border-t border-divider pt-3">
+                            <div className="border-t border-[var(--game-border)] pt-3">
                                 <p className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider mb-2">Performance</p>
                                 <div className={`grid ${GAME.features.hasBR ? "grid-cols-3" : "grid-cols-2"} gap-3 text-center`}>
                                     <div>
@@ -742,7 +742,7 @@ export default function ProfilePage() {
                             </div>
 
                             {/* Career */}
-                            <div className="border-t border-divider pt-3">
+                            <div className="border-t border-[var(--game-border)] pt-3">
                                 <p className="text-[10px] font-semibold text-foreground/40 uppercase tracking-wider mb-2">Career</p>
                                 <div className="grid grid-cols-3 gap-3 text-center">
                                     <div>
@@ -768,7 +768,7 @@ export default function ProfilePage() {
                     <button
                         type="button"
                         onClick={() => router.push("/teammates")}
-                        className="w-full flex items-center justify-between p-4 rounded-xl border border-divider bg-default-50 hover:bg-default-100 transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-between p-4 rounded-xl border border-[var(--game-border)] bg-default-50 dark:bg-[var(--game-surface)] hover:bg-default-100 dark:hover:bg-[var(--game-surface-hover)] transition-colors cursor-pointer"
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -792,7 +792,7 @@ export default function ProfilePage() {
                             setNavigatingToClan(true);
                             router.push("/clan");
                         }}
-                        className="relative w-full flex items-center justify-between p-4 rounded-xl border border-divider bg-default-50 hover:bg-default-100 transition-colors cursor-pointer"
+                        className="relative w-full flex items-center justify-between p-4 rounded-xl border border-[var(--game-border)] bg-default-50 dark:bg-[var(--game-surface)] hover:bg-default-100 dark:hover:bg-[var(--game-surface-hover)] transition-colors cursor-pointer"
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -841,7 +841,7 @@ export default function ProfilePage() {
 
                 {/* Profile Settings Section — Unified Card */}
                 {player && (
-                    <Card ref={profileSectionRef} className="border border-divider">
+                    <Card ref={profileSectionRef} className="border border-[var(--game-border)] dark:border-[var(--game-border)]">
                         <CardBody className="p-4 space-y-0">
                             {/* Header */}
                             <div className="flex items-center justify-between mb-3">
