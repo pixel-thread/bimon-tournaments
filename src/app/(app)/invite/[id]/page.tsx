@@ -364,19 +364,26 @@ export default function InvitePage() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <button
-                                        key={`empty-${i}`}
-                                        className="flex items-center gap-3 w-full text-left rounded-lg py-1.5 -mx-1 px-1 transition-colors hover:bg-success/10 active:bg-success/20"
-                                        onClick={() => handleAccept()}
-                                        disabled={joining}
-                                    >
-                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-success/50 flex items-center justify-center">
-                                            <Check className="w-3.5 h-3.5 text-success" />
-                                        </div>
-                                        <span className="text-sm font-medium text-success">
-                                            {joining ? "Joining…" : "Your spot ✨ Tap to join"}
-                                        </span>
-                                    </button>
+                                    <div key={`empty-${i}`} className="flex items-center gap-2">
+                                        <button
+                                            className="flex-1 flex items-center gap-3 text-left rounded-lg py-1.5 px-1 transition-colors hover:bg-success/10 active:bg-success/20"
+                                            onClick={() => handleAccept()}
+                                            disabled={joining}
+                                        >
+                                            <div className="w-8 h-8 rounded-full border-2 border-dashed border-success/50 flex items-center justify-center shrink-0">
+                                                <Check className="w-3.5 h-3.5 text-success" />
+                                            </div>
+                                            <span className="text-sm font-medium text-success">
+                                                {joining ? "Joining…" : "Tap to join"}
+                                            </span>
+                                        </button>
+                                        <button
+                                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-danger bg-danger/10 hover:bg-danger/20 transition-colors shrink-0"
+                                            onClick={handleDecline}
+                                        >
+                                            Decline
+                                        </button>
+                                    </div>
                                 )
                             ) : (
                                 <div key={`empty-${i}`} className="flex items-center gap-3 opacity-40">
@@ -390,16 +397,7 @@ export default function InvitePage() {
                     </div>
                 </div>
 
-                {/* Decline */}
-                <Button
-                    variant="flat"
-                    size="sm"
-                    className="w-full font-medium"
-                    startContent={<X className="w-3.5 h-3.5" />}
-                    onPress={handleDecline}
-                >
-                    {!isSignedIn ? "Sign In Without Joining" : "Decline"}
-                </Button>
+
 
                 {/* ── Info Cards ── */}
                 <div className="grid grid-cols-2 gap-3">
