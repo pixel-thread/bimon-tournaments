@@ -173,6 +173,7 @@ export async function createTeamsByPoll({
     let squadPlayersToCharge: { id: string; email?: string }[] = [];
 
     if (pollAllowSquads) {
+        const maxSquads = isChampionship ? 32 : GAME.maxSquadTeams;
         const squads = await prisma.squad.findMany({
             where: {
                 pollId,
@@ -198,9 +199,14 @@ export async function createTeamsByPoll({
                     },
                 },
             },
+            orderBy: { createdAt: "asc" }, // Oldest first = confirmed
         });
 
-        for (const squad of squads) {
+        // Split into confirmed (first maxSquads) and waitlisted (rest)
+        const confirmedSquads = squads.slice(0, maxSquads);
+        const waitlistedSquads = squads.slice(maxSquads);
+
+        for (const squad of confirmedSquads) {
             const members = squad.invites.map((inv) => inv.player);
 
             if (members.length > 0) {
@@ -248,6 +254,18 @@ export async function createTeamsByPoll({
                 }
                 squadsCancelled++;
             }
+        }
+
+        // Cancel all waitlisted squads — they don't participate or get charged
+        for (const squad of waitlistedSquads) {
+            if (!dryRun) {
+                await prisma.squad.update({
+                    where: { id: squad.id },
+                    data: { status: "CANCELLED" },
+                });
+            }
+            squadsCancelled++;
+            console.log(`[createTeamsByPoll] Waitlisted squad cancelled: "${squad.name}" (${squad.id})`);
         }
     }
 

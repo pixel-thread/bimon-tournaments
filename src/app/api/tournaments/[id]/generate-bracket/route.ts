@@ -7,6 +7,7 @@ import { generateGroupKnockout } from "@/lib/logic/generateGroupKnockout";
 import { BRACKET_TYPES } from "@/lib/bracket-types";
 import { type NextRequest } from "next/server";
 import { debitWallet } from "@/lib/wallet-service";
+import { GAME } from "@/lib/game-config";
 
 /**
  * Largest power of 2 ≤ n.
@@ -227,15 +228,19 @@ export async function POST(
                         },
                     },
                 });
-                // Find captains via Squad model
+                // Find captains via Squad model — only confirmed squads (exclude waitlisted)
                 const pollId = tournament.poll?.id;
                 if (pollId) {
+                    const maxSquads = GAME.maxSquadTeams;
                     const squads = await prisma.squad.findMany({
                         where: { pollId },
                         select: {
                             captainId: true,
+                            createdAt: true,
                             captain: { select: { isUCExempt: true, user: { select: { email: true } } } },
                         },
+                        orderBy: { createdAt: "asc" },
+                        take: maxSquads, // Only confirmed squads, not waitlisted
                     });
                     const luckyVoterId = tournament.poll?.luckyVoterId;
                     for (const squad of squads) {
