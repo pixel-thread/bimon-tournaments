@@ -279,7 +279,8 @@ function SquadCard({
     // Can player request to join?
     const isGuest = !currentPlayerId;
     const isInThisSquad = isCaptain || myInvite?.status === "ACCEPTED" || myInvite?.status === "PENDING";
-    const canRequestJoin = !isInThisSquad && !squad.isFull && squad.status === "FORMING" && pollIsActive;
+    const isSquadActive = squad.status === "FORMING" || squad.status === "FULL";
+    const canRequestJoin = !isInThisSquad && !squad.isFull && isSquadActive && pollIsActive;
 
     // Pending join requests (player-initiated, for captain view)
     const pendingRequests = squad.members.filter(

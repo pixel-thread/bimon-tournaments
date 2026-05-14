@@ -72,10 +72,10 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "Squads are not enabled for this tournament", status: 400 });
         }
 
-        // Squad must be FORMING
-        if (squad.status !== "FORMING") {
+        // Squad must be active (FORMING or FULL — status can be stale after member leaves)
+        if (!["FORMING", "FULL"].includes(squad.status)) {
             return ErrorResponse({
-                message: squad.status === "FULL" ? "This squad is already full" : "This squad is no longer active",
+                message: "This squad is no longer active",
                 status: 400,
             });
         }
