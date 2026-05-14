@@ -987,14 +987,18 @@ export function SquadCenter({
         return items;
     }, [otherSquads, randomTeams, myRandomTeam]);
 
-    // Split into confirmed (first maxSquads by creation order) and waitlisted
-    const { confirmedList, waitlistedList } = useMemo(() => {
-        if (!squads) return { confirmedList: unifiedList, waitlistedList: [] as ListItem[] };
-        // Sort all squads by creation date ascending (oldest first = confirmed)
-        const allSquadsSorted = [...(squads ?? [])].sort(
+    // Compute confirmed squad IDs (first maxSquads by creation order)
+    const confirmedIds = useMemo(() => {
+        if (!squads) return new Set<string>();
+        const allSquadsSorted = [...squads].sort(
             (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
-        const confirmedIds = new Set(allSquadsSorted.slice(0, maxSquads).map(s => s.id));
+        return new Set(allSquadsSorted.slice(0, maxSquads).map(s => s.id));
+    }, [squads, maxSquads]);
+
+    // Split into confirmed and waitlisted
+    const { confirmedList, waitlistedList } = useMemo(() => {
+        if (!squads) return { confirmedList: unifiedList, waitlistedList: [] as ListItem[] };
         const confirmed: ListItem[] = [];
         const waitlisted: ListItem[] = [];
         for (const item of unifiedList) {
@@ -1006,7 +1010,7 @@ export function SquadCenter({
             }
         }
         return { confirmedList: confirmed, waitlistedList: waitlisted };
-    }, [unifiedList, squads, maxSquads]);
+    }, [unifiedList, squads, confirmedIds]);
 
     return (
         <>
@@ -1056,9 +1060,16 @@ export function SquadCenter({
                                     {/* Your Squad (or Your Random Team) */}
                                     {mySquad && (
                                         <div>
-                                            <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
-                                                Your Squad
-                                            </p>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
+                                                    Your Squad
+                                                </p>
+                                                {mySquad && !confirmedIds.has(mySquad.id) && (
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
+                                                        ⏳ Waitlisted
+                                                    </span>
+                                                )}
+                                            </div>
                                             <SquadCard
                                                 squad={mySquad}
                                                 currentPlayerId={currentPlayerId}
