@@ -797,8 +797,12 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const poolFee = poll.prizePoolFee ?? entryFee; // Per-entry amount going to prize pool (org cut deducted)
     const donationTotal = poll.donations?.total ?? 0;
     // Squad polls: fee is per-team → squads + estimated random teams from IN voters
+    // Waitlisted squads (beyond maxSquadTeams) don't contribute to prize pool
+    const confirmedSquads = poll.allowSquads && GAME.squadSize > 1
+        ? Math.min(poll.squadCount ?? 0, poll.isChampionship ? 32 : GAME.maxSquadTeams)
+        : 0;
     const estimatedTeams = poll.allowSquads && GAME.squadSize > 1
-        ? (poll.squadCount ?? 0) + Math.floor(participantCount / GAME.squadSize)
+        ? confirmedSquads + Math.floor(participantCount / GAME.squadSize)
         : participantCount; // Regular: fee × players
     const prizePool = (poolFee * estimatedTeams) + donationTotal;
     const hasPrizePool = prizePool > 0;
