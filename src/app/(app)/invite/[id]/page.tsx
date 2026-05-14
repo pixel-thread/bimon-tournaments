@@ -49,6 +49,7 @@ export default function InvitePage() {
     const { isSignedIn, isLoading: authLoading } = useAuthUser();
     const [joining, setJoining] = useState(false);
     const [joined, setJoined] = useState(false);
+    const [conflictSquad, setConflictSquad] = useState<string | null>(null);
 
     // Fetch squad info
     const { data, isLoading, error } = useQuery<SquadPublicData>({
@@ -98,15 +99,10 @@ export default function InvitePage() {
             });
             const json = await res.json();
 
-            // 409 = already in another squad — ask for confirmation
+            // 409 = already in another squad — show inline confirmation
             if (res.status === 409 && json.error === "EXISTING_SQUAD") {
                 setJoining(false);
-                const confirmed = window.confirm(json.message);
-                if (confirmed) {
-                    handleAccept(true); // retry with force
-                } else {
-                    router.push("/vote");
-                }
+                setConflictSquad(json.existingSquadName);
                 return;
             }
 
@@ -344,19 +340,44 @@ export default function InvitePage() {
                         {/* Empty slots */}
                         {emptySlots > 0 && Array.from({ length: emptySlots }).map((_, i) => (
                             i === 0 ? (
-                                <button
-                                    key={`empty-${i}`}
-                                    className="flex items-center gap-3 w-full text-left rounded-lg py-1.5 -mx-1 px-1 transition-colors hover:bg-success/10 active:bg-success/20"
-                                    onClick={() => handleAccept()}
-                                    disabled={joining}
-                                >
-                                    <div className="w-8 h-8 rounded-full border-2 border-dashed border-success/50 flex items-center justify-center">
-                                        <Check className="w-3.5 h-3.5 text-success" />
+                                conflictSquad ? (
+                                    <div key={`empty-${i}`} className="space-y-2">
+                                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                                            ⚠️ You&apos;re in <strong>&quot;{conflictSquad}&quot;</strong>. Switch?
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <button
+                                                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold text-success bg-success/10 hover:bg-success/20 transition-colors"
+                                                onClick={() => handleAccept(true)}
+                                                disabled={joining}
+                                            >
+                                                <Check className="w-3.5 h-3.5" />
+                                                {joining ? "Switching…" : "Leave & join"}
+                                            </button>
+                                            <button
+                                                className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+                                                onClick={() => router.push("/vote")}
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                                Keep current
+                                            </button>
+                                        </div>
                                     </div>
-                                    <span className="text-sm font-medium text-success">
-                                        {joining ? "Joining…" : "Your spot ✨ Tap to join"}
-                                    </span>
-                                </button>
+                                ) : (
+                                    <button
+                                        key={`empty-${i}`}
+                                        className="flex items-center gap-3 w-full text-left rounded-lg py-1.5 -mx-1 px-1 transition-colors hover:bg-success/10 active:bg-success/20"
+                                        onClick={() => handleAccept()}
+                                        disabled={joining}
+                                    >
+                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-success/50 flex items-center justify-center">
+                                            <Check className="w-3.5 h-3.5 text-success" />
+                                        </div>
+                                        <span className="text-sm font-medium text-success">
+                                            {joining ? "Joining…" : "Your spot ✨ Tap to join"}
+                                        </span>
+                                    </button>
+                                )
                             ) : (
                                 <div key={`empty-${i}`} className="flex items-center gap-3 opacity-40">
                                     <div className="w-8 h-8 rounded-full border-2 border-dashed border-foreground/20 flex items-center justify-center">
