@@ -47,22 +47,34 @@ export function TeamDoneSection({
 
     return (
         <div className="space-y-4">
-            {/* WhatsApp join — prominent button */}
+            {/* WhatsApp join — prominent unskippable button */}
             {whatsappGroupLink && (
-                <a
-                    href={whatsappGroupLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={onWhatsappJoin}
-                    className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all ${
-                        whatsappJoined
-                            ? "bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                            : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25"
-                    }`}
-                >
-                    <WhatsAppIcon className="w-5 h-5" />
-                    {whatsappJoined ? "Joined WhatsApp Group ✅" : "Join WhatsApp Group"}
-                </a>
+                <div className="space-y-2">
+                    {!whatsappJoined && (
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/15 text-red-500">
+                                Required
+                            </span>
+                            <span className="text-xs text-foreground/50">
+                                Join the group for match details
+                            </span>
+                        </div>
+                    )}
+                    <a
+                        href={whatsappGroupLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={onWhatsappJoin}
+                        className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all ${
+                            whatsappJoined
+                                ? "bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                                : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400/40 animate-pulse"
+                        }`}
+                    >
+                        <WhatsAppIcon className="w-5 h-5" />
+                        {whatsappJoined ? "Joined WhatsApp Group ✅" : "Join WhatsApp Group"}
+                    </a>
+                </div>
             )}
 
             {/* Gate: show invite tools only after WhatsApp joined (or if no link) */}

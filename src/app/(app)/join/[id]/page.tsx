@@ -97,6 +97,17 @@ export default function JoinPage() {
         }
     }, [hasClan]);
 
+    // Prevent navigation if team was created but WhatsApp not joined
+    useEffect(() => {
+        if (step === "done" && data?.whatsappGroupLink && !whatsappJoined) {
+            const handler = (e: BeforeUnloadEvent) => {
+                e.preventDefault();
+            };
+            window.addEventListener("beforeunload", handler);
+            return () => window.removeEventListener("beforeunload", handler);
+        }
+    }, [step, data?.whatsappGroupLink, whatsappJoined]);
+
     // If user already has a squad → redirect to vote page
     useEffect(() => {
         if (data?.hasSquad) {
