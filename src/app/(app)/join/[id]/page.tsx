@@ -32,6 +32,7 @@ interface PollPublicData {
     days: string;
     squadCount: number;
     maxSquads: number;
+    maxSquadWaitlist: number;
     teamSize: number;
     maxTeamSize: number;
     hasSquad: boolean;
@@ -269,7 +270,7 @@ export default function JoinPage() {
     const schedule = data.matchSchedule as Record<string, string[]> | null;
     const hasSchedule = schedule && Object.keys(schedule).length > 0;
 
-    const isFull = data.squadCount >= data.maxSquads;
+    const isFull = data.squadCount >= data.maxSquadWaitlist;
     const canSubmit = ((useClan && hasClan) || teamName.trim().length > 0) && !isFull && step === "form";
 
     return (
@@ -519,8 +520,13 @@ export default function JoinPage() {
                         <div className="space-y-2">
                             <div className="flex items-center justify-between px-1">
                                 <span className="text-sm text-foreground/50">
-                                    {data.squadCount}/{data.maxSquads} teams registered
+                                    {Math.min(data.squadCount, data.maxSquads)}/{data.maxSquads} confirmed
                                 </span>
+                                {data.squadCount > data.maxSquads && (
+                                    <span className="text-xs font-medium text-amber-600">
+                                        ⏳ {data.squadCount - data.maxSquads} on waitlist
+                                    </span>
+                                )}
                             </div>
                             <div className="h-2 rounded-full bg-default-100 overflow-hidden">
                                 <motion.div
@@ -530,6 +536,11 @@ export default function JoinPage() {
                                     transition={{ duration: 0.8, ease: "easeOut" }}
                                 />
                             </div>
+                            {data.squadCount >= data.maxSquads && data.squadCount < data.maxSquadWaitlist && (
+                                <p className="text-[10px] text-amber-600/70 text-center">
+                                    Room full — new teams join the waitlist ({data.maxSquadWaitlist - data.squadCount} spots left)
+                                </p>
+                            )}
                         </div>
 
                         {/* ── Browse link ── */}

@@ -14,7 +14,7 @@ import {
     Input,
 } from "@heroui/react";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
-import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle } from "lucide-react";
+import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, ChevronRight, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     useSquads,
@@ -860,6 +860,8 @@ export function SquadCenter({
     const [showVoteWarning, setShowVoteWarning] = useState<{ action: "create" | "join"; squadId?: string } | null>(null);
     const { data: squadsResult, isLoading, refetch } = useSquads(pollId);
     const squads = squadsResult?.squads;
+    const maxSquads = squadsResult?.maxSquads ?? GAME.maxSquadTeams;
+    const [showWaitlist, setShowWaitlist] = useState(false);
 
     // Always refetch when the squad center opens to prevent stale data
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -985,6 +987,27 @@ export function SquadCenter({
         return items;
     }, [otherSquads, randomTeams, myRandomTeam]);
 
+    // Split into confirmed (first maxSquads by creation order) and waitlisted
+    const { confirmedList, waitlistedList } = useMemo(() => {
+        if (!squads) return { confirmedList: unifiedList, waitlistedList: [] as ListItem[] };
+        // Sort all squads by creation date ascending (oldest first = confirmed)
+        const allSquadsSorted = [...(squads ?? [])].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        const confirmedIds = new Set(allSquadsSorted.slice(0, maxSquads).map(s => s.id));
+        const confirmed: ListItem[] = [];
+        const waitlisted: ListItem[] = [];
+        for (const item of unifiedList) {
+            const id = item.data.id;
+            if (item.type === "random" || confirmedIds.has(id)) {
+                confirmed.push(item);
+            } else {
+                waitlisted.push(item);
+            }
+        }
+        return { confirmedList: confirmed, waitlistedList: waitlisted };
+    }, [unifiedList, squads, maxSquads]);
+
     return (
         <>
             <Modal
@@ -1070,14 +1093,14 @@ export function SquadCenter({
                                         </div>
                                     )}
 
-                                    {/* Other Squads + Random Teams — unified sorted list */}
-                                    {unifiedList.length > 0 && (
+                                    {/* Other Squads + Random Teams — confirmed */}
+                                    {confirmedList.length > 0 && (
                                         <div>
                                             <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
                                                 {(mySquad || myRandomTeam) ? "Other Squads" : "Squads"}
                                             </p>
                                             <div className="space-y-3">
-                                                {unifiedList.map((item) => {
+                                                {confirmedList.map((item) => {
                                                     if (item.type === "squad") {
                                                         return (
                                                             <SquadCard
@@ -1113,6 +1136,64 @@ export function SquadCenter({
                                                     );
                                                 })}
                                             </div>
+                                        </div>
+                                    )}
+
+                                    {/* Waitlisted Squads — collapsible */}
+                                    {waitlistedList.length > 0 && (
+                                        <div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowWaitlist(!showWaitlist)}
+                                                className="flex items-center gap-2 w-full text-left mb-2 cursor-pointer"
+                                            >
+                                                <ChevronRight className={`w-3.5 h-3.5 text-amber-500 transition-transform ${showWaitlist ? "rotate-90" : ""}`} />
+                                                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
+                                                    Waitlist
+                                                </p>
+                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
+                                                    {waitlistedList.length}
+                                                </span>
+                                            </button>
+                                            {showWaitlist && (
+                                                <div className="space-y-3 border-l-2 border-amber-500/20 pl-3">
+                                                    {waitlistedList.map((item) => {
+                                                        if (item.type === "squad") {
+                                                            return (
+                                                                <SquadCard
+                                                                    key={item.data.id}
+                                                                    squad={item.data}
+                                                                    currentPlayerId={currentPlayerId}
+                                                                    pollIsActive={pollIsActive}
+                                                                    pollId={pollId}
+                                                                    onCancel={handleCancel}
+                                                                    onAccept={handleAccept}
+                                                                    onDecline={handleDecline}
+                                                                    onRequestJoin={handleRequestJoin}
+                                                                    onAcceptRequest={handleAcceptRequest}
+                                                                    onDeclineRequest={handleDeclineRequest}
+                                                                    onRemoveMember={handleRemoveMember}
+                                                                    onLeave={handleLeave}
+                                                                    isCancelling={cancelMutation.isPending}
+                                                                    isResponding={respondMutation.isPending}
+                                                                    respondingAction={respondMutation.isPending ? respondAction : null}
+                                                                    isRequesting={requestJoinMutation.isPending}
+                                                                    isRespondingRequest={respondRequestMutation.isPending}
+                                                                    respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
+                                                                    isRemoving={removeMemberMutation.isPending}
+                                                                    isLeaving={leaveMutation.isPending}
+                                                                />
+                                                            );
+                                                        }
+                                                        return (
+                                                            <RandomTeamCard
+                                                                key={item.data.id}
+                                                                team={item.data}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 

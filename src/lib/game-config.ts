@@ -67,6 +67,7 @@ interface GameConfig {
     winLabel: string;            // Label for 1st place wins: "🍗 Chicken", "🔥 Booyah", "Wins"
     maxSquadSize: number;        // Max roster size including subs (squadSize + 2 for BR games)
     maxSquadTeams: number;       // Max squads per match (64 players / squadSize for BR)
+    maxSquadWaitlist: number;    // Total registration cap including waitlist slots
     tdmTeamSizes: number[];      // Supported TDM team sizes (e.g. [4, 8] for 4v4/8v8)
     // Dual currency (MLBB: BP for entry + Diamond for rewards)
     hasDualCurrency: boolean;
@@ -121,6 +122,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         winLabel: "🍗 Chicken",
         maxSquadSize: 6,           // 4 active + 2 subs
         maxSquadTeams: 16,         // 64 players / 4 = 16 squads max
+        maxSquadWaitlist: 24,      // 16 confirmed + 8 waitlist
         tdmTeamSizes: [4, 8],      // 4v4 and 8v8 TDM
         hasDualCurrency: false,
         clanLabel: "Clan",
@@ -174,6 +176,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         winLabel: "🔥 Booyah",
         maxSquadSize: 6,           // 4 active + 2 subs
         maxSquadTeams: 16,         // 64 players / 4 = 16 squads max
+        maxSquadWaitlist: 24,      // 16 confirmed + 8 waitlist
         tdmTeamSizes: [],          // No TDM for Free Fire (yet)
         hasDualCurrency: false,
         clanLabel: "Guild",
@@ -227,6 +230,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         winLabel: "Wins",
         maxSquadSize: 1,           // 1v1, no subs
         maxSquadTeams: 64,         // No practical limit for 1v1
+        maxSquadWaitlist: 64,      // Same as max for 1v1
         tdmTeamSizes: [],          // No TDM for PES
         hasDualCurrency: false,
         clanLabel: "Clan",
@@ -280,6 +284,7 @@ export const GAME_CONFIGS: Record<GameMode, GameConfig> = {
         winLabel: "Wins",
         maxSquadSize: 7,           // 5 active + 2 subs
         maxSquadTeams: 16,         // Cap at 16 squads per match
+        maxSquadWaitlist: 24,      // 16 confirmed + 8 waitlist
         tdmTeamSizes: [],          // No TDM for MLBB
         hasDualCurrency: true,
         entryCurrency: "BP",

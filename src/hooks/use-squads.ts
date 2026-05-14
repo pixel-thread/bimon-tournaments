@@ -63,10 +63,10 @@ export interface SearchPlayerResult {
  * Fetch all squads for a specific poll.
  */
 export function useSquads(pollId: string | undefined) {
-    return useQuery<{ squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; squadCount: number; isChampionship: boolean }>({
+    return useQuery<{ squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean }>({
         queryKey: ["squads", pollId],
         queryFn: async () => {
-            if (!pollId) return { squads: [], defendingChampion: null, maxSquads: 16, squadCount: 0, isChampionship: false };
+            if (!pollId) return { squads: [], defendingChampion: null, maxSquads: 16, maxSquadWaitlist: 24, squadCount: 0, isChampionship: false };
             const res = await fetch(`/api/squads?pollId=${pollId}&_t=${Date.now()}`);
             if (!res.ok) throw new Error("Failed to fetch squads");
             const json = await res.json();
@@ -74,6 +74,7 @@ export function useSquads(pollId: string | undefined) {
                 squads: json.data ?? [],
                 defendingChampion: json.meta?.defendingChampion ?? null,
                 maxSquads: json.meta?.maxSquads ?? 16,
+                maxSquadWaitlist: json.meta?.maxSquadWaitlist ?? 24,
                 squadCount: json.meta?.squadCount ?? 0,
                 isChampionship: json.meta?.isChampionship ?? false,
             };

@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
             };
         });
 
-        return SuccessResponse({ data, meta: { defendingChampion, maxSquads, squadCount: data.length, isChampionship }, cache: CACHE.NONE });
+        return SuccessResponse({ data, meta: { defendingChampion, maxSquads, maxSquadWaitlist: isChampionship ? 32 : GAME.maxSquadWaitlist, squadCount: data.length, isChampionship }, cache: CACHE.NONE });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch squads", error });
     }
@@ -272,8 +272,9 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Check: max squads limit for this poll
-        // Championship: 32 squads, Regular: GAME.maxSquadTeams (16)
+        // Check: waitlist cap for this poll
+        // Championship: hard cap at 32 (no waitlist). Regular: maxSquadWaitlist (24)
+        const registrationCap = poll.isChampionship ? 32 : GAME.maxSquadWaitlist;
         const maxSquads = poll.isChampionship ? 32 : GAME.maxSquadTeams;
         const activeSquadCount = await prisma.squad.count({
             where: {
@@ -282,11 +283,11 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        if (activeSquadCount >= maxSquads) {
+        if (activeSquadCount >= registrationCap) {
             return ErrorResponse({
                 message: poll.isChampionship
-                    ? `Championship is full (${maxSquads}/32 squads). Try registering earlier next tournament!`
-                    : `Maximum ${maxSquads} squads reached for this match. No more squads can be created.`,
+                    ? `Championship is full (${registrationCap}/32 squads). Try registering earlier next tournament!`
+                    : `All ${registrationCap} slots (${maxSquads} confirmed + ${registrationCap - maxSquads} waitlist) are filled. Try again next tournament!`,
                 status: 400,
             });
         }
@@ -390,14 +391,28 @@ export async function POST(request: NextRequest) {
             where: { pollId, playerId },
         });
 
+        const isWaitlisted = activeSquadCount >= maxSquads; // squad was created as #(activeSquadCount+1)
+
+        // Auto-promote to championship when waitlist cap is reached
+        const newSquadCount = activeSquadCount + 1;
+        if (!poll.isChampionship && newSquadCount >= registrationCap) {
+            await prisma.poll.update({
+                where: { id: pollId },
+                data: { isChampionship: true },
+            });
+        }
+
         return SuccessResponse({
             data: {
                 id: squad.id,
                 name: squad.name,
                 status: squad.status,
                 entryFee: squad.entryFee,
+                isWaitlisted,
             },
-            message: `Squad "${trimmedName}" created! Invite up to ${GAME.maxSquadSize - 1} players to complete your team.`,
+            message: isWaitlisted
+                ? `⏳ Squad "${trimmedName}" is on the WAITLIST (#${activeSquadCount + 1 - maxSquads} in queue). You'll be moved to confirmed if a team cancels.`
+                : `Squad "${trimmedName}" created! Invite up to ${GAME.maxSquadSize - 1} players to complete your team.`,
         });
     } catch (error) {
         return ErrorResponse({ message: "Failed to create squad", error });

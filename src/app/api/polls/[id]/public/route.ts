@@ -112,6 +112,7 @@ export async function GET(
                 days: poll.days,
                 squadCount: poll._count.squads,
                 maxSquads,
+                maxSquadWaitlist: poll.isChampionship ? 32 : GAME.maxSquadWaitlist,
                 teamSize: GAME.squadSize,
                 maxTeamSize: GAME.maxSquadSize,
                 hasSquad,
