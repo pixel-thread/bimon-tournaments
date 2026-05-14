@@ -36,7 +36,7 @@ export function SlotText({
                 <span
                     key={i}
                     className="inline-block overflow-hidden relative"
-                    style={{ verticalAlign: "top" }}
+                    style={{ verticalAlign: "baseline" }}
                 >
                     <AnimatePresence mode="popLayout">
                         <motion.span

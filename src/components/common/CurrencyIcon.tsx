@@ -21,11 +21,10 @@ export function CurrencyIcon({ size = 16, className, variant = "entry" }: Curren
     // For dual-currency games, show entry currency (BP) by default
     if (GAME.hasDualCurrency && variant === "entry") {
         const label = GAME.entryCurrency ?? "BP";
-        const fontSize = Math.max(size * 0.85, 10);
         return (
             <span
                 className={`font-bold text-primary ${className ?? ""}`}
-                style={{ fontSize, lineHeight: "inherit" }}
+                style={{ fontSize: "0.75em", lineHeight: 1, verticalAlign: "baseline" }}
             >
                 {label}
             </span>

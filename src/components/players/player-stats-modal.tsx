@@ -216,7 +216,7 @@ export function PlayerStatsModal({
                     </button>
 
                     {/* Hero section */}
-                    <div className="relative aspect-[3/4] w-full overflow-hidden">
+                    <div className={`relative w-full overflow-hidden ${characterImage?.url ? "aspect-[3/4]" : ""}`}>
                         {characterImage?.url ? (
                             <>
                                 {!imageLoaded && (
@@ -268,18 +268,30 @@ export function PlayerStatsModal({
                                         onLoad={() => setImageLoaded(true)}
                                     />
                                 )}
+                                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-background via-background/60 to-transparent" />
                             </>
                         ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/60 to-primary/30">
-                                <span className="text-6xl font-bold text-white/20">
-                                    {name.charAt(0).toUpperCase()}
-                                </span>
+                            /* Compact no-image hero */
+                            <div className="relative pt-14 pb-16 px-4 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent">
+                                {/* Decorative elements */}
+                                <div className="absolute top-4 right-4 w-20 h-20 rounded-full bg-primary/5" />
+                                <div className="absolute bottom-8 left-6 w-12 h-12 rounded-full bg-primary/5" />
+                                <div className="flex flex-col items-center justify-center">
+                                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                                        <span className="text-4xl font-black text-primary/40">
+                                            {name.charAt(0).toUpperCase()}
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-foreground/30 font-medium">
+                                        No character image set
+                                    </p>
+                                </div>
+                                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent" />
                             </div>
                         )}
-                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-background via-background/60 to-transparent" />
 
                         {/* Player info overlay */}
-                        <div className="absolute bottom-4 left-4 flex items-end gap-3">
+                        <div className={`${characterImage?.url ? "absolute bottom-4 left-4" : "absolute bottom-2 left-4"} flex items-end gap-3`}>
                             <div className="relative">
                                 <Avatar
                                     src={player.imageUrl || undefined}
@@ -293,11 +305,11 @@ export function PlayerStatsModal({
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h2
-                                        className="text-lg font-bold text-white"
-                                        style={{
+                                        className={`text-lg font-bold ${characterImage?.url ? "text-white" : "text-foreground"}`}
+                                        style={characterImage?.url ? {
                                             textShadow:
                                                 "0 1px 8px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.6)",
-                                        }}
+                                        } : undefined}
                                     >
                                         {name}
                                     </h2>
@@ -383,7 +395,7 @@ export function PlayerStatsModal({
                                             {stat.label}
                                         </span>
                                     </div>
-                                    <p className="mt-1 text-xl font-bold inline-flex items-center gap-1">
+                                    <p className="mt-1 text-xl font-bold inline-flex items-baseline gap-1">
                                         {stat.value}
                                         {(stat as any).suffix}
                                     </p>
