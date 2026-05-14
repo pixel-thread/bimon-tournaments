@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { Chip, Avatar, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from "@heroui/react";
-import { Users, ChevronRight, ChevronDown, ArrowLeft, Plus, Minus, Shield, Clock, Heart, Info } from "lucide-react";
+import { Users, ChevronRight, ChevronDown, ArrowLeft, Plus, Minus, Shield, Clock, Heart, Info, AlertTriangle } from "lucide-react";
 import { SlotText } from "@/components/common/slot-text";
 import { motion, AnimatePresence } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
@@ -697,6 +697,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const [showDonate, setShowDonate] = useState(false);
     const [showDonors, setShowDonors] = useState(false);
     const [squadVoteWarning, setSquadVoteWarning] = useState<{ vote: "IN" | "OUT" | "SOLO"; squadName: string; isCaptain: boolean } | null>(null);
+    const [randomTeamWarning, setRandomTeamWarning] = useState<{ action: "switch" | "unvote"; vote?: "IN" | "OUT" | "SOLO"; teammates: string[] } | null>(null);
     // Collapse: controlled by parent (accordion) or always expanded
     const isCollapsible = controlledExpanded !== undefined;
     const isExpanded = controlledExpanded ?? true;
@@ -706,8 +707,45 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const squadsData = squadsResult?.squads;
     const defendingChampion = squadsResult?.defendingChampion;
 
+    // Voters per option (moved up so handleUnvote can reference myRandomTeammates)
+    const votersByVote = useMemo(() => {
+        const map: Record<string, typeof poll.playersVotes> = { IN: [], OUT: [], SOLO: [] };
+        for (const v of poll.playersVotes) {
+            if (map[v.vote]) map[v.vote].push(v);
+        }
+        return map;
+    }, [poll.playersVotes]);
+
+    // Compute if current player is in a random team (voted IN, not in squad, grouped with others)
+    const myRandomTeammates = useMemo(() => {
+        if (!currentPlayerId || !poll.allowSquads || poll.userVote !== "IN") return [];
+        if (squadsData?.some(s => s.isCaptain || s.members.some(m => m.playerId === currentPlayerId && m.status === "ACCEPTED"))) return [];
+        const squadPlayerIds = new Set<string>();
+        if (squadsData) {
+            for (const s of squadsData) {
+                for (const m of s.members) squadPlayerIds.add(m.playerId);
+                squadPlayerIds.add(s.captain.id);
+            }
+        }
+        const inVoters = (votersByVote["IN"] ?? [])
+            .filter(v => !squadPlayerIds.has(v.playerId))
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        for (let i = 0; i < inVoters.length; i += GAME.squadSize) {
+            const chunk = inVoters.slice(i, i + GAME.squadSize);
+            if (chunk.length === GAME.squadSize && chunk.some(v => v.playerId === currentPlayerId)) {
+                return chunk.filter(v => v.playerId !== currentPlayerId).map(v => v.displayName);
+            }
+        }
+        return [];
+    }, [currentPlayerId, poll.allowSquads, poll.userVote, squadsData, votersByVote]);
+
     // Secret unvote: 3s long-press on selected option
     const handleUnvote = useCallback(async () => {
+        // Check if player is in a random team — warn them
+        if (myRandomTeammates.length > 0) {
+            setRandomTeamWarning({ action: "unvote", teammates: myRandomTeammates });
+            return;
+        }
         try {
             const res = await fetch("/api/polls/vote", {
                 method: "DELETE",
@@ -718,7 +756,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                 onRefetch?.();
             }
         } catch { /* silent */ }
-    }, [poll.id, onRefetch]);
+    }, [poll.id, onRefetch, myRandomTeammates]);
 
     // Check if current player has any pending captain-initiated invite
     const hasPendingSquadInvite = !!(squadsData && currentPlayerId && squadsData.some(s =>
@@ -813,14 +851,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     ];
     const maxCount = Math.max(...options.map((o) => o.count), 1);
 
-    // Voters per option
-    const votersByVote = useMemo(() => {
-        const map: Record<string, typeof poll.playersVotes> = { IN: [], OUT: [], SOLO: [] };
-        for (const v of poll.playersVotes) {
-            if (map[v.vote]) map[v.vote].push(v);
-        }
-        return map;
-    }, [poll.playersVotes]);
+
 
     return (
         <motion.div
@@ -1124,6 +1155,11 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                             });
                                             return;
                                         }
+                                    }
+                                    // Check if switching FROM IN and in a random team
+                                    if (poll.userVote === "IN" && opt.vote !== "IN" && myRandomTeammates.length > 0 && !squadsData?.some(s => s.isCaptain || s.members.some(m => m.playerId === currentPlayerId && m.status === "ACCEPTED"))) {
+                                        setRandomTeamWarning({ action: "switch", vote: opt.vote, teammates: myRandomTeammates });
+                                        return;
                                     }
                                     if (poll.userVote !== opt.vote) onVote(poll.id, opt.vote);
                                 }}
@@ -1531,6 +1567,58 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     Leave & Vote
                                 </Button>
                             )}
+                        </ModalFooter>
+                    </ModalContent>
+                </Modal>
+
+                {/* Random Team Leave Warning Modal */}
+                <Modal
+                    isOpen={!!randomTeamWarning}
+                    onClose={() => setRandomTeamWarning(null)}
+                    size="sm"
+                    placement="center"
+                >
+                    <ModalContent>
+                        <ModalHeader className="flex items-center gap-2 pb-2">
+                            <AlertTriangle className="h-5 w-5 text-amber-500" />
+                            Leave your team?
+                        </ModalHeader>
+                        <ModalBody className="pb-2">
+                            <p className="text-sm text-foreground/70">
+                                You&apos;re currently grouped with{" "}
+                                <strong>{randomTeamWarning?.teammates.join(", ")}</strong>.
+                            </p>
+                            <p className="text-sm text-foreground/70">
+                                If you leave, your teammates will have to wait for another player to join individually to reform their team.
+                            </p>
+                        </ModalBody>
+                        <ModalFooter>
+                            <Button variant="flat" size="sm" onPress={() => setRandomTeamWarning(null)}>
+                                Stay
+                            </Button>
+                            <Button
+                                color="warning"
+                                size="sm"
+                                className="text-white"
+                                onPress={async () => {
+                                    if (randomTeamWarning?.action === "switch" && randomTeamWarning.vote) {
+                                        onVote(poll.id, randomTeamWarning.vote);
+                                    } else {
+                                        // Unvote
+                                        try {
+                                            const res = await fetch("/api/polls/vote", {
+                                                method: "DELETE",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ pollId: poll.id }),
+                                            });
+                                            if (res.ok) onRefetch?.();
+                                        } catch { /* silent */ }
+                                    }
+                                    setRandomTeamWarning(null);
+                                }}
+                            >
+                                Leave Team
+                            </Button>
                         </ModalFooter>
                     </ModalContent>
                 </Modal>

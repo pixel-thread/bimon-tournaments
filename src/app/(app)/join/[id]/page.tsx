@@ -11,6 +11,7 @@ import { useAuthGate } from "@/components/common/auth-gate-provider";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { TeamDoneSection } from "@/components/squads/team-done-section";
+import { markWhatsAppPending, markWhatsAppJoined } from "@/components/common/whatsapp-squad-guard";
 import { toast } from "sonner";
 
 /* ─── Types ─────────────────────────────────────────────────── */
@@ -152,13 +153,22 @@ export default function JoinPage() {
                 onSuccess: (result) => {
                     setCreatedSquadId(result?.data?.id ?? null);
                     setStep("done");
+                    // Persist WhatsApp pending for global guard
+                    if (data?.whatsappGroupLink) {
+                        markWhatsAppPending({
+                            pollId,
+                            squadName: result?.data?.name ?? name,
+                            tournamentName: data?.tournamentName ?? "Tournament",
+                            whatsappGroupLink: data.whatsappGroupLink,
+                        });
+                    }
                 },
                 onError: () => {
                     setStep("form");
                 },
             }
         );
-    }, [teamName, pollId, useClan, hasClan, createMutation]);
+    }, [teamName, pollId, useClan, hasClan, createMutation, data?.whatsappGroupLink, data?.tournamentName]);
 
     const handleSubmit = useCallback(() => {
         const effectiveUseClan = useClan && hasClan;
@@ -304,7 +314,7 @@ export default function JoinPage() {
                         <TeamDoneSection
                             whatsappGroupLink={data.whatsappGroupLink}
                             whatsappJoined={whatsappJoined}
-                            onWhatsappJoin={() => setWhatsappJoined(true)}
+                            onWhatsappJoin={() => { setWhatsappJoined(true); markWhatsAppJoined(pollId); }}
                             createdSquadId={createdSquadId}
                             pollId={pollId}
                         />

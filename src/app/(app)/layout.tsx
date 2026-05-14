@@ -8,6 +8,7 @@ import { PwaInstallPrompt } from "@/components/common/pwa-install-prompt";
 import { LocationGuard } from "@/components/common/location-guard";
 import { PhoneGuard } from "@/components/common/phone-guard";
 import { AdSenseScript } from "@/components/common/adsense-script";
+import { WhatsAppSquadGuard } from "@/components/common/whatsapp-squad-guard";
 
 
 /**
@@ -34,6 +35,7 @@ export default function AppLayout({
                     <LocationGuard />
                     <PhoneGuard />
                     <AdSenseScript />
+                    <WhatsAppSquadGuard />
 
                 </div>
             </AuthGateProvider>

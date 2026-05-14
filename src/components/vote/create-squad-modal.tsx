@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { TeamDoneSection } from "@/components/squads/team-done-section";
+import { markWhatsAppPending, markWhatsAppJoined } from "@/components/common/whatsapp-squad-guard";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -57,6 +58,11 @@ export function CreateSquadModal({
     const [useClan, setUseClan] = useState(false);
     const [whatsappJoined, setWhatsappJoined] = useState(false);
 
+    const handleWhatsappJoin = useCallback(() => {
+        setWhatsappJoined(true);
+        markWhatsAppJoined(pollId);
+    }, [pollId]);
+
     const createMutation = useCreateSquad();
 
     // Fetch player's clan membership (lightweight)
@@ -87,13 +93,23 @@ export function CreateSquadModal({
             { pollId, name: effectiveUseClan ? "" : squadName.trim(), useClan: effectiveUseClan },
             {
                 onSuccess: (data) => {
+                    const name = data?.data?.name ?? squadName.trim();
                     setCreatedSquadId(data?.data?.id ?? null);
-                    setCreatedSquadName(data?.data?.name ?? squadName.trim());
+                    setCreatedSquadName(name);
                     setStep("done");
+                    // Persist WhatsApp pending state for global guard
+                    if (whatsappGroupLink) {
+                        markWhatsAppPending({
+                            pollId,
+                            squadName: name,
+                            tournamentName,
+                            whatsappGroupLink,
+                        });
+                    }
                 },
             }
         );
-    }, [pollId, squadName, useClan, hasClan, createMutation]);
+    }, [pollId, squadName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName]);
 
     const handleClose = useCallback(() => {
         setStep("name");
@@ -228,7 +244,7 @@ export function CreateSquadModal({
                                 <TeamDoneSection
                                     whatsappGroupLink={whatsappGroupLink}
                                     whatsappJoined={whatsappJoined}
-                                    onWhatsappJoin={() => setWhatsappJoined(true)}
+                                    onWhatsappJoin={handleWhatsappJoin}
                                     createdSquadId={createdSquadId}
                                     pollId={pollId}
                                 />
