@@ -46,7 +46,7 @@ export function ModeTabs({ mode, onSelect, counts, hideEmpty, isLoading, layoutI
     if (visibleTabs.length === 0 && !showArena) return null;
 
     return (
-        <div className="flex items-center justify-center gap-1 p-1 rounded-xl bg-default-100 relative">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100 border border-divider relative">
             {visibleTabs.map(({ key, label, icon }) => {
                 const count = counts?.[key];
                 return (
@@ -54,12 +54,14 @@ export function ModeTabs({ mode, onSelect, counts, hideEmpty, isLoading, layoutI
                         key={key}
                         type="button"
                         onClick={() => onSelect(key)}
-                        className="flex-1 relative flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium cursor-pointer z-[1]"
+                        className={`flex-1 relative flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-semibold cursor-pointer z-[1] transition-colors ${
+                            mode !== key ? "active:bg-default-200" : ""
+                        }`}
                     >
                         {mode === key && (
                             <motion.div
                                 layoutId={layoutId}
-                                className="absolute inset-0 bg-background rounded-lg shadow-sm"
+                                className="absolute inset-0 bg-background rounded-lg shadow-sm border border-divider"
                                 style={{ zIndex: -1 }}
                                 transition={{
                                     type: "spring",
@@ -78,6 +80,7 @@ export function ModeTabs({ mode, onSelect, counts, hideEmpty, isLoading, layoutI
                         <motion.span
                             animate={{
                                 color: mode === key ? "var(--foreground)" : "var(--foreground-500)",
+                                opacity: mode === key ? 1 : 0.6,
                             }}
                             transition={{ duration: 0.2 }}
                         >

@@ -1213,8 +1213,8 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     {GAME.hasDualCurrency ? ` ${GAME.entryCurrency}` : GAME.currency}
                                 </span>
                             ) : entryFee > 0 ? (
-                                <span className="inline-flex items-center gap-1">
-                                    <SlotText value={`Entry: ${entryFee}`} charDelay={0.02} /> {GAME.hasDualCurrency ? GAME.entryCurrency : <CurrencyIcon size={12} />}
+                                <span className="inline-flex items-baseline gap-1">
+                                    <SlotText value={`Entry: ${entryFee}`} charDelay={0.02} /> {GAME.hasDualCurrency ? GAME.entryCurrency : <CurrencyIcon size={12} className="self-center" />}
                                 </span>
                             ) : (
                                 <SlotText value="Free Entry" charDelay={0.02} />

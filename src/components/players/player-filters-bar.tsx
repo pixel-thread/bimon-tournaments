@@ -8,8 +8,6 @@ import {
     Popover,
     PopoverTrigger,
     PopoverContent,
-    Tabs,
-    Tab,
 } from "@heroui/react";
 import { Search, SlidersHorizontal, MapPin } from "lucide-react";
 import { type PlayerFilters } from "@/hooks/use-player-filters";
@@ -296,41 +294,30 @@ export function PlayerFiltersBar({
                     ))}
                 </div>
             ) : hasLocation && (
-                <Tabs
-                    size="sm"
-                    variant="underlined"
-                    color="primary"
-                    selectedKey={activeTab}
-                    onSelectionChange={handleTabChange}
-                    classNames={{
-                        base: "w-full overflow-x-auto scrollbar-hide",
-                        tabList: "gap-0 w-max min-w-full",
-                        tab: "px-3 h-8 whitespace-nowrap",
-                        cursor: "bg-primary",
-                    }}
-                >
-                    <Tab
-                        key="all"
-                        title={
-                            <div className="flex items-center gap-1.5">
-                                <MapPin className="h-3 w-3" />
-                                <span>All</span>
-                            </div>
-                        }
-                    />
-                    <Tab
-                        key="state"
-                        title={<span className="truncate max-w-[80px]">{myState}</span>}
-                    />
-                    <Tab
-                        key="district"
-                        title={<span className="truncate max-w-[80px]">{myDistrict}</span>}
-                    />
-                    <Tab
-                        key="town"
-                        title={<span className="truncate max-w-[80px]">{myTown}</span>}
-                    />
-                </Tabs>
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+                    {([
+                        { key: "all", label: "All", icon: true },
+                        { key: "state", label: myState ?? "" },
+                        { key: "district", label: myDistrict ?? "" },
+                        { key: "town", label: myTown ?? "" },
+                    ] as const).map((item) => (
+                        <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => handleTabChange(item.key)}
+                            className={`
+                                flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0 cursor-pointer
+                                ${activeTab === item.key
+                                    ? "bg-primary text-white shadow-sm"
+                                    : "bg-default-100 text-foreground/60 hover:bg-default-200 active:scale-95"
+                                }
+                            `}
+                        >
+                            {"icon" in item && <MapPin className="h-3 w-3" />}
+                            {item.label}
+                        </button>
+                    ))}
+                </div>
             )}
         </div>
     );
