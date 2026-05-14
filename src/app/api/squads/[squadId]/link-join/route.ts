@@ -2,7 +2,7 @@ import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
-import { type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { sendPush } from "@/lib/push";
 
 /**
@@ -142,7 +142,7 @@ export async function GET(
  * Handles: poll vote cleanup, squad full detection, duplicate checks.
  */
 export async function POST(
-    _request: NextRequest,
+    request: NextRequest,
     { params }: { params: Promise<{ squadId: string }> }
 ) {
     try {
@@ -154,6 +154,8 @@ export async function POST(
         const { squadId } = await params;
         const playerId = user.player.id;
         const playerName = user.player.displayName;
+        const body = await request.json().catch(() => ({}));
+        const force = (body as any)?.force === true;
 
         const squad = await prisma.squad.findUnique({
             where: { id: squadId },
@@ -190,13 +192,45 @@ export async function POST(
                 status: { in: ["FORMING", "FULL"] },
                 invites: { some: { playerId, status: { in: ["PENDING", "ACCEPTED"] } } },
             },
-            select: { name: true },
+            select: { id: true, name: true, captainId: true, status: true },
         });
         if (existingSquad) {
-            return ErrorResponse({
-                message: `You're already in squad "${existingSquad.name}" for this tournament`,
-                status: 400,
+            // Captain can't auto-leave — they must cancel their squad first
+            if (existingSquad.captainId === playerId) {
+                return ErrorResponse({
+                    message: `You're the leader of "${existingSquad.name}". Cancel that squad first before joining another.`,
+                    status: 400,
+                });
+            }
+
+            if (!force) {
+                // Return conflict — frontend will show confirmation alert
+                return NextResponse.json({
+                    error: "EXISTING_SQUAD",
+                    message: `You're in "${existingSquad.name}". Leave and join "${squad.name}"?`,
+                    existingSquadName: existingSquad.name,
+                }, { status: 409 });
+            }
+
+            // Force mode: auto-leave old squad
+            const oldInvite = await prisma.squadInvite.findFirst({
+                where: { squadId: existingSquad.id, playerId, status: { in: ["PENDING", "ACCEPTED"] } },
             });
+            if (oldInvite) {
+                await prisma.$transaction(async (tx) => {
+                    await tx.squadInvite.update({
+                        where: { id: oldInvite.id },
+                        data: { status: "DECLINED", respondedAt: new Date() },
+                    });
+                    // If old squad was FULL, revert to FORMING
+                    if (existingSquad.status === "FULL") {
+                        await tx.squad.update({
+                            where: { id: existingSquad.id },
+                            data: { status: "FORMING" },
+                        });
+                    }
+                });
+            }
         }
 
         // Check if squad is full

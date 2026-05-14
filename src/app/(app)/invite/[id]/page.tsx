@@ -71,7 +71,7 @@ export default function InvitePage() {
     }, [data?.myStatus, router]);
 
     // Handle Accept for signed-in players with profile
-    const handleAccept = useCallback(async () => {
+    const handleAccept = useCallback(async (force = false) => {
         if (!squadId) return;
 
         // Not signed in → save intent and redirect to sign-in
@@ -93,8 +93,23 @@ export default function InvitePage() {
         try {
             const res = await fetch(`/api/squads/${squadId}/link-join`, {
                 method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ force }),
             });
             const json = await res.json();
+
+            // 409 = already in another squad — ask for confirmation
+            if (res.status === 409 && json.error === "EXISTING_SQUAD") {
+                setJoining(false);
+                const confirmed = window.confirm(json.message);
+                if (confirmed) {
+                    handleAccept(true); // retry with force
+                } else {
+                    router.push("/vote");
+                }
+                return;
+            }
+
             if (!res.ok) {
                 const msg = json.message || "Failed to join";
                 // If already in the squad, redirect to vote page
@@ -301,28 +316,8 @@ export default function InvitePage() {
                     </div>
                 </div>
 
-                {/* ── Action Buttons ── */}
-                <div className="space-y-3">
-                    <Button
-                        color="success"
-                        size="lg"
-                        className="w-full font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/20"
-                        isLoading={joining}
-                        startContent={!joining ? <Check className="w-5 h-5" /> : undefined}
-                        onPress={handleAccept}
-                    >
-                        {!isSignedIn ? "Sign In & Join Squad" : joining ? "Joining..." : "Accept & Join Squad"}
-                    </Button>
-                    <Button
-                        variant="flat"
-                        size="lg"
-                        className="w-full font-medium"
-                        startContent={!isSignedIn ? <LogIn className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                        onPress={handleDecline}
-                    >
-                        {!isSignedIn ? "Sign In Without Joining" : "Decline"}
-                    </Button>
-                </div>
+
+
 
                 {/* ── Squad Members ── */}
                 <div className="rounded-xl border border-divider bg-default-50 overflow-hidden">
@@ -348,17 +343,42 @@ export default function InvitePage() {
                         ))}
                         {/* Empty slots */}
                         {emptySlots > 0 && Array.from({ length: emptySlots }).map((_, i) => (
-                            <div key={`empty-${i}`} className="flex items-center gap-3 opacity-40">
-                                <div className="w-8 h-8 rounded-full border-2 border-dashed border-foreground/20 flex items-center justify-center">
-                                    <Users className="w-3 h-3" />
+                            i === 0 ? (
+                                <button
+                                    key={`empty-${i}`}
+                                    className="flex items-center gap-3 w-full text-left rounded-lg py-1.5 -mx-1 px-1 transition-colors hover:bg-success/10 active:bg-success/20"
+                                    onClick={() => handleAccept()}
+                                    disabled={joining}
+                                >
+                                    <div className="w-8 h-8 rounded-full border-2 border-dashed border-success/50 flex items-center justify-center">
+                                        <Check className="w-3.5 h-3.5 text-success" />
+                                    </div>
+                                    <span className="text-sm font-medium text-success">
+                                        {joining ? "Joining…" : "Your spot ✨ Tap to join"}
+                                    </span>
+                                </button>
+                            ) : (
+                                <div key={`empty-${i}`} className="flex items-center gap-3 opacity-40">
+                                    <div className="w-8 h-8 rounded-full border-2 border-dashed border-foreground/20 flex items-center justify-center">
+                                        <Users className="w-3 h-3" />
+                                    </div>
+                                    <span className="text-sm text-foreground/40">Open slot</span>
                                 </div>
-                                <span className="text-sm text-foreground/40">
-                                    {i === 0 ? "Your spot ✨" : "Open slot"}
-                                </span>
-                            </div>
+                            )
                         ))}
                     </div>
                 </div>
+
+                {/* Decline */}
+                <Button
+                    variant="flat"
+                    size="sm"
+                    className="w-full font-medium"
+                    startContent={<X className="w-3.5 h-3.5" />}
+                    onPress={handleDecline}
+                >
+                    {!isSignedIn ? "Sign In Without Joining" : "Decline"}
+                </Button>
 
                 {/* ── Info Cards ── */}
                 <div className="grid grid-cols-2 gap-3">

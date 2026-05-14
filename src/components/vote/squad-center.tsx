@@ -443,6 +443,12 @@ function SquadCard({
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
                                             {isCaptain && <StatusBadge status={member.status} initiatedBy={member.initiatedBy} />}
+                                            {/* Show "Waiting" to the requesting player themselves */}
+                                            {!isCaptain && member.playerId === currentPlayerId && member.status === "PENDING" && member.initiatedBy === "PLAYER" && (
+                                                <Chip size="sm" variant="flat" className="bg-amber-500/15 text-amber-600 dark:text-amber-400" startContent={<Clock className="w-3 h-3" />}>
+                                                    Waiting
+                                                </Chip>
+                                            )}
                                             {showRemove && (
                                                 canToggleSub ? (
                                                     <MemberActions
@@ -470,14 +476,32 @@ function SquadCard({
                             })}
 
                             {/* Empty slots */}
-                            {emptySlots > 0 && Array.from({ length: emptySlots }).map((_, i) => (
-                                <div key={`empty-${i}`} className="flex items-center gap-3 opacity-40">
-                                    <div className="w-8 h-8 rounded-full border-2 border-dashed border-foreground/20 flex items-center justify-center">
-                                        <Plus className="w-3 h-3" />
+                            {emptySlots > 0 && Array.from({ length: emptySlots }).map((_, i) => {
+                                // First empty slot is tappable when the player can join
+                                const isJoinSlot = i === 0 && canRequestJoin;
+                                return isJoinSlot ? (
+                                    <button
+                                        key={`empty-${i}`}
+                                        className="flex items-center gap-3 w-full text-left rounded-lg py-1.5 -mx-1 px-1 transition-colors hover:bg-primary/10 active:bg-primary/20"
+                                        onClick={() => isGuest ? (window.location.href = "/sign-in") : onRequestJoin(squad.id)}
+                                        disabled={isRequesting}
+                                    >
+                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center">
+                                            <UserPlus className="w-3.5 h-3.5 text-primary" />
+                                        </div>
+                                        <span className="text-sm font-medium text-primary">
+                                            {isRequesting ? "Requesting…" : "Tap to join"}
+                                        </span>
+                                    </button>
+                                ) : (
+                                    <div key={`empty-${i}`} className="flex items-center gap-3 opacity-40">
+                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-foreground/20 flex items-center justify-center">
+                                            <Plus className="w-3 h-3" />
+                                        </div>
+                                        <span className="text-sm text-foreground/40">Open slot</span>
                                     </div>
-                                    <span className="text-sm text-foreground/40">Open slot</span>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
 
@@ -609,35 +633,8 @@ function SquadCard({
                             </div>
                         )}
 
-                        {/* Request to Join / Sign in to Join */}
-                        {canRequestJoin && (
-                            <div className="px-4 py-3 border-t border-divider/50">
-                                {isGuest ? (
-                                    <Button
-                                        size="sm"
-                                        color="primary"
-                                        variant="solid"
-                                        className="w-full font-semibold"
-                                        startContent={<LogIn className="w-3.5 h-3.5" />}
-                                        onPress={() => { window.location.href = "/sign-in"; }}
-                                    >
-                                        Sign in to Join
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        size="sm"
-                                        color="primary"
-                                        variant="solid"
-                                        className="w-full font-semibold"
-                                        isLoading={isRequesting}
-                                        onPress={() => onRequestJoin(squad.id)}
-                                        startContent={!isRequesting && <UserPlus className="w-3.5 h-3.5" />}
-                                    >
-                                        {myInvite?.status === "DECLINED" ? "Request Again" : "Request to Join"}
-                                    </Button>
-                                )}
-                            </div>
-                        )}
+
+
 
                         {/* Cancel squad (captain only) */}
                         {isCaptain && squad.status === "FORMING" && (
