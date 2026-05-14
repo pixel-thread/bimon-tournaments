@@ -479,8 +479,10 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                             <span className="text-sm">Active</span>
                             <Switch
                                 size="sm"
+                                color="primary"
                                 isSelected={isActive}
                                 onValueChange={setIsActive}
+                                classNames={{ wrapper: isActive ? "" : "bg-default-300" }}
                             />
                         </div>
                     )}
@@ -494,16 +496,18 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                             </div>
                             <Switch
                                 size="sm"
+                                color="primary"
                                 isSelected={allowSquads}
                                 onValueChange={(v) => {
                                     setAllowSquads(v);
                                     if (v) {
-                                        setEnableFund(false); // Auto-disable fund for squad polls
+                                        setEnableFund(false);
                                         if (GAME.features.hasTeamSizes) setTeamType("SQUAD");
                                     } else {
                                         if (GAME.features.hasTeamSizes) setTeamType("DYNAMIC");
                                     }
                                 }}
+                                classNames={{ wrapper: allowSquads ? "" : "bg-default-300" }}
                             />
                         </div>
                     )}
@@ -517,8 +521,10 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                             </div>
                             <Switch
                                 size="sm"
+                                color="warning"
                                 isSelected={isChampionship}
                                 onValueChange={setIsChampionship}
+                                classNames={{ wrapper: isChampionship ? "" : "bg-default-300" }}
                             />
                         </div>
                     )}
@@ -596,8 +602,10 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                             </div>
                             <Switch
                                 size="sm"
+                                color="warning"
                                 isSelected={enableFund}
                                 onValueChange={setEnableFund}
+                                classNames={{ wrapper: enableFund ? "" : "bg-default-300" }}
                             />
                         </div>
                     )}

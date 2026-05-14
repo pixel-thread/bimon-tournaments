@@ -49,6 +49,7 @@ export async function GET(
                         isActive: true,
                         scheduledDate: true,
                         scheduledTime: true,
+                        matchSchedule: true,
                         days: true,
                         expectedPrizePool: true,
                         whatsappGroupLink: true,
@@ -103,6 +104,7 @@ export async function GET(
                 expectedPrizePool: squad.poll.expectedPrizePool,
                 scheduledDate: squad.poll.scheduledDate,
                 scheduledTime: squad.poll.scheduledTime ?? "20:00",
+                matchSchedule: squad.poll.matchSchedule ?? null,
                 days: squad.poll.days,
                 whatsappGroupLink: squad.poll.whatsappGroupLink ?? null,
                 captain: {

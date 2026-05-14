@@ -123,6 +123,7 @@ export function PlayerFiltersBar({
                     startContent={<Search className="h-4 w-4 text-default-400" />}
                     classNames={{
                         inputWrapper: "bg-default-100 dark:bg-[var(--game-surface)] border border-divider shadow-none",
+                        base: "bg-transparent",
                     }}
                     className="flex-1 sm:max-w-xs"
                     size="sm"

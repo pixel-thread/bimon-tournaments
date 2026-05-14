@@ -103,7 +103,7 @@ export function PlayerTable({
                                 ? "opacity-50 bg-danger/5 hover:bg-danger/10"
                                 : player.hasRoyalPass
                                 ? "bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/25"
-                                : "hover:bg-[var(--game-surface)] active:bg-[var(--game-surface-hover)]"
+                                : "hover:bg-default-200 active:bg-default-300"
                                 }`}
                         >
                             {/* Rank */}

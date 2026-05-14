@@ -28,6 +28,7 @@ interface PollPublicData {
     isWoW: boolean;
     scheduledDate: string | null;
     scheduledTime: string;
+    matchSchedule: Record<string, string[]> | null;
     days: string;
     squadCount: number;
     maxSquads: number;
@@ -259,11 +260,14 @@ export default function JoinPage() {
         }
         return data.days;
     })();
-    const timeLabel = (() => {
-        const [h, m] = (data.scheduledTime || "20:00").split(":").map(Number);
+    const fmtTime = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
         const d = new Date(2000, 0, 1, h, m);
         return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-    })();
+    };
+    const timeLabel = fmtTime(data.scheduledTime || "20:00");
+    const schedule = data.matchSchedule as Record<string, string[]> | null;
+    const hasSchedule = schedule && Object.keys(schedule).length > 0;
 
     const isFull = data.squadCount >= data.maxSquads;
     const canSubmit = ((useClan && hasClan) || teamName.trim().length > 0) && !isFull && step === "form";
@@ -482,10 +486,21 @@ export default function JoinPage() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 rounded-xl border border-divider bg-default-50 p-3">
-                                <Clock className="w-4 h-4 text-foreground/40" />
+                                <Clock className="w-4 h-4 text-foreground/40 shrink-0" />
                                 <div>
-                                    <p className="text-[10px] text-foreground/40 uppercase">Match Time</p>
-                                    <p className="text-sm font-bold">{timeLabel}</p>
+                                    <p className="text-[10px] text-foreground/40 uppercase">Match Times</p>
+                                    {hasSchedule ? (
+                                        <div className="space-y-0.5">
+                                            {Object.entries(schedule).map(([day, times]) => (
+                                                <p key={day} className="text-xs">
+                                                    <span className="font-medium text-foreground/50">{day}:</span>{" "}
+                                                    <span className="font-bold">{times.map(fmtTime).join(" · ")}</span>
+                                                </p>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm font-bold">{timeLabel}</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
