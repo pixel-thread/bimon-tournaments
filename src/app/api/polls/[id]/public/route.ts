@@ -55,9 +55,10 @@ export async function GET(
             return ErrorResponse({ message: "Tournament not found", status: 404 });
         }
 
-        // Check if current user already has a squad on this poll
+        // Check if current user already has a squad or individual vote on this poll
         let hasSquad = false;
         let mySquadName: string | null = null;
+        let hasVotedIn = false;
         try {
             const user = await getCurrentUser();
             if (user?.player?.id) {
@@ -74,6 +75,17 @@ export async function GET(
                 });
                 hasSquad = !!existing;
                 mySquadName = existing?.name ?? null;
+
+                // Check for existing individual vote (IN or SOLO)
+                const existingVote = await prisma.playerPollVote.findFirst({
+                    where: {
+                        pollId,
+                        playerId: user.player.id,
+                        vote: { in: ["IN", "SOLO"] },
+                    },
+                    select: { id: true },
+                });
+                hasVotedIn = !!existingVote;
             }
         } catch {
             // Not signed in — that's fine
@@ -102,6 +114,7 @@ export async function GET(
                 maxTeamSize: GAME.maxSquadSize,
                 hasSquad,
                 mySquadName,
+                hasVotedIn,
                 whatsappGroupLink: poll.whatsappGroupLink ?? null,
             },
             cache: CACHE.NONE,

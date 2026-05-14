@@ -11,7 +11,7 @@ import {
     Input,
     Switch,
 } from "@heroui/react";
-import { Shield } from "lucide-react";
+import { Shield, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad } from "@/hooks/use-squads";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +28,8 @@ interface CreateSquadModalProps {
     tournamentName: string;
     entryFee: number;
     whatsappGroupLink?: string | null;
+    /** Whether the current user already has an individual vote on this poll */
+    hasVotedIn?: boolean;
 }
 
 interface MyClan {
@@ -46,6 +48,7 @@ export function CreateSquadModal({
     tournamentName,
     entryFee,
     whatsappGroupLink,
+    hasVotedIn,
 }: CreateSquadModalProps) {
     const [step, setStep] = useState<"name" | "done">("name");
     const [squadName, setSquadName] = useState("");

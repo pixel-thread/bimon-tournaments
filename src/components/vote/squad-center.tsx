@@ -14,7 +14,7 @@ import {
     Input,
 } from "@heroui/react";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
-import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, Search, MoreVertical, Swords, Share2, CheckCheck, Copy } from "lucide-react";
+import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     useSquads,
@@ -857,6 +857,7 @@ export function SquadCenter({
     whatsappGroupLink,
 }: SquadCenterProps) {
     const [showCreate, setShowCreate] = useState(false);
+    const [showVoteWarning, setShowVoteWarning] = useState<{ action: "create" | "join"; squadId?: string } | null>(null);
     const { data: squadsResult, isLoading, refetch } = useSquads(pollId);
     const squads = squadsResult?.squads;
 
@@ -896,9 +897,8 @@ export function SquadCenter({
 
     function handleRequestJoin(squadId: string) {
         if (hasVotedIn) {
-            if (!window.confirm("You have an individual vote on this poll. Joining a squad will remove it and place you in the squad instead. Continue?")) {
-                return;
-            }
+            setShowVoteWarning({ action: "join", squadId });
+            return;
         }
         requestJoinMutation.mutate(squadId);
     }
@@ -1151,7 +1151,13 @@ export function SquadCenter({
                                     className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
                                     color={theme ? undefined : "primary"}
                                     startContent={<Plus className="w-4 h-4" />}
-                                    onPress={() => setShowCreate(true)}
+                                    onPress={() => {
+                                        if (hasVotedIn) {
+                                            setShowVoteWarning({ action: "create" });
+                                        } else {
+                                            setShowCreate(true);
+                                        }
+                                    }}
                                 >
                                     Create Team
                                 </Button>
@@ -1172,7 +1178,65 @@ export function SquadCenter({
                 tournamentName={tournamentName}
                 entryFee={entryFee}
                 whatsappGroupLink={whatsappGroupLink}
+                hasVotedIn={hasVotedIn}
             />
+
+            {/* Vote conflict warning modal */}
+            <Modal
+                isOpen={!!showVoteWarning}
+                onClose={() => setShowVoteWarning(null)}
+                placement="center"
+                size="sm"
+                classNames={{
+                    base: "bg-background border border-divider",
+                    backdrop: "bg-black/60 backdrop-blur-sm",
+                    wrapper: "z-[60]",
+                }}
+            >
+                <ModalContent>
+                    <ModalHeader className="flex items-center gap-2 text-base">
+                        <div className="w-8 h-8 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+                            <AlertTriangle className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <span>You already voted! 😎</span>
+                    </ModalHeader>
+                    <ModalBody className="pt-0">
+                        <p className="text-sm text-foreground/70">
+                            You have an <strong>individual vote</strong> on this tournament.
+                            {showVoteWarning?.action === "create"
+                                ? " Creating a team will "
+                                : " Joining this squad will "
+                            }
+                            <strong>remove your solo entry</strong> and place you in the squad instead.
+                        </p>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button
+                            variant="flat"
+                            size="sm"
+                            onPress={() => setShowVoteWarning(null)}
+                        >
+                            Keep Solo Vote
+                        </Button>
+                        <Button
+                            color="primary"
+                            size="sm"
+                            className="font-semibold"
+                            onPress={() => {
+                                if (showVoteWarning?.action === "create") {
+                                    setShowVoteWarning(null);
+                                    setShowCreate(true);
+                                } else if (showVoteWarning?.squadId) {
+                                    setShowVoteWarning(null);
+                                    requestJoinMutation.mutate(showVoteWarning.squadId);
+                                }
+                            }}
+                        >
+                            {showVoteWarning?.action === "create" ? "Create Team Instead" : "Join Squad Instead"}
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
         </>
     );
 }

@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Input, Button, Spinner, Switch } from "@heroui/react";
-import { Shield, Trophy, Users, Calendar, Clock, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Input, Button, Spinner, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
+import { Shield, Trophy, Users, Calendar, Clock, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad } from "@/hooks/use-squads";
 import { useAuthGate } from "@/components/common/auth-gate-provider";
@@ -35,6 +35,7 @@ interface PollPublicData {
     maxTeamSize: number;
     hasSquad: boolean;
     mySquadName: string | null;
+    hasVotedIn: boolean;
     whatsappGroupLink: string | null;
 }
 
@@ -58,6 +59,7 @@ export default function JoinPage() {
     const [createdSquadId, setCreatedSquadId] = useState<string | null>(null);
     const [useClan, setUseClan] = useState(false);
     const [whatsappJoined, setWhatsappJoined] = useState(false);
+    const [showVoteWarning, setShowVoteWarning] = useState(false);
     const createMutation = useCreateSquad();
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -148,8 +150,18 @@ export default function JoinPage() {
     const handleSubmit = useCallback(() => {
         const effectiveUseClan = useClan && hasClan;
         if (!effectiveUseClan && !teamName.trim()) return;
+        // If user has an existing individual vote, show warning first
+        if (data?.hasVotedIn) {
+            setShowVoteWarning(true);
+            return;
+        }
         requireAuth(() => handleCreate());
-    }, [teamName, useClan, hasClan, requireAuth, handleCreate]);
+    }, [teamName, useClan, hasClan, requireAuth, handleCreate, data?.hasVotedIn]);
+
+    const handleConfirmWithVote = useCallback(() => {
+        setShowVoteWarning(false);
+        requireAuth(() => handleCreate());
+    }, [requireAuth, handleCreate]);
 
     // ── Loading ──
     if (isLoading) {
@@ -246,6 +258,7 @@ export default function JoinPage() {
     const canSubmit = ((useClan && hasClan) || teamName.trim().length > 0) && !isFull && step === "form";
 
     return (
+        <>
         <div className="mx-auto max-w-lg px-4 py-6 sm:px-6">
             <AnimatePresence mode="wait">
                 {step === "done" ? (
@@ -506,5 +519,50 @@ export default function JoinPage() {
                 )}
             </AnimatePresence>
         </div>
+
+            {/* Vote conflict warning modal */}
+            <Modal
+                isOpen={showVoteWarning}
+                onClose={() => setShowVoteWarning(false)}
+                placement="center"
+                size="sm"
+                classNames={{
+                    base: "bg-background border border-divider",
+                    backdrop: "bg-black/60 backdrop-blur-sm",
+                }}
+            >
+                <ModalContent>
+                    <ModalHeader className="flex items-center gap-2 text-base">
+                        <div className="w-8 h-8 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+                            <AlertTriangle className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <span>You already voted! 😎</span>
+                    </ModalHeader>
+                    <ModalBody className="pt-0">
+                        <p className="text-sm text-foreground/70">
+                            You have an <strong>individual vote</strong> on this tournament.
+                            Want to <strong>remove your solo entry</strong> and create a team instead? Your vote will be replaced by the squad entry.
+                        </p>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button
+                            variant="flat"
+                            size="sm"
+                            onPress={() => setShowVoteWarning(false)}
+                        >
+                            Keep Solo Vote
+                        </Button>
+                        <Button
+                            color="primary"
+                            size="sm"
+                            className="font-semibold"
+                            onPress={handleConfirmWithVote}
+                        >
+                            Create Team Instead
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+        </>
     );
 }
