@@ -305,9 +305,8 @@ export default function InvitePage() {
                     />
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] text-foreground/40 uppercase">Invited by</p>
-                        <p className="text-sm font-semibold truncate flex items-center gap-1.5">
+                        <p className="text-sm font-semibold truncate">
                             {data.captain.displayName}
-                            <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                         </p>
                     </div>
                 </div>
@@ -395,6 +394,29 @@ export default function InvitePage() {
                             )
                         ))}
                     </div>
+                </div>
+
+                {/* ── Action Buttons (second touchpoint) ── */}
+                <div className="flex gap-3">
+                    <Button
+                        color="success"
+                        size="lg"
+                        className="flex-1 font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/20"
+                        isLoading={joining}
+                        startContent={!joining ? <Check className="w-5 h-5" /> : undefined}
+                        onPress={() => handleAccept()}
+                    >
+                        {!isSignedIn ? "Sign In & Join" : joining ? "Joining..." : "Join Squad"}
+                    </Button>
+                    <Button
+                        variant="flat"
+                        size="lg"
+                        className="font-medium"
+                        startContent={<X className="w-4 h-4" />}
+                        onPress={handleDecline}
+                    >
+                        Decline
+                    </Button>
                 </div>
 
 
