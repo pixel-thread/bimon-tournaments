@@ -338,7 +338,7 @@ export default function InvitePage() {
                         ))}
                         {/* Empty slots */}
                         {emptySlots > 0 && Array.from({ length: emptySlots }).map((_, i) => (
-                            i === 0 ? (
+                            i === 0 && !joined && data.myStatus === "none" ? (
                                 conflictSquad ? (
                                     <div key={`empty-${i}`} className="space-y-2">
                                         <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -384,6 +384,15 @@ export default function InvitePage() {
                                         </button>
                                     </div>
                                 )
+                            ) : i === 0 && (joined || data.myStatus === "accepted" || data.myStatus === "pending") ? (
+                                <div key={`empty-${i}`} className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                                        <Check className="w-4 h-4 text-success" />
+                                    </div>
+                                    <span className="text-sm font-medium text-success">
+                                        {data.myStatus === "pending" ? "Request pending" : "You're in! ✨"}
+                                    </span>
+                                </div>
                             ) : (
                                 <div key={`empty-${i}`} className="flex items-center gap-3 opacity-40">
                                     <div className="w-8 h-8 rounded-full border-2 border-dashed border-foreground/20 flex items-center justify-center">
@@ -397,27 +406,36 @@ export default function InvitePage() {
                 </div>
 
                 {/* ── Action Buttons (second touchpoint) ── */}
-                <div className="flex gap-3">
-                    <Button
-                        color="success"
-                        size="lg"
-                        className="flex-1 font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/20"
-                        isLoading={joining}
-                        startContent={!joining ? <Check className="w-5 h-5" /> : undefined}
-                        onPress={() => handleAccept()}
-                    >
-                        {!isSignedIn ? "Sign In & Join" : joining ? "Joining..." : "Join Squad"}
-                    </Button>
-                    <Button
-                        variant="flat"
-                        size="lg"
-                        className="font-medium"
-                        startContent={<X className="w-4 h-4" />}
-                        onPress={handleDecline}
-                    >
-                        Decline
-                    </Button>
-                </div>
+                {joined || data.myStatus === "accepted" || data.myStatus === "pending" ? (
+                    <div className="flex items-center justify-center gap-2 py-3 rounded-xl bg-success/10 border border-success/20">
+                        <Check className="w-5 h-5 text-success" />
+                        <span className="text-sm font-semibold text-success">
+                            {data.myStatus === "pending" ? "Your request is pending approval" : "You've joined this squad!"}
+                        </span>
+                    </div>
+                ) : (
+                    <div className="flex gap-3">
+                        <Button
+                            color="success"
+                            size="lg"
+                            className="flex-1 font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/20"
+                            isLoading={joining}
+                            startContent={!joining ? <Check className="w-5 h-5" /> : undefined}
+                            onPress={() => handleAccept()}
+                        >
+                            {!isSignedIn ? "Sign In & Join" : joining ? "Joining..." : "Join Squad"}
+                        </Button>
+                        <Button
+                            variant="flat"
+                            size="lg"
+                            className="font-medium"
+                            startContent={<X className="w-4 h-4" />}
+                            onPress={handleDecline}
+                        >
+                            Decline
+                        </Button>
+                    </div>
+                )}
 
 
 

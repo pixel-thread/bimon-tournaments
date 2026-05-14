@@ -25,6 +25,7 @@ export async function GET() {
                         tag: true,
                         logoUrl: true,
                         leaderId: true,
+                        balance: true,
                     },
                 },
             },
@@ -34,7 +35,7 @@ export async function GET() {
             // Also check if the player is a clan leader (leader isn't in ClanMember)
             const ownedClan = await prisma.clan.findUnique({
                 where: { leaderId: user.player.id },
-                select: { id: true, name: true, tag: true, logoUrl: true, leaderId: true },
+                select: { id: true, name: true, tag: true, logoUrl: true, leaderId: true, balance: true },
             });
 
             if (ownedClan) {
@@ -45,6 +46,7 @@ export async function GET() {
                         tag: ownedClan.tag,
                         logoUrl: ownedClan.logoUrl,
                         role: "LEADER",
+                        balance: ownedClan.balance,
                     },
                     cache: CACHE.NONE,
                 });
@@ -60,6 +62,7 @@ export async function GET() {
                 tag: membership.clan.tag,
                 logoUrl: membership.clan.logoUrl,
                 role: membership.role,
+                balance: membership.clan.balance,
             },
             cache: CACHE.NONE,
         });

@@ -119,11 +119,11 @@ export function useCreateSquad() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ pollId, name, useClan }: { pollId: string; name: string; useClan?: boolean }) => {
+        mutationFn: async ({ pollId, name, useClan, useClanTreasury }: { pollId: string; name: string; useClan?: boolean; useClanTreasury?: boolean }) => {
             const res = await fetch("/api/squads", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pollId, name, useClan }),
+                body: JSON.stringify({ pollId, name, useClan, useClanTreasury }),
             });
             if (!res.ok) {
                 const json = await res.json().catch(() => ({}));

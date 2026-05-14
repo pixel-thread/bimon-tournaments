@@ -38,6 +38,7 @@ interface MyClan {
     name: string;
     tag: string;
     logoUrl: string | null;
+    balance: number;
 }
 
 /* ─── Main Component ────────────────────────────────────────── */
@@ -56,6 +57,7 @@ export function CreateSquadModal({
     const [createdSquadId, setCreatedSquadId] = useState<string | null>(null);
     const [createdSquadName, setCreatedSquadName] = useState<string>("");
     const [useClan, setUseClan] = useState(false);
+    const [useClanTreasury, setUseClanTreasury] = useState(false);
     const [whatsappJoined, setWhatsappJoined] = useState(false);
 
     const handleWhatsappJoin = useCallback(() => {
@@ -90,7 +92,12 @@ export function CreateSquadModal({
         const effectiveUseClan = useClan && hasClan;
         if (!effectiveUseClan && !squadName.trim()) return;
         createMutation.mutate(
-            { pollId, name: effectiveUseClan ? "" : squadName.trim(), useClan: effectiveUseClan },
+            {
+                pollId,
+                name: effectiveUseClan ? "" : squadName.trim(),
+                useClan: effectiveUseClan,
+                useClanTreasury: effectiveUseClan && useClanTreasury,
+            },
             {
                 onSuccess: (data) => {
                     const name = data?.data?.name ?? squadName.trim();
@@ -118,6 +125,7 @@ export function CreateSquadModal({
         setCreatedSquadName("");
         setWhatsappJoined(false);
         setUseClan(hasClan); // Reset to clan default for next open
+        setUseClanTreasury(false);
         onClose();
     }, [onClose, hasClan]);
 
@@ -220,14 +228,37 @@ export function CreateSquadModal({
                                 )}
 
                                 {useClan && hasClan && myClan && (
+                                    <>
                                     <div className="p-3 rounded-lg bg-success-50/50 border border-success-100 text-sm text-success-700 dark:text-success-400 dark:bg-success-900/20 dark:border-success-800">
                                         Team will be named <strong>&ldquo;{myClan.name}&rdquo;</strong> with your clan logo.
                                         {/* Auto-increments if multiple clan squads exist */}
                                     </div>
+
+                                    {/* Clan Treasury Toggle */}
+                                    {entryFee > 0 && (
+                                        <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium">Pay from clan treasury</p>
+                                                <p className="text-xs text-foreground/50">
+                                                    Treasury: <strong>{myClan.balance} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong>
+                                                    {myClan.balance < entryFee && (
+                                                        <span className="text-danger ml-1">(need {entryFee})</span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <Switch
+                                                size="sm"
+                                                isSelected={useClanTreasury}
+                                                onValueChange={setUseClanTreasury}
+                                                isDisabled={myClan.balance < entryFee}
+                                            />
+                                        </div>
+                                    )}
+                                    </>
                                 )}
 
                                 <div className="text-xs text-foreground/50 space-y-1">
-                                    <p>• Leader pays <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
+                                    <p>• {useClanTreasury ? 'Clan treasury' : 'Leader'} pays <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
                                     <p>• Roster: up to <strong>{GAME.maxSquadSize}</strong> players ({GAME.squadSize} active + {GAME.maxSquadSize - GAME.squadSize} subs)</p>
                                     <p>• Teammates join for free — no fee required</p>
                                     <p>• Prize goes to leader when team wins 🏆</p>

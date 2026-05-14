@@ -1279,6 +1279,7 @@ model Squad {
   clanId    String?                         // Set when captain chose to represent their clan
   status    SquadStatus @default(FORMING)
   entryFee  Int         // Per-player fee (snapshot from tournament at creation)
+  useClanTreasury Boolean @default(false) // If true, clan treasury pays instead of captain
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

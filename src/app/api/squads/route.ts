@@ -189,7 +189,9 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { pollId, name, useClan } = body as { pollId: string; name: string; useClan?: boolean };
+        const { pollId, name, useClan, useClanTreasury } = body as {
+            pollId: string; name: string; useClan?: boolean; useClanTreasury?: boolean;
+        };
 
         if (!pollId) {
             return ErrorResponse({ message: "pollId is required", status: 400 });
@@ -254,9 +256,23 @@ export async function POST(request: NextRequest) {
 
         const entryFee = poll.tournament?.fee ?? 0;
 
-        // Check available balance (must cover own entry fee after existing reservations)
-        // Trusted players can create squads even with 0 balance
-        if (entryFee > 0) {
+        // Clan treasury validation (must be a clan squad + have enough balance)
+        const wantClanTreasury = !!(useClanTreasury && clanId && entryFee > 0);
+        if (wantClanTreasury) {
+            const clan = await prisma.clan.findUnique({
+                where: { id: clanId! },
+                select: { balance: true },
+            });
+            if (!clan || clan.balance < entryFee) {
+                return ErrorResponse({
+                    message: `${GAME.currencyEmoji} Clan treasury doesn't have enough — need ${entryFee} ${GAME.currency}, have ${clan?.balance ?? 0} ${GAME.currency}`,
+                    status: 403,
+                });
+            }
+        }
+
+        // Check captain's personal balance (skip if using clan treasury)
+        if (entryFee > 0 && !wantClanTreasury) {
             const player = await prisma.player.findUnique({
                 where: { id: playerId },
                 select: { isTrusted: true },
@@ -330,6 +346,7 @@ export async function POST(request: NextRequest) {
                         clanId,
                         status: "FORMING",
                         entryFee,
+                        useClanTreasury: wantClanTreasury,
                         createdAt: new Date(), // Reset so re-registered squad appears as latest
                         invites: {
                             create: {
@@ -357,6 +374,7 @@ export async function POST(request: NextRequest) {
                     captainId: playerId,
                     clanId,
                     entryFee,
+                    useClanTreasury: wantClanTreasury,
                     invites: {
                         create: {
                             playerId,

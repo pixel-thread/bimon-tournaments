@@ -171,6 +171,7 @@ export async function createTeamsByPoll({
     let squadsRegistered = 0;
     let squadsCancelled = 0;
     let squadPlayersToCharge: { id: string; email?: string }[] = [];
+    let clanTreasuryDebits: { clanId: string; captainId: string; amount: number; squadName: string }[] = [];
 
     if (pollAllowSquads) {
         const maxSquads = isChampionship ? 32 : GAME.maxSquadTeams;
@@ -231,10 +232,20 @@ export async function createTeamsByPoll({
                 }
 
                 // Captain pays the full team entry fee (UC exempt doesn't apply in squad polls)
-                squadPlayersToCharge.push({
-                    id: squad.captain.id,
-                    email: squad.captain.user?.email ?? undefined,
-                });
+                if (squad.useClanTreasury && squad.clanId) {
+                    // Clan treasury pays — track for post-transaction debit
+                    clanTreasuryDebits.push({
+                        clanId: squad.clanId,
+                        captainId: squad.captain.id,
+                        amount: entryFee,
+                        squadName: squad.name,
+                    });
+                } else {
+                    squadPlayersToCharge.push({
+                        id: squad.captain.id,
+                        email: squad.captain.user?.email ?? undefined,
+                    });
+                }
 
                 // Mark squad as REGISTERED (skip in dry run)
                 if (!dryRun) {
@@ -674,6 +685,30 @@ export async function createTeamsByPoll({
                 }
             }
         });
+    }
+
+    // Debit clan treasuries for squads that opted in
+    for (const debit of clanTreasuryDebits) {
+        try {
+            await prisma.$transaction([
+                prisma.clan.update({
+                    where: { id: debit.clanId },
+                    data: { balance: { decrement: debit.amount } },
+                }),
+                prisma.clanTransaction.create({
+                    data: {
+                        clanId: debit.clanId,
+                        playerId: debit.captainId,
+                        amount: debit.amount,
+                        type: "DEBIT",
+                        description: `Squad entry fee for ${tournamentName} ("${debit.squadName}")`,
+                    },
+                }),
+            ]);
+            console.log(`[createTeamsByPoll] Clan treasury debited ${debit.amount} for squad "${debit.squadName}"`);
+        } catch (err) {
+            console.error(`[createTeamsByPoll] Failed to debit clan treasury for squad "${debit.squadName}":`, err);
+        }
     }
 
     // Auto-deactivate the poll — voting is closed once teams are confirmed
