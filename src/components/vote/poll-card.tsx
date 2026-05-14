@@ -1355,6 +1355,19 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                         const displayDays = singleIdx >= 0
                             ? `${FULL_DAYS[singleIdx]} & ${FULL_DAYS[(singleIdx + 1) % 7]}`
                             : poll.days;
+
+                        const schedule = poll.matchSchedule as Record<string, string[]> | null;
+                        const hasSchedule = schedule && Object.keys(schedule).length > 0;
+
+                        // For ranked (allowSquads), hide schedule section if no matchSchedule is set
+                        if (poll.allowSquads && !hasSchedule) return null;
+
+                        const fmtTime = (t: string) => {
+                            const [h, m] = t.split(":").map(Number);
+                            const d = new Date(2000, 0, 1, h, m);
+                            return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+                        };
+
                         return (
                             <div className="text-[11px] text-foreground/40 text-center px-4 pb-1 animate-in fade-in duration-200 space-y-0.5">
                                 {poll.scheduledDate ? (
@@ -1362,16 +1375,32 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                 ) : (
                                     <p>📅 Match days: <span className="text-foreground/60 font-medium">{displayDays}</span></p>
                                 )}
-                                {(() => {
-                                    const time = poll.scheduledTime || "20:00";
-                                    const [h, m] = time.split(":").map(Number);
-                                    const d1 = new Date(2000, 0, 1, h, m);
-                                    const d2 = new Date(d1.getTime() + 45 * 60000);
-                                    const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-                                    return (
-                                        <p>⏰ <span className="text-foreground/60 font-medium">{fmt(d1)}</span> · <span className="text-foreground/60 font-medium">{fmt(d2)}</span></p>
-                                    );
-                                })()}
+                                {hasSchedule ? (
+                                    // Dynamic per-day schedule
+                                    Object.entries(schedule).map(([day, times]) => (
+                                        <p key={day}>
+                                            <span className="text-foreground/50 font-medium">{day}:</span>{" "}
+                                            {times.map((t, i) => (
+                                                <span key={i}>
+                                                    {i > 0 && " · "}
+                                                    <span className="text-foreground/60 font-medium">{fmtTime(t)}</span>
+                                                </span>
+                                            ))}
+                                        </p>
+                                    ))
+                                ) : (
+                                    // Casual fallback: scheduledTime + 45 min
+                                    (() => {
+                                        const time = poll.scheduledTime || "20:00";
+                                        const [h, m] = time.split(":").map(Number);
+                                        const d1 = new Date(2000, 0, 1, h, m);
+                                        const d2 = new Date(d1.getTime() + 45 * 60000);
+                                        const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+                                        return (
+                                            <p>⏰ <span className="text-foreground/60 font-medium">{fmt(d1)}</span> · <span className="text-foreground/60 font-medium">{fmt(d2)}</span></p>
+                                        );
+                                    })()
+                                )}
                             </div>
                         );
                     })()}

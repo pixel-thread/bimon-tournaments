@@ -14,6 +14,7 @@ export interface PollDTO {
     isChampionship: boolean;
     scheduledDate: string | null;
     scheduledTime: string;
+    matchSchedule: Record<string, string[]> | null; // Per-day match times
     enableFund?: boolean;
     prizePoolFee?: number | null;
     tournament: {

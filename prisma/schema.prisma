@@ -800,6 +800,7 @@ model Poll {
   isChampionship  Boolean   @default(false)
   scheduledDate   DateTime?
   scheduledTime   String    @default("20:00")
+  matchSchedule   Json?     // Per-day match times: { "Friday": ["20:00","20:45"], "Saturday": ["20:00","21:00","21:30"] }
   enableFund      Boolean   @default(true)
   prizePoolFee    Int?      // Per-entry amount going to prize pool (null = same as tournament fee)
   expectedPrizePool Int?    // Admin-set expected prize pool for share/registration links

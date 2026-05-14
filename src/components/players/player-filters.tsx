@@ -78,7 +78,7 @@ export function PlayerFilters({
                     startContent={<Search className="h-4 w-4 text-default-400" />}
                     classNames={{
                         inputWrapper:
-                            "bg-default-100 border-none shadow-none hover:bg-default-200 transition-colors !outline-none !ring-0 focus-within:!outline-none focus-within:!ring-0 focus-within:!border-none data-[focus=true]:!outline-none data-[focus=true]:!ring-0 data-[focus-within=true]:!outline-none data-[focus-within=true]:!ring-0",
+                            "bg-default-100 border border-divider shadow-none hover:bg-default-200 transition-colors !outline-none !ring-0 focus-within:!outline-none focus-within:!ring-0 focus-within:!border-none data-[focus=true]:!outline-none data-[focus=true]:!ring-0 data-[focus-within=true]:!outline-none data-[focus-within=true]:!ring-0",
                         input: "!outline-none !ring-0 focus:!outline-none focus:!ring-0",
                     }}
                     size="sm"

@@ -51,6 +51,7 @@ interface PollDTO {
     expectedPrizePool?: number | null;
     scheduledDate?: string | null;
     scheduledTime?: string;
+    matchSchedule?: Record<string, string[]> | null;
     options?: { id: string; name: string; vote: string }[];
     tournament?: { id: string; name: string; fee: number; type: string };
 }

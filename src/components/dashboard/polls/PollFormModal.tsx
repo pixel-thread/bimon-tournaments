@@ -15,7 +15,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Vote, Loader2, Link as LinkIcon, Check } from "lucide-react";
+import { Vote, Loader2, Link as LinkIcon, Check, Plus, X } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
 interface PollOptionDTO {
@@ -33,6 +33,7 @@ interface PollDTO {
     isChampionship?: boolean;
     scheduledDate?: string | null;
     scheduledTime?: string;
+    matchSchedule?: Record<string, string[]> | null;
     enableFund?: boolean;
     prizePoolFee?: number | null;
     expectedPrizePool?: number | null;
@@ -85,6 +86,8 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [saving, setSaving] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
     const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
+    // Per-day match schedule: { "Friday": ["20:00", "20:45"], "Saturday": ["20:00", "21:00"] }
+    const [matchSchedule, setMatchSchedule] = useState<Record<string, string[]>>({});
 
     // Load tournaments for select
     const { data: tournaments } = useQuery<TournamentOption[]>({
@@ -117,6 +120,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setArenaMode("none"); // Arena mode is determined by tournament flags, not poll
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
             setWhatsappGroupLink(poll.whatsappGroupLink ?? "");
+            setMatchSchedule((poll.matchSchedule as Record<string, string[]>) ?? {});
         } else {
             setQuestion("");
             setDays("Monday");
@@ -133,6 +137,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setExpectedPrizePool("");
             setArenaMode("none");
             setWhatsappGroupLink("");
+            setMatchSchedule({});
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
                 ? [
@@ -187,6 +192,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     expectedPrizePool: expectedPrizePool ? Number(expectedPrizePool) : null,
                     scheduledDate: scheduledDate || null,
                     scheduledTime,
+                    matchSchedule: Object.keys(matchSchedule).length > 0 ? matchSchedule : null,
                     options: options.map(o => ({ id: o.id, name: o.name })),
                     whatsappGroupLink: whatsappGroupLink.trim() || null,
                     // Send tournament format on edit too (PES)
@@ -197,6 +203,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     prizePoolFee: prizePoolFee ? Number(prizePoolFee) : null,
                     scheduledDate: scheduledDate || null,
                     scheduledTime,
+                    matchSchedule: Object.keys(matchSchedule).length > 0 ? matchSchedule : null,
                     // For PES or arena modes: send format so poll creation can update tournament type
                     ...((!GAME.features.hasTeamSizes || arenaMode !== "none") && { tournamentType: tournamentFormat }),
                     // TDM flag — API will set tournament.isTDM
@@ -225,7 +232,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, isChampionship, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, arenaMode, options, whatsappGroupLink, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, isChampionship, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, arenaMode, options, whatsappGroupLink, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -366,31 +373,106 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                                 size="sm"
                             />
                         )}
-                        <div className="grid grid-cols-2 gap-3">
-                            <Input
-                                label="Scheduled Date"
-                                placeholder="Pick a date"
-                                type="date"
-                                value={scheduledDate}
-                                onValueChange={setScheduledDate}
-                                size="sm"
-                            />
-                            <Input
-                                label="Match 1 Time"
-                                type="time"
-                                value={scheduledTime}
-                                onValueChange={setScheduledTime}
-                                size="sm"
-                                description={(() => {
-                                    const [h, m] = scheduledTime.split(":").map(Number);
-                                    const d1 = new Date(2000, 0, 1, h, m);
-                                    const d2 = new Date(d1.getTime() + 45 * 60000);
-                                    const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-                                    return `M2: ${fmt(d2)}`;
-                                })()}
-                            />
-                        </div>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <Input
+                            label="Scheduled Date"
+                            placeholder="Pick a date"
+                            type="date"
+                            value={scheduledDate}
+                            onValueChange={setScheduledDate}
+                            size="sm"
+                        />
+                        <Input
+                            label="Start Time"
+                            type="time"
+                            value={scheduledTime}
+                            onValueChange={setScheduledTime}
+                            size="sm"
+                        />
+                    </div>
+
+                    {/* Per-day match schedule editor */}
+                    {(() => {
+                        // Derive day names from the "days" field
+                        const FULL_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                        const singleIdx = FULL_DAYS.findIndex(d => d.toLowerCase() === days?.toLowerCase());
+                        const scheduleDays = singleIdx >= 0
+                            ? [FULL_DAYS[singleIdx], FULL_DAYS[(singleIdx + 1) % 7]]
+                            : (DAYS.includes(days) && days === "Mon - Sat")
+                                ? ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+                                : days && !DAYS.includes(days)
+                                    ? days.split(/[&,]+/).map((d: string) => d.trim()).filter(Boolean)
+                                    : ["Day 1"];
+
+                        return (
+                            <div className="space-y-3">
+                                <p className="text-xs font-medium text-foreground/50">Match Schedule (per day)</p>
+                                {scheduleDays.map((dayName: string) => {
+                                    const times = matchSchedule[dayName] ?? [];
+                                    return (
+                                        <div key={dayName} className="space-y-1.5">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-semibold text-foreground/70">{dayName}</span>
+                                                <button
+                                                    type="button"
+                                                    className="flex items-center gap-0.5 text-[10px] text-primary font-medium cursor-pointer hover:opacity-80"
+                                                    onClick={() => {
+                                                        setMatchSchedule(prev => ({
+                                                            ...prev,
+                                                            [dayName]: [...(prev[dayName] ?? []), scheduledTime || "20:00"],
+                                                        }));
+                                                    }}
+                                                >
+                                                    <Plus className="w-3 h-3" />
+                                                    Add
+                                                </button>
+                                            </div>
+                                            {times.length === 0 ? (
+                                                <p className="text-[10px] text-foreground/30 italic">No times set — schedule hidden for ranked</p>
+                                            ) : (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {times.map((time: string, idx: number) => (
+                                                        <div key={idx} className="flex items-center gap-1 bg-default-100 rounded-lg px-1 border border-divider">
+                                                            <input
+                                                                type="time"
+                                                                value={time}
+                                                                onChange={(e) => {
+                                                                    setMatchSchedule(prev => {
+                                                                        const updated = [...(prev[dayName] ?? [])];
+                                                                        updated[idx] = e.target.value;
+                                                                        return { ...prev, [dayName]: updated };
+                                                                    });
+                                                                }}
+                                                                className="text-xs bg-transparent border-none outline-none py-1 w-[80px]"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                className="p-0.5 text-foreground/30 hover:text-danger transition-colors cursor-pointer"
+                                                                onClick={() => {
+                                                                    setMatchSchedule(prev => {
+                                                                        const updated = [...(prev[dayName] ?? [])];
+                                                                        updated.splice(idx, 1);
+                                                                        const next = { ...prev };
+                                                                        if (updated.length === 0) delete next[dayName];
+                                                                        else next[dayName] = updated;
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
 
                     {isEdit && (
                         <div className="flex items-center justify-between rounded-lg bg-default-100 px-3 py-2">

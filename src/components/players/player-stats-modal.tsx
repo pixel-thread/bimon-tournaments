@@ -272,7 +272,7 @@ export function PlayerStatsModal({
                             </>
                         ) : (
                             /* Compact no-image hero */
-                            <div className="relative pt-14 pb-16 px-4 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent">
+                            <div className="relative pt-14 pb-20 px-4 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent">
                                 {/* Decorative elements */}
                                 <div className="absolute top-4 right-4 w-20 h-20 rounded-full bg-primary/5" />
                                 <div className="absolute bottom-8 left-6 w-12 h-12 rounded-full bg-primary/5" />
@@ -443,7 +443,7 @@ export function PlayerStatsModal({
                                 variant="flat"
                                 fullWidth
                                 onPress={() => setShowUCTransfer(true)}
-                                className="font-medium"
+                                className="font-medium border border-primary/30"
                             >
                                 {player.isAdmin ? `Send ${GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}` : `Send / Request ${GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}`}
                             </Button>

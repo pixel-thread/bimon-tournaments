@@ -136,16 +136,17 @@ export async function POST(request: NextRequest) {
 
         // Balance gate for IN/SOLO votes — uses AVAILABLE balance (total − reserved)
         // Trusted:  can go negative down to -200 (extended credit for loyal players)
-        // PLAYER:   can vote at 0 balance (one free chance) but blocked once negative
+        // PLAYER:   must have at least the per-player entry fee
         // USER:     must have balance >= entry fee (need coins first)
         if (vote !== "OUT") {
             const { available, reserved } = await getAvailableBalance(userId);
             const fullFee = poll.tournament?.fee ?? 0;
-            // Squad polls: fee is per-team, split among players. Casual polls: fee is per-player.
+            // Squad polls: fee is per-team, split by team size (TRIO=3, SQUAD=4, etc.)
+            // Casual polls: fee is per-player.
             let entryFee = fullFee;
             if (poll.allowSquads && fullFee > 0) {
                 const teamSizeMap: Record<string, number> = { SOLO: 1, DUO: 2, TRIO: 3, SQUAD: GAME.squadSize, DYNAMIC: GAME.squadSize };
-                const teamSize = teamSizeMap[poll.teamType] ?? 1;
+                const teamSize = teamSizeMap[poll.teamType] ?? GAME.squadSize;
                 entryFee = teamSize > 1 ? Math.ceil(fullFee / teamSize) : fullFee;
             }
             const isPlayer = user.role === "PLAYER" || user.role === "ADMIN" || user.role === "SUPER_ADMIN";
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
                     });
                 }
             } else if (isPlayer) {
-                if (available < -entryFee) {
+                if (available < entryFee) {
                     return ErrorResponse({
                         message: `${GAME.currencyEmoji} Not enough ${GAME.currency} to vote IN — you need ${entryFee} ${GAME.currency} but have ${available} available`,
                         status: 403,
