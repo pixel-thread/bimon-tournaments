@@ -17,6 +17,15 @@ export function WhatsAppMainGroupGuard({ children }: { children: React.ReactNode
 
     // Check the same localStorage key that WhatsAppJoinModal writes to
     useEffect(() => {
+        // Legacy users (onboarded before this feature) don't have "onboarded-at"
+        // in localStorage — skip them so we don't disrupt existing users.
+        const isNewUser = !!localStorage.getItem("onboarded-at");
+        if (!isNewUser) {
+            setHasJoined(true);
+            setHydrated(true);
+            return;
+        }
+
         const stored = localStorage.getItem("whatsapp_joined_groups");
         if (stored) {
             try {
