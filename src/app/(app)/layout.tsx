@@ -9,6 +9,7 @@ import { LocationGuard } from "@/components/common/location-guard";
 import { PhoneGuard } from "@/components/common/phone-guard";
 import { AdSenseScript } from "@/components/common/adsense-script";
 import { WhatsAppSquadGuard } from "@/components/common/whatsapp-squad-guard";
+import { WhatsAppMainGroupGuard } from "@/components/common/WhatsAppMainGroupGuard";
 
 
 /**
@@ -23,6 +24,7 @@ export default function AppLayout({
     children: React.ReactNode;
 }) {
     return (
+        <WhatsAppMainGroupGuard>
         <OnboardingGuard>
             <AuthGateProvider>
                 <div className="flex min-h-dvh flex-col">
@@ -53,5 +55,6 @@ export default function AppLayout({
                 </div>
             </AuthGateProvider>
         </OnboardingGuard>
+        </WhatsAppMainGroupGuard>
     );
 }

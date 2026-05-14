@@ -170,7 +170,7 @@ export default function VotePage() {
                 <WhatsAppJoinModal
                     isOpen={showCasualWA}
                     onClose={() => setShowCasualWA(false)}
-                    mandatory={false}
+                    mandatory={true}
                     groups={[{
                         id: "casual-room",
                         name: "🎮 Casual Room ID",
