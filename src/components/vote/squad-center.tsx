@@ -235,6 +235,7 @@ function SquadCard({
     isRemoving,
     isLeaving,
     defaultExpanded,
+    recentlyRequestedSquadId,
 }: {
     squad: SquadDTO;
     currentPlayerId: string;
@@ -257,6 +258,7 @@ function SquadCard({
     isRemoving: boolean;
     isLeaving: boolean;
     defaultExpanded?: boolean;
+    recentlyRequestedSquadId?: string | null;
 }) {
     const myInvite = squad.myInvite;
     const hasPendingInvite = myInvite?.status === "PENDING" && myInvite?.initiatedBy === "CAPTAIN";
@@ -477,9 +479,19 @@ function SquadCard({
 
                             {/* Empty slots */}
                             {emptySlots > 0 && Array.from({ length: emptySlots }).map((_, i) => {
-                                // First empty slot is tappable when the player can join
-                                const isJoinSlot = i === 0 && canRequestJoin;
-                                return isJoinSlot ? (
+                                const wasJustRequested = squad.id === recentlyRequestedSquadId;
+                                const isJoinSlot = i === 0 && canRequestJoin && !wasJustRequested;
+                                const isRequestedSlot = i === 0 && wasJustRequested;
+                                return isRequestedSlot ? (
+                                    <div key={`empty-${i}`} className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-amber-500/50 flex items-center justify-center">
+                                            <Clock className="w-3.5 h-3.5 text-amber-500" />
+                                        </div>
+                                        <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                                            Requested ✓
+                                        </span>
+                                    </div>
+                                ) : isJoinSlot ? (
                                     <button
                                         key={`empty-${i}`}
                                         className="flex items-center gap-3 w-full text-left rounded-lg py-1.5 -mx-1 px-1 transition-colors hover:bg-primary/10 active:bg-primary/20"
@@ -881,6 +893,16 @@ export function SquadCenter({
 
     const [respondAction, setRespondAction] = useState<"accept" | "decline" | null>(null);
     const [respondRequestAction, setRespondRequestAction] = useState<"accept" | "decline" | null>(null);
+    const [recentlyRequestedSquadId, setRecentlyRequestedSquadId] = useState<string | null>(null);
+
+    // Clear recentlyRequestedSquadId once the data refetch shows the player in the squad
+    useEffect(() => {
+        if (!recentlyRequestedSquadId) return;
+        const found = squads?.find(
+            (s) => s.id === recentlyRequestedSquadId && (s.myInvite?.status === "PENDING" || s.myInvite?.status === "ACCEPTED")
+        );
+        if (found) setRecentlyRequestedSquadId(null);
+    }, [squads, recentlyRequestedSquadId]);
 
     function handleCancel(squadId: string) {
         cancelMutation.mutate(squadId);
@@ -901,7 +923,9 @@ export function SquadCenter({
             setShowVoteWarning({ action: "join", squadId });
             return;
         }
-        requestJoinMutation.mutate(squadId);
+        requestJoinMutation.mutate(squadId, {
+            onSuccess: () => setRecentlyRequestedSquadId(squadId),
+        });
     }
 
     function handleAcceptRequest(inviteId: string) {
@@ -1083,6 +1107,7 @@ export function SquadCenter({
                                                 respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
                                                 isRemoving={removeMemberMutation.isPending}
                                                 isLeaving={leaveMutation.isPending}
+                                                recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                 defaultExpanded
                                             />
                                         </div>
@@ -1143,6 +1168,7 @@ export function SquadCenter({
                                                                     respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
                                                                     isRemoving={removeMemberMutation.isPending}
                                                                     isLeaving={leaveMutation.isPending}
+                                                                    recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                                     defaultExpanded
                                                                 />
                                                             </div>
@@ -1172,6 +1198,7 @@ export function SquadCenter({
                                                                         respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
                                                                         isRemoving={removeMemberMutation.isPending}
                                                                         isLeaving={leaveMutation.isPending}
+                                                                        recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                                     />
                                                                 );
                                                             }
@@ -1220,6 +1247,7 @@ export function SquadCenter({
                                                                 respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
                                                                 isRemoving={removeMemberMutation.isPending}
                                                                 isLeaving={leaveMutation.isPending}
+                                                                recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                             />
                                                         );
                                                     }
