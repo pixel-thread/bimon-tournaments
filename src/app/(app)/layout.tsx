@@ -28,6 +28,19 @@ export default function AppLayout({
                 <div className="flex min-h-dvh flex-col">
                     <Header />
                     <main className="flex-1 pt-16 pb-16 lg:pb-0">{children}</main>
+
+                    {/* Compact footer — visible on all app pages (AdSense compliance) */}
+                    <footer className="hidden lg:block border-t border-divider px-4 py-4 text-center text-xs text-foreground/30">
+                        <div className="flex items-center justify-center gap-3 flex-wrap">
+                            <span>© {new Date().getFullYear()} Bimon Tournament</span>
+                            <span>·</span>
+                            <a href="/privacy" className="hover:text-foreground/50 transition-colors">Privacy Policy</a>
+                            <span>·</span>
+                            <a href="/terms" className="hover:text-foreground/50 transition-colors">Terms of Service</a>
+                            <span>·</span>
+                            <a href="/contact" className="hover:text-foreground/50 transition-colors">Contact</a>
+                        </div>
+                    </footer>
                     <MobileNav />
 
                     <ReferralPromoModal />
