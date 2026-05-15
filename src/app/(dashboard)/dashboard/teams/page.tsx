@@ -321,10 +321,13 @@ export default function TeamsPage() {
 
     const { mutate: createMatch, isPending: isCreating } = useMutation({
         mutationFn: async () => {
+            // For championship, pass the current group phase so the new match
+            // inherits the same phase and only clones that group's teams
+            const currentPhase = isChamp && champPhase === "HEATS" ? `HEATS_${heatsGroup}` : undefined;
             const res = await fetch("/api/matches", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ tournamentId }),
+                body: JSON.stringify({ tournamentId, phase: currentPhase }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || "Failed");
@@ -498,7 +501,7 @@ export default function TeamsPage() {
                                         </SelectItem>
                                     );
                                 }),
-                                ...(!isChamp ? [<SelectItem
+                                <SelectItem
                                     key="create-new"
                                     textValue="+ New"
                                     className="text-success data-[hover=true]:text-success"
@@ -507,7 +510,7 @@ export default function TeamsPage() {
                                         <Plus className="h-3 w-3" />
                                         New
                                     </span>
-                                </SelectItem>] : []),
+                                </SelectItem>,
                             ]}
                         </Select>
                         <Divider orientation="vertical" className="h-5" />
@@ -726,6 +729,8 @@ export default function TeamsPage() {
                 seasonName={seasons.find((s) => s.id === seasonId)?.name ?? ""}
                 backgroundImage={globalBg?.publicUrl || "/images/image.webp"}
                 allowSquads={allowSquads}
+                isChampionship={isChamp}
+                initialGroup={isChamp && champPhase === "HEATS" ? heatsGroup : undefined}
             />
 
             {/* Slots Export */}

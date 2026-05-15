@@ -66,6 +66,7 @@ interface Props {
     backgroundImage?: string;
     allowSquads?: boolean;
     isChampionship?: boolean;
+    initialGroup?: "A" | "B";
 }
 
 // ── Placement Points (BGMI scoring) ───────────────────────────
@@ -85,12 +86,14 @@ export function StandingsModal({
     backgroundImage = "/images/image.webp",
     allowSquads = false,
     isChampionship = false,
+    initialGroup,
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [compareMatches, setCompareMatches] = useState(1);
-    const [champGroup, setChampGroup] = useState<"ALL" | "A" | "B">("ALL");
+    const [champGroup, setChampGroup] = useState<"ALL" | "A" | "B">(initialGroup ?? "ALL");
+    const [showZones, setShowZones] = useState(false);
 
     // Fetch match data
     const { data: matchData, isLoading, refetch } = useQuery<MatchData[]>({
@@ -104,10 +107,13 @@ export function StandingsModal({
         enabled: isOpen && !!tournamentId,
     });
 
-    // Refetch on open
+    // Refetch on open and sync initial group
     useEffect(() => {
-        if (isOpen) refetch();
-    }, [isOpen, refetch]);
+        if (isOpen) {
+            refetch();
+            if (initialGroup) setChampGroup(initialGroup);
+        }
+    }, [isOpen, refetch, initialGroup]);
 
     // Auto-cap compareMatches to available range
     useEffect(() => {
@@ -395,7 +401,6 @@ export function StandingsModal({
                                     key={num}
                                     onClick={() => {
                                         setCompareMatches(num);
-                                        setShowSettings(false);
                                     }}
                                     className={`text-sm text-left px-3 py-1.5 rounded-lg transition-colors ${compareMatches === num ? "bg-orange-500/20 text-orange-400 border border-orange-500/30" : "text-zinc-300 hover:bg-white/10"}`}
                                 >
@@ -403,6 +408,19 @@ export function StandingsModal({
                                 </button>
                             ))}
                         </div>
+
+                        {/* Zone Colors Toggle */}
+                        {detectedChampionship && champGroup !== "ALL" && (
+                            <>
+                                <div className="h-px bg-white/10 my-2" />
+                                <button
+                                    onClick={() => setShowZones(prev => !prev)}
+                                    className={`w-full text-sm text-left px-3 py-1.5 rounded-lg transition-colors ${showZones ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "text-zinc-300 hover:bg-white/10"}`}
+                                >
+                                    {showZones ? "✓ Zone Colors" : "Zone Colors"}
+                                </button>
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -469,7 +487,7 @@ export function StandingsModal({
                             </div>
                         ) : (
                             <div className="rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-2xl shadow-black/50 p-4 sm:p-6">
-                                <StandingsTable standings={standings} allowSquads={allowSquads} isChampionship={detectedChampionship} champGroup={champGroup} />
+                                <StandingsTable standings={standings} allowSquads={allowSquads} isChampionship={detectedChampionship} champGroup={champGroup} showZones={showZones} />
                             </div>
                         )}
 
@@ -534,9 +552,8 @@ function getChampionshipZone(rank: number, total: number): { zone: string; color
 
 // ── Standings Table — Podium Top 3 + Two-column rest ──────────
 
-function StandingsTable({ standings, allowSquads = false, isChampionship = false, champGroup = "ALL" }: { standings: StandingRow[]; allowSquads?: boolean; isChampionship?: boolean; champGroup?: string }) {
+function StandingsTable({ standings, allowSquads = false, isChampionship = false, champGroup = "ALL", showZones = false }: { standings: StandingRow[]; allowSquads?: boolean; isChampionship?: boolean; champGroup?: string; showZones?: boolean }) {
     const hasSquadTeams = allowSquads;
-    const showZones = isChampionship && champGroup !== "ALL";
     const top3 = standings.slice(0, 3);
     const rest = standings.slice(3);
 

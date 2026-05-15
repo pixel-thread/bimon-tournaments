@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { tournamentId } = body as { tournamentId: string };
+        const { tournamentId, phase } = body as { tournamentId: string; phase?: string };
 
         if (!tournamentId) {
             return ErrorResponse({ message: "tournamentId is required", status: 400 });
@@ -149,13 +149,18 @@ export async function POST(request: NextRequest) {
 
         const seasonId = tournament.seasonId;
 
-        // Find the latest match to get its number and clone teams from it
+        // Find the latest match to clone from
+        // If phase is provided (championship), only clone from matches of the same phase
         const prevMatch = await prisma.match.findFirst({
-            where: { tournamentId },
+            where: {
+                tournamentId,
+                ...(phase ? { phase } : {}),
+            },
             orderBy: { matchNumber: "desc" },
             select: {
                 id: true,
                 matchNumber: true,
+                phase: true,
                 teamStats: {
                     select: {
                         teamId: true,
@@ -167,7 +172,13 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        const nextMatchNumber = (prevMatch?.matchNumber ?? 0) + 1;
+        // Global match number (across all phases)
+        const globalMaxMatch = await prisma.match.findFirst({
+            where: { tournamentId },
+            orderBy: { matchNumber: "desc" },
+            select: { matchNumber: true },
+        });
+        const nextMatchNumber = (globalMaxMatch?.matchNumber ?? 0) + 1;
 
         // Create the new match — unique constraint on [tournamentId, matchNumber]
         // will reject if another admin already created this matchNumber.
@@ -178,6 +189,7 @@ export async function POST(request: NextRequest) {
                     matchNumber: nextMatchNumber,
                     tournamentId,
                     ...(seasonId ? { seasonId } : {}),
+                    ...(phase ? { phase } : {}),
                 },
             });
         } catch (err: unknown) {
