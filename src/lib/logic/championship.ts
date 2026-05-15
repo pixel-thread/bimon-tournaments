@@ -531,16 +531,57 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
     const activeEntryCount = entries.filter(e => e.status !== "STANDBY").length;
     const isLite = activeEntryCount > 0 && activeEntryCount <= 22;
 
+    // Build ranked entries — sort by actual standings when match data exists
+    let rankedEntries = entries.map(e => ({
+        teamId: e.teamId,
+        teamName: e.team.name,
+        group: e.group,
+        phase: e.phase,
+        status: e.status,
+    }));
+
+    // If heats have been scored, sort entries per group by actual standings rank
+    const scoredHeats = heatsMatches.filter(m => m._count.teamStats > 0);
+    if (scoredHeats.length > 0) {
+        try {
+            // Get rankings per group
+            const [groupARanks, groupBRanks] = await Promise.all([
+                getPhaseRankings(tournamentId, "HEATS_A"),
+                getPhaseRankings(tournamentId, "HEATS_B"),
+            ]);
+
+            // Build rank map: teamId → rank position
+            const rankMap = new Map<string, number>();
+            groupARanks.forEach((t, i) => rankMap.set(t.teamId, i + 1));
+            groupBRanks.forEach((t, i) => rankMap.set(t.teamId, i + 1));
+
+            // Sort entries: by group first, then by rank within group
+            // DQ'd teams go to end of their group
+            rankedEntries.sort((a, b) => {
+                // Group ordering: A before B, then null
+                const groupOrder = (g: string | null) => g === "A" ? 0 : g === "B" ? 1 : 2;
+                const gDiff = groupOrder(a.group) - groupOrder(b.group);
+                if (gDiff !== 0) return gDiff;
+
+                // DQ'd teams go to end of their group
+                const aDQ = a.status === "DISQUALIFIED" ? 1 : 0;
+                const bDQ = b.status === "DISQUALIFIED" ? 1 : 0;
+                if (aDQ !== bDQ) return aDQ - bDQ;
+
+                // Sort by rank within group
+                const aRank = rankMap.get(a.teamId) ?? 999;
+                const bRank = rankMap.get(b.teamId) ?? 999;
+                return aRank - bRank;
+            });
+        } catch {
+            // If ranking fails, keep registration order
+        }
+    }
+
     return {
         currentPhase,
         isLite,
-        entries: entries.map(e => ({
-            teamId: e.teamId,
-            teamName: e.team.name,
-            group: e.group,
-            phase: e.phase,
-            status: e.status,
-        })),
+        entries: rankedEntries,
         matches: matches.map(m => ({
             id: m.id,
             matchNumber: m.matchNumber,
