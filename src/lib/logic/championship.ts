@@ -159,12 +159,21 @@ export async function progressFromHeats(tournamentId: string, seasonId: string) 
 
     const updates: { teamId: string; status: string; phase: string }[] = [];
 
+    // Get DQ'd team IDs so we skip them during qualification
+    const dqTeams = await prisma.team.findMany({
+        where: { tournamentId, disqualified: true },
+        select: { id: true },
+    });
+    const dqTeamIds = new Set(dqTeams.map(t => t.id));
+
     for (const rankings of [groupARankings, groupBRankings]) {
-        rankings.forEach((team, index) => {
-            const pos = index + 1;
-            if (pos <= 4) {
+        let qualifiedCount = 0;
+        rankings.forEach((team) => {
+            if (dqTeamIds.has(team.teamId)) return; // Skip DQ'd
+            qualifiedCount++;
+            if (qualifiedCount <= 4) {
                 updates.push({ teamId: team.teamId, status: "QUALIFIED", phase: "FINALS" });
-            } else if (pos <= 12) {
+            } else if (qualifiedCount <= 12) {
                 updates.push({ teamId: team.teamId, status: "WILDCARD", phase: "WILDCARD" });
             } else {
                 updates.push({ teamId: team.teamId, status: "ELIMINATED", phase: "HEATS" });
@@ -258,10 +267,22 @@ export async function progressFromHeatsLite(tournamentId: string, seasonId: stri
     const QUALIFY_CUTOFF = 8; // Top 8 per group advance to Finals
     const updates: { teamId: string; status: string; phase: string }[] = [];
 
+    // Get DQ'd team IDs so we skip them during qualification
+    const dqTeams = await prisma.team.findMany({
+        where: { tournamentId, disqualified: true },
+        select: { id: true },
+    });
+    const dqTeamIds = new Set(dqTeams.map(t => t.id));
+
     for (const rankings of [groupARankings, groupBRankings]) {
-        rankings.forEach((team, index) => {
-            const pos = index + 1;
-            if (pos <= QUALIFY_CUTOFF) {
+        let qualifiedCount = 0;
+        rankings.forEach((team) => {
+            if (dqTeamIds.has(team.teamId)) {
+                // Keep DQ'd — don't change status
+                return;
+            }
+            qualifiedCount++;
+            if (qualifiedCount <= QUALIFY_CUTOFF) {
                 updates.push({ teamId: team.teamId, status: "QUALIFIED", phase: "FINALS" });
             } else {
                 updates.push({ teamId: team.teamId, status: "ELIMINATED", phase: "HEATS" });
@@ -361,8 +382,18 @@ export async function progressFromWildcard(tournamentId: string, seasonId: strin
 
     const updates: { teamId: string; status: string }[] = [];
 
-    rankings.forEach((team, index) => {
-        if (index < 8) {
+    // Get DQ'd team IDs
+    const dqTeams = await prisma.team.findMany({
+        where: { tournamentId, disqualified: true },
+        select: { id: true },
+    });
+    const dqTeamIds = new Set(dqTeams.map(t => t.id));
+
+    let qualifiedCount = 0;
+    rankings.forEach((team) => {
+        if (dqTeamIds.has(team.teamId)) return; // Skip DQ'd
+        qualifiedCount++;
+        if (qualifiedCount <= 8) {
             updates.push({ teamId: team.teamId, status: "QUALIFIED" });
         } else {
             updates.push({ teamId: team.teamId, status: "ELIMINATED" });
@@ -500,16 +531,65 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
     const activeEntryCount = entries.filter(e => e.status !== "STANDBY").length;
     const isLite = activeEntryCount > 0 && activeEntryCount <= 22;
 
+    // Build ranked entries — sort by actual standings when match data exists
+    // Also fetch DQ status from teams
+    const dqTeams = await prisma.team.findMany({
+        where: { tournamentId, disqualified: true },
+        select: { id: true },
+    });
+    const dqTeamIdSet = new Set(dqTeams.map(t => t.id));
+
+    let rankedEntries = entries.map(e => ({
+        teamId: e.teamId,
+        teamName: e.team.name,
+        group: e.group,
+        phase: e.phase,
+        status: e.status,
+        disqualified: dqTeamIdSet.has(e.teamId),
+    }));
+
+    // If heats have been scored, sort entries per group by actual standings rank
+    const scoredHeats = heatsMatches.filter(m => m._count.teamStats > 0);
+    if (scoredHeats.length > 0) {
+        try {
+            // Get rankings per group
+            const [groupARanks, groupBRanks] = await Promise.all([
+                getPhaseRankings(tournamentId, "HEATS_A"),
+                getPhaseRankings(tournamentId, "HEATS_B"),
+            ]);
+
+            // Build rank map: teamId → rank position
+            const rankMap = new Map<string, number>();
+            groupARanks.forEach((t, i) => rankMap.set(t.teamId, i + 1));
+            groupBRanks.forEach((t, i) => rankMap.set(t.teamId, i + 1));
+
+            // Sort entries: by group first, then by rank within group
+            // DQ'd teams go to end of their group
+            rankedEntries.sort((a, b) => {
+                // Group ordering: A before B, then null
+                const groupOrder = (g: string | null) => g === "A" ? 0 : g === "B" ? 1 : 2;
+                const gDiff = groupOrder(a.group) - groupOrder(b.group);
+                if (gDiff !== 0) return gDiff;
+
+                // DQ'd teams go to end of their group
+                const aDQ = a.disqualified ? 1 : 0;
+                const bDQ = b.disqualified ? 1 : 0;
+                if (aDQ !== bDQ) return aDQ - bDQ;
+
+                // Sort by rank within group
+                const aRank = rankMap.get(a.teamId) ?? 999;
+                const bRank = rankMap.get(b.teamId) ?? 999;
+                return aRank - bRank;
+            });
+        } catch {
+            // If ranking fails, keep registration order
+        }
+    }
+
     return {
         currentPhase,
         isLite,
-        entries: entries.map(e => ({
-            teamId: e.teamId,
-            teamName: e.team.name,
-            group: e.group,
-            phase: e.phase,
-            status: e.status,
-        })),
+        entries: rankedEntries,
         matches: matches.map(m => ({
             id: m.id,
             matchNumber: m.matchNumber,
