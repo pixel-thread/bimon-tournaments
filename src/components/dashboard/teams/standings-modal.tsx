@@ -588,10 +588,12 @@ function PositionChangeIndicator({ change }: { change: number }) {
 // ── Championship zone styling ─────────────────────────────────
 
 function getChampionshipZone(rank: number, total: number): { zone: string; color: string; border: string } | null {
-    if (total < 8) return null; // Not enough teams for zones
-    if (rank <= 4) return { zone: "QUALIFIED", color: "text-emerald-400", border: "border-l-emerald-400 bg-emerald-500/10" };
-    if (rank <= 12) return { zone: "WILDCARD", color: "text-amber-400", border: "border-l-amber-400 bg-amber-500/8" };
-    return { zone: "ELIMINATED", color: "text-red-400/60", border: "border-l-red-400 bg-red-500/8" };
+    if (total < 6) return null; // Not enough teams for zones
+    // Top 8 → qualified (green), bottom 3 → eliminated (red), rest → neutral
+    const eliminatedCutoff = total - 2; // e.g. 11 teams → rank 9+ eliminated
+    if (rank <= 8) return { zone: "QUALIFIED", color: "text-emerald-400", border: "border-l-emerald-400 bg-emerald-500/10" };
+    if (rank >= eliminatedCutoff) return { zone: "ELIMINATED", color: "text-red-400/60", border: "border-l-red-400 bg-red-500/8" };
+    return null; // Middle teams — no zone color
 }
 
 // ── Standings Table — Podium Top 3 + Two-column rest ──────────
@@ -634,8 +636,9 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
 
     const renderTable = (slice: StandingRow[], startIndex: number) => {
         const totalTeams = standings.length;
-        // Identify zone boundary positions (4→5 and 12→13) for separator rendering
-        const zoneBoundaries = showZones ? [4, 12] : [];
+        // Zone boundary: divider after rank 8 (qualified cutoff) and before eliminated zone
+        const eliminatedCutoff = totalTeams - 2;
+        const zoneBoundaries = showZones ? [8, ...(eliminatedCutoff > 8 ? [eliminatedCutoff - 1] : [])] : [];
 
         return (
         <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm">
@@ -760,7 +763,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                     </p>
 
                                     {/* Stats */}
-                                    <div className={`mt-1.5 w-full rounded-lg border bg-gradient-to-b ${ps.bg} px-2 py-1.5 backdrop-blur-sm`}>
+                                    <div className={`mt-1.5 w-full rounded-lg border bg-gradient-to-b ${ps.bg} px-2 py-1.5 backdrop-blur-sm ${showZones ? "!border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.15)]" : ""}`}>
                                         <div className="flex items-center justify-center gap-1">
                                             <span className="text-orange-400 font-bold text-sm tabular-nums">{row.totalPoints}</span>
                                             {row.wins > 0 && <span className="text-[9px] text-yellow-400 font-semibold">🍗{row.wins}</span>}
@@ -832,7 +835,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                         </span>
                                         {zone && (
                                             <span className={`text-[9px] font-bold uppercase tracking-wider ${zone.color}`}>
-                                                {zone.zone === "QUALIFIED" ? "✓ Finals" : zone.zone === "WILDCARD" ? "⚡ Wildcard" : "✗ Out"}
+                                                {zone.zone === "QUALIFIED" ? "✓ Qualified" : "✗ Out"}
                                             </span>
                                         )}
                                     </div>
