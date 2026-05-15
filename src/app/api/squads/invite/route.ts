@@ -7,7 +7,8 @@ import { sendPush } from "@/lib/push";
 
 /**
  * POST /api/squads/invite
- * Leader invites a player to their squad. Player gets a notification to accept/decline.
+ * Leader invites a player to their squad. Creates a PENDING invite.
+ * Player auto-joins when they click the squad's invite link (link-join overrides pending).
  * Body: { squadId, playerId }
  */
 export async function POST(request: NextRequest) {
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
 
         const tournamentName = squad.poll.tournament?.name ?? "tournament";
 
-        // Create the invite
+        // Create PENDING invite — player joins when they click the invite link
         await prisma.squadInvite.create({
             data: {
                 squadId,

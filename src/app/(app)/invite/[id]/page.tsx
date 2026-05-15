@@ -71,6 +71,13 @@ export default function InvitePage() {
         }
     }, [data?.myStatus, router]);
 
+    // If pending request → auto-accept via invite link (captain shared link = implicit approval)
+    useEffect(() => {
+        if (data?.myStatus === "pending" && !joining && !joined) {
+            handleAccept();
+        }
+    }, [data?.myStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Handle Accept for signed-in players with profile
     const handleAccept = useCallback(async (force = false) => {
         if (!squadId) return;
