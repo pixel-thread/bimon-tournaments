@@ -717,6 +717,7 @@ export default function TeamsPage() {
                 tournamentId={tournamentId}
                 matchId={matchId}
                 matches={matches}
+                phaseFilter={isChamp && champPhase === "HEATS" ? `HEATS_${heatsGroup}` : undefined}
             />
 
             {/* Overall Standings */}

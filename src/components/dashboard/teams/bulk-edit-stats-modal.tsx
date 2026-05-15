@@ -36,6 +36,7 @@ interface MatchTeam {
 interface MatchData {
     id: string;
     matchNumber: number;
+    phase?: string | null;
     teams: MatchTeam[];
 }
 
@@ -67,6 +68,7 @@ interface Props {
     tournamentId: string;
     matchId: string;
     matches?: { id: string; matchNumber: number }[];
+    phaseFilter?: string;
 }
 
 /* ═══════ Helpers ═══════ */
@@ -88,6 +90,7 @@ export function BulkEditStatsModal({
     tournamentId,
     matchId,
     matches = [],
+    phaseFilter,
 }: Props) {
     const isAllMode = matchId === "all";
     const queryClient = useQueryClient();
@@ -659,6 +662,12 @@ Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`;
         setShowMatchSelector(false);
     };
 
+    // Filter matches by phase when in championship mode
+    const visibleMatches = useMemo(() => {
+        if (!allMatches || !phaseFilter) return allMatches;
+        return allMatches.filter((m) => m.phase === phaseFilter);
+    }, [allMatches, phaseFilter]);
+
     // ── Render ──
     return (
         <Modal isOpen={isOpen} onClose={onClose} size="full" scrollBehavior="inside" classNames={{ base: "max-w-6xl max-h-[90vh]" }}>
@@ -668,7 +677,7 @@ Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`;
                         <Pencil className="h-5 w-5" />
                         <span>
                             {showMatchSelector
-                                ? `Select Matches to Edit (${allMatches?.length || 0} available)`
+                                ? `Select Matches to Edit (${visibleMatches?.length || 0} available)`
                                 : `Bulk Edit Stats (${matchDataList.length} match${matchDataList.length > 1 ? "es" : ""})`
                             }
                         </span>
@@ -711,12 +720,12 @@ Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`;
                                 <>
                                     <div className="flex gap-2">
                                         <Button size="sm" variant="flat" onPress={() => {
-                                            if (allMatches) setSelectedMatchIds(new Set(allMatches.map((m) => m.id)));
+                                            if (visibleMatches) setSelectedMatchIds(new Set(visibleMatches.map((m) => m.id)));
                                         }}>Select All</Button>
                                         <Button size="sm" variant="flat" onPress={() => setSelectedMatchIds(new Set())}>Clear</Button>
                                     </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                        {allMatches?.map((match) => {
+                                        {visibleMatches?.map((match, idx) => {
                                             const isSelected = selectedMatchIds.has(match.id);
                                             return (
                                                 <div
@@ -730,7 +739,7 @@ Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`;
                                                         }`}
                                                 >
                                                     <Checkbox isSelected={isSelected} size="sm" className="pointer-events-none" />
-                                                    <div className="font-semibold">Match {match.matchNumber}</div>
+                                                    <div className="font-semibold">Match {idx + 1}</div>
                                                 </div>
                                             );
                                         })}
