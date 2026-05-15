@@ -288,9 +288,22 @@ export default function TeamsPage() {
         return map.size > 0 ? map : null;
     }, [champEntries]);
     const availableTabs = useMemo(() => {
+        if (!isChamp) return [];
         const matchPhases = new Set(matches.map(m => m.phase).filter(Boolean));
-        return CHAMP_TABS.filter(tab => tab.phases.some(p => matchPhases.has(p)));
-    }, [matches]);
+        // Always show Heats if championship; for Finals/Wildcard show if matches exist OR heats have matches (progression possible)
+        const heatsExist = matchPhases.has("HEATS_A") || matchPhases.has("HEATS_B");
+        if (!heatsExist) return [];
+        // Determine if lite (no wildcard phase matches exist or expected)
+        const hasWildcard = matchPhases.has("WILDCARD");
+        const hasFinals = matchPhases.has("FINALS");
+        // Show: Heats always, Wildcard only if it has matches, Finals always (for navigation)
+        return CHAMP_TABS.filter(tab => {
+            if (tab.key === "HEATS") return true;
+            if (tab.key === "WILDCARD") return hasWildcard;
+            if (tab.key === "FINALS") return hasFinals || !hasWildcard; // Lite: show Finals always; Full: only if matches exist
+            return false;
+        });
+    }, [matches, isChamp]);
     const phaseFilteredMatches = useMemo(() => {
         if (!isChamp || !champPhase) return matches;
         if (champPhase === "HEATS") {

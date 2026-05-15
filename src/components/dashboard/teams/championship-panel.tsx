@@ -254,14 +254,18 @@ export function ChampionshipPanel({
                                             {/* Group A */}
                                             <GroupSection
                                                 title="Group A"
+                                                subtitle={isLite ? "Top 8 advance to Finals" : undefined}
                                                 entries={groupAEntries}
                                                 matches={heatsMatches.filter(m => m.phase === "HEATS_A")}
+                                                qualifyCutoff={isLite ? 8 : undefined}
                                             />
                                             {/* Group B */}
                                             <GroupSection
                                                 title="Group B"
+                                                subtitle={isLite ? "Top 8 advance to Finals" : undefined}
                                                 entries={groupBEntries}
                                                 matches={heatsMatches.filter(m => m.phase === "HEATS_B")}
+                                                qualifyCutoff={isLite ? 8 : undefined}
                                             />
                                             {standbyEntries.length > 0 && (
                                                 <div className="rounded-lg bg-foreground/5 p-3 space-y-2">
@@ -339,11 +343,13 @@ function GroupSection({
     subtitle,
     entries,
     matches,
+    qualifyCutoff,
 }: {
     title: string;
     subtitle?: string;
     entries: ChampionshipEntry[];
     matches: ChampionshipMatch[];
+    qualifyCutoff?: number;
 }) {
     return (
         <div className="rounded-lg border border-divider overflow-hidden">
@@ -376,26 +382,36 @@ function GroupSection({
                 ) : (
                     entries.map((entry, i) => {
                         const style = STATUS_STYLES[entry.status] ?? STATUS_STYLES.ACTIVE;
+                        const isEliminated = qualifyCutoff != null && i >= qualifyCutoff;
                         return (
-                            <div
-                                key={entry.teamId}
-                                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-default-100/50 transition-colors"
-                            >
-                                <span className="w-5 text-center text-[10px] font-bold text-foreground/30">
-                                    {i + 1}
-                                </span>
-                                <Shield className="w-3 h-3 text-foreground/30 shrink-0" />
-                                <span className="text-sm font-medium truncate flex-1">
-                                    {entry.teamName}
-                                </span>
-                                <Chip
-                                    size="sm"
-                                    variant="flat"
-                                    className={`${style.bg} ${style.text}`}
-                                    startContent={style.icon}
+                            <div key={entry.teamId}>
+                                {/* Divider between qualified and eliminated */}
+                                {qualifyCutoff != null && i === qualifyCutoff && (
+                                    <div className="flex items-center gap-2 py-1.5 px-2">
+                                        <div className="flex-1 h-px bg-red-500/20" />
+                                        <span className="text-[9px] font-bold uppercase tracking-wider text-red-400/60">Eliminated</span>
+                                        <div className="flex-1 h-px bg-red-500/20" />
+                                    </div>
+                                )}
+                                <div
+                                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-default-100/50 transition-colors ${isEliminated ? "opacity-40" : ""}`}
                                 >
-                                    {entry.status}
-                                </Chip>
+                                    <span className="w-5 text-center text-[10px] font-bold text-foreground/30">
+                                        {i + 1}
+                                    </span>
+                                    <Shield className="w-3 h-3 text-foreground/30 shrink-0" />
+                                    <span className={`text-sm font-medium truncate flex-1 ${isEliminated ? "line-through" : ""}`}>
+                                        {entry.teamName}
+                                    </span>
+                                    <Chip
+                                        size="sm"
+                                        variant="flat"
+                                        className={`${style.bg} ${style.text}`}
+                                        startContent={style.icon}
+                                    >
+                                        {entry.status}
+                                    </Chip>
+                                </div>
                             </div>
                         );
                     })
