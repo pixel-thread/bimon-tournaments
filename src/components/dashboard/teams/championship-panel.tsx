@@ -260,7 +260,6 @@ export function ChampionshipPanel({
                                                 entries={groupAEntries}
                                                 matches={heatsMatches.filter(m => m.phase === "HEATS_A")}
                                                 qualifyCutoff={isLite ? 8 : undefined}
-                                                tournamentId={tournamentId}
                                             />
                                             {/* Group B */}
                                             <GroupSection
@@ -269,7 +268,6 @@ export function ChampionshipPanel({
                                                 entries={groupBEntries}
                                                 matches={heatsMatches.filter(m => m.phase === "HEATS_B")}
                                                 qualifyCutoff={isLite ? 8 : undefined}
-                                                tournamentId={tournamentId}
                                             />
                                             {standbyEntries.length > 0 && (
                                                 <div className="rounded-lg bg-foreground/5 p-3 space-y-2">
@@ -348,34 +346,13 @@ function GroupSection({
     entries,
     matches,
     qualifyCutoff,
-    tournamentId,
 }: {
     title: string;
     subtitle?: string;
     entries: ChampionshipEntry[];
     matches: ChampionshipMatch[];
     qualifyCutoff?: number;
-    tournamentId?: string;
 }) {
-    const queryClient = useQueryClient();
-    const dqMutation = useMutation({
-        mutationFn: async (teamId: string) => {
-            const res = await fetch(`/api/teams/${teamId}/disqualify`, {
-                method: "POST",
-            });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.error || "Failed to toggle DQ");
-            return json;
-        },
-        onSuccess: (data) => {
-            toast.success(data.message);
-            queryClient.invalidateQueries({ queryKey: ["championship-status", tournamentId] });
-            queryClient.invalidateQueries({ queryKey: ["champ-entries", tournamentId] });
-            queryClient.invalidateQueries({ queryKey: ["teams"] });
-        },
-        onError: (err: Error) => toast.error(err.message),
-    });
-
     return (
         <div className="rounded-lg border border-divider overflow-hidden">
             <div className="px-3 py-2 bg-default-50 flex items-center justify-between">
@@ -406,12 +383,11 @@ function GroupSection({
                     <p className="text-xs text-foreground/30 text-center py-4">No teams in this phase yet</p>
                 ) : (
                     entries.map((entry, i) => {
-                        const style = entry.disqualified
+                        const isDQ = !!entry.disqualified;
+                        const style = isDQ
                             ? { bg: "bg-red-500/25", text: "text-red-500 dark:text-red-400 font-bold", icon: <Ban className="w-3 h-3" /> }
                             : (STATUS_STYLES[entry.status] ?? STATUS_STYLES.ACTIVE);
                         const isEliminated = qualifyCutoff != null && i >= qualifyCutoff;
-                        const isDQ = !!entry.disqualified;
-                        const canToggleDQ = entry.status === "ACTIVE" || isDQ;
                         return (
                             <div key={entry.teamId}>
                                 {/* Divider between qualified and eliminated */}
@@ -432,25 +408,6 @@ function GroupSection({
                                     <span className={`text-sm font-medium truncate flex-1 ${isEliminated || isDQ ? "line-through" : ""}`}>
                                         {entry.teamName}
                                     </span>
-                                    {canToggleDQ && tournamentId && (
-                                        <button
-                                            onClick={() => {
-                                                if (window.confirm(isDQ
-                                                    ? `Reinstate ${entry.teamName}?`
-                                                    : `Disqualify ${entry.teamName}? Their points will be zeroed in standings.`
-                                                )) {
-                                                    dqMutation.mutate(entry.teamId);
-                                                }
-                                            }}
-                                            className={`p-1 rounded-md transition-colors ${isDQ
-                                                ? "text-emerald-500 hover:bg-emerald-500/10"
-                                                : "text-foreground/20 hover:text-red-500 hover:bg-red-500/10"
-                                            }`}
-                                            title={isDQ ? "Reinstate team" : "Disqualify team"}
-                                        >
-                                            <Ban className="w-3.5 h-3.5" />
-                                        </button>
-                                    )}
                                     <Chip
                                         size="sm"
                                         variant="flat"
