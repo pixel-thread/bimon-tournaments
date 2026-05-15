@@ -37,6 +37,7 @@ interface ChampionshipEntry {
     group: string | null;
     phase: string;
     status: string;
+    disqualified?: boolean;
 }
 
 interface ChampionshipMatch {
@@ -67,7 +68,6 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; icon: React.Reac
     QUALIFIED: { bg: "bg-emerald-500/15", text: "text-emerald-600 dark:text-emerald-400", icon: <Check className="w-3 h-3" /> },
     WILDCARD: { bg: "bg-amber-500/15", text: "text-amber-600 dark:text-amber-400", icon: <Clock className="w-3 h-3" /> },
     ELIMINATED: { bg: "bg-red-500/15", text: "text-red-600 dark:text-red-400", icon: <XCircle className="w-3 h-3" /> },
-    DISQUALIFIED: { bg: "bg-red-500/25", text: "text-red-500 dark:text-red-400 font-bold", icon: <Ban className="w-3 h-3" /> },
     STANDBY: { bg: "bg-foreground/10", text: "text-foreground/50", icon: <Clock className="w-3 h-3" /> },
 };
 
@@ -360,10 +360,8 @@ function GroupSection({
     const queryClient = useQueryClient();
     const dqMutation = useMutation({
         mutationFn: async (teamId: string) => {
-            const res = await fetch(`/api/tournaments/${tournamentId}/championship/disqualify`, {
+            const res = await fetch(`/api/teams/${teamId}/disqualify`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Failed to toggle DQ");
@@ -373,6 +371,7 @@ function GroupSection({
             toast.success(data.message);
             queryClient.invalidateQueries({ queryKey: ["championship-status", tournamentId] });
             queryClient.invalidateQueries({ queryKey: ["champ-entries", tournamentId] });
+            queryClient.invalidateQueries({ queryKey: ["teams"] });
         },
         onError: (err: Error) => toast.error(err.message),
     });
@@ -407,9 +406,11 @@ function GroupSection({
                     <p className="text-xs text-foreground/30 text-center py-4">No teams in this phase yet</p>
                 ) : (
                     entries.map((entry, i) => {
-                        const style = STATUS_STYLES[entry.status] ?? STATUS_STYLES.ACTIVE;
+                        const style = entry.disqualified
+                            ? { bg: "bg-red-500/25", text: "text-red-500 dark:text-red-400 font-bold", icon: <Ban className="w-3 h-3" /> }
+                            : (STATUS_STYLES[entry.status] ?? STATUS_STYLES.ACTIVE);
                         const isEliminated = qualifyCutoff != null && i >= qualifyCutoff;
-                        const isDQ = entry.status === "DISQUALIFIED";
+                        const isDQ = !!entry.disqualified;
                         const canToggleDQ = entry.status === "ACTIVE" || isDQ;
                         return (
                             <div key={entry.teamId}>

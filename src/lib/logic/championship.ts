@@ -160,11 +160,11 @@ export async function progressFromHeats(tournamentId: string, seasonId: string) 
     const updates: { teamId: string; status: string; phase: string }[] = [];
 
     // Get DQ'd team IDs so we skip them during qualification
-    const dqEntries = await prisma.championshipEntry.findMany({
-        where: { tournamentId, status: "DISQUALIFIED" },
-        select: { teamId: true },
+    const dqTeams = await prisma.team.findMany({
+        where: { tournamentId, disqualified: true },
+        select: { id: true },
     });
-    const dqTeamIds = new Set(dqEntries.map(e => e.teamId));
+    const dqTeamIds = new Set(dqTeams.map(t => t.id));
 
     for (const rankings of [groupARankings, groupBRankings]) {
         let qualifiedCount = 0;
@@ -268,11 +268,11 @@ export async function progressFromHeatsLite(tournamentId: string, seasonId: stri
     const updates: { teamId: string; status: string; phase: string }[] = [];
 
     // Get DQ'd team IDs so we skip them during qualification
-    const dqEntries = await prisma.championshipEntry.findMany({
-        where: { tournamentId, status: "DISQUALIFIED" },
-        select: { teamId: true },
+    const dqTeams = await prisma.team.findMany({
+        where: { tournamentId, disqualified: true },
+        select: { id: true },
     });
-    const dqTeamIds = new Set(dqEntries.map(e => e.teamId));
+    const dqTeamIds = new Set(dqTeams.map(t => t.id));
 
     for (const rankings of [groupARankings, groupBRankings]) {
         let qualifiedCount = 0;
@@ -383,11 +383,11 @@ export async function progressFromWildcard(tournamentId: string, seasonId: strin
     const updates: { teamId: string; status: string }[] = [];
 
     // Get DQ'd team IDs
-    const dqEntries = await prisma.championshipEntry.findMany({
-        where: { tournamentId, status: "DISQUALIFIED" },
-        select: { teamId: true },
+    const dqTeams = await prisma.team.findMany({
+        where: { tournamentId, disqualified: true },
+        select: { id: true },
     });
-    const dqTeamIds = new Set(dqEntries.map(e => e.teamId));
+    const dqTeamIds = new Set(dqTeams.map(t => t.id));
 
     let qualifiedCount = 0;
     rankings.forEach((team) => {
@@ -532,12 +532,20 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
     const isLite = activeEntryCount > 0 && activeEntryCount <= 22;
 
     // Build ranked entries — sort by actual standings when match data exists
+    // Also fetch DQ status from teams
+    const dqTeams = await prisma.team.findMany({
+        where: { tournamentId, disqualified: true },
+        select: { id: true },
+    });
+    const dqTeamIdSet = new Set(dqTeams.map(t => t.id));
+
     let rankedEntries = entries.map(e => ({
         teamId: e.teamId,
         teamName: e.team.name,
         group: e.group,
         phase: e.phase,
         status: e.status,
+        disqualified: dqTeamIdSet.has(e.teamId),
     }));
 
     // If heats have been scored, sort entries per group by actual standings rank
@@ -564,8 +572,8 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
                 if (gDiff !== 0) return gDiff;
 
                 // DQ'd teams go to end of their group
-                const aDQ = a.status === "DISQUALIFIED" ? 1 : 0;
-                const bDQ = b.status === "DISQUALIFIED" ? 1 : 0;
+                const aDQ = a.disqualified ? 1 : 0;
+                const bDQ = b.disqualified ? 1 : 0;
                 if (aDQ !== bDQ) return aDQ - bDQ;
 
                 // Sort by rank within group

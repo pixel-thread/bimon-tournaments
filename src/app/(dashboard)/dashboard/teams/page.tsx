@@ -289,9 +289,13 @@ export default function TeamsPage() {
         return map.size > 0 ? map : null;
     }, [champEntries]);
     const dqTeamIds = useMemo(() => {
-        if (!champEntries) return [];
-        return champEntries.filter(e => e.status === "DISQUALIFIED").map(e => e.teamId);
-    }, [champEntries]);
+        const ids = new Set<string>();
+        // From championship entries (disqualified flag from status API)
+        champEntries?.filter(e => e.status === "DISQUALIFIED" || (e as any).disqualified).forEach(e => ids.add(e.teamId));
+        // From team.disqualified flag (works for casual tournaments too)
+        teams?.filter((t: any) => t.disqualified).forEach((t: any) => ids.add(t.id));
+        return Array.from(ids);
+    }, [champEntries, teams]);
     const availableTabs = useMemo(() => {
         if (!isChamp) return [];
         const matchPhases = new Set(matches.map(m => m.phase).filter(Boolean));
@@ -841,6 +845,8 @@ export default function TeamsPage() {
                     teamName={editTeam.name}
                     teamNumber={editTeam.teamNumber}
                     initialPlayers={editTeam.players}
+                    isChampionship={isChamp}
+                    tournamentId={tournamentId}
                 />
             )}
 

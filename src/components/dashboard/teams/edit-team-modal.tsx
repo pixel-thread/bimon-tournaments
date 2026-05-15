@@ -14,7 +14,7 @@ import {
     Spinner,
     Switch,
 } from "@heroui/react";
-import { Search, Plus, X, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, X, Pencil, Trash2, Ban } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -35,6 +35,8 @@ interface Props {
     teamName: string;
     teamNumber: number;
     initialPlayers: Player[];
+    isChampionship?: boolean;
+    tournamentId?: string;
 }
 
 export function EditTeamModal({
@@ -44,6 +46,8 @@ export function EditTeamModal({
     teamName,
     teamNumber,
     initialPlayers,
+    isChampionship = false,
+    tournamentId,
 }: Props) {
     const [search, setSearch] = useState("");
     const [currentPlayers, setCurrentPlayers] = useState<Player[]>([]);
@@ -151,6 +155,41 @@ export function EditTeamModal({
         onError: (err: Error) => toast.error(err.message),
     });
 
+    // DQ status & mutation (works for any tournament)
+    const { data: teamDQStatus } = useQuery<{ disqualified: boolean } | null>({
+        queryKey: ["team-dq", teamId],
+        queryFn: async () => {
+            const res = await fetch(`/api/teams/${teamId}`);
+            if (!res.ok) return null;
+            const json = await res.json();
+            return { disqualified: json.data?.disqualified ?? false };
+        },
+        enabled: isOpen,
+    });
+
+    const isDQ = teamDQStatus?.disqualified ?? false;
+
+    const dqMutation = useMutation({
+        mutationFn: async () => {
+            const res = await fetch(`/api/teams/${teamId}/disqualify`, {
+                method: "POST",
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || "Failed to toggle DQ");
+            return json;
+        },
+        onSuccess: (data) => {
+            toast.success(data.message);
+            queryClient.invalidateQueries({ queryKey: ["team-dq", teamId] });
+            queryClient.invalidateQueries({ queryKey: ["teams"] });
+            if (isChampionship && tournamentId) {
+                queryClient.invalidateQueries({ queryKey: ["championship-status", tournamentId] });
+                queryClient.invalidateQueries({ queryKey: ["champ-entries", tournamentId] });
+            }
+        },
+        onError: (err: Error) => toast.error(err.message),
+    });
+
     function handleClose() {
         setSearch("");
         setCurrentPlayers([]);
@@ -170,15 +209,35 @@ export function EditTeamModal({
                             <Pencil className="h-5 w-5" />
                             Edit Team {teamNumber}
                         </div>
-                        <Button
-                            isIconOnly
-                            size="sm"
-                            variant="light"
-                            color="danger"
-                            onPress={() => setShowDeleteConfirm(true)}
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                            <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant={isDQ ? "flat" : "light"}
+                                    color={isDQ ? "danger" : "default"}
+                                    onPress={() => {
+                                        if (window.confirm(isDQ
+                                            ? `Reinstate ${teamName}?`
+                                            : `Disqualify ${teamName}? Their points will be zeroed in standings.`
+                                        )) {
+                                            dqMutation.mutate();
+                                        }
+                                    }}
+                                    isLoading={dqMutation.isPending}
+                                    title={isDQ ? "Reinstate team" : "Disqualify team"}
+                                >
+                                    <Ban className="h-4 w-4" />
+                                </Button>
+                            <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                color="danger"
+                                onPress={() => setShowDeleteConfirm(true)}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </ModalHeader>
                     <ModalBody>
                         {/* Current players */}
