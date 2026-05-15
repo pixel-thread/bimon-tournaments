@@ -484,15 +484,27 @@ export function StandingsModal({
 
                             {/* Championship: show current group label */}
                             {detectedChampionship && (
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border" style={{
-                                    background: champGroup === "A" ? "rgba(59,130,246,0.1)" : champGroup === "B" ? "rgba(168,85,247,0.1)" : "rgba(249,115,22,0.1)",
-                                    borderColor: champGroup === "A" ? "rgba(59,130,246,0.3)" : champGroup === "B" ? "rgba(168,85,247,0.3)" : "rgba(249,115,22,0.3)",
-                                }}>
-                                    <span className={`text-xs font-semibold ${
-                                        champGroup === "A" ? "text-blue-400" : champGroup === "B" ? "text-purple-400" : "text-orange-400"
-                                    }`}>
-                                        {champGroup === "ALL" ? "Combined" : `Group ${champGroup}`}
+                                <div className="mt-2 flex items-center justify-center gap-2">
+                                    <div className="h-px w-8" style={{
+                                        background: champGroup === "A" ? "rgba(59,130,246,0.5)" : champGroup === "B" ? "rgba(168,85,247,0.5)" : "rgba(249,115,22,0.5)",
+                                    }} />
+                                    <span
+                                        className={`text-sm sm:text-base font-bold uppercase tracking-[0.2em] ${
+                                            champGroup === "A" ? "text-blue-400" : champGroup === "B" ? "text-purple-400" : "text-orange-400"
+                                        }`}
+                                        style={{
+                                            textShadow: champGroup === "A"
+                                                ? "0 0 20px rgba(59,130,246,0.5), 0 0 40px rgba(59,130,246,0.2)"
+                                                : champGroup === "B"
+                                                ? "0 0 20px rgba(168,85,247,0.5), 0 0 40px rgba(168,85,247,0.2)"
+                                                : "0 0 20px rgba(249,115,22,0.5), 0 0 40px rgba(249,115,22,0.2)",
+                                        }}
+                                    >
+                                        {champGroup === "ALL" ? "Combined Standings" : `Group ${champGroup}`}
                                     </span>
+                                    <div className="h-px w-8" style={{
+                                        background: champGroup === "A" ? "rgba(59,130,246,0.5)" : champGroup === "B" ? "rgba(168,85,247,0.5)" : "rgba(249,115,22,0.5)",
+                                    }} />
                                 </div>
                             )}
                         </div>
