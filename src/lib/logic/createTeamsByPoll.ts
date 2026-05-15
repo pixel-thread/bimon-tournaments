@@ -43,7 +43,7 @@ type DryRunData = {
 export type CreateTeamsByPollsResult = {
     teamsCreated: number;
     playersAssigned: number;
-    matchId: string;
+    matchId: string | null;
     entryFeeCharged: number;
     squadsRegistered: number;
     squadsCancelled: number;
@@ -472,6 +472,9 @@ export async function createTeamsByPoll({
     // Track players to charge (populated inside transaction, used after)
     let playersToChargeList: any[] = [];
 
+    // Pre-detect championship — skip creating a default match if groups will be created
+    const willBeChampionship = pollAllowSquads && teams.length > GAME.maxSquadTeams;
+
     // Persist in transaction
     const result = await prisma.$transaction(
         async (tx) => {
@@ -481,11 +484,14 @@ export async function createTeamsByPoll({
                 throw new Error("Teams already exist for this tournament. Refresh the page to see them.");
             }
 
-            // Create match
-            const existingMatchCount = await tx.match.count({ where: { tournamentId } });
-            const match = await tx.match.create({
-                data: { tournamentId, seasonId, matchNumber: existingMatchCount + 1 },
-            });
+            // Create default match (skip for championship — group matches are created later)
+            let match: { id: string } | null = null;
+            if (!willBeChampionship) {
+                const existingMatchCount = await tx.match.count({ where: { tournamentId } });
+                match = await tx.match.create({
+                    data: { tournamentId, seasonId, matchNumber: existingMatchCount + 1 },
+                });
+            }
 
             // Create teams in batches
             const createdTeamData: { teamId: string; originalTeam: TeamStats }[] = [];
@@ -504,7 +510,7 @@ export async function createTeamsByPoll({
                             seasonId,
                             clanId: t.clanId ?? null,
                             players: { connect: t.players.map((p) => ({ id: p.id })) },
-                            matches: { connect: { id: match.id } },
+                            ...(match ? { matches: { connect: { id: match.id } } } : {}),
                         },
                         select: { id: true },
                     });
@@ -515,20 +521,22 @@ export async function createTeamsByPoll({
                 });
             }
 
-            // Create TeamStats
-            const teamStats = await processBatches(
-                createdTeamData,
-                BATCH_SIZE,
-                ({ teamId }) =>
-                    tx.teamStats.create({
-                        data: {
-                            teamId,
-                            matchId: match.id,
-                            seasonId,
-                            tournamentId,
-                        },
-                    }),
-            );
+            // Create TeamStats (only for non-championship — championship creates its own)
+            if (match) {
+                const teamStats = await processBatches(
+                    createdTeamData,
+                    BATCH_SIZE,
+                    ({ teamId }) =>
+                        tx.teamStats.create({
+                            data: {
+                                teamId,
+                                matchId: match.id,
+                                seasonId,
+                                tournamentId,
+                            },
+                        }),
+                );
+            }
 
             const allPlayers = teams.flatMap((t) => t.players);
 
@@ -565,49 +573,64 @@ export async function createTeamsByPoll({
                 );
             }
 
-            // Create MatchPlayerPlayed entries
-            const matchPlayerPlayedData = createdTeamData.flatMap(({ teamId, originalTeam }) =>
-                originalTeam.players.map((player) => ({
-                    matchId: match.id,
-                    playerId: player.id,
-                    tournamentId,
-                    seasonId,
-                    teamId,
-                })),
-            );
-            await tx.matchPlayerPlayed.createMany({ data: matchPlayerPlayedData });
+            // Match-dependent records (skip for championship — group matches handle this)
+            if (match) {
+                // Create MatchPlayerPlayed entries
+                const matchPlayerPlayedData = createdTeamData.flatMap(({ teamId, originalTeam }) =>
+                    originalTeam.players.map((player) => ({
+                        matchId: match.id,
+                        playerId: player.id,
+                        tournamentId,
+                        seasonId,
+                        teamId,
+                    })),
+                );
+                await tx.matchPlayerPlayed.createMany({ data: matchPlayerPlayedData });
 
-            // Connect teamStats to players and players to match
-            for (let i = 0; i < createdTeamData.length; i += BATCH_SIZE) {
-                const batchEnd = Math.min(i + BATCH_SIZE, createdTeamData.length);
-                const promises: Promise<unknown>[] = [];
-
-                for (let j = i; j < batchEnd; j++) {
-                    const { originalTeam } = createdTeamData[j];
-                    const teamStat = teamStats[j];
-
-                    promises.push(
-                        tx.teamStats.update({
-                            where: { id: teamStat.id },
-                            data: { players: { connect: originalTeam.players.map((p) => ({ id: p.id })) } },
+                // Fetch teamStats for connecting players
+                const teamStats = await Promise.all(
+                    createdTeamData.map(({ teamId }) =>
+                        tx.teamStats.findFirst({
+                            where: { teamId, matchId: match.id },
+                            select: { id: true },
                         }),
-                    );
+                    ),
+                );
 
-                    for (const player of originalTeam.players) {
-                        promises.push(
-                            tx.player.update({
-                                where: { id: player.id },
-                                data: { matches: { connect: { id: match.id } } },
-                            }),
-                        );
+                // Connect teamStats to players and players to match
+                for (let i = 0; i < createdTeamData.length; i += BATCH_SIZE) {
+                    const batchEnd = Math.min(i + BATCH_SIZE, createdTeamData.length);
+                    const promises: Promise<unknown>[] = [];
+
+                    for (let j = i; j < batchEnd; j++) {
+                        const { originalTeam } = createdTeamData[j];
+                        const teamStat = teamStats[j];
+
+                        if (teamStat) {
+                            promises.push(
+                                tx.teamStats.update({
+                                    where: { id: teamStat.id },
+                                    data: { players: { connect: originalTeam.players.map((p) => ({ id: p.id })) } },
+                                }),
+                            );
+                        }
+
+                        for (const player of originalTeam.players) {
+                            promises.push(
+                                tx.player.update({
+                                    where: { id: player.id },
+                                    data: { matches: { connect: { id: match.id } } },
+                                }),
+                            );
+                        }
                     }
-                }
 
-                await Promise.all(promises);
+                    await Promise.all(promises);
+                }
             }
 
             return {
-                matchId: match.id,
+                matchId: match?.id ?? null,
                 teamsCreated: createdTeamData.length,
                 playersAssigned: allTeamPlayerIds.size,
             };
@@ -759,40 +782,37 @@ export async function createTeamsByPoll({
 
         await prisma.championshipEntry.createMany({ data: entryData });
 
-        // Create phase-tagged matches for Heats
-        // Group A: 4 matches, Group B: 4 matches
+        // Create 1 match per group (admin adds more manually via the "+" button)
         for (const group of ["A", "B"]) {
             const groupTeamIds = group === "A" ? groupA : groupB;
-            for (let m = 1; m <= 4; m++) {
-                const existingCount = await prisma.match.count({ where: { tournamentId } });
-                const match = await prisma.match.create({
+            const existingCount = await prisma.match.count({ where: { tournamentId } });
+            const match = await prisma.match.create({
+                data: {
+                    tournamentId,
+                    seasonId,
+                    matchNumber: existingCount + 1,
+                    phase: `HEATS_${group}`,
+                },
+            });
+
+            // Connect group teams to this match
+            await prisma.match.update({
+                where: { id: match.id },
+                data: {
+                    teams: { connect: groupTeamIds.map(id => ({ id })) },
+                },
+            });
+
+            // Create TeamStats for each team in this match
+            for (const teamId of groupTeamIds) {
+                await prisma.teamStats.create({
                     data: {
-                        tournamentId,
+                        teamId,
+                        matchId: match.id,
                         seasonId,
-                        matchNumber: existingCount + 1,
-                        phase: `HEATS_${group}`,
+                        tournamentId,
                     },
                 });
-
-                // Connect group teams to this match
-                await prisma.match.update({
-                    where: { id: match.id },
-                    data: {
-                        teams: { connect: groupTeamIds.map(id => ({ id })) },
-                    },
-                });
-
-                // Create TeamStats for each team in this match
-                for (const teamId of groupTeamIds) {
-                    await prisma.teamStats.create({
-                        data: {
-                            teamId,
-                            matchId: match.id,
-                            seasonId,
-                            tournamentId,
-                        },
-                    });
-                }
             }
         }
 

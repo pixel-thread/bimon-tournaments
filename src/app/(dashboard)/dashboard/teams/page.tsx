@@ -485,10 +485,12 @@ export default function TeamsPage() {
                         >
                             {[
                                 <SelectItem key="all" textValue="All Matches">All Matches</SelectItem>,
-                                ...phaseFilteredMatches.map((m) => {
+                                ...phaseFilteredMatches.map((m, idx) => {
                                     const phaseLabel = m.phase ? PHASE_LABELS[m.phase] : null;
+                                    // In championship, show group-relative number (M1, M2 per group)
+                                    const matchNum = phaseLabel ? idx + 1 : m.matchNumber;
                                     const displayText = phaseLabel
-                                        ? `M${m.matchNumber} · ${phaseLabel}`
+                                        ? `M${matchNum} · ${phaseLabel}`
                                         : `Match ${m.matchNumber}`;
                                     return (
                                         <SelectItem key={m.id} textValue={displayText}>
