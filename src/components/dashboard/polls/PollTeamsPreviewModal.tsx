@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import {
     Modal,
     ModalContent,
@@ -18,6 +19,8 @@ import {
     AlertTriangle,
     Loader2,
     Zap,
+    ChevronDown,
+    ChevronRight,
 } from "lucide-react";
 import type { PreviewTeamsByPollsResult, TeamPreview } from "@/lib/logic/previewTeamsByPoll";
 import { GAME } from "@/lib/game-config";
@@ -227,17 +230,12 @@ export function PollTeamsPreviewModal({
                                 </div>
                             )}
 
-                            {/* Teams grid */}
+                            {/* Teams grid — with group sections for championship */}
                             {previewData.teams.length > 0 ? (
-                                <div className="grid grid-cols-1 gap-2 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                                    {previewData.teams.map((team) => (
-                                        <TeamCard
-                                            key={team.teamNumber}
-                                            team={team}
-                                            entryFee={previewData.entryFee}
-                                        />
-                                    ))}
-                                </div>
+                                <ChampionshipGroupedTeams
+                                    teams={previewData.teams}
+                                    entryFee={previewData.entryFee}
+                                />
                             ) : (
                                 <p className="py-8 text-center text-sm text-foreground/50">
                                     No teams generated.
@@ -310,5 +308,95 @@ export function PollTeamsPreviewModal({
                 </ModalFooter>
             </ModalContent>
         </Modal>
+    );
+}
+
+// ─── Championship Grouped Teams ─────────────────────────────
+
+function ChampionshipGroupedTeams({
+    teams,
+    entryFee,
+}: {
+    teams: TeamPreview[];
+    entryFee: number;
+}) {
+    const isChampionship = GAME.features.hasSquads && teams.length > GAME.maxSquadTeams;
+    const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+    // Simulate group assignment (same logic as assignGroups but for preview)
+    const { groupA, groupB } = useMemo(() => {
+        if (!isChampionship) return { groupA: teams, groupB: [] };
+
+        const shuffled = [...teams]; // Don't re-shuffle on each render — already randomized
+        const maxTeams = 32;
+        const capped = shuffled.slice(0, maxTeams);
+        const evenCount = capped.length - (capped.length % 2);
+        const half = evenCount / 2;
+
+        return {
+            groupA: capped.slice(0, half),
+            groupB: capped.slice(half, evenCount),
+        };
+    }, [teams, isChampionship]);
+
+    const toggleGroup = (group: string) => {
+        setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+    };
+
+    if (!isChampionship) {
+        // Regular mode — flat grid
+        return (
+            <div className="grid grid-cols-1 gap-2 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                {teams.map((team) => (
+                    <TeamCard key={team.teamNumber} team={team} entryFee={entryFee} />
+                ))}
+            </div>
+        );
+    }
+
+    // Championship mode — two groups
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                <Zap className="h-4 w-4 text-amber-500 shrink-0" />
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                    <span className="font-semibold">Championship Mode</span> — {teams.length} teams split into 2 groups of {groupA.length}
+                </p>
+            </div>
+
+            {[
+                { label: "Group A", teams: groupA, key: "A" },
+                { label: "Group B", teams: groupB, key: "B" },
+            ].map(({ label, teams: groupTeams, key }) => (
+                <div key={key} className="rounded-lg border border-divider overflow-hidden">
+                    {/* Group header — collapsible */}
+                    <button
+                        type="button"
+                        onClick={() => toggleGroup(key)}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 bg-default-100 hover:bg-default-200/80 transition-colors cursor-pointer"
+                    >
+                        <div className="flex items-center gap-2">
+                            {collapsedGroups[key]
+                                ? <ChevronRight className="h-4 w-4 text-foreground/40" />
+                                : <ChevronDown className="h-4 w-4 text-foreground/40" />
+                            }
+                            <span className="text-sm font-bold">{label}</span>
+                            <Chip size="sm" variant="flat" className="h-5 px-1.5 text-[10px]">
+                                {groupTeams.length} teams
+                            </Chip>
+                        </div>
+                    </button>
+
+                    {/* Collapsible team grid */}
+                    {!collapsedGroups[key] && (
+                        <div className="p-2 grid grid-cols-1 gap-2 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3">
+                            {groupTeams.map((team) => (
+                                <TeamCard key={team.teamNumber} team={team} entryFee={entryFee} />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ))}
+        </div>
     );
 }
