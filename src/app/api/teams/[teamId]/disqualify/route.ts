@@ -2,15 +2,15 @@ import { prisma } from "@/lib/database";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * POST /api/teams/[id]/disqualify
+ * POST /api/teams/[teamId]/disqualify
  * Toggle disqualification for a team (works for any tournament type).
  */
 export async function POST(
     req: NextRequest,
-    { params }: { params: Promise<{ id: string }> },
+    { params }: { params: Promise<{ teamId: string }> },
 ) {
     try {
-        const { id: teamId } = await params;
+        const { teamId } = await params;
 
         const team = await prisma.team.findUnique({
             where: { id: teamId },
