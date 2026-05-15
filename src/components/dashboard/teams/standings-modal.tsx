@@ -138,6 +138,16 @@ export function StandingsModal({
         return matchData.filter(m => m.phase === phaseFilter);
     }, [matchData, detectedChampionship, champGroup]);
 
+    // Derive phase label from filtered match data
+    const phaseLabel = useMemo(() => {
+        if (!detectedChampionship || !filteredMatchData || filteredMatchData.length === 0) return null;
+        const phases = new Set(filteredMatchData.map(m => m.phase).filter(Boolean));
+        if (phases.has("FINALS")) return "Finals";
+        if (phases.has("WILDCARD")) return "Wildcard";
+        if (phases.has("HEATS_A") || phases.has("HEATS_B")) return "Heats";
+        return null;
+    }, [detectedChampionship, filteredMatchData]);
+
     const standings = useMemo<StandingRow[]>(() => {
         const data = filteredMatchData;
         if (!data || data.length === 0) return [];
@@ -500,7 +510,12 @@ export function StandingsModal({
                                                 : "0 0 20px rgba(249,115,22,0.5), 0 0 40px rgba(249,115,22,0.2)",
                                         }}
                                     >
-                                        {champGroup === "ALL" ? "Combined Standings" : `Group ${champGroup}`}
+                                        {champGroup === "ALL"
+                                            ? "Combined Standings"
+                                            : phaseLabel
+                                                ? `${phaseLabel} · Group ${champGroup}`
+                                                : `Group ${champGroup}`
+                                        }
                                     </span>
                                     <div className="h-px w-8" style={{
                                         background: champGroup === "A" ? "rgba(59,130,246,0.5)" : champGroup === "B" ? "rgba(168,85,247,0.5)" : "rgba(249,115,22,0.5)",
