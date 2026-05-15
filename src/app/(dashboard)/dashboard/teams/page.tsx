@@ -268,16 +268,15 @@ export default function TeamsPage() {
     const isChamp = useMemo(() => matches.some(m => m.phase?.startsWith("HEATS")), [matches]);
 
     // Fetch championship group assignments
-    const { data: champEntries } = useQuery<{ teamId: string; group: string | null; status: string }[]>({
+    const { data: champEntries } = useQuery<{ teamId: string; group: string | null }[]>({
         queryKey: ["champ-entries", tournamentId],
         queryFn: async () => {
             const res = await fetch(`/api/tournaments/${tournamentId}/championship/status`);
             if (!res.ok) return [];
             const json = await res.json();
-            return (json.data?.entries ?? []).map((e: { teamId: string; group: string | null; status: string }) => ({
+            return (json.data?.entries ?? []).map((e: { teamId: string; group: string | null }) => ({
                 teamId: e.teamId,
                 group: e.group,
-                status: e.status,
             }));
         },
         enabled: isChamp && !!tournamentId,
@@ -288,31 +287,10 @@ export default function TeamsPage() {
         champEntries.forEach(e => { if (e.group) map.set(e.teamId, e.group); });
         return map.size > 0 ? map : null;
     }, [champEntries]);
-    const dqTeamIds = useMemo(() => {
-        const ids = new Set<string>();
-        // From championship entries (disqualified flag from status API)
-        champEntries?.filter(e => e.status === "DISQUALIFIED" || (e as any).disqualified).forEach(e => ids.add(e.teamId));
-        // From team.disqualified flag (works for casual tournaments too)
-        teams?.filter((t: any) => t.disqualified).forEach((t: any) => ids.add(t.id));
-        return Array.from(ids);
-    }, [champEntries, teams]);
     const availableTabs = useMemo(() => {
-        if (!isChamp) return [];
         const matchPhases = new Set(matches.map(m => m.phase).filter(Boolean));
-        // Always show Heats if championship; for Finals/Wildcard show if matches exist OR heats have matches (progression possible)
-        const heatsExist = matchPhases.has("HEATS_A") || matchPhases.has("HEATS_B");
-        if (!heatsExist) return [];
-        // Determine if lite (no wildcard phase matches exist or expected)
-        const hasWildcard = matchPhases.has("WILDCARD");
-        const hasFinals = matchPhases.has("FINALS");
-        // Show: Heats always, Wildcard only if it has matches, Finals always (for navigation)
-        return CHAMP_TABS.filter(tab => {
-            if (tab.key === "HEATS") return true;
-            if (tab.key === "WILDCARD") return hasWildcard;
-            if (tab.key === "FINALS") return hasFinals || !hasWildcard; // Lite: show Finals always; Full: only if matches exist
-            return false;
-        });
-    }, [matches, isChamp]);
+        return CHAMP_TABS.filter(tab => tab.phases.some(p => matchPhases.has(p)));
+    }, [matches]);
     const phaseFilteredMatches = useMemo(() => {
         if (!isChamp || !champPhase) return matches;
         if (champPhase === "HEATS") {
@@ -607,29 +585,9 @@ export default function TeamsPage() {
                     ))}
                 </div>
             )}
-            {/* Championship phase with no matches yet */}
-            {isChamp && champPhase && phaseFilteredMatches.length === 0 && !isLoading && (
-                <div className="flex flex-col items-center gap-3 rounded-xl bg-default-100 py-16 text-center">
-                    <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-                        <Trophy className="h-6 w-6 text-amber-500/40" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-semibold text-foreground/70">
-                            {champPhase === "FINALS" ? "Finals" : champPhase === "WILDCARD" ? "Wildcard" : "This phase"} — No matches yet
-                        </p>
-                        <p className="text-xs text-foreground/40 mt-1 max-w-xs mx-auto">
-                            {champPhase === "FINALS"
-                                ? "Progress from Heats to create Finals matches. Top 8 from each group will advance."
-                                : champPhase === "WILDCARD"
-                                ? "Progress from Heats to create Wildcard matches."
-                                : "No matches have been created for this phase yet."}
-                        </p>
-                    </div>
-                </div>
-            )}
 
             {/* Team cards */}
-            {filteredTeams && !(isChamp && champPhase && phaseFilteredMatches.length === 0) && (
+            {filteredTeams && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 overflow-hidden">
                     {filteredTeams.length === 0 && !isLoading ? (
                         <div className="col-span-full flex flex-col items-center gap-3 rounded-xl bg-default-100 py-12 text-center">
@@ -774,7 +732,6 @@ export default function TeamsPage() {
                 allowSquads={allowSquads}
                 isChampionship={isChamp}
                 initialGroup={isChamp && champPhase === "HEATS" ? heatsGroup : undefined}
-                disqualifiedTeamIds={dqTeamIds}
             />
 
             {/* Slots Export */}
@@ -845,8 +802,6 @@ export default function TeamsPage() {
                     teamName={editTeam.name}
                     teamNumber={editTeam.teamNumber}
                     initialPlayers={editTeam.players}
-                    isChampionship={isChamp}
-                    tournamentId={tournamentId}
                 />
             )}
 

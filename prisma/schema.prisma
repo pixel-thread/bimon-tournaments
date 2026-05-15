@@ -660,7 +660,6 @@ model Team {
   tournamentId String?
   seasonId     String?
   clanId       String?                         // Clan identity when team was created from a clan squad
-  disqualified Boolean @default(false)         // DQ'd teams get 0 points in standings
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
