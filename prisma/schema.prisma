@@ -60,6 +60,7 @@ enum ChampionshipTeamStatus {
   WILDCARD     // Sent to wildcard round
   ELIMINATED   // Knocked out
   STANDBY      // Registered but over 32 cap
+  DISQUALIFIED // Cheating/rule violation — 0 points in standings
 }
 
 enum TeamType {

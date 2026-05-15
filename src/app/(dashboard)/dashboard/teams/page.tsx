@@ -268,15 +268,16 @@ export default function TeamsPage() {
     const isChamp = useMemo(() => matches.some(m => m.phase?.startsWith("HEATS")), [matches]);
 
     // Fetch championship group assignments
-    const { data: champEntries } = useQuery<{ teamId: string; group: string | null }[]>({
+    const { data: champEntries } = useQuery<{ teamId: string; group: string | null; status: string }[]>({
         queryKey: ["champ-entries", tournamentId],
         queryFn: async () => {
             const res = await fetch(`/api/tournaments/${tournamentId}/championship/status`);
             if (!res.ok) return [];
             const json = await res.json();
-            return (json.data?.entries ?? []).map((e: { teamId: string; group: string | null }) => ({
+            return (json.data?.entries ?? []).map((e: { teamId: string; group: string | null; status: string }) => ({
                 teamId: e.teamId,
                 group: e.group,
+                status: e.status,
             }));
         },
         enabled: isChamp && !!tournamentId,
@@ -286,6 +287,10 @@ export default function TeamsPage() {
         const map = new Map<string, string>();
         champEntries.forEach(e => { if (e.group) map.set(e.teamId, e.group); });
         return map.size > 0 ? map : null;
+    }, [champEntries]);
+    const dqTeamIds = useMemo(() => {
+        if (!champEntries) return [];
+        return champEntries.filter(e => e.status === "DISQUALIFIED").map(e => e.teamId);
     }, [champEntries]);
     const availableTabs = useMemo(() => {
         if (!isChamp) return [];
@@ -598,9 +603,29 @@ export default function TeamsPage() {
                     ))}
                 </div>
             )}
+            {/* Championship phase with no matches yet */}
+            {isChamp && champPhase && phaseFilteredMatches.length === 0 && !isLoading && (
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-default-100 py-16 text-center">
+                    <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+                        <Trophy className="h-6 w-6 text-amber-500/40" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-semibold text-foreground/70">
+                            {champPhase === "FINALS" ? "Finals" : champPhase === "WILDCARD" ? "Wildcard" : "This phase"} — No matches yet
+                        </p>
+                        <p className="text-xs text-foreground/40 mt-1 max-w-xs mx-auto">
+                            {champPhase === "FINALS"
+                                ? "Progress from Heats to create Finals matches. Top 8 from each group will advance."
+                                : champPhase === "WILDCARD"
+                                ? "Progress from Heats to create Wildcard matches."
+                                : "No matches have been created for this phase yet."}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Team cards */}
-            {filteredTeams && (
+            {filteredTeams && !(isChamp && champPhase && phaseFilteredMatches.length === 0) && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 overflow-hidden">
                     {filteredTeams.length === 0 && !isLoading ? (
                         <div className="col-span-full flex flex-col items-center gap-3 rounded-xl bg-default-100 py-12 text-center">
@@ -745,6 +770,7 @@ export default function TeamsPage() {
                 allowSquads={allowSquads}
                 isChampionship={isChamp}
                 initialGroup={isChamp && champPhase === "HEATS" ? heatsGroup : undefined}
+                disqualifiedTeamIds={dqTeamIds}
             />
 
             {/* Slots Export */}

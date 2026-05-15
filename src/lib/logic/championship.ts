@@ -159,12 +159,21 @@ export async function progressFromHeats(tournamentId: string, seasonId: string) 
 
     const updates: { teamId: string; status: string; phase: string }[] = [];
 
+    // Get DQ'd team IDs so we skip them during qualification
+    const dqEntries = await prisma.championshipEntry.findMany({
+        where: { tournamentId, status: "DISQUALIFIED" },
+        select: { teamId: true },
+    });
+    const dqTeamIds = new Set(dqEntries.map(e => e.teamId));
+
     for (const rankings of [groupARankings, groupBRankings]) {
-        rankings.forEach((team, index) => {
-            const pos = index + 1;
-            if (pos <= 4) {
+        let qualifiedCount = 0;
+        rankings.forEach((team) => {
+            if (dqTeamIds.has(team.teamId)) return; // Skip DQ'd
+            qualifiedCount++;
+            if (qualifiedCount <= 4) {
                 updates.push({ teamId: team.teamId, status: "QUALIFIED", phase: "FINALS" });
-            } else if (pos <= 12) {
+            } else if (qualifiedCount <= 12) {
                 updates.push({ teamId: team.teamId, status: "WILDCARD", phase: "WILDCARD" });
             } else {
                 updates.push({ teamId: team.teamId, status: "ELIMINATED", phase: "HEATS" });
@@ -258,10 +267,22 @@ export async function progressFromHeatsLite(tournamentId: string, seasonId: stri
     const QUALIFY_CUTOFF = 8; // Top 8 per group advance to Finals
     const updates: { teamId: string; status: string; phase: string }[] = [];
 
+    // Get DQ'd team IDs so we skip them during qualification
+    const dqEntries = await prisma.championshipEntry.findMany({
+        where: { tournamentId, status: "DISQUALIFIED" },
+        select: { teamId: true },
+    });
+    const dqTeamIds = new Set(dqEntries.map(e => e.teamId));
+
     for (const rankings of [groupARankings, groupBRankings]) {
-        rankings.forEach((team, index) => {
-            const pos = index + 1;
-            if (pos <= QUALIFY_CUTOFF) {
+        let qualifiedCount = 0;
+        rankings.forEach((team) => {
+            if (dqTeamIds.has(team.teamId)) {
+                // Keep DQ'd — don't change status
+                return;
+            }
+            qualifiedCount++;
+            if (qualifiedCount <= QUALIFY_CUTOFF) {
                 updates.push({ teamId: team.teamId, status: "QUALIFIED", phase: "FINALS" });
             } else {
                 updates.push({ teamId: team.teamId, status: "ELIMINATED", phase: "HEATS" });
@@ -361,8 +382,18 @@ export async function progressFromWildcard(tournamentId: string, seasonId: strin
 
     const updates: { teamId: string; status: string }[] = [];
 
-    rankings.forEach((team, index) => {
-        if (index < 8) {
+    // Get DQ'd team IDs
+    const dqEntries = await prisma.championshipEntry.findMany({
+        where: { tournamentId, status: "DISQUALIFIED" },
+        select: { teamId: true },
+    });
+    const dqTeamIds = new Set(dqEntries.map(e => e.teamId));
+
+    let qualifiedCount = 0;
+    rankings.forEach((team) => {
+        if (dqTeamIds.has(team.teamId)) return; // Skip DQ'd
+        qualifiedCount++;
+        if (qualifiedCount <= 8) {
             updates.push({ teamId: team.teamId, status: "QUALIFIED" });
         } else {
             updates.push({ teamId: team.teamId, status: "ELIMINATED" });

@@ -54,6 +54,7 @@ interface StandingRow {
     positions: number[];
     playerNames: string[];
     positionChange: number;
+    isDisqualified?: boolean;
 }
 
 interface Props {
@@ -67,6 +68,7 @@ interface Props {
     allowSquads?: boolean;
     isChampionship?: boolean;
     initialGroup?: "A" | "B";
+    disqualifiedTeamIds?: string[];
 }
 
 // ── Placement Points (BGMI scoring) ───────────────────────────
@@ -87,6 +89,7 @@ export function StandingsModal({
     allowSquads = false,
     isChampionship = false,
     initialGroup,
+    disqualifiedTeamIds = [],
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
@@ -224,8 +227,20 @@ export function StandingsModal({
             });
         }
 
-        return currentSorted;
-    }, [filteredMatchData, compareMatches]);
+        // Zero out DQ'd teams and push to bottom
+        const dqSet = new Set(disqualifiedTeamIds);
+        const regular: StandingRow[] = [];
+        const dqRows: StandingRow[] = [];
+        for (const row of currentSorted) {
+            if (dqSet.has(row.teamId)) {
+                dqRows.push({ ...row, totalPoints: 0, placementPts: 0, wins: 0, isDisqualified: true });
+            } else {
+                regular.push(row);
+            }
+        }
+
+        return [...regular, ...dqRows];
+    }, [filteredMatchData, compareMatches, disqualifiedTeamIds]);
 
     // ── Screenshot / Copy ─────────────────────────────────────
 
