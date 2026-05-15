@@ -409,6 +409,30 @@ export function StandingsModal({
                             ))}
                         </div>
 
+                        {/* Championship Group Switcher */}
+                        {detectedChampionship && (
+                            <>
+                                <div className="h-px bg-white/10 my-2" />
+                                <div className="text-xs text-zinc-400 mb-2 font-medium">Group</div>
+                                <div className="flex flex-col gap-1">
+                                    {(["ALL", "A", "B"] as const).map((g) => (
+                                        <button
+                                            key={g}
+                                            onClick={() => setChampGroup(g)}
+                                            className={`text-sm text-left px-3 py-1.5 rounded-lg transition-colors ${champGroup === g
+                                                ? g === "A" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                                                : g === "B" ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                                                : "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                                                : "text-zinc-300 hover:bg-white/10"
+                                            }`}
+                                        >
+                                            {g === "ALL" ? "Combined" : `Group ${g}`}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
                         {/* Zone Colors Toggle */}
                         {detectedChampionship && champGroup !== "ALL" && (
                             <>
@@ -458,24 +482,17 @@ export function StandingsModal({
                                 </div>
                             </div>
 
-                            {/* Championship Group Toggle */}
+                            {/* Championship: show current group label */}
                             {detectedChampionship && (
-                                <div className="flex items-center justify-center gap-2 mt-4">
-                                    {(["ALL", "A", "B"] as const).map((g) => (
-                                        <button
-                                            key={g}
-                                            onClick={() => setChampGroup(g)}
-                                            className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
-                                                champGroup === g
-                                                    ? g === "A" ? "bg-blue-500/20 text-blue-400 border border-blue-500/40"
-                                                    : g === "B" ? "bg-purple-500/20 text-purple-400 border border-purple-500/40"
-                                                    : "bg-orange-500/20 text-orange-400 border border-orange-500/40"
-                                                    : "bg-white/5 text-zinc-500 border border-white/10 hover:bg-white/10"
-                                            }`}
-                                        >
-                                            {g === "ALL" ? "Combined" : `Group ${g}`}
-                                        </button>
-                                    ))}
+                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border" style={{
+                                    background: champGroup === "A" ? "rgba(59,130,246,0.1)" : champGroup === "B" ? "rgba(168,85,247,0.1)" : "rgba(249,115,22,0.1)",
+                                    borderColor: champGroup === "A" ? "rgba(59,130,246,0.3)" : champGroup === "B" ? "rgba(168,85,247,0.3)" : "rgba(249,115,22,0.3)",
+                                }}>
+                                    <span className={`text-xs font-semibold ${
+                                        champGroup === "A" ? "text-blue-400" : champGroup === "B" ? "text-purple-400" : "text-orange-400"
+                                    }`}>
+                                        {champGroup === "ALL" ? "Combined" : `Group ${champGroup}`}
+                                    </span>
                                 </div>
                             )}
                         </div>
