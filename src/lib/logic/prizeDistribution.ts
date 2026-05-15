@@ -65,12 +65,12 @@ export interface FinalDistributionResult extends PrizeDistributionResult {
 // ============================================================================
 
 const TIER_CONFIGS: PrizeTierConfig[] = [
-    { level: 1, minPool: 0, maxPool: 1199, winnerCount: 2, description: "Top 2 paid" },
-    { level: 2, minPool: 1200, maxPool: 3000, winnerCount: 4, description: "Top 4 paid" },
-    { level: 3, minPool: 3001, maxPool: 5000, winnerCount: 6, description: "Top 6 paid" },
-    { level: 4, minPool: 5001, maxPool: 10000, winnerCount: 6, description: "Top 6 paid" },
-    { level: 5, minPool: 10001, maxPool: 25000, winnerCount: 8, description: "Top 8 paid" },
-    { level: 6, minPool: 25001, maxPool: null, winnerCount: 10, description: "Top 10 paid" },
+    { level: 1, minPool: 0, maxPool: 1199, winnerCount: 3, description: "Top 3 paid" },
+    { level: 2, minPool: 1200, maxPool: 3000, winnerCount: 6, description: "Top 6 paid" },
+    { level: 3, minPool: 3001, maxPool: 5000, winnerCount: 8, description: "Top 8 paid" },
+    { level: 4, minPool: 5001, maxPool: 10000, winnerCount: 8, description: "Top 8 paid" },
+    { level: 5, minPool: 10001, maxPool: 25000, winnerCount: 10, description: "Top 10 paid" },
+    { level: 6, minPool: 25001, maxPool: null, winnerCount: 12, description: "Top 12 paid" },
 ];
 
 // Geometric decay ratio — each position gets this fraction of the one above
