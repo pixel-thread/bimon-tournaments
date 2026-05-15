@@ -126,7 +126,6 @@ export async function GET(request: Request) {
                 days: poll.days,
                 teamType: poll.teamType,
                 allowSquads: poll.allowSquads,
-                isChampionship: poll.isChampionship,
                 scheduledDate: poll.scheduledDate,
                 scheduledTime: poll.scheduledTime,
                 matchSchedule: poll.matchSchedule ?? null,
@@ -226,7 +225,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, isChampionship, enableFund, prizePoolFee, scheduledDate, scheduledTime, matchSchedule, isTDM: tdmFlag, isWoW: wowFlag, whatsappGroupLink } = body;
+        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, enableFund, prizePoolFee, scheduledDate, scheduledTime, matchSchedule, isTDM: tdmFlag, isWoW: wowFlag, whatsappGroupLink } = body;
 
         if (!question || !tournamentId) {
             return ErrorResponse({ message: "question and tournamentId are required", status: 400 });
@@ -289,7 +288,7 @@ export async function POST(request: Request) {
                 days: days || "Monday",
                 teamType: teamType || "DUO",
                 allowSquads: allowSquads ?? false,
-                isChampionship: isChampionship ?? false,
+                isChampionship: false,
                 scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
                 scheduledTime: scheduledTime || "20:00",
                 matchSchedule: matchSchedule ?? null,
@@ -325,7 +324,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, isChampionship, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, whatsappGroupLink } = body;
+        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, whatsappGroupLink } = body;
 
         if (!id) {
             return ErrorResponse({ message: "id is required", status: 400 });
@@ -337,7 +336,7 @@ export async function PATCH(request: Request) {
         if (teamType !== undefined) updateData.teamType = teamType;
         if (isActive !== undefined) updateData.isActive = isActive;
         if (allowSquads !== undefined) updateData.allowSquads = allowSquads;
-        if (isChampionship !== undefined) updateData.isChampionship = isChampionship;
+
         if (enableFund !== undefined) updateData.enableFund = enableFund;
         if (prizePoolFee !== undefined) updateData.prizePoolFee = prizePoolFee != null ? Number(prizePoolFee) : null;
         if (expectedPrizePool !== undefined) updateData.expectedPrizePool = expectedPrizePool != null ? Number(expectedPrizePool) : null;

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/database";
-import { progressFromHeats, progressFromWildcard } from "@/lib/logic/championship";
+import { progressFromHeats, progressFromHeatsLite, progressFromWildcard } from "@/lib/logic/championship";
 
 /**
  * POST /api/tournaments/[id]/championship/progress
  * Admin advances championship to the next phase.
  * Body: { from: "HEATS" | "WILDCARD" }
+ *
+ * Auto-detects Lite mode (≤22 teams): Heats → Finals (skip Wildcard).
  */
 export async function POST(
     req: NextRequest,
@@ -39,23 +41,37 @@ export async function POST(
             return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
         }
 
-        const entryCount = await prisma.championshipEntry.count({
+        const entries = await prisma.championshipEntry.findMany({
             where: { tournamentId },
+            select: { status: true },
         });
 
-        if (entryCount === 0) {
+        if (entries.length === 0) {
             return NextResponse.json(
                 { error: "No championship entries found. Generate teams first." },
                 { status: 400 }
             );
         }
 
+        // Auto-detect Lite mode: ≤22 active (non-standby) entries
+        const activeCount = entries.filter(e => e.status !== "STANDBY").length;
+        const isLite = activeCount > 0 && activeCount <= 22;
+
         let result;
         let message: string;
+
         if (from === "HEATS") {
-            const heatsResult = await progressFromHeats(tournamentId, tournament.seasonId!);
-            result = heatsResult;
-            message = `Heats complete! ${heatsResult.directQualifiers} direct qualifiers, ${heatsResult.wildcardTeams} to wildcard, ${heatsResult.eliminated} eliminated.`;
+            if (isLite) {
+                // Lite: Heats → Finals directly (skip Wildcard)
+                const liteResult = await progressFromHeatsLite(tournamentId, tournament.seasonId!);
+                result = liteResult;
+                message = `Heats complete (Lite)! ${liteResult.directQualifiers} qualified to finals, ${liteResult.eliminated} eliminated. No wildcard phase.`;
+            } else {
+                // Full: Heats → Wildcard → Finals
+                const heatsResult = await progressFromHeats(tournamentId, tournament.seasonId!);
+                result = heatsResult;
+                message = `Heats complete! ${heatsResult.directQualifiers} direct qualifiers, ${heatsResult.wildcardTeams} to wildcard, ${heatsResult.eliminated} eliminated.`;
+            }
         } else {
             const wcResult = await progressFromWildcard(tournamentId, tournament.seasonId!);
             result = wcResult;
@@ -75,3 +91,4 @@ export async function POST(
         );
     }
 }
+

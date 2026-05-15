@@ -26,7 +26,6 @@ export async function GET(
                 question: true,
                 isActive: true,
                 allowSquads: true,
-                isChampionship: true,
                 scheduledDate: true,
                 scheduledTime: true,
                 matchSchedule: true,
@@ -92,7 +91,7 @@ export async function GET(
             // Not signed in — that's fine
         }
 
-        const maxSquads = poll.isChampionship ? 32 : GAME.maxSquadTeams;
+        const maxSquads = (await import("@/lib/logic/championship")).getConfirmedSquadCap(poll._count.squads);
 
         return SuccessResponse({
             data: {
@@ -103,7 +102,7 @@ export async function GET(
                 expectedPrizePool: poll.expectedPrizePool,
                 isActive: poll.isActive,
                 allowSquads: poll.allowSquads,
-                isChampionship: poll.isChampionship,
+
                 isTDM: poll.tournament.isTDM,
                 isWoW: poll.tournament.isWoW,
                 scheduledDate: poll.scheduledDate,
@@ -112,7 +111,7 @@ export async function GET(
                 days: poll.days,
                 squadCount: poll._count.squads,
                 maxSquads,
-                maxSquadWaitlist: poll.isChampionship ? 32 : GAME.maxSquadWaitlist,
+                maxSquadWaitlist: 32,
                 teamSize: GAME.squadSize,
                 maxTeamSize: GAME.maxSquadSize,
                 hasSquad,

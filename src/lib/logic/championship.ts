@@ -18,34 +18,45 @@ export interface PhaseRanking {
     lastMatchPosition: number;
 }
 
+// ─── Confirmed Squad Cap ─────────────────────────────────────
+
+/**
+ * Calculate how many squads are "confirmed" (not waitlisted) based on total count.
+ * - ≤16: all confirmed (regular match)
+ * - 17-19: 16 confirmed (waiting to reach 20 for championship)
+ * - ≥20: floor to nearest even (championship groups must be equal)
+ */
+export function getConfirmedSquadCap(totalSquads: number): number {
+    if (totalSquads <= 16) return 16;
+    if (totalSquads < 20) return 16;
+    return totalSquads - (totalSquads % 2);
+}
+
 // ─── Assign Groups ───────────────────────────────────────────
 
 /**
  * Randomly split teams into Group A and Group B.
- * If odd number, the last team is returned as standby.
+ * Even count: split exactly in half (22 → 11+11).
+ * Odd count: drop the last team, split evenly (21 → 10+10).
+ * Excluded teams simply don't get championship entries.
  */
 export function assignGroups(teamIds: string[]): {
     groupA: string[];
     groupB: string[];
-    standby: string[];
 } {
     // Shuffle
     const shuffled = [...teamIds].sort(() => Math.random() - 0.5);
 
     const maxTeams = 32;
-    const active = shuffled.slice(0, maxTeams);
-    const standby = shuffled.slice(maxTeams);
+    const capped = shuffled.slice(0, maxTeams);
 
-    const half = Math.floor(active.length / 2);
-    const groupA = active.slice(0, half);
-    const groupB = active.slice(half, half * 2);
+    // Floor to even — odd team is excluded (no championship entry)
+    const evenCount = capped.length - (capped.length % 2);
+    const half = evenCount / 2;
+    const groupA = capped.slice(0, half);
+    const groupB = capped.slice(half, evenCount);
 
-    // If odd number after capping at 32, last one goes to standby
-    if (active.length % 2 !== 0) {
-        standby.push(active[active.length - 1]);
-    }
-
-    return { groupA, groupB, standby };
+    return { groupA, groupB };
 }
 
 // ─── Phase Rankings ──────────────────────────────────────────
@@ -217,6 +228,116 @@ export async function progressFromHeats(tournamentId: string, seasonId: string) 
     };
 }
 
+// ─── Progress from Heats (Lite) ──────────────────────────────
+
+/**
+ * Championship Lite: After Heats phase (4 matches per group):
+ * - Top 8 per group → QUALIFIED (direct to Finals)
+ * - Remaining per group → ELIMINATED
+ *
+ * Used when total teams ≤ 22 — skips the Wildcard phase entirely.
+ */
+export async function progressFromHeatsLite(tournamentId: string, seasonId: string) {
+    // Validate all heat matches are scored
+    const heatMatches = await prisma.match.findMany({
+        where: { tournamentId, phase: { in: ["HEATS_A", "HEATS_B"] } },
+        include: { _count: { select: { teamStats: true } } },
+    });
+
+    const unscoredMatches = heatMatches.filter(m => m._count.teamStats === 0);
+    if (unscoredMatches.length > 0) {
+        throw new Error(`${unscoredMatches.length} heat match(es) still need scores.`);
+    }
+
+    // Rank each group
+    const [groupARankings, groupBRankings] = await Promise.all([
+        getPhaseRankings(tournamentId, "HEATS_A"),
+        getPhaseRankings(tournamentId, "HEATS_B"),
+    ]);
+
+    const QUALIFY_CUTOFF = 8; // Top 8 per group advance to Finals
+    const updates: { teamId: string; status: string; phase: string }[] = [];
+
+    for (const rankings of [groupARankings, groupBRankings]) {
+        rankings.forEach((team, index) => {
+            const pos = index + 1;
+            if (pos <= QUALIFY_CUTOFF) {
+                updates.push({ teamId: team.teamId, status: "QUALIFIED", phase: "FINALS" });
+            } else {
+                updates.push({ teamId: team.teamId, status: "ELIMINATED", phase: "HEATS" });
+            }
+        });
+    }
+
+    // Update championship entries
+    for (const u of updates) {
+        await prisma.championshipEntry.updateMany({
+            where: { tournamentId, teamId: u.teamId },
+            data: {
+                status: u.status as any,
+                phase: u.phase as any,
+            },
+        });
+    }
+
+    // Get all finalists
+    const finalists = updates.filter(u => u.status === "QUALIFIED");
+
+    // Create Finals matches (4 matches) — skip Wildcard entirely
+    for (let i = 1; i <= 4; i++) {
+        const existingCount = await prisma.match.count({ where: { tournamentId } });
+        const match = await prisma.match.create({
+            data: {
+                tournamentId,
+                seasonId,
+                matchNumber: existingCount + 1,
+                phase: "FINALS",
+            },
+        });
+
+        // Connect finalist teams to the match
+        await prisma.match.update({
+            where: { id: match.id },
+            data: {
+                teams: {
+                    connect: finalists.map(f => ({ id: f.teamId })),
+                },
+            },
+        });
+
+        // Create TeamStats for each finalist in this match
+        for (const f of finalists) {
+            await prisma.teamStats.create({
+                data: {
+                    teamId: f.teamId,
+                    matchId: match.id,
+                    seasonId,
+                    tournamentId,
+                },
+            });
+        }
+    }
+
+    // Mark qualified teams as ACTIVE for finals
+    await prisma.championshipEntry.updateMany({
+        where: {
+            tournamentId,
+            status: "QUALIFIED",
+            phase: "FINALS",
+        },
+        data: { status: "ACTIVE" },
+    });
+
+    return {
+        directQualifiers: finalists.length,
+        eliminated: updates.filter(u => u.status === "ELIMINATED").length,
+        totalFinalists: finalists.length,
+        groupARankings,
+        groupBRankings,
+        isLite: true,
+    };
+}
+
 // ─── Progress from Wildcard ──────────────────────────────────
 
 /**
@@ -326,6 +447,7 @@ export async function progressFromWildcard(tournamentId: string, seasonId: strin
 
 export type ChampionshipStatus = {
     currentPhase: "HEATS" | "WILDCARD" | "FINALS" | "COMPLETE";
+    isLite: boolean; // true = ≤22 teams, skip Wildcard (Heats → Finals)
     entries: {
         teamId: string;
         teamName: string;
@@ -374,8 +496,13 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
         currentPhase = "HEATS";
     }
 
+    // Lite mode: ≤22 active (non-standby) entries → skip Wildcard
+    const activeEntryCount = entries.filter(e => e.status !== "STANDBY").length;
+    const isLite = activeEntryCount > 0 && activeEntryCount <= 22;
+
     return {
         currentPhase,
+        isLite,
         entries: entries.map(e => ({
             teamId: e.teamId,
             teamName: e.team.name,

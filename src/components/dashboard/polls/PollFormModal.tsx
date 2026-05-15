@@ -75,7 +75,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [tournamentId, setTournamentId] = useState("");
     const [isActive, setIsActive] = useState(true);
     const [allowSquads, setAllowSquads] = useState(false);
-    const [isChampionship, setIsChampionship] = useState(false);
+
     const [enableFund, setEnableFund] = useState(true);
     const [prizePoolFee, setPrizePoolFee] = useState<string>("");
     const [expectedPrizePool, setExpectedPrizePool] = useState<string>("");
@@ -111,7 +111,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setTournamentFormat(poll.tournament?.type ?? GAME.defaultTournamentType ?? "BRACKET_1V1");
             setIsActive(poll.isActive);
             setAllowSquads(poll.allowSquads ?? false);
-            setIsChampionship(poll.isChampionship ?? false);
+
             setScheduledDate(poll.scheduledDate ? new Date(poll.scheduledDate).toISOString().split("T")[0] : "");
             setScheduledTime(poll.scheduledTime || "20:00");
             setEnableFund(poll.enableFund ?? true);
@@ -129,7 +129,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setTournamentId("");
             setIsActive(true);
             setAllowSquads(GAME.features.hasSquads);
-            setIsChampionship(false);
+
             setScheduledDate("");
             setScheduledTime("20:00");
             setEnableFund(GAME.features.hasBR);
@@ -187,7 +187,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         try {
             const body = isEdit
                 ? {
-                    id: poll!.id, question, days: actualDays, teamType, isActive, allowSquads, isChampionship, enableFund,
+                    id: poll!.id, question, days: actualDays, teamType, isActive, allowSquads, enableFund,
                     prizePoolFee: prizePoolFee ? Number(prizePoolFee) : null,
                     expectedPrizePool: expectedPrizePool ? Number(expectedPrizePool) : null,
                     scheduledDate: scheduledDate || null,
@@ -199,7 +199,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     ...(!GAME.features.hasTeamSizes && { tournamentType: tournamentFormat }),
                 }
                 : {
-                    question, days: actualDays, teamType, tournamentId, allowSquads, isChampionship, enableFund,
+                    question, days: actualDays, teamType, tournamentId, allowSquads, enableFund,
                     prizePoolFee: prizePoolFee ? Number(prizePoolFee) : null,
                     scheduledDate: scheduledDate || null,
                     scheduledTime,
@@ -232,7 +232,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, isChampionship, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, arenaMode, options, whatsappGroupLink, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, arenaMode, options, whatsappGroupLink, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -512,22 +512,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                         </div>
                     )}
 
-                    {/* Championship toggle — only for BR games when allowSquads is ON */}
-                    {GAME.features.hasBR && GAME.features.hasSquads && allowSquads && arenaMode === "none" && (
-                        <div className="flex items-center justify-between rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
-                            <div>
-                                <span className="text-sm">🏆 Championship</span>
-                                <p className="text-xs text-foreground/40">32 squads · Heats → Wildcard → Finals</p>
-                            </div>
-                            <Switch
-                                size="sm"
-                                color="warning"
-                                isSelected={isChampionship}
-                                onValueChange={setIsChampionship}
-                                classNames={{ wrapper: isChampionship ? "" : "bg-default-300" }}
-                            />
-                        </div>
-                    )}
+
 
                     {/* Arena Mode selector — TDM / WoW (for games that support them) */}
                     {(GAME.features.hasTDM || GAME.features.hasWoW) && !isEdit && (

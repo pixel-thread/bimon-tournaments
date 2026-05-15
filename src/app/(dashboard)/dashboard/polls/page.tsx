@@ -45,7 +45,6 @@ interface PollDTO {
     totalVotes: number;
     createdAt: string;
     allowSquads?: boolean;
-    isChampionship?: boolean;
     enableFund?: boolean;
     prizePoolFee?: number | null;
     expectedPrizePool?: number | null;

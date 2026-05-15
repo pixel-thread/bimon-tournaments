@@ -2,6 +2,7 @@ import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getCurrentUser, getAuthEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
+import { getConfirmedSquadCap } from "@/lib/logic/championship";
 import { getAvailableBalance } from "@/lib/wallet-service";
 import { type NextRequest } from "next/server";
 
@@ -20,13 +21,11 @@ export async function GET(request: NextRequest) {
             return ErrorResponse({ message: "pollId is required", status: 400 });
         }
 
-        // Fetch poll to get championship flag for squad cap
-        const poll = await prisma.poll.findUnique({
-            where: { id: pollId },
-            select: { isChampionship: true },
+        // Dynamic squad cap based on how many squads have registered
+        const totalSquadCount = await prisma.squad.count({
+            where: { pollId, status: { not: "CANCELLED" } },
         });
-        const isChampionship = poll?.isChampionship ?? false;
-        const maxSquads = isChampionship ? 32 : GAME.maxSquadTeams;
+        const maxSquads = getConfirmedSquadCap(totalSquadCount);
 
         const squads = await prisma.squad.findMany({
             where: {
@@ -165,7 +164,7 @@ export async function GET(request: NextRequest) {
             };
         });
 
-        return SuccessResponse({ data, meta: { defendingChampion, maxSquads, maxSquadWaitlist: isChampionship ? 32 : GAME.maxSquadWaitlist, squadCount: data.length, isChampionship }, cache: CACHE.NONE });
+        return SuccessResponse({ data, meta: { defendingChampion, maxSquads, maxSquadWaitlist: 32, squadCount: data.length }, cache: CACHE.NONE });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch squads", error });
     }
@@ -288,22 +287,19 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Check: waitlist cap for this poll
-        // Championship: hard cap at 32 (no waitlist). Regular: maxSquadWaitlist (24)
-        const registrationCap = poll.isChampionship ? 32 : GAME.maxSquadWaitlist;
-        const maxSquads = poll.isChampionship ? 32 : GAME.maxSquadTeams;
+        // Check: registration cap (always 32 — championship auto-detected at generation time)
+        const registrationCap = 32;
         const activeSquadCount = await prisma.squad.count({
             where: {
                 pollId,
                 status: { in: ["FORMING", "FULL"] },
             },
         });
+        const maxSquads = getConfirmedSquadCap(activeSquadCount + 1); // +1 for the squad being created
 
         if (activeSquadCount >= registrationCap) {
             return ErrorResponse({
-                message: poll.isChampionship
-                    ? `Championship is full (${registrationCap}/32 squads). Try registering earlier next tournament!`
-                    : `All ${registrationCap} slots (${maxSquads} confirmed + ${registrationCap - maxSquads} waitlist) are filled. Try again next tournament!`,
+                message: `All ${registrationCap} slots are filled. Try again next tournament!`,
                 status: 400,
             });
         }
@@ -411,14 +407,7 @@ export async function POST(request: NextRequest) {
 
         const isWaitlisted = activeSquadCount >= maxSquads; // squad was created as #(activeSquadCount+1)
 
-        // Auto-promote to championship when waitlist cap is reached
-        const newSquadCount = activeSquadCount + 1;
-        if (!poll.isChampionship && newSquadCount >= registrationCap) {
-            await prisma.poll.update({
-                where: { id: pollId },
-                data: { isChampionship: true },
-            });
-        }
+
 
         return SuccessResponse({
             data: {

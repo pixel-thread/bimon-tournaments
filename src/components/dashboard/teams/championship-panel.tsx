@@ -47,6 +47,7 @@ interface ChampionshipMatch {
 
 interface ChampionshipStatus {
     currentPhase: "HEATS" | "WILDCARD" | "FINALS" | "COMPLETE";
+    isLite: boolean;
     entries: ChampionshipEntry[];
     matches: ChampionshipMatch[];
 }
@@ -98,6 +99,8 @@ export function ChampionshipPanel({
         staleTime: 10_000,
     });
 
+    const isLite = status?.isLite ?? false;
+
     const progressMutation = useMutation({
         mutationFn: async (from: "HEATS" | "WILDCARD") => {
             const res = await fetch(`/api/tournaments/${tournamentId}/championship/progress`, {
@@ -143,7 +146,9 @@ export function ChampionshipPanel({
         heatsMatches.length > 0 &&
         heatsMatches.every(m => m.hasStats);
 
-    const canProgressWildcard = status?.currentPhase === "WILDCARD" &&
+    // Wildcard progression only available in full (non-Lite) mode
+    const canProgressWildcard = !isLite &&
+        status?.currentPhase === "WILDCARD" &&
         wildcardMatches.length > 0 &&
         wildcardMatches.every(m => m.hasStats);
 
@@ -163,7 +168,9 @@ export function ChampionshipPanel({
                     <div className="flex-1 min-w-0">
                         <span className="truncate block">{tournamentName}</span>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-normal text-foreground/50">Championship</span>
+                            <span className="text-xs font-normal text-foreground/50">
+                                Championship{isLite ? " Lite" : ""}
+                            </span>
                             {status && (
                                 <Chip
                                     size="sm"
@@ -194,7 +201,10 @@ export function ChampionshipPanel({
                         <div className="space-y-4">
                             {/* Phase Progress Bar */}
                             <div className="flex items-center gap-1 px-2">
-                                {(["HEATS", "WILDCARD", "FINALS"] as const).map((phase, i) => {
+                                {(isLite
+                                    ? ["HEATS", "FINALS"] as const
+                                    : ["HEATS", "WILDCARD", "FINALS"] as const
+                                ).map((phase, i, arr) => {
                                     const isCurrent = status.currentPhase === phase;
                                     const isPast = (
                                         (phase === "HEATS" && (status.currentPhase === "WILDCARD" || status.currentPhase === "FINALS" || status.currentPhase === "COMPLETE")) ||
@@ -221,7 +231,7 @@ export function ChampionshipPanel({
                                                 {PHASE_LABELS[phase].label}
                                                 {isPast && " ✓"}
                                             </button>
-                                            {i < 2 && (
+                                            {i < arr.length - 1 && (
                                                 <ChevronRight className="w-3 h-3 text-foreground/20 mx-0.5 shrink-0" />
                                             )}
                                         </div>
@@ -312,7 +322,7 @@ export function ChampionshipPanel({
                             className="font-semibold"
                         >
                             {status?.currentPhase === "HEATS"
-                                ? "Progress to Wildcard"
+                                ? isLite ? "Progress to Finals" : "Progress to Wildcard"
                                 : "Progress to Finals"}
                         </Button>
                     )}

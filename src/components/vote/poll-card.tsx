@@ -10,6 +10,12 @@ import type { PollDTO } from "@/hooks/use-polls";
 import { getPollTheme, getLuckyWinnerTheme, type PollTheme } from "./pollTheme";
 import { getPrizeDistribution, getTeamSize, type OrgCutMode } from "@/lib/logic/prizeDistribution";
 import { GAME } from "@/lib/game-config";
+// Inline version of championship.getConfirmedSquadCap (can't import server module in client)
+function getConfirmedSquadCap(totalSquads: number): number {
+    if (totalSquads <= 16) return 16;
+    if (totalSquads < 20) return 16;
+    return totalSquads - (totalSquads % 2);
+}
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { SquadCenter } from "./squad-center";
 import { CreateSquadModal } from "./create-squad-modal";
@@ -797,9 +803,10 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const poolFee = poll.prizePoolFee ?? entryFee; // Per-entry amount going to prize pool (org cut deducted)
     const donationTotal = poll.donations?.total ?? 0;
     // Squad polls: fee is per-team → squads + estimated random teams from IN voters
-    // Waitlisted squads (beyond maxSquadTeams) don't contribute to prize pool
+    // Only confirmed squads contribute to prize pool (waitlisted ones don't)
+    const squadCount = poll.squadCount ?? 0;
     const confirmedSquads = poll.allowSquads && GAME.squadSize > 1
-        ? Math.min(poll.squadCount ?? 0, poll.isChampionship ? 32 : GAME.maxSquadTeams)
+        ? Math.min(squadCount, getConfirmedSquadCap(squadCount))
         : 0;
     const estimatedTeams = poll.allowSquads && GAME.squadSize > 1
         ? confirmedSquads + Math.floor(participantCount / GAME.squadSize)
@@ -1475,6 +1482,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             theme={theme}
                             hasVotedIn={poll.userVote === "IN" || poll.userVote === "SOLO"}
                             whatsappGroupLink={poll.whatsappGroupLink}
+                            scheduledDate={poll.scheduledDate}
                             inVoters={(votersByVote["IN"] ?? []).map(v => ({
                                 playerId: v.playerId,
                                 displayName: v.displayName,

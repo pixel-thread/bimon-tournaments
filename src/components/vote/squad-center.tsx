@@ -103,6 +103,7 @@ interface SquadCenterProps {
     hasVotedIn?: boolean;
     inVoters?: InVoter[];
     whatsappGroupLink?: string | null;
+    scheduledDate?: string | null;
 }
 
 /* ─── Status Badge ──────────────────────────────────────────── */
@@ -865,9 +866,11 @@ export function SquadCenter({
     hasVotedIn,
     inVoters = [],
     whatsappGroupLink,
+    scheduledDate,
 }: SquadCenterProps) {
     const [showCreate, setShowCreate] = useState(false);
     const [showVoteWarning, setShowVoteWarning] = useState<{ action: "create" | "join"; squadId?: string } | null>(null);
+    const [cancelConfirm, setCancelConfirm] = useState<{ squadId: string; isSameDay: boolean } | null>(null);
     const { data: squadsResult, isLoading, refetch } = useSquads(pollId);
     const squads = squadsResult?.squads;
     const maxSquads = squadsResult?.maxSquads ?? GAME.maxSquadTeams;
@@ -905,7 +908,18 @@ export function SquadCenter({
     }, [squads, recentlyRequestedSquadId]);
 
     function handleCancel(squadId: string) {
-        cancelMutation.mutate(squadId);
+        // Check if same-day cancellation
+        let isSameDay = false;
+        if (scheduledDate && entryFee > 0) {
+            const matchDay = new Date(scheduledDate);
+            const today = new Date();
+            isSameDay = matchDay.toDateString() === today.toDateString();
+        }
+        if (isSameDay) {
+            setCancelConfirm({ squadId, isSameDay: true });
+        } else {
+            cancelMutation.mutate(squadId);
+        }
     }
 
     function handleAccept(inviteId: string) {
@@ -1379,6 +1393,48 @@ export function SquadCenter({
                             }}
                         >
                             {showVoteWarning?.action === "create" ? "Create Team Instead" : "Join Squad Instead"}
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* Same-day cancel penalty confirmation */}
+            <Modal isOpen={!!cancelConfirm} onClose={() => setCancelConfirm(null)} size="sm">
+                <ModalContent>
+                    <ModalHeader className="flex items-center gap-2 text-warning">
+                        <AlertTriangle className="w-5 h-5" />
+                        Same-Day Cancellation
+                    </ModalHeader>
+                    <ModalBody>
+                        <p className="text-sm text-foreground/70">
+                            Cancelling on match day will result in a <strong className="text-danger">50% penalty</strong>.
+                        </p>
+                        <div className="flex items-center justify-between rounded-lg bg-danger-50 dark:bg-danger-50/10 p-3 mt-1">
+                            <span className="text-sm text-danger font-medium">Penalty</span>
+                            <span className="text-sm font-bold text-danger">
+                                {Math.floor(entryFee / 2)} {GAME.currency}
+                            </span>
+                        </div>
+                        <p className="text-xs text-foreground/50 mt-1">
+                            Only {Math.ceil(entryFee / 2)} {GAME.currency} of your {entryFee} {GAME.currency} entry will be refunded.
+                        </p>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button size="sm" variant="flat" onPress={() => setCancelConfirm(null)}>
+                            Keep Squad
+                        </Button>
+                        <Button
+                            size="sm"
+                            color="danger"
+                            isLoading={cancelMutation.isPending}
+                            onPress={() => {
+                                if (cancelConfirm) {
+                                    cancelMutation.mutate(cancelConfirm.squadId);
+                                    setCancelConfirm(null);
+                                }
+                            }}
+                        >
+                            Cancel &amp; Pay Penalty
                         </Button>
                     </ModalFooter>
                 </ModalContent>

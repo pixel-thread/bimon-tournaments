@@ -112,7 +112,7 @@ export async function createTeamsByPoll({
         }),
         pollId ? prisma.poll.findUnique({
             where: { id: pollId },
-            select: { luckyVoterId: true, allowSquads: true, isChampionship: true },
+            select: { luckyVoterId: true, allowSquads: true },
         }) : null,
         prisma.tournament.count({ where: { seasonId } }),
         prisma.season.findUnique({
@@ -124,7 +124,7 @@ export async function createTeamsByPoll({
     const tournamentName = tournament?.name ?? "Tournament";
     let luckyVoterId: string | null = poll?.luckyVoterId || null;
     const pollAllowSquads = poll?.allowSquads ?? false;
-    const isChampionship = poll?.isChampionship ?? false;
+
 
     let previousSeasonId: string | undefined;
     if (currentSeason) {
@@ -174,7 +174,7 @@ export async function createTeamsByPoll({
     let clanTreasuryDebits: { clanId: string; captainId: string; amount: number; squadName: string }[] = [];
 
     if (pollAllowSquads) {
-        const maxSquads = isChampionship ? 32 : GAME.maxSquadTeams;
+        const maxSquads = 32; // Always allow up to 32 squads — championship auto-detected by team count
         const squads = await prisma.squad.findMany({
             where: {
                 pollId,
@@ -717,8 +717,12 @@ export async function createTeamsByPoll({
         data: { isActive: false },
     });
 
-    // ── Championship: create entries + phase matches ──────────────
-    if (isChampionship && !dryRun) {
+    // ── Championship: auto-detect by team count ──────────────────
+    // If total teams exceed a single match lobby (maxSquadTeams), auto-setup championship
+    const totalTeamsCreated = teams.length;
+    const shouldChampionship = pollAllowSquads && totalTeamsCreated > GAME.maxSquadTeams;
+
+    if (shouldChampionship && !dryRun) {
         // Get all team IDs created in the main transaction
         const allTeamIds = teams.map((_, i) => {
             // We need the actual created team IDs — fetch from DB
@@ -733,7 +737,7 @@ export async function createTeamsByPoll({
         });
 
         const teamIds = createdTeams.map(t => t.id);
-        const { groupA, groupB, standby } = assignGroups(teamIds);
+        const { groupA, groupB } = assignGroups(teamIds);
 
         // Create ChampionshipEntry records
         const entryData = [
@@ -750,13 +754,6 @@ export async function createTeamsByPoll({
                 group: "B",
                 phase: "HEATS" as const,
                 status: "ACTIVE" as const,
-            })),
-            ...standby.map(teamId => ({
-                tournamentId,
-                teamId,
-                group: null,
-                phase: "HEATS" as const,
-                status: "STANDBY" as const,
             })),
         ];
 
@@ -799,7 +796,7 @@ export async function createTeamsByPoll({
             }
         }
 
-        console.log(`[createTeamsByPoll] Championship setup: Group A (${groupA.length}), Group B (${groupB.length}), Standby (${standby.length})`);
+        console.log(`[createTeamsByPoll] Championship setup: Group A (${groupA.length}), Group B (${groupB.length})`);
     }
 
     return {
