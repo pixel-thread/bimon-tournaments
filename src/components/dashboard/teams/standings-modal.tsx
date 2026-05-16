@@ -233,7 +233,7 @@ export function StandingsModal({
         const dqRows: StandingRow[] = [];
         for (const row of currentSorted) {
             if (dqSet.has(row.teamId)) {
-                dqRows.push({ ...row, totalPoints: 0, placementPts: 0, wins: 0, isDisqualified: true });
+                dqRows.push({ ...row, totalPoints: 0, totalKills: 0, placementPts: 0, wins: 0, isDisqualified: true });
             } else {
                 regular.push(row);
             }
@@ -691,6 +691,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                 <tr
                                     key={row.teamId}
                                     className={`border-b border-white/5 last:border-b-0 transition-all duration-200 ${
+                                        row.isDisqualified ? "opacity-40 bg-red-500/5 border-l-2 border-l-red-500/50" :
                                         zone ? `border-l-2 ${zone.border}` : styles.row
                                     }`}
                                 >
@@ -715,9 +716,11 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                             )}
                                             <div className="flex flex-col">
                                                 <span className={`text-[11px] leading-tight font-semibold ${
+                                                    row.isDisqualified ? "text-red-400/70 line-through" :
                                                     zone?.zone === "ELIMINATED" ? "text-zinc-500" : "text-zinc-300"
                                                 } ${hasSquadTeams ? "whitespace-nowrap" : ""}`} style={hasSquadTeams ? undefined : { wordBreak: "break-word" }}>
                                                     {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
+                                                    {row.isDisqualified && <span className="ml-1 text-[8px] font-bold text-red-400 bg-red-500/20 px-1 py-0.5 rounded no-underline inline-block" style={{ textDecoration: "none" }}>DQ</span>}
                                                 </span>
                                                 {row.wins > 0 && (
                                                     <span className="text-[9px] text-yellow-400 font-semibold">🍗 {row.wins} win{row.wins > 1 ? "s" : ""}</span>
