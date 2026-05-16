@@ -546,10 +546,15 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
         phase: e.phase,
         status: e.status,
         disqualified: dqTeamIdSet.has(e.teamId),
+        totalPoints: 0,
+        kills: 0,
     }));
 
     // If heats have been scored, sort entries per group by actual standings rank
     const scoredHeats = heatsMatches.filter(m => m._count.teamStats > 0);
+    // Build a points map from all available rankings
+    const pointsMap = new Map<string, { totalPoints: number; kills: number }>();
+
     if (scoredHeats.length > 0) {
         try {
             // Get rankings per group
@@ -560,8 +565,14 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
 
             // Build rank map: teamId → rank position
             const rankMap = new Map<string, number>();
-            groupARanks.forEach((t, i) => rankMap.set(t.teamId, i + 1));
-            groupBRanks.forEach((t, i) => rankMap.set(t.teamId, i + 1));
+            groupARanks.forEach((t, i) => {
+                rankMap.set(t.teamId, i + 1);
+                pointsMap.set(t.teamId, { totalPoints: t.totalPoints, kills: t.kills });
+            });
+            groupBRanks.forEach((t, i) => {
+                rankMap.set(t.teamId, i + 1);
+                pointsMap.set(t.teamId, { totalPoints: t.totalPoints, kills: t.kills });
+            });
 
             // Sort entries: by group first, then by rank within group
             // DQ'd teams go to end of their group
@@ -583,6 +594,42 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
             });
         } catch {
             // If ranking fails, keep registration order
+        }
+    }
+
+    // Fetch finals rankings if in finals/complete phase
+    if (currentPhase === "FINALS" || currentPhase === "COMPLETE") {
+        try {
+            const finalsRanks = await getPhaseRankings(tournamentId, "FINALS");
+            finalsRanks.forEach(t => {
+                pointsMap.set(t.teamId, { totalPoints: t.totalPoints, kills: t.kills });
+            });
+        } catch {
+            // Ignore — finals may not have scores yet
+        }
+    }
+
+    // Fetch wildcard rankings if in wildcard/later phase
+    if (currentPhase === "WILDCARD" || currentPhase === "FINALS" || currentPhase === "COMPLETE") {
+        try {
+            const wcRanks = await getPhaseRankings(tournamentId, "WILDCARD");
+            wcRanks.forEach(t => {
+                // Only set if not already set by finals
+                if (!pointsMap.has(t.teamId) || currentPhase === "WILDCARD") {
+                    pointsMap.set(t.teamId, { totalPoints: t.totalPoints, kills: t.kills });
+                }
+            });
+        } catch {
+            // Ignore
+        }
+    }
+
+    // Merge points data into entries
+    for (const entry of rankedEntries) {
+        const pts = pointsMap.get(entry.teamId);
+        if (pts) {
+            entry.totalPoints = pts.totalPoints;
+            entry.kills = pts.kills;
         }
     }
 

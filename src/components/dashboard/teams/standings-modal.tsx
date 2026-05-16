@@ -69,6 +69,7 @@ interface Props {
     isChampionship?: boolean;
     initialGroup?: "A" | "B";
     disqualifiedTeamIds?: string[];
+    championshipPhase?: string;
 }
 
 // ── Placement Points (BGMI scoring) ───────────────────────────
@@ -90,12 +91,13 @@ export function StandingsModal({
     isChampionship = false,
     initialGroup,
     disqualifiedTeamIds = [],
+    championshipPhase,
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [compareMatches, setCompareMatches] = useState(1);
-    const [champGroup, setChampGroup] = useState<"ALL" | "A" | "B">(initialGroup ?? "ALL");
+    const [champGroup, setChampGroup] = useState<"ALL" | "A" | "B" | "FINALS">(initialGroup ?? (championshipPhase === "FINALS" ? "FINALS" : "ALL"));
     const [showZones, setShowZones] = useState(false);
 
     // Fetch match data
@@ -114,9 +116,13 @@ export function StandingsModal({
     useEffect(() => {
         if (isOpen) {
             refetch();
-            if (initialGroup) setChampGroup(initialGroup);
+            if (championshipPhase === "FINALS") {
+                setChampGroup("FINALS");
+            } else if (initialGroup) {
+                setChampGroup(initialGroup);
+            }
         }
-    }, [isOpen, refetch, initialGroup]);
+    }, [isOpen, refetch, initialGroup, championshipPhase]);
 
     // Auto-cap compareMatches to available range
     useEffect(() => {
@@ -137,6 +143,7 @@ export function StandingsModal({
     // Championship: filter matches by group phase
     const filteredMatchData = useMemo(() => {
         if (!matchData || !detectedChampionship || champGroup === "ALL") return matchData;
+        if (champGroup === "FINALS") return matchData.filter(m => m.phase === "FINALS");
         const phaseFilter = champGroup === "A" ? "HEATS_A" : "HEATS_B";
         return matchData.filter(m => m.phase === phaseFilter);
     }, [matchData, detectedChampionship, champGroup]);
@@ -441,18 +448,19 @@ export function StandingsModal({
                                 <div className="h-px bg-white/10 my-2" />
                                 <div className="text-xs text-zinc-400 mb-2 font-medium">Group</div>
                                 <div className="flex flex-col gap-1">
-                                    {(["ALL", "A", "B"] as const).map((g) => (
+                                    {(["ALL", "A", "B", "FINALS"] as const).map((g) => (
                                         <button
                                             key={g}
                                             onClick={() => setChampGroup(g)}
                                             className={`text-sm text-left px-3 py-1.5 rounded-lg transition-colors ${champGroup === g
                                                 ? g === "A" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
                                                 : g === "B" ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                                                : g === "FINALS" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                                                 : "bg-orange-500/20 text-orange-400 border border-orange-500/30"
                                                 : "text-zinc-300 hover:bg-white/10"
                                             }`}
                                         >
-                                            {g === "ALL" ? "Combined" : `Group ${g}`}
+                                            {g === "ALL" ? "Combined" : g === "FINALS" ? "Finals" : `Group ${g}`}
                                         </button>
                                     ))}
                                 </div>

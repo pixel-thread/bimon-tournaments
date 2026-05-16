@@ -288,6 +288,11 @@ export function SlotsModal({
                                     <span className="text-[10px] sm:text-xs font-semibold text-blue-400">{seasonName}</span>
                                 </div>
                             )}
+                            {phaseLabel && (
+                                <div className="mt-1.5 sm:mt-2 ml-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                                    <span className="text-[10px] sm:text-xs font-semibold text-emerald-400">{phaseLabel}</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Table — scrollable on mobile */}

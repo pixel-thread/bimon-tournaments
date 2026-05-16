@@ -288,6 +288,13 @@ export default function TeamsPage() {
         champEntries.forEach(e => { if (e.group) map.set(e.teamId, e.group); });
         return map.size > 0 ? map : null;
     }, [champEntries]);
+    // Set of team IDs that qualified for finals
+    const finalsTeamIds = useMemo(() => {
+        if (!champEntries) return null;
+        const ids = new Set<string>();
+        champEntries.filter(e => e.status === "QUALIFIED").forEach(e => ids.add(e.teamId));
+        return ids.size > 0 ? ids : null;
+    }, [champEntries]);
     const dqTeamIds = useMemo(() => {
         const ids = new Set<string>();
         // From championship entries (disqualified flag from status API)
@@ -775,6 +782,7 @@ export default function TeamsPage() {
                 isChampionship={isChamp}
                 initialGroup={isChamp && champPhase === "HEATS" ? heatsGroup : undefined}
                 disqualifiedTeamIds={dqTeamIds}
+                championshipPhase={isChamp ? champPhase ?? undefined : undefined}
             />
 
             {/* Slots Export */}
@@ -782,12 +790,17 @@ export default function TeamsPage() {
                 isOpen={showSlots}
                 onClose={() => setShowSlots(false)}
                 tournamentTitle={tournaments.find((t) => t.id === tournamentId)?.name ?? ""}
-                teams={teams ?? []}
+                teams={
+                    // Finals: show only qualified teams (flat, no A/B grouping)
+                    isChamp && champPhase === "FINALS" && finalsTeamIds
+                        ? (teams ?? []).filter(t => finalsTeamIds.has(t.id))
+                        : (teams ?? [])
+                }
                 seasonName={seasons.find((s) => s.id === seasonId)?.name ?? ""}
                 backgroundImage={globalBg?.publicUrl || "/images/image.webp"}
                 allowSquads={allowSquads}
-                championshipGroups={champGroupMap ?? undefined}
-                phaseLabel={isChamp && champPhase ? (champPhase === "HEATS" ? `Group ${heatsGroup}` : PHASE_LABELS[champPhase] ?? champPhase) : undefined}
+                championshipGroups={isChamp && champPhase === "HEATS" ? (champGroupMap ?? undefined) : undefined}
+                phaseLabel={isChamp && champPhase ? (champPhase === "HEATS" ? `Heats · Group ${heatsGroup}` : PHASE_LABELS[champPhase] ?? champPhase) : undefined}
             />
 
             {/* Delete Match Confirmation */}

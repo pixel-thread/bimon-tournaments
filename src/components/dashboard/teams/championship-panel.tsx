@@ -38,6 +38,8 @@ interface ChampionshipEntry {
     phase: string;
     status: string;
     disqualified?: boolean;
+    totalPoints?: number;
+    kills?: number;
 }
 
 interface ChampionshipMatch {
@@ -136,7 +138,9 @@ export function ChampionshipPanel({
     const groupAEntries = status?.entries.filter(e => e.group === "A") ?? [];
     const groupBEntries = status?.entries.filter(e => e.group === "B") ?? [];
     const wildcardEntries = status?.entries.filter(e => e.phase === "WILDCARD" || e.status === "WILDCARD") ?? [];
-    const finalsEntries = status?.entries.filter(e => e.phase === "FINALS" || e.status === "QUALIFIED") ?? [];
+    // Finals: flat list sorted by points (not grouped by A/B)
+    const finalsEntries = (status?.entries.filter(e => e.phase === "FINALS" || e.status === "QUALIFIED") ?? [])
+        .sort((a, b) => (b.totalPoints ?? 0) - (a.totalPoints ?? 0));
     const standbyEntries = status?.entries.filter(e => e.status === "STANDBY") ?? [];
 
     const heatsMatches = status?.matches.filter(m => m.phase?.startsWith("HEATS")) ?? [];
@@ -303,7 +307,7 @@ export function ChampionshipPanel({
                                     {activeTab === "FINALS" && (
                                         <GroupSection
                                             title="Grand Finals"
-                                            subtitle="8 direct qualifiers + 8 wildcard survivors"
+                                            subtitle={isLite ? `Top ${finalsEntries.length} from Heats` : "8 direct qualifiers + 8 wildcard survivors"}
                                             entries={finalsEntries}
                                             matches={finalsMatches}
                                         />
@@ -414,7 +418,9 @@ function GroupSection({
                                         className={`${style.bg} ${style.text}`}
                                         startContent={style.icon}
                                     >
-                                        {isDQ ? "DQ" : entry.status}
+                                        {isDQ ? "DQ" : (entry.totalPoints ?? 0) > 0
+                                            ? `${entry.totalPoints} pts · ${entry.kills ?? 0}K`
+                                            : entry.status}
                                     </Chip>
                                 </div>
                             </div>
