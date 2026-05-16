@@ -781,9 +781,9 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
 
                                     {/* Stats */}
                                     <div className={`mt-1.5 w-full rounded-lg border bg-gradient-to-b ${ps.bg} px-2 py-1.5 backdrop-blur-sm ${showZones ? "!border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.15)]" : ""}`}>
-                                        <div className="flex items-center justify-center gap-1">
+                                        <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                                             <span className="text-orange-400 font-bold text-sm tabular-nums">{row.totalPoints}</span>
-                                            {row.wins > 0 && <span className="text-[9px] text-yellow-400 font-semibold">🍗{row.wins}</span>}
+                                            {row.wins > 0 && <span className="text-xs text-yellow-400 font-semibold">🍗 {row.wins}</span>}
                                         </div>
                                         <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] text-zinc-400">
                                             <span>{row.totalKills} kills</span>
