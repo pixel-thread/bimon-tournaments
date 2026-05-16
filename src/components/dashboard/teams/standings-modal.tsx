@@ -544,7 +544,7 @@ export function StandingsModal({
                                 <div className="h-8 w-8 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
                             </div>
                         ) : (
-                            <div className="rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-2xl shadow-black/50 p-4 sm:p-6">
+                            <div className="rounded-2xl border border-white/10 bg-black/50 shadow-2xl shadow-black/50 p-4 sm:p-6">
                                 <StandingsTable standings={standings} allowSquads={allowSquads} isChampionship={detectedChampionship} champGroup={champGroup} showZones={showZones} />
                             </div>
                         )}
