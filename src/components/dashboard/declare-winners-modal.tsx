@@ -79,6 +79,7 @@ type Props = {
     seasonId?: string;
     tournamentType?: string;
     maxPlacements?: number;
+    isChampionship?: boolean;
 };
 
 const getMedal = (i: number) => i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "🏅";
@@ -99,6 +100,7 @@ export function DeclareWinnersModal({
     seasonId,
     tournamentType,
     maxPlacements: maxPlacementsProp,
+    isChampionship = false,
 }: Props) {
     const queryClient = useQueryClient();
     const isBracket = ["BRACKET_1V1", "LEAGUE", "GROUP_KNOCKOUT"].includes(tournamentType ?? "");
@@ -118,9 +120,6 @@ export function DeclareWinnersModal({
         },
         staleTime: 0, // Always fetch fresh — admin may have just changed settings
     });
-    const orgCutMode = publicSettings?.orgCutMode ?? "fixed";
-    const orgCut = orgCutMode === "percent" ? (publicSettings?.orgCutPercent ?? 0) : (publicSettings?.orgCutFixed ?? 0);
-    const enableFund = publicSettings?.enableFund ?? false;
 
     // Fetch rankings (BGMI) OR bracket results (PES)
     const { data: rankingsData, isLoading } = useQuery<{
@@ -156,6 +155,19 @@ export function DeclareWinnersModal({
         enabled: isOpen && !!tournamentId && isBracket,
         staleTime: 0,
     });
+
+    // Derive ranked/casual org cut settings — must be after rankingsData is declared
+    // Squad (ranked) tournaments use separate org cut settings from the admin panel
+    const isRanked = rankingsData?.meta?.isSquadTournament ?? false;
+    const orgCutMode = isRanked
+        ? (publicSettings?.rankedOrgCutMode ?? publicSettings?.orgCutMode ?? "fixed")
+        : (publicSettings?.orgCutMode ?? "fixed");
+    const orgCut = orgCutMode === "percent"
+        ? (isRanked ? (publicSettings?.rankedOrgCutPercent ?? 0) : (publicSettings?.orgCutPercent ?? 0))
+        : (isRanked ? (publicSettings?.rankedOrgCutFixed ?? 0) : (publicSettings?.orgCutFixed ?? 0));
+    const enableFund = isRanked
+        ? (publicSettings?.rankedEnableFund ?? false)
+        : (publicSettings?.enableFund ?? false);
 
     // Derive bracket placements from bracket data
     const bracketPlacements = useMemo((): BracketPlacement[] => {
@@ -232,6 +244,25 @@ export function DeclareWinnersModal({
     const captainMap = meta?.captainMap ?? {};
     const teamSize = isSquadTournament ? 1 : getTeamSize(meta?.teamType ?? "DUO");
     const ucExemptCount = meta?.ucExemptCount ?? 0;
+
+    // Fetch championship status (only for championship tournaments)
+    const { data: champStatus } = useQuery<{
+        currentPhase: "HEATS" | "WILDCARD" | "FINALS" | "COMPLETE";
+        isLite: boolean;
+    }>({
+        queryKey: ["championship-status", tournamentId],
+        queryFn: async () => {
+            const res = await fetch(`/api/tournaments/${tournamentId}/championship/status`);
+            if (!res.ok) return null;
+            const json = await res.json();
+            return json.data;
+        },
+        enabled: isOpen && isChampionship && !isBracket,
+        staleTime: 0,
+    });
+    // Championship is not ready for prize declaration until FINALS or COMPLETE
+    const champPhase = champStatus?.currentPhase;
+    const champNotReady = isChampionship && champPhase && champPhase !== "FINALS" && champPhase !== "COMPLETE";
 
     // Fetch solo tax pool (only in detailed)
     const { data: bonusPoolData } = useQuery<{ amount: number; donorName: string | null }>({
@@ -752,6 +783,19 @@ export function DeclareWinnersModal({
                 <ModalBody className="gap-3">
                     {isLoading || bracketLoading ? (
                         <div className="flex justify-center py-8"><Spinner /></div>
+                    ) : champNotReady ? (
+                        // ── Championship not ready: still in heats/wildcard ──
+                        <div className="flex flex-col items-center gap-3 py-10 text-center">
+                            <span className="text-3xl">🏟️</span>
+                            <p className="text-sm font-semibold text-foreground/70">
+                                {champPhase === "HEATS" ? "Finals — No matches yet" : "Wildcard — In progress"}
+                            </p>
+                            <p className="text-xs text-foreground/40 max-w-xs">
+                                {champPhase === "HEATS"
+                                    ? `Progress from Heats to create Finals matches. Top ${champStatus?.isLite ? 8 : 4} from each group will advance.`
+                                    : "Complete the Wildcard phase first. Top 8 will qualify for Finals."}
+                            </p>
+                        </div>
                     ) : isBracket ? (
                         // ── Bracket mode: show results from bracket ──
                         bracketPlacements.length === 0 ? (
@@ -1072,7 +1116,7 @@ export function DeclareWinnersModal({
                             </Button>
                         ) : (
                             <Button className="bg-gradient-to-r from-warning to-[#f97316] text-white font-semibold"
-                                isLoading={declare.isPending} isDisabled={isBracket ? bracketPlacements.length === 0 : rankings.length === 0}
+                                isLoading={declare.isPending} isDisabled={champNotReady || (isBracket ? bracketPlacements.length === 0 : rankings.length === 0)}
                                 startContent={<Trophy className="h-4 w-4" />}
                                 onPress={() => declare.mutate()}>
                                 {declare.isPending ? (declareStatus?.step || "Processing...") : prizePool > 0 ? "Declare & Distribute" : "Declare Winners"}

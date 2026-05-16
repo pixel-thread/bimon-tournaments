@@ -61,6 +61,7 @@ interface TournamentDTO {
     status: string;
     type: string;
     isWinnerDeclared: boolean;
+    isChampionship: boolean;
     maxPlacements: number;
     season: { id: string; name: string } | null;
     startDate: string;
@@ -686,6 +687,7 @@ export default function OperationsPage() {
                     seasonId={seasonId}
                     tournamentType={selected.type}
                     maxPlacements={selected.maxPlacements}
+                    isChampionship={selected.isChampionship}
                 />
             )}
         </div>

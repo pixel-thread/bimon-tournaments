@@ -162,7 +162,7 @@ function PrizeBreakdownTooltip({
                                 {(() => {
                                     const distribution = getPrizeDistribution(prizePool, entryFee, teamSize, orgPercent, orgCutMode);
                                     const getMedal = (pos: number) => pos === 1 ? "🥇" : pos === 2 ? "🥈" : pos === 3 ? "🥉" : "🏅";
-                                    return Array.from(distribution.prizes.entries())
+                                    const prizeRows = Array.from(distribution.prizes.entries())
                                         .sort(([a], [b]) => a - b)
                                         .map(([position, prize]) => {
                                             const medal = getMedal(position);
@@ -179,6 +179,20 @@ function PrizeBreakdownTooltip({
                                                 </div>
                                             );
                                         });
+                                    return (
+                                        <>
+                                            {prizeRows}
+                                            {distribution.orgFee > 0 && (
+                                                <>
+                                                    <div className="border-t border-white/20 my-1" />
+                                                    <div className="flex items-center justify-between gap-4 text-white/60 text-xs">
+                                                        <span>💼 Org</span>
+                                                        <span>{distribution.orgFee.toLocaleString()} <CurrencyIcon size={12} /></span>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </>
+                                    );
                                 })()}
                             </motion.div>
                         )}
@@ -780,8 +794,14 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
         },
         staleTime: 60_000, // Cache for 1 min — settings rarely change
     });
-    const orgCutMode = publicSettings?.orgCutMode ?? "fixed";
-    const orgCut = orgCutMode === "percent" ? (publicSettings?.orgCutPercent ?? 0) : (publicSettings?.orgCutFixed ?? 0);
+    // Squad/Ranked polls use ranked org cut settings; casual polls use casual settings
+    const isRankedPoll = poll.allowSquads ?? false;
+    const orgCutMode = isRankedPoll
+        ? (publicSettings?.rankedOrgCutMode ?? publicSettings?.orgCutMode ?? "fixed")
+        : (publicSettings?.orgCutMode ?? "fixed");
+    const orgCut = orgCutMode === "percent"
+        ? (isRankedPoll ? (publicSettings?.rankedOrgCutPercent ?? 0) : (publicSettings?.orgCutPercent ?? 0))
+        : (isRankedPoll ? (publicSettings?.rankedOrgCutFixed ?? 0) : (publicSettings?.orgCutFixed ?? 0));
 
     // Marquee for long titles
     const titleRef = useRef<HTMLHeadingElement>(null);
