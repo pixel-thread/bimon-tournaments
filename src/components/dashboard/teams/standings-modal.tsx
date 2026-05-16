@@ -276,16 +276,17 @@ export function StandingsModal({
         // Dynamic height: podium(~200px) + title/footer(~160px) + remaining teams in two-col
         const restTeams = Math.max(0, standings.length - 3);
         const rowsPerCol = Math.ceil(restTeams / 2);
-        const captureHeight = Math.max(520, 200 + 160 + rowsPerCol * 38 + 80);
+        const champHeaderExtra = detectedChampionship ? 40 : 0; // Extra space for group label
+        const captureHeight = Math.max(520, 200 + 160 + champHeaderExtra + rowsPerCol * 38 + 80);
         const captureWidth = 1280;
 
         // Style the clone for desktop capture
         clone.style.cssText = `
-            width: ${captureWidth}px; height: ${captureHeight}px; min-height: ${captureHeight}px;
+            width: ${captureWidth}px; min-height: ${captureHeight}px;
             display: flex; align-items: center; justify-content: center;
             background-image: url(${backgroundImage});
             background-size: cover; background-position: center;
-            position: relative; overflow: hidden;
+            position: relative; overflow: visible;
         `;
 
         // Create offscreen container
@@ -509,32 +510,30 @@ export function StandingsModal({
 
                             {/* Championship: show current group label */}
                             {detectedChampionship && (
-                                <div className="mt-2 flex items-center justify-center gap-2">
-                                    <div className="h-px w-8" style={{
-                                        background: champGroup === "A" ? "rgba(59,130,246,0.5)" : champGroup === "B" ? "rgba(168,85,247,0.5)" : "rgba(249,115,22,0.5)",
-                                    }} />
-                                    <span
-                                        className={`text-sm sm:text-base font-bold uppercase tracking-[0.2em] ${
-                                            champGroup === "A" ? "text-blue-400" : champGroup === "B" ? "text-purple-400" : "text-orange-400"
-                                        }`}
-                                        style={{
-                                            textShadow: champGroup === "A"
-                                                ? "0 0 20px rgba(59,130,246,0.5), 0 0 40px rgba(59,130,246,0.2)"
-                                                : champGroup === "B"
-                                                ? "0 0 20px rgba(168,85,247,0.5), 0 0 40px rgba(168,85,247,0.2)"
-                                                : "0 0 20px rgba(249,115,22,0.5), 0 0 40px rgba(249,115,22,0.2)",
-                                        }}
-                                    >
-                                        {champGroup === "ALL"
-                                            ? "Combined Standings"
-                                            : phaseLabel
-                                                ? `${phaseLabel} · Group ${champGroup}`
-                                                : `Group ${champGroup}`
-                                        }
-                                    </span>
-                                    <div className="h-px w-8" style={{
-                                        background: champGroup === "A" ? "rgba(59,130,246,0.5)" : champGroup === "B" ? "rgba(168,85,247,0.5)" : "rgba(249,115,22,0.5)",
-                                    }} />
+                                <div className="mt-2 flex items-center justify-center">
+                                    <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border ${
+                                        champGroup === "A" ? "bg-blue-500/15 border-blue-500/40" :
+                                        champGroup === "B" ? "bg-purple-500/15 border-purple-500/40" :
+                                        "bg-orange-500/15 border-orange-500/40"
+                                    }`}>
+                                        <div className={`h-1.5 w-1.5 rounded-full ${
+                                            champGroup === "A" ? "bg-blue-400" :
+                                            champGroup === "B" ? "bg-purple-400" :
+                                            "bg-orange-400"
+                                        }`} />
+                                        <span className={`text-sm font-bold uppercase tracking-widest ${
+                                            champGroup === "A" ? "text-blue-300" :
+                                            champGroup === "B" ? "text-purple-300" :
+                                            "text-orange-300"
+                                        }`}>
+                                            {champGroup === "ALL"
+                                                ? "Combined Standings"
+                                                : phaseLabel
+                                                    ? `${phaseLabel} · Group ${champGroup}`
+                                                    : `Group ${champGroup}`
+                                            }
+                                        </span>
+                                    </div>
                                 </div>
                             )}
                         </div>
