@@ -81,14 +81,15 @@ export async function POST(
         // Check poll-level fund override (squad polls default fund OFF)
         const pollForTournament = await prisma.poll.findUnique({
             where: { tournamentId: id },
-            select: { allowSquads: true, enableFund: true, prizePoolFee: true, orgCutFixed: true },
+            select: { allowSquads: true, enableFund: true, prizePoolFee: true, orgCutFixed: true, isChampionship: true },
         });
         const isRanked = pollForTournament?.allowSquads ?? false;
 
         // Use ranked-specific settings for squad tournaments
-        // Per-poll org cut override: if set on the poll, use fixed mode with that value
+        // Per-poll org cut override: only applies for championship tournaments (17+ teams)
         const pollOrgCutFixed = pollForTournament?.orgCutFixed;
-        const hasPollOrgCut = pollOrgCutFixed != null;
+        const isChampionship = pollForTournament?.isChampionship ?? false;
+        const hasPollOrgCut = pollOrgCutFixed != null && isChampionship;
         const orgCutMode = hasPollOrgCut
             ? "fixed" as const
             : isRanked
@@ -724,13 +725,14 @@ async function declareBracketWinners({
     // Check poll-level fund override (squad polls default fund OFF)
     const pollForTournament = await prisma.poll.findUnique({
         where: { tournamentId: id },
-        select: { allowSquads: true, enableFund: true, prizePoolFee: true, orgCutFixed: true },
+        select: { allowSquads: true, enableFund: true, prizePoolFee: true, orgCutFixed: true, isChampionship: true },
     });
     const isRanked = pollForTournament?.allowSquads ?? false;
 
-    // Per-poll org cut override: if set on the poll, use fixed mode with that value
+    // Per-poll org cut override: only applies for championship tournaments (17+ teams)
     const pollOrgCutFixed = pollForTournament?.orgCutFixed;
-    const hasPollOrgCut = pollOrgCutFixed != null;
+    const isChampionship = pollForTournament?.isChampionship ?? false;
+    const hasPollOrgCut = pollOrgCutFixed != null && isChampionship;
     const orgCutMode = hasPollOrgCut
         ? "fixed" as const
         : isRanked
