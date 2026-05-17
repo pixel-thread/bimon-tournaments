@@ -38,6 +38,7 @@ interface PollDTO {
     prizePoolFee?: number | null;
     expectedPrizePool?: number | null;
     whatsappGroupLink?: string | null;
+    orgCutFixed?: number | null;
     isActive: boolean;
     options?: PollOptionDTO[];
     tournament?: { id: string; name: string; fee: number; type?: string };
@@ -86,6 +87,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [saving, setSaving] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
     const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
+    const [orgCutFixed, setOrgCutFixed] = useState<string>("");
     // Per-day match schedule: { "Friday": ["20:00", "20:45"], "Saturday": ["20:00", "21:00"] }
     const [matchSchedule, setMatchSchedule] = useState<Record<string, string[]>>({});
 
@@ -120,6 +122,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setArenaMode("none"); // Arena mode is determined by tournament flags, not poll
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
             setWhatsappGroupLink(poll.whatsappGroupLink ?? "");
+            setOrgCutFixed(poll.orgCutFixed != null ? String(poll.orgCutFixed) : "");
             setMatchSchedule((poll.matchSchedule as Record<string, string[]>) ?? {});
         } else {
             setQuestion("");
@@ -137,6 +140,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setExpectedPrizePool("");
             setArenaMode("none");
             setWhatsappGroupLink("");
+            setOrgCutFixed("");
             setMatchSchedule({});
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
@@ -195,6 +199,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     matchSchedule: Object.keys(matchSchedule).length > 0 ? matchSchedule : null,
                     options: options.map(o => ({ id: o.id, name: o.name })),
                     whatsappGroupLink: whatsappGroupLink.trim() || null,
+                    orgCutFixed: orgCutFixed !== "" ? Number(orgCutFixed) : null,
                     // Send tournament format on edit too (PES)
                     ...(!GAME.features.hasTeamSizes && { tournamentType: tournamentFormat }),
                 }
@@ -232,7 +237,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, arenaMode, options, whatsappGroupLink, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, arenaMode, options, whatsappGroupLink, orgCutFixed, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -637,6 +642,20 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     )}
 
 
+
+                    {/* Per-tournament Org Cut Fixed — only for squad + championship polls on edit */}
+                    {isEdit && allowSquads && poll?.isChampionship && (
+                        <Input
+                            label={`Org Cut Fixed (${GAME.currency})`}
+                            placeholder="Use global setting"
+                            description={orgCutFixed ? `₹${orgCutFixed} org cut for this tournament` : "Leave empty to use global setting"}
+                            value={orgCutFixed}
+                            onValueChange={(v) => setOrgCutFixed(v.replace(/\D/g, ""))}
+                            size="sm"
+                            type="number"
+                            inputMode="numeric"
+                        />
+                    )}
 
                     {/* Editable poll options */}
                     {options.length > 0 && (

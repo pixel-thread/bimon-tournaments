@@ -81,17 +81,24 @@ export async function POST(
         // Check poll-level fund override (squad polls default fund OFF)
         const pollForTournament = await prisma.poll.findUnique({
             where: { tournamentId: id },
-            select: { allowSquads: true, enableFund: true, prizePoolFee: true },
+            select: { allowSquads: true, enableFund: true, prizePoolFee: true, orgCutFixed: true },
         });
         const isRanked = pollForTournament?.allowSquads ?? false;
 
         // Use ranked-specific settings for squad tournaments
-        const orgCutMode = isRanked
-            ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed")
-            : (settings.orgCutMode ?? "fixed");
-        const orgCut = orgCutMode === "percent"
-            ? (isRanked ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
-            : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
+        // Per-poll org cut override: if set on the poll, use fixed mode with that value
+        const pollOrgCutFixed = pollForTournament?.orgCutFixed;
+        const hasPollOrgCut = pollOrgCutFixed != null;
+        const orgCutMode = hasPollOrgCut
+            ? "fixed" as const
+            : isRanked
+                ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed")
+                : (settings.orgCutMode ?? "fixed");
+        const orgCut = hasPollOrgCut
+            ? pollOrgCutFixed!
+            : orgCutMode === "percent"
+                ? (isRanked ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
+                : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
 
         const enableFund = isRanked
             ? (settings.rankedEnableFund ?? false)
@@ -717,17 +724,23 @@ async function declareBracketWinners({
     // Check poll-level fund override (squad polls default fund OFF)
     const pollForTournament = await prisma.poll.findUnique({
         where: { tournamentId: id },
-        select: { allowSquads: true, enableFund: true, prizePoolFee: true },
+        select: { allowSquads: true, enableFund: true, prizePoolFee: true, orgCutFixed: true },
     });
     const isRanked = pollForTournament?.allowSquads ?? false;
 
-    // Use ranked-specific settings for squad tournaments
-    const orgCutMode = isRanked
-        ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed")
-        : (settings.orgCutMode ?? "fixed");
-    const orgCut = orgCutMode === "percent"
-        ? (isRanked ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
-        : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
+    // Per-poll org cut override: if set on the poll, use fixed mode with that value
+    const pollOrgCutFixed = pollForTournament?.orgCutFixed;
+    const hasPollOrgCut = pollOrgCutFixed != null;
+    const orgCutMode = hasPollOrgCut
+        ? "fixed" as const
+        : isRanked
+            ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed")
+            : (settings.orgCutMode ?? "fixed");
+    const orgCut = hasPollOrgCut
+        ? pollOrgCutFixed!
+        : orgCutMode === "percent"
+            ? (isRanked ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
+            : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
 
     const enableFund = isRanked
         ? (settings.rankedEnableFund ?? false)

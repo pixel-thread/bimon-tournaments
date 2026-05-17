@@ -121,6 +121,21 @@ export function DeclareWinnersModal({
         staleTime: 0, // Always fetch fresh — admin may have just changed settings
     });
 
+    // Fetch per-poll org cut override (if set on the poll for this tournament)
+    const { data: pollOrgCut } = useQuery<{ orgCutFixed: number | null }>({
+        queryKey: ["poll-orgcut", tournamentId],
+        queryFn: async () => {
+            const res = await fetch(`/api/polls?all=true`);
+            if (!res.ok) return { orgCutFixed: null };
+            const json = await res.json();
+            const polls = json.data?.polls ?? [];
+            const poll = polls.find((p: any) => p.tournament?.id === tournamentId);
+            return { orgCutFixed: poll?.orgCutFixed ?? null };
+        },
+        staleTime: 0,
+        enabled: isOpen && !!tournamentId,
+    });
+
     // Fetch rankings (BGMI) OR bracket results (PES)
     const { data: rankingsData, isLoading } = useQuery<{
         data: TeamRanking[];
@@ -158,13 +173,20 @@ export function DeclareWinnersModal({
 
     // Derive ranked/casual org cut settings — must be after rankingsData is declared
     // Squad (ranked) tournaments use separate org cut settings from the admin panel
+    // Per-tournament org cut override takes priority over global settings
     const isRanked = rankingsData?.meta?.isSquadTournament ?? false;
-    const orgCutMode = isRanked
-        ? (publicSettings?.rankedOrgCutMode ?? publicSettings?.orgCutMode ?? "fixed")
-        : (publicSettings?.orgCutMode ?? "fixed");
-    const orgCut = orgCutMode === "percent"
-        ? (isRanked ? (publicSettings?.rankedOrgCutPercent ?? 0) : (publicSettings?.orgCutPercent ?? 0))
-        : (isRanked ? (publicSettings?.rankedOrgCutFixed ?? 0) : (publicSettings?.orgCutFixed ?? 0));
+    const pollOrgCutFixed = pollOrgCut?.orgCutFixed;
+    const hasPollOrgCut = pollOrgCutFixed != null;
+    const orgCutMode = hasPollOrgCut
+        ? "fixed"
+        : isRanked
+            ? (publicSettings?.rankedOrgCutMode ?? publicSettings?.orgCutMode ?? "fixed")
+            : (publicSettings?.orgCutMode ?? "fixed");
+    const orgCut = hasPollOrgCut
+        ? pollOrgCutFixed!
+        : orgCutMode === "percent"
+            ? (isRanked ? (publicSettings?.rankedOrgCutPercent ?? 0) : (publicSettings?.orgCutPercent ?? 0))
+            : (isRanked ? (publicSettings?.rankedOrgCutFixed ?? 0) : (publicSettings?.orgCutFixed ?? 0));
     const enableFund = isRanked
         ? (publicSettings?.rankedEnableFund ?? false)
         : (publicSettings?.enableFund ?? false);

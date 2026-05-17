@@ -68,7 +68,7 @@ interface TournamentDTO {
     teamCount: number;
     matchCount: number;
     winnerCount: number;
-    poll: { id: string; isActive: boolean; voteCount: number } | null;
+    poll: { id: string; isActive: boolean; voteCount: number; allowSquads?: boolean; isChampionship?: boolean } | null;
 }
 
 interface SeasonDTO {

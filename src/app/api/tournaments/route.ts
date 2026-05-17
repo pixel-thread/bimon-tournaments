@@ -108,6 +108,8 @@ export async function GET(request: NextRequest) {
                     select: {
                         id: true,
                         isActive: true,
+                        allowSquads: true,
+                        isChampionship: true,
                         _count: { select: { votes: true } },
                     },
                 },
@@ -145,6 +147,8 @@ export async function GET(request: NextRequest) {
                         id: t.poll.id,
                         isActive: t.poll.isActive,
                         voteCount: t.poll._count.votes,
+                        allowSquads: t.poll.allowSquads,
+                        isChampionship: t.poll.isChampionship,
                     }
                     : null,
             };
