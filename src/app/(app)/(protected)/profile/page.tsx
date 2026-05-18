@@ -41,6 +41,7 @@ import {
     Volume2,
     Users,
     MapPin,
+    Clipboard,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CategoryBadge } from "@/components/ui/category-badge";
@@ -885,41 +886,25 @@ export default function ProfilePage() {
                                     <div>
                                         <div className="flex items-center gap-2 mb-2">
                                             <label className="text-sm font-medium text-foreground/70">{GAME.ignLabel}</label>
-                                            {GAME.pasteOnlyIGN && ignTutorial.HelpButton}
+                                            {(GAME.pasteOnlyIGN || GAME.features.hasBR) && ignTutorial.HelpButton}
                                         </div>
-                                        {GAME.pasteOnlyIGN ? (
-                                            <>
-                                                <GameNameInput
-                                                    value={newIGN}
-                                                    onChange={setNewIGN}
-                                                    error={ignError}
-                                                    onErrorChange={setIgnError}
-                                                    disabled={saving}
-                                                />
-                                                <p className="mt-2 text-xs text-foreground/40">
-                                                    <button
-                                                        type="button"
-                                                        onClick={ignTutorial.openModal}
-                                                        className="text-primary hover:underline font-medium"
-                                                    >
-                                                        Kumno ban copy?
-                                                    </button>
-                                                    {" / "}
-                                                    <button
-                                                        type="button"
-                                                        onClick={ignTutorial.openModal}
-                                                        className="text-primary hover:underline font-medium"
-                                                    >
-                                                        Need help?
-                                                    </button>
-                                                </p>
-                                            </>
-                                        ) : (
-                                            <Input
+                                        <Input
                                                 value={newIGN}
                                                 onChange={(e) => {
                                                     setNewIGN(e.target.value);
                                                     setIgnError("");
+                                                }}
+                                                onPaste={(e) => {
+                                                    e.preventDefault();
+                                                    const text = e.clipboardData.getData("text")
+                                                        .replace(/[ĀāĒēĪīŌōŪū]/g, " ")
+                                                        .replace(/\s+/g, " ")
+                                                        .trim()
+                                                        .slice(0, 20);
+                                                    if (text) {
+                                                        setNewIGN(text);
+                                                        setIgnError("");
+                                                    }
                                                 }}
                                                 placeholder={`Enter your ${GAME.ignLabel.toLowerCase()}`}
                                                 size="lg"
@@ -931,8 +916,35 @@ export default function ProfilePage() {
                                                 startContent={
                                                     <span className="text-foreground/30 text-sm">🎮</span>
                                                 }
+                                                endContent={
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const text = await navigator.clipboard.readText();
+                                                                if (text.trim()) {
+                                                                    const sanitized = text.trim()
+                                                                        .replace(/[ĀāĒēĪīŌōŪū]/g, " ")
+                                                                        .replace(/\s+/g, " ")
+                                                                        .trim()
+                                                                        .slice(0, 20);
+                                                                    setNewIGN(sanitized);
+                                                                    setIgnError("");
+                                                                    toast.success("Pasted!");
+                                                                } else {
+                                                                    toast.error("Clipboard is empty");
+                                                                }
+                                                            } catch {
+                                                                toast.error("Paste failed \u2014 long press the input instead");
+                                                            }
+                                                        }}
+                                                        className="text-foreground/40 hover:text-primary active:scale-90 transition-all p-1"
+                                                        title="Paste from clipboard"
+                                                    >
+                                                        <Clipboard className="h-4 w-4" />
+                                                    </button>
+                                                }
                                             />
-                                        )}
                                     </div>
 
                                     {/* UID — paste only (Free Fire only) */}

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, Avatar, Chip, Input } from "@heroui/react";
 import { GAME } from "@/lib/game-config";
 import { useSession, signOut } from "next-auth/react";
-import { Gamepad2, Loader2, CheckCircle, Phone } from "lucide-react";
+import { Gamepad2, Loader2, CheckCircle, Phone, Clipboard } from "lucide-react";
 import { PubgmiLogo } from "@/components/common/pubgmi-logo";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -348,49 +348,30 @@ export default function OnboardingPage() {
                                 {showIGNTutorial && ignTutorial.HelpButton}
                             </div>
 
-                            {GAME.pasteOnlyIGN ? (
-                                /* Paste-only input */
-                                <>
-                                    <GameNameInput
-                                        value={displayName}
-                                        onChange={(val) => {
-                                            setDisplayName(val);
-                                            if (val.length >= 2) {
-                                                checkDuplicateIGN(val);
-                                            }
-                                        }}
-                                        error={displayNameError}
-                                        onErrorChange={setDisplayNameError}
-                                        disabled={isSubmitting}
-                                    />
-                                    <p className="mt-2 text-xs text-foreground/40">
-                                        <button
-                                            type="button"
-                                            onClick={ignTutorial.openModal}
-                                            className="text-primary hover:underline font-medium"
-                                        >
-                                            Kumno ban copy?
-                                        </button>
-                                        {" / "}
-                                        <button
-                                            type="button"
-                                            onClick={ignTutorial.openModal}
-                                            className="text-primary hover:underline font-medium"
-                                        >
-                                            Need help?
-                                        </button>
-                                    </p>
-                                </>
-                            ) : (
-                                /* Free-text input */
-                                <>
-                                    <Input
+                            <Input
                                         value={displayName}
                                         onChange={(e) => {
                                             setDisplayName(e.target.value);
                                             setDisplayNameError("");
+                                            if (e.target.value.length >= 2) {
+                                                checkDuplicateIGN(e.target.value);
+                                            }
                                         }}
-                                        placeholder="e.g. iQOOSoulLeGIT"
+                                        onPaste={(e) => {
+                                            // Sanitize BGMI invisible characters on paste
+                                            e.preventDefault();
+                                            const text = e.clipboardData.getData("text")
+                                                .replace(/[ĀāĒēĪīŌōŪū]/g, " ")
+                                                .replace(/\s+/g, " ")
+                                                .trim()
+                                                .slice(0, 20);
+                                            if (text) {
+                                                setDisplayName(text);
+                                                setDisplayNameError("");
+                                                if (text.length >= 2) checkDuplicateIGN(text);
+                                            }
+                                        }}
+                                        placeholder={`Enter your ${GAME.ignLabel.toLowerCase()}`}
                                         size="lg"
                                         variant="bordered"
                                         maxLength={20}
@@ -404,6 +385,35 @@ export default function OnboardingPage() {
                                         startContent={
                                             <span className="text-foreground/30 text-sm">🎮</span>
                                         }
+                                        endContent={
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    try {
+                                                        const text = await navigator.clipboard.readText();
+                                                        if (text.trim()) {
+                                                            const sanitized = text.trim()
+                                                                .replace(/[ĀāĒēĪīŌōŪū]/g, " ")
+                                                                .replace(/\s+/g, " ")
+                                                                .trim()
+                                                                .slice(0, 20);
+                                                            setDisplayName(sanitized);
+                                                            setDisplayNameError("");
+                                                            if (sanitized.length >= 2) checkDuplicateIGN(sanitized);
+                                                            toast.success("Pasted!");
+                                                        } else {
+                                                            toast.error("Clipboard is empty");
+                                                        }
+                                                    } catch {
+                                                        toast.error("Paste failed — long press the input instead");
+                                                    }
+                                                }}
+                                                className="text-foreground/40 hover:text-primary active:scale-90 transition-all p-1"
+                                                title="Paste from clipboard"
+                                            >
+                                                <Clipboard className="h-4 w-4" />
+                                            </button>
+                                        }
                                     />
                                     {showIGNTutorial && (
                                         <p className="mt-2 text-xs text-foreground/40">
@@ -416,8 +426,6 @@ export default function OnboardingPage() {
                                             </button>
                                         </p>
                                     )}
-                                </>
-                            )}
                         </div>
 
                         {/* Phone number — PES only, required */}
