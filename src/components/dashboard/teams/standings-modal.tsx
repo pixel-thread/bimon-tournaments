@@ -536,9 +536,11 @@ export function StandingsModal({
                                         }`}>
                                             {champGroup === "ALL"
                                                 ? "Combined Standings"
-                                                : phaseLabel
-                                                    ? `${phaseLabel} · Group ${champGroup}`
-                                                    : `Group ${champGroup}`
+                                                : champGroup === "FINALS"
+                                                    ? "Finals"
+                                                    : phaseLabel
+                                                        ? `${phaseLabel} · Group ${champGroup}`
+                                                        : `Group ${champGroup}`
                                             }
                                         </span>
                                     </div>

@@ -296,7 +296,7 @@ export function SlotsModal({
                         </div>
 
                         {/* Table — scrollable on mobile */}
-                        <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-2xl shadow-black/50 overflow-hidden">
+                        <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-black/50 shadow-2xl shadow-black/50 overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-[500px]">
                                     <thead>
