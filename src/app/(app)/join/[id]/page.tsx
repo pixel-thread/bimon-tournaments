@@ -4,12 +4,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Input, Button, Spinner, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
-import { Shield, Trophy, Users, Calendar, Clock, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Shield, Users, Clock, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad } from "@/hooks/use-squads";
 import { useAuthGate } from "@/components/common/auth-gate-provider";
-import { GAME } from "@/lib/game-config";
-import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+
 import { TeamDoneSection } from "@/components/squads/team-done-section";
 import { markWhatsAppPending, markWhatsAppJoined } from "@/components/common/whatsapp-squad-guard";
 import { toast } from "sonner";
@@ -260,26 +259,6 @@ export default function JoinPage() {
         );
     }
 
-    // Format schedule
-    const scheduleLabel = (() => {
-        if (data.scheduledDate) {
-            return new Date(data.scheduledDate).toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-            });
-        }
-        return data.days;
-    })();
-    const fmtTime = (t: string) => {
-        const [h, m] = t.split(":").map(Number);
-        const d = new Date(2000, 0, 1, h, m);
-        return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-    };
-    const timeLabel = fmtTime(data.scheduledTime || "20:00");
-    const schedule = data.matchSchedule as Record<string, string[]> | null;
-    const hasSchedule = schedule && Object.keys(schedule).length > 0;
-
     const isFull = data.squadCount >= data.maxSquadWaitlist;
     const canSubmit = ((useClan && hasClan) || teamName.trim().length > 0) && !isFull && step === "form";
 
@@ -456,112 +435,6 @@ export default function JoinPage() {
                             </div>
                         )}
 
-                        {/* ── Info Cards ── */}
-                        <div className="grid grid-cols-2 gap-3">
-                            {data.expectedPrizePool != null && data.expectedPrizePool > 0 && (
-                                <div className="col-span-2 flex items-center gap-3 rounded-xl border border-amber-200/30 bg-amber-50/50 dark:bg-amber-900/10 dark:border-amber-800/30 p-4">
-                                    <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-                                        <Trophy className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-foreground/50 uppercase tracking-wider font-medium">Prize Pool</p>
-                                        <p className="text-xl font-black text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                                            {data.expectedPrizePool} <CurrencyIcon size={16} />
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="flex items-center gap-3 rounded-xl border border-divider bg-default-50 p-3">
-                                <CurrencyIcon size={18} />
-                                <div>
-                                    <p className="text-[10px] text-foreground/40 uppercase">Entry Fee</p>
-                                    <p className="text-sm font-bold">
-                                        {data.entryFee > 0 ? `${data.entryFee} ${GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}` : "Free"}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 rounded-xl border border-divider bg-default-50 p-3">
-                                <Users className="w-4 h-4 text-foreground/40" />
-                                <div>
-                                    <p className="text-[10px] text-foreground/40 uppercase">Team Size</p>
-                                    <p className="text-sm font-bold">
-                                        {data.maxTeamSize} players
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 rounded-xl border border-divider bg-default-50 p-3">
-                                <Calendar className="w-4 h-4 text-foreground/40" />
-                                <div>
-                                    <p className="text-[10px] text-foreground/40 uppercase">Schedule</p>
-                                    <p className="text-sm font-bold">{scheduleLabel}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 rounded-xl border border-divider bg-default-50 p-3">
-                                <Clock className="w-4 h-4 text-foreground/40 shrink-0" />
-                                <div>
-                                    <p className="text-[10px] text-foreground/40 uppercase">Match Times</p>
-                                    {hasSchedule ? (
-                                        <div className="space-y-0.5">
-                                            {Object.entries(schedule).map(([day, times]) => (
-                                                <p key={day} className="text-xs">
-                                                    <span className="font-medium text-foreground/50">{day}:</span>{" "}
-                                                    <span className="font-bold">{times.map(fmtTime).join(" · ")}</span>
-                                                </p>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm font-bold">{timeLabel}</p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ── Info bullets ── */}
-                        <div className="text-xs text-foreground/40 space-y-1 px-1">
-                            {data.entryFee > 0 && (
-                                <p>• Leader pays <strong>{data.entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
-                            )}
-                            <p>• Roster: up to <strong>{data.maxTeamSize}</strong> players ({data.teamSize} active + {data.maxTeamSize - data.teamSize} subs)</p>
-                            <p>• Teammates join for free — no fee required</p>
-                            <p>• Prize goes to leader when team wins 🏆</p>
-                        </div>
-
-                        {/* ── Teams count + Progress ── */}
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between px-1">
-                                <span className="text-sm text-foreground/50">
-                                    {Math.min(data.squadCount, data.maxSquads)}/{data.maxSquads} confirmed
-                                </span>
-                                {data.squadCount > data.maxSquads && (
-                                    <span className="text-xs font-medium text-amber-600">
-                                        ⏳ {data.squadCount - data.maxSquads} on waitlist
-                                    </span>
-                                )}
-                            </div>
-                            <div className="h-2 rounded-full bg-default-100 overflow-hidden">
-                                <motion.div
-                                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500"
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min((data.squadCount / data.maxSquads) * 100, 100)}%` }}
-                                    transition={{ duration: 0.8, ease: "easeOut" }}
-                                />
-                            </div>
-                            {data.squadCount >= data.maxSquads && data.squadCount < data.maxSquadWaitlist && (
-                                <p className="text-[10px] text-amber-600/70 text-center">
-                                    Room full — new teams join the waitlist ({data.maxSquadWaitlist - data.squadCount} spots left)
-                                </p>
-                            )}
-                        </div>
-
-                        {/* ── Browse link ── */}
-                        <button
-                            type="button"
-                            onClick={() => router.push("/vote")}
-                            className="flex items-center justify-center gap-1 w-full text-sm text-foreground/40 hover:text-foreground/60 transition-colors py-2 cursor-pointer"
-                        >
-                            View all tournaments
-                            <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>
