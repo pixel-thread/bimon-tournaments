@@ -174,6 +174,24 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
     const teamCount = teamMap.size;
     const avgTeamSize = teamCount > 0 ? Math.round(allPlayerIds.size / teamCount) : 2;
 
+    // For championship tournaments, prize pool must use ALL tournament participants
+    // (not just finals), since all players paid entry fees
+    let poolPlayerCount = allPlayerIds.size;
+    let poolTeamCount = teamCount;
+    if (hasChampionship) {
+        const allStats = await prisma.teamStats.findMany({
+            where: { tournamentId },
+            select: {
+                teamId: true,
+                teamPlayerStats: { select: { playerId: true } },
+            },
+        });
+        const allTeamIds = new Set(allStats.map(s => s.teamId));
+        const allPids = new Set(allStats.flatMap(s => s.teamPlayerStats.map(p => p.playerId)));
+        poolTeamCount = allTeamIds.size;
+        poolPlayerCount = allPids.size;
+    }
+
     const [donations, pollForTournament] = await Promise.all([
         prisma.prizePoolDonation.findMany({
             where: { tournamentId },
@@ -190,8 +208,8 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
     const poolFee = pollForTournament?.prizePoolFee ?? entryFee;
     // Squad tournaments: captain pays per team, not per player
     const prizePool = isSquadTournament
-        ? (poolFee * teamCount) + totalDonations
-        : (poolFee * allPlayerIds.size) + totalDonations;
+        ? (poolFee * poolTeamCount) + totalDonations
+        : (poolFee * poolPlayerCount) + totalDonations;
 
     // For squad tournaments: build captain map (teamId → captainId/captainName)
     let captainMap: Record<string, { id: string; name: string }> = {};
@@ -226,8 +244,8 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
         data: rankings,
         meta: {
             entryFee,
-            totalPlayers: allPlayerIds.size,
-            teamCount,
+            totalPlayers: poolPlayerCount,
+            teamCount: poolTeamCount,
             prizePool,
             donations: totalDonations,
             isSquadTournament,
