@@ -46,11 +46,11 @@ export async function GET(
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
-        // Step 1: Get match IDs and poll data for this tournament
+        // Step 1: Get match data and poll data for this tournament
         const [matchesRaw, pollForTournament] = await Promise.all([
             prisma.match.findMany({
                 where: { tournamentId: id },
-                select: { id: true },
+                select: { id: true, phase: true },
             }),
             prisma.poll.findUnique({
                 where: { tournamentId: id },
@@ -58,6 +58,13 @@ export async function GET(
             }),
         ]);
         const matchIds = matchesRaw.map(m => m.id);
+
+        // Detect championship and compute per-group match counts
+        const isChampionship = matchesRaw.some(m => m.phase?.startsWith("HEATS"));
+        const heatsAMatchIds = matchesRaw.filter(m => m.phase === "HEATS_A").map(m => m.id);
+        const heatsBMatchIds = matchesRaw.filter(m => m.phase === "HEATS_B").map(m => m.id);
+        const finalsMatchIds = matchesRaw.filter(m => m.phase === "FINALS").map(m => m.id);
+        const wildcardMatchIds = matchesRaw.filter(m => m.phase === "WILDCARD").map(m => m.id);
 
         const totalMatches = matchIds.length;
 
@@ -83,10 +90,29 @@ export async function GET(
                 select: {
                     playerId: true,
                     teamId: true,
+                    matchId: true,
                 },
                 distinct: ["playerId", "teamId"],
             }),
         ]);
+
+        // For championship: determine which group each player belongs to
+        // by checking which heats matches they have stats in
+        let playerGroupMap: Map<string, "A" | "B"> | null = null;
+        if (isChampionship && (heatsAMatchIds.length > 0 || heatsBMatchIds.length > 0)) {
+            const heatsStats = await prisma.teamPlayerStats.findMany({
+                where: {
+                    playerId: { in: playerIds },
+                    matchId: { in: [...heatsAMatchIds, ...heatsBMatchIds] },
+                },
+                select: { playerId: true, matchId: true },
+            });
+            playerGroupMap = new Map();
+            for (const s of heatsStats) {
+                if (heatsAMatchIds.includes(s.matchId)) playerGroupMap.set(s.playerId, "A");
+                else if (heatsBMatchIds.includes(s.matchId)) playerGroupMap.set(s.playerId, "B");
+            }
+        }
 
         // Build maps
         const matchesPlayedMap = new Map<string, number>();
@@ -135,6 +161,16 @@ export async function GET(
             const combinedRate = enableFund ? 1 - ((1 - repeatRate) * (1 - soloRate)) : 0;
             const matchesPlayed = matchesPlayedMap.get(pid) || 0;
 
+            // For championship: total matches = group heats + wildcard (if applicable) + finals
+            let playerTotalMatches = totalMatches;
+            if (isChampionship && playerGroupMap) {
+                const group = playerGroupMap.get(pid);
+                const groupHeatsCount = group === "A" ? heatsAMatchIds.length
+                    : group === "B" ? heatsBMatchIds.length
+                    : 0;
+                playerTotalMatches = groupHeatsCount + wildcardMatchIds.length + finalsMatchIds.length;
+            }
+
             result[pid] = {
                 previousWins,
                 totalWins,
@@ -144,8 +180,8 @@ export async function GET(
                 soloTaxRate: soloRate,
                 isSolo,
                 matchesPlayed,
-                totalMatches,
-                participationRate: totalMatches > 0 ? matchesPlayed / totalMatches : 1,
+                totalMatches: playerTotalMatches,
+                participationRate: playerTotalMatches > 0 ? matchesPlayed / playerTotalMatches : 1,
             };
         }
 
