@@ -579,7 +579,7 @@ export default function ProfilePage() {
                                 </div>
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                     <span className="text-sm text-white/50 truncate">@{profile.username}</span>
-                                    {player && <CategoryBadge category={player.category} size="sm" />}
+                                    {player && <CategoryBadge category={(stats as any)?.dynamicCategory || player.category} size="sm" />}
                                 </div>
                             </div>
                         </div>

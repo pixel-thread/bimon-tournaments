@@ -3,6 +3,7 @@ import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getAuthEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { censorProfanity } from "@/lib/logic/profanityFilter";
+import { getCategoryFromKDValue, getCategoryFromWinRate } from "@/lib/logic/categoryUtils";
 import { t } from "@/lib/translations";
 
 /**
@@ -151,6 +152,11 @@ export async function GET(request: Request) {
 
             const avgKillsPerMatch = totalMatches > 0 ? Number((totalKills / totalMatches).toFixed(1)) : 0;
 
+            // Compute dynamic category based on mode-specific stats
+            const dynamicCategory = GAME.features.hasBR
+                ? getCategoryFromKDValue(Number(kd.toFixed(2)))
+                : getCategoryFromWinRate(wins, totalMatches);
+
             detailedStats = {
                 kills: totalKills,
                 matches: totalMatches,
@@ -166,7 +172,7 @@ export async function GET(request: Request) {
                 winRate,
                 top10Rate,
                 avgKillsPerMatch,
-
+                dynamicCategory,
             };
         }
 
