@@ -63,11 +63,20 @@ export async function GET(
 
 // ─── BR Rankings (existing logic) ─────────────────────────────
 async function handleBRRankings(tournamentId: string, tournament: any) {
+    // Detect championship: check if any match has a HEATS phase
+    const hasChampionship = await prisma.match.findFirst({
+        where: { tournamentId, phase: { startsWith: "HEATS" } },
+        select: { id: true },
+    });
+
+    // For championship tournaments, only rank based on FINALS matches
+    const phaseFilter = hasChampionship ? { match: { phase: "FINALS" } } : {};
+
     // Order by match number so lastMatchPosition is correctly set from the final match
     const teamStats = await prisma.teamStats.findMany({
-        where: { tournamentId },
+        where: { tournamentId, ...phaseFilter },
         include: {
-            match: { select: { matchNumber: true } },
+            match: { select: { matchNumber: true, phase: true } },
             team: {
                 select: {
                     id: true,
