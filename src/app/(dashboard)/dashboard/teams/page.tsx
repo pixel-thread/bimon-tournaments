@@ -350,9 +350,11 @@ export default function TeamsPage() {
 
     const { mutate: createMatch, isPending: isCreating } = useMutation({
         mutationFn: async () => {
-            // For championship, pass the current group phase so the new match
-            // inherits the same phase and only clones that group's teams
-            const currentPhase = isChamp && champPhase === "HEATS" ? `HEATS_${heatsGroup}` : undefined;
+            // For championship, pass the current phase so the new match
+            // inherits the same phase and only clones that phase's teams
+            const currentPhase = isChamp && champPhase
+                ? champPhase === "HEATS" ? `HEATS_${heatsGroup}` : champPhase
+                : undefined;
             const res = await fetch("/api/matches", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
