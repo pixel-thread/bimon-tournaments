@@ -1290,6 +1290,7 @@ model Squad {
   captain Player        @relation("SquadCaptain", fields: [captainId], references: [id], onDelete: Cascade)
   clan    Clan?         @relation(fields: [clanId], references: [id], onDelete: SetNull)
   invites SquadInvite[]
+  treasuryRequests ClanWithdrawRequest[]
 
   @@unique([pollId, captainId]) // One squad per leader per poll
   @@index([pollId])
@@ -1549,16 +1550,18 @@ model ClanTransaction {
   @@index([clanId, createdAt(sort: Desc)])
 }
 
-/// Withdrawal request from a clan member — requires Leader/Co-Leader approval.
+/// Withdrawal/treasury-use request from a clan member — requires Leader/Co-Leader approval.
 model ClanWithdrawRequest {
-  id         String                    @id @default(uuid())
-  clanId     String
-  playerId   String
-  amount     Int
-  status     ClanWithdrawRequestStatus @default(PENDING)
-  message    String?                   // Requester's reason
-  reviewerId String?                   // Who approved/rejected
-  reviewNote String?                   // Reviewer's note
+  id          String                    @id @default(uuid())
+  clanId      String
+  playerId    String
+  amount      Int
+  status      ClanWithdrawRequestStatus @default(PENDING)
+  requestType String                    @default("WITHDRAW") // "WITHDRAW" | "TREASURY_USE"
+  message     String?                   // Requester's reason
+  reviewerId  String?                   // Who approved/rejected
+  reviewNote  String?                   // Reviewer's note
+  squadId     String?                   // Set when requestType = "TREASURY_USE" — links to the squad
 
   createdAt  DateTime  @default(now())
   reviewedAt DateTime?
@@ -1566,6 +1569,7 @@ model ClanWithdrawRequest {
   clan     Clan    @relation(fields: [clanId], references: [id], onDelete: Cascade)
   player   Player  @relation("ClanWithdrawRequester", fields: [playerId], references: [id], onDelete: Cascade)
   reviewer Player? @relation("ClanWithdrawReviewer", fields: [reviewerId], references: [id])
+  squad    Squad?  @relation(fields: [squadId], references: [id], onDelete: SetNull)
 
   @@index([clanId, status])
   @@index([playerId])

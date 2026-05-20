@@ -85,6 +85,7 @@ interface TreasuryData {
         id: string;
         amount: number;
         message: string | null;
+        requestType: string;
         createdAt: string;
         player: { id: string; displayName: string; imageUrl: string | null };
     }[];
@@ -594,6 +595,9 @@ export default function ClanPage() {
                                             <div className="flex items-center gap-2 mb-1.5">
                                                 <Avatar src={req.player.imageUrl || undefined} name={req.player.displayName} className="h-6 w-6" />
                                                 <span className="text-xs font-medium flex-1 truncate">{req.player.displayName}</span>
+                                                {req.requestType === "TREASURY_USE" && (
+                                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">Squad Entry</span>
+                                                )}
                                                 <span className="text-xs font-bold">{req.amount} {GAME.currency}</span>
                                             </div>
                                             {req.message && (

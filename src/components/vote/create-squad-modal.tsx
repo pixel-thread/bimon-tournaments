@@ -39,6 +39,7 @@ interface MyClan {
     tag: string;
     logoUrl: string | null;
     balance: number;
+    role: "LEADER" | "CO_LEADER" | "MEMBER";
 }
 
 /* ─── Main Component ────────────────────────────────────────── */
@@ -58,6 +59,7 @@ export function CreateSquadModal({
     const [createdSquadName, setCreatedSquadName] = useState<string>("");
     const [useClan, setUseClan] = useState(false);
     const [useClanTreasury, setUseClanTreasury] = useState(false);
+    const [treasuryRequested, setTreasuryRequested] = useState(false);
     const [whatsappJoined, setWhatsappJoined] = useState(false);
 
     const handleWhatsappJoin = useCallback(() => {
@@ -88,6 +90,8 @@ export function CreateSquadModal({
         }
     }, [isOpen, hasClan]);
 
+    const isLeaderOrCoLeader = myClan?.role === "LEADER" || myClan?.role === "CO_LEADER";
+
     const handleCreate = useCallback(async () => {
         const effectiveUseClan = useClan && hasClan;
         if (!effectiveUseClan && !squadName.trim()) return;
@@ -96,7 +100,8 @@ export function CreateSquadModal({
                 pollId,
                 name: effectiveUseClan ? "" : squadName.trim(),
                 useClan: effectiveUseClan,
-                useClanTreasury: effectiveUseClan && useClanTreasury,
+                // Only send useClanTreasury if leader/co-leader toggled it directly
+                useClanTreasury: effectiveUseClan && useClanTreasury && isLeaderOrCoLeader,
             },
             {
                 onSuccess: (data) => {
@@ -126,6 +131,7 @@ export function CreateSquadModal({
         setWhatsappJoined(false);
         setUseClan(hasClan); // Reset to clan default for next open
         setUseClanTreasury(false);
+        setTreasuryRequested(false);
         onClose();
     }, [onClose, hasClan]);
 
@@ -234,7 +240,7 @@ export function CreateSquadModal({
                                         {/* Auto-increments if multiple clan squads exist */}
                                     </div>
 
-                                    {/* Clan Treasury Toggle */}
+                                    {/* Clan Treasury Toggle — Leaders/Co-Leaders get direct toggle, Members get request button */}
                                     {entryFee > 0 && (
                                         <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
                                             <div className="flex-1 min-w-0">
@@ -246,12 +252,35 @@ export function CreateSquadModal({
                                                     )}
                                                 </p>
                                             </div>
-                                            <Switch
-                                                size="sm"
-                                                isSelected={useClanTreasury}
-                                                onValueChange={setUseClanTreasury}
-                                                isDisabled={myClan.balance < entryFee}
-                                            />
+                                            {isLeaderOrCoLeader ? (
+                                                <Switch
+                                                    size="sm"
+                                                    isSelected={useClanTreasury}
+                                                    onValueChange={setUseClanTreasury}
+                                                    isDisabled={myClan.balance < entryFee}
+                                                />
+                                            ) : treasuryRequested ? (
+                                                <span className="text-xs text-success font-medium">Requested ✓</span>
+                                            ) : (
+                                                <Button
+                                                    size="sm"
+                                                    variant="flat"
+                                                    color="warning"
+                                                    isDisabled={myClan.balance < entryFee}
+                                                    onPress={async () => {
+                                                        try {
+                                                            const res = await fetch("/api/clans/treasury/use-request", {
+                                                                method: "POST",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({ pollId, amount: entryFee }),
+                                                            });
+                                                            if (res.ok) setTreasuryRequested(true);
+                                                        } catch {}
+                                                    }}
+                                                >
+                                                    Request
+                                                </Button>
+                                            )}
                                         </div>
                                     )}
                                     </>
@@ -261,7 +290,7 @@ export function CreateSquadModal({
                                     <p>• {useClanTreasury ? 'Clan treasury' : 'Leader'} pays <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
                                     <p>• Roster: up to <strong>{GAME.maxSquadSize}</strong> players ({GAME.squadSize} active + {GAME.maxSquadSize - GAME.squadSize} subs)</p>
                                     <p>• Teammates join for free — no fee required</p>
-                                    <p>• Prize goes to leader when team wins 🏆</p>
+                                    <p>• {useClanTreasury ? 'Prize goes to clan treasury' : 'Prize goes to leader'} when team wins 🏆</p>
                                 </div>
                             </motion.div>
                         )}

@@ -90,7 +90,49 @@ export async function POST(request: Request) {
             });
         }
 
-        // Atomic: debit clan + credit player wallet + log transaction + update request
+        // ── TREASURY_USE approval: enable useClanTreasury on the squad ──
+        if ((withdrawRequest as any).requestType === "TREASURY_USE") {
+            const squadId = (withdrawRequest as any).squadId;
+
+            // If squad was linked, update it. Otherwise find by captain + poll.
+            if (squadId) {
+                await prisma.squad.update({
+                    where: { id: squadId },
+                    data: { useClanTreasury: true, clanId: membership.clanId },
+                });
+            } else {
+                // Find the member's active squad
+                const squad = await prisma.squad.findFirst({
+                    where: {
+                        captainId: withdrawRequest.playerId,
+                        status: { in: ["FORMING", "FULL"] },
+                        pollId: { not: undefined },
+                    },
+                    orderBy: { createdAt: "desc" },
+                });
+                if (squad) {
+                    await prisma.squad.update({
+                        where: { id: squad.id },
+                        data: { useClanTreasury: true, clanId: membership.clanId },
+                    });
+                }
+            }
+
+            // Mark request as approved
+            await prisma.clanWithdrawRequest.update({
+                where: { id: requestId },
+                data: {
+                    status: "APPROVED",
+                    reviewerId,
+                    reviewNote: note?.trim()?.slice(0, 200) || null,
+                    reviewedAt: new Date(),
+                },
+            });
+
+            return SuccessResponse({ message: `Approved — ${requesterName}'s squad will use clan treasury` });
+        }
+
+        // ── WITHDRAW approval: debit clan + credit player wallet ──
         await prisma.$transaction([
             // Debit clan balance
             prisma.clan.update({

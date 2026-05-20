@@ -86,6 +86,7 @@ export async function GET() {
                     id: r.id,
                     amount: r.amount,
                     message: r.message,
+                    requestType: (r as any).requestType ?? "WITHDRAW",
                     createdAt: r.createdAt,
                     player: {
                         id: r.player.id,
