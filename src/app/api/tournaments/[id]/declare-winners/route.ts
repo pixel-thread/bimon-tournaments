@@ -108,6 +108,8 @@ export async function POST(
         // For squad tournaments, fetch captain IDs for each team
         const isSquadTournament = pollForTournament?.allowSquads ?? false;
         let teamCaptainMap = new Map<string, string>(); // teamId -> captainPlayerId
+        // Clan treasury: track which squads used clan treasury for prize return
+        let squadClanTreasuryMap = new Map<string, { clanId: string; captainId: string }>(); // captainId -> { clanId, captainId }
         if (isSquadTournament && pollForTournament) {
             const poll = await prisma.poll.findUnique({
                 where: { tournamentId: id },
@@ -118,6 +120,8 @@ export async function POST(
                     where: { pollId: poll.id },
                     select: {
                         captainId: true,
+                        useClanTreasury: true,
+                        clanId: true,
                         invites: {
                             where: { status: "ACCEPTED" },
                             select: { playerId: true },
@@ -132,6 +136,13 @@ export async function POST(
                     // Store captain for all members — we'll match by team later
                     for (const memberId of memberIds) {
                         teamCaptainMap.set(memberId, squad.captainId);
+                    }
+                    // Track clan treasury usage for prize return
+                    if (squad.useClanTreasury && squad.clanId) {
+                        squadClanTreasuryMap.set(squad.captainId, {
+                            clanId: squad.clanId,
+                            captainId: squad.captainId,
+                        });
                     }
                 }
             }
@@ -550,16 +561,36 @@ export async function POST(
 
                 // Create PendingReward + Notification for each player
                 for (const p of teamData.players) {
-                    await tx.pendingReward.create({
-                        data: {
-                            playerId: p.playerId,
-                            type: "WINNER",
-                            amount: p.finalAmount,
-                            position: teamData.position,
-                            message: p.message,
-                            details: p.details,
-                        },
-                    });
+                    // Clan treasury: if this captain's squad used clan treasury,
+                    // credit the prize to the clan balance instead of creating a PendingReward
+                    const clanTreasuryInfo = squadClanTreasuryMap.get(p.playerId);
+                    if (clanTreasuryInfo && p.finalAmount > 0) {
+                        // Credit clan treasury
+                        await tx.clan.update({
+                            where: { id: clanTreasuryInfo.clanId },
+                            data: { balance: { increment: p.finalAmount } },
+                        });
+                        await tx.clanTransaction.create({
+                            data: {
+                                clanId: clanTreasuryInfo.clanId,
+                                playerId: p.playerId,
+                                amount: p.finalAmount,
+                                type: "CREDIT",
+                                description: `${getOrdinal(teamData.position)} place prize - ${tournament.name}`,
+                            },
+                        });
+                    } else {
+                        await tx.pendingReward.create({
+                            data: {
+                                playerId: p.playerId,
+                                type: "WINNER",
+                                amount: p.finalAmount,
+                                position: teamData.position,
+                                message: p.message,
+                                details: p.details,
+                            },
+                        });
+                    }
                 }
 
                 winners.push(winner);
