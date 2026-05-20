@@ -43,6 +43,8 @@ export default function VotePage() {
 
     const [showCasualWA, setShowCasualWA] = useState(false);
     const hasSeenCasualWA = useRef(false);
+    // Store the pending vote so it fires only after WhatsApp modal is dismissed
+    const pendingCasualVoteRef = useRef<{ pollId: string; vote: "IN" | "OUT" | "SOLO" } | null>(null);
 
     const polls = data?.polls;
     const currentPlayerId = data?.currentPlayerId ?? undefined;
@@ -107,22 +109,33 @@ export default function VotePage() {
         return () => clearTimeout(timer);
     }, [filteredPolls, searchParams]);
 
-    // Wrap vote to show first-time casual WA modal
+    // Wrap vote to show first-time casual WA modal (blocks vote until modal dismissed)
     const handleVote = useCallback((pollId: string, vote: "IN" | "OUT" | "SOLO") => {
         requireAuth(() => {
-            // Check if this is a casual poll and player hasn't seen the WA modal yet
-            if (casualRoomIdLink && !hasSeenCasualWA.current) {
+            // Only gate on IN votes for casual polls when WA link is configured
+            if (vote === "IN" && casualRoomIdLink && !hasSeenCasualWA.current) {
                 const poll = polls?.find((p: any) => p.id === pollId);
                 if (poll && !poll.allowSquads && !poll.tournament?.isTDM && !poll.tournament?.isWoW) {
-                    // Show the WA modal, then vote goes through
+                    // Store the vote — it fires when the modal is closed
+                    pendingCasualVoteRef.current = { pollId, vote };
                     hasSeenCasualWA.current = true;
                     localStorage.setItem("casual_wa_seen", "1");
                     setShowCasualWA(true);
+                    return; // Don't fire vote yet
                 }
             }
             voteMutation.mutate({ pollId, vote });
         });
     }, [requireAuth, voteMutation, casualRoomIdLink, polls]);
+
+    // Handle casual WA modal close — fire the stored vote
+    const handleCasualWAClose = useCallback(() => {
+        setShowCasualWA(false);
+        if (pendingCasualVoteRef.current) {
+            voteMutation.mutate(pendingCasualVoteRef.current);
+            pendingCasualVoteRef.current = null;
+        }
+    }, [voteMutation]);
 
     // Tabs definition
     const tabs: { key: TabKey; label: string; icon: string; count: number }[] = [
@@ -165,11 +178,11 @@ export default function VotePage() {
 
 
 
-            {/* ── First-time casual WhatsApp modal ── */}
+            {/* ── First-time casual WhatsApp modal (blocks vote until dismissed) ── */}
             {showCasualWA && casualRoomIdLink && (
                 <WhatsAppJoinModal
                     isOpen={showCasualWA}
-                    onClose={() => setShowCasualWA(false)}
+                    onClose={handleCasualWAClose}
                     mandatory={true}
                     groups={[{
                         id: "casual-room",
