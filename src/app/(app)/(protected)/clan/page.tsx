@@ -123,6 +123,7 @@ export default function ClanPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { isAdmin } = useAuthUser();
+    const [activeTab, setActiveTab] = useState<"clan" | "treasury">("clan");
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -452,6 +453,39 @@ export default function ClanPage() {
                         </div>
                     </Card>
 
+                    {/* Tab Switcher */}
+                    <div className="flex gap-1 p-1 rounded-xl bg-default-100">
+                        <button
+                            onClick={() => setActiveTab("clan")}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                                activeTab === "clan"
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-foreground/40 hover:text-foreground/60"
+                            }`}
+                        >
+                            <Users className="h-3.5 w-3.5" />
+                            Members
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("treasury")}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                                activeTab === "treasury"
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-foreground/40 hover:text-foreground/60"
+                            }`}
+                        >
+                            <Wallet className="h-3.5 w-3.5" />
+                            Treasury
+                            {treasury && treasury.pendingRequests.length > 0 && isLeaderOrCoLeader && (
+                                <span className="h-4 min-w-4 px-1 rounded-full bg-danger text-white text-[10px] font-bold flex items-center justify-center">
+                                    {treasury.pendingRequests.length}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+
+                    {activeTab === "clan" && (<>
+
                     {/* Leader actions */}
                     {isLeader && (
                         <Button
@@ -485,16 +519,29 @@ export default function ClanPage() {
                         </div>
                     </div>
 
+                    {/* Leave / Disband */}
+                    <Button
+                        color="danger"
+                        variant="flat"
+                        fullWidth
+                        className="font-medium"
+                        startContent={isLeader ? <Trash2 className="h-4 w-4" /> : <LogOut className="h-4 w-4" />}
+                        onPress={() => setShowLeaveConfirm(true)}
+                    >
+                        {isLeader ? `Disband ${label}` : `Leave ${label}`}
+                    </Button>
+
+                    </>)}
+
+                    {activeTab === "treasury" && (<>
+
                     {/* ─── Treasury ─── */}
                     {treasury && (
-                        <div className="space-y-2">
-                            <div className="p-3 rounded-xl border border-divider bg-default-50">
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <Wallet className="h-4 w-4 text-primary" />
-                                        <span className="text-xs font-semibold">Treasury</span>
-                                    </div>
-                                    <span className="text-sm font-bold">{treasury.balance.toLocaleString()} {GAME.currency}</span>
+                        <div className="space-y-3">
+                            <div className="p-4 rounded-xl border border-divider bg-gradient-to-br from-default-50 to-default-100/50">
+                                <div className="text-center mb-4">
+                                    <p className="text-[10px] text-foreground/40 uppercase tracking-wider mb-1">Balance</p>
+                                    <p className="text-2xl font-bold">{treasury.balance.toLocaleString()} <span className="text-sm text-foreground/50">{GAME.currency}</span></p>
                                 </div>
                                 <div className="flex gap-2">
                                     <Button
@@ -678,17 +725,7 @@ export default function ClanPage() {
                         </div>
                     </div>
 
-                    {/* Leave / Disband */}
-                    <Button
-                        color="danger"
-                        variant="flat"
-                        fullWidth
-                        className="font-medium"
-                        startContent={isLeader ? <Trash2 className="h-4 w-4" /> : <LogOut className="h-4 w-4" />}
-                        onPress={() => setShowLeaveConfirm(true)}
-                    >
-                        {isLeader ? `Disband ${label}` : `Leave ${label}`}
-                    </Button>
+                    </>)}
                 </div>
             )}
 
