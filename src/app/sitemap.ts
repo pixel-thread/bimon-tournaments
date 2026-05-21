@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
  * This helps Google discover and index all pages that have publisher content.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://pixel-thread.in";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://bgmi.pixel-thread.in";
     const now = new Date();
 
     const blogSlugs = [

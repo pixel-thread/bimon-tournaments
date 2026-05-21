@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
  * Allows all content pages while blocking dashboard/API/auth routes.
  */
 export default function robots(): MetadataRoute.Robots {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://pixel-thread.in";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://bgmi.pixel-thread.in";
 
     return {
         rules: [
