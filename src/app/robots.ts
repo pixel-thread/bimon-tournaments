@@ -24,6 +24,10 @@ export default function robots(): MetadataRoute.Robots {
                     "/terms",
                     "/contact",
                     "/recent-matches",
+                    "/tournaments",
+                    "/leaderboard",
+                    "/about",
+                    "/blog",
                 ],
                 disallow: [
                     "/api/",

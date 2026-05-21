@@ -2,7 +2,6 @@ import { Swords, Users, Trophy, Shield, Zap, Target, Star, ChevronRight, BarChar
 import Link from "next/link";
 import { HeroCTA, HeroHeading } from "@/components/landing/hero-cta";
 import { AnimateOnScroll, StaggerContainer, StaggerItem } from "@/components/landing/animate-on-scroll";
-import { LastRouteRedirector } from "@/components/common/last-route-redirector";
 import { PwaInstallPrompt } from "@/components/common/pwa-install-prompt";
 import { GAME } from "@/lib/game-config";
 import type { Metadata } from "next";
@@ -25,7 +24,6 @@ export const metadata: Metadata = {
 export default function HomePage() {
     return (
         <div className="min-h-dvh bg-background text-foreground">
-            <LastRouteRedirector />
             <PwaInstallPrompt />
 
             {/* ═══════════════════════════════════════════════════════════ */}
@@ -562,21 +560,30 @@ export default function HomePage() {
             {/* ═══════════════════════════════════════════════════════════ */}
             <footer className="border-t border-foreground/10 px-4 py-8 sm:px-6">
                 <div className="mx-auto max-w-4xl">
-                    <div className="grid gap-8 sm:grid-cols-3">
+                    <div className="grid gap-8 sm:grid-cols-4">
                         <div>
                             <h3 className="text-sm font-bold uppercase tracking-wider text-foreground/40">Platform</h3>
                             <ul className="mt-3 space-y-2 text-sm">
-                                <li><Link href="/players" className="text-foreground/60 hover:text-foreground transition-colors">Leaderboard</Link></li>
-                                <li><Link href="/vote" className="text-foreground/60 hover:text-foreground transition-colors">Tournaments</Link></li>
+                                <li><Link href="/leaderboard" className="text-foreground/60 hover:text-foreground transition-colors">Leaderboard</Link></li>
+                                <li><Link href="/tournaments" className="text-foreground/60 hover:text-foreground transition-colors">Tournament Results</Link></li>
+                                <li><Link href="/vote" className="text-foreground/60 hover:text-foreground transition-colors">Upcoming Tournaments</Link></li>
                                 <li><Link href="/rules" className="text-foreground/60 hover:text-foreground transition-colors">Rules</Link></li>
                                 <li><Link href="/winners" className="text-foreground/60 hover:text-foreground transition-colors">Winners</Link></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground/40">Learn</h3>
+                            <ul className="mt-3 space-y-2 text-sm">
+                                <li><Link href="/blog" className="text-foreground/60 hover:text-foreground transition-colors">Blog & Guides</Link></li>
+                                <li><Link href="/about" className="text-foreground/60 hover:text-foreground transition-colors">About Us</Link></li>
+                                <li><Link href="/help" className="text-foreground/60 hover:text-foreground transition-colors">Help & Support</Link></li>
                             </ul>
                         </div>
                         <div>
                             <h3 className="text-sm font-bold uppercase tracking-wider text-foreground/40">Community</h3>
                             <ul className="mt-3 space-y-2 text-sm">
                                 <li><Link href="/community" className="text-foreground/60 hover:text-foreground transition-colors">Community Hub</Link></li>
-                                <li><Link href="/help" className="text-foreground/60 hover:text-foreground transition-colors">Help & Support</Link></li>
+                                <li><Link href="/players" className="text-foreground/60 hover:text-foreground transition-colors">Player Directory</Link></li>
                                 <li><Link href="/socials" className="text-foreground/60 hover:text-foreground transition-colors">Social Media</Link></li>
                             </ul>
                         </div>

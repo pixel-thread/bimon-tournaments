@@ -8,6 +8,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://pixel-thread.in";
     const now = new Date();
 
+    const blogSlugs = [
+        "how-scoring-works",
+        "team-balancing-algorithm",
+        "prize-pool-distribution",
+        "tips-to-climb-leaderboard",
+        "tournament-formats-explained",
+    ];
+
     return [
         {
             url: baseUrl,
@@ -28,6 +36,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 0.9,
         },
         {
+            url: `${baseUrl}/tournaments`,
+            lastModified: now,
+            changeFrequency: "daily",
+            priority: 0.9,
+        },
+        {
+            url: `${baseUrl}/leaderboard`,
+            lastModified: now,
+            changeFrequency: "daily",
+            priority: 0.9,
+        },
+        {
             url: `${baseUrl}/rules`,
             lastModified: now,
             changeFrequency: "monthly",
@@ -38,6 +58,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
             lastModified: now,
             changeFrequency: "weekly",
             priority: 0.8,
+        },
+        {
+            url: `${baseUrl}/blog`,
+            lastModified: now,
+            changeFrequency: "weekly",
+            priority: 0.8,
+        },
+        ...blogSlugs.map((slug) => ({
+            url: `${baseUrl}/blog/${slug}`,
+            lastModified: now,
+            changeFrequency: "monthly" as const,
+            priority: 0.7,
+        })),
+        {
+            url: `${baseUrl}/about`,
+            lastModified: now,
+            changeFrequency: "monthly",
+            priority: 0.7,
         },
         {
             url: `${baseUrl}/help`,

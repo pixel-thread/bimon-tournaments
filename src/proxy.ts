@@ -27,9 +27,13 @@ const publicRoutes = [
     "/invite",     // guests can view squad invite links
     "/jobs",       // guests can see job listings
     "/help",       // guests can view help
+    "/tournaments",  // public tournament history
+    "/leaderboard",  // public leaderboard
+    "/blog",         // blog articles
     "/api/auth", // NextAuth handler
     "/api/cron",
     "/api/payments/webhook",
+    "/api/public", // public data endpoints
 ];
 
 // ─── Domain → Game Mode mapping ─────────────────────────────

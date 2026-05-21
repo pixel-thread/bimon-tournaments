@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Rajdhani } from "next/font/google";
 import { Providers } from "@/components/providers";
-import { RouteTracker } from "@/components/common/route-tracker";
+
 import { AutoUpdater } from "@/components/common/auto-updater";
 import { ColorThemeProvider } from "@/components/common/color-theme-provider";
 import { LocaleProvider } from "@/components/common/locale-provider";
@@ -108,7 +108,7 @@ export default function RootLayout({
         <Providers>
           <ColorThemeProvider>
             <LocaleProvider>
-              <RouteTracker />
+
               <AutoUpdater />
 
               {children}
