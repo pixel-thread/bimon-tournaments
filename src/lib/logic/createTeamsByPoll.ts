@@ -14,7 +14,7 @@ import { isBirthdayWithinWindow } from "./birthdayCheck";
 import { debitWallet, getEmailByPlayerId } from "@/lib/wallet-service";
 import { getActiveCoupon, redeemCoupon } from "@/lib/logic/welcomeBack";
 import { GAME } from "@/lib/game-config";
-import { assignGroups } from "./championship";
+import { assignGroups, getConfirmedSquadCap } from "./championship";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -174,7 +174,6 @@ export async function createTeamsByPoll({
     let clanTreasuryDebits: { clanId: string; captainId: string; amount: number; squadName: string }[] = [];
 
     if (pollAllowSquads) {
-        const maxSquads = 32; // Always allow up to 32 squads — championship auto-detected by team count
         const squads = await prisma.squad.findMany({
             where: {
                 pollId,
@@ -202,6 +201,8 @@ export async function createTeamsByPoll({
             },
             orderBy: { createdAt: "asc" }, // Oldest first = confirmed
         });
+
+        const maxSquads = getConfirmedSquadCap(squads.length);
 
         // Split into confirmed (first maxSquads) and waitlisted (rest)
         const confirmedSquads = squads.slice(0, maxSquads);
