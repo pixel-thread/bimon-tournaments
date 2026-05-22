@@ -160,7 +160,7 @@ export async function createTeamsByPoll({
         },
     });
 
-    if (players.length === 0) {
+    if (players.length === 0 && !pollAllowSquads) {
         throw new Error("No eligible players found for this poll.");
     }
 
