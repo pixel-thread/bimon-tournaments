@@ -874,7 +874,8 @@ export function SquadCenter({
     const { data: squadsResult, isLoading, refetch } = useSquads(pollId);
     const squads = squadsResult?.squads;
     const maxSquads = squadsResult?.maxSquads ?? GAME.maxSquadTeams;
-    const maxWaitlistSlots = (squadsResult?.maxSquadWaitlist ?? GAME.maxSquadWaitlist) - maxSquads;
+    // Gap to next confirmation threshold: 16→20 = 4 slots, 20+→ always 2 (even groups)
+    const maxWaitlistSlots = maxSquads < 20 ? (20 - maxSquads) : 2;
     const [showWaitlist, setShowWaitlist] = useState(false);
 
     // Always refetch when the squad center opens to prevent stale data
