@@ -485,6 +485,7 @@ export type ChampionshipStatus = {
         group: string | null;
         phase: string;
         status: string;
+        pointDeduction?: number;
     }[];
     matches: {
         id: string;
@@ -538,6 +539,13 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
         select: { id: true },
     });
     const dqTeamIdSet = new Set(dqTeams.map(t => t.id));
+
+    // Fetch point deductions
+    const teamsWithDeductions = await prisma.team.findMany({
+        where: { tournamentId, pointDeduction: { gt: 0 } },
+        select: { id: true, pointDeduction: true },
+    });
+    const deductionMap = new Map(teamsWithDeductions.map(t => [t.id, t.pointDeduction]));
 
     let rankedEntries = entries.map(e => ({
         teamId: e.teamId,
@@ -624,12 +632,17 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
         }
     }
 
-    // Merge points data into entries
+    // Merge points data into entries and apply point deductions
     for (const entry of rankedEntries) {
         const pts = pointsMap.get(entry.teamId);
         if (pts) {
             entry.totalPoints = pts.totalPoints;
             entry.kills = pts.kills;
+        }
+        const deduction = deductionMap.get(entry.teamId) ?? 0;
+        if (deduction > 0) {
+            entry.totalPoints -= deduction;
+            entry.pointDeduction = deduction;
         }
     }
 

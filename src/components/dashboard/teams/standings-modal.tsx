@@ -55,6 +55,7 @@ interface StandingRow {
     playerNames: string[];
     positionChange: number;
     isDisqualified?: boolean;
+    pointDeduction?: number;
 }
 
 interface Props {
@@ -69,6 +70,7 @@ interface Props {
     isChampionship?: boolean;
     initialGroup?: "A" | "B";
     disqualifiedTeamIds?: string[];
+    pointDeductionMap?: Record<string, number>;
     championshipPhase?: string;
 }
 
@@ -91,6 +93,7 @@ export function StandingsModal({
     isChampionship = false,
     initialGroup,
     disqualifiedTeamIds = [],
+    pointDeductionMap = {},
     championshipPhase,
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
@@ -242,12 +245,21 @@ export function StandingsModal({
             if (dqSet.has(row.teamId)) {
                 dqRows.push({ ...row, totalPoints: 0, totalKills: 0, placementPts: 0, wins: 0, isDisqualified: true });
             } else {
-                regular.push(row);
+                // Apply point deduction
+                const deduction = pointDeductionMap[row.teamId] ?? 0;
+                if (deduction > 0) {
+                    regular.push({ ...row, totalPoints: row.totalPoints - deduction, pointDeduction: deduction });
+                } else {
+                    regular.push(row);
+                }
             }
         }
 
-        return [...regular, ...dqRows];
-    }, [filteredMatchData, compareMatches, disqualifiedTeamIds]);
+        // Re-sort regular rows after applying deductions
+        const resorted = sortRows(regular);
+
+        return [...resorted, ...dqRows];
+    }, [filteredMatchData, compareMatches, disqualifiedTeamIds, pointDeductionMap]);
 
     // ── Screenshot / Copy ─────────────────────────────────────
 
@@ -742,6 +754,9 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                     <td className="px-1 py-1.5 text-center align-middle text-zinc-400 tabular-nums font-mono text-xs">{row.totalKills}</td>
                                     <td className="px-1 py-1.5 text-center align-middle">
                                         <span className="text-orange-400 font-bold tabular-nums font-mono text-xs">{row.totalPoints}</span>
+                                        {(row.pointDeduction ?? 0) > 0 && (
+                                            <span className="ml-0.5 text-[8px] font-bold text-amber-400 bg-amber-500/20 px-1 py-0.5 rounded no-underline inline-block" style={{ textDecoration: "none" }}>-{row.pointDeduction}</span>
+                                        )}
                                     </td>
                                 </tr>
                             </>
@@ -793,6 +808,9 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                     <div className={`mt-1.5 w-full rounded-lg border bg-gradient-to-b ${ps.bg} px-2 py-1.5 backdrop-blur-sm ${showZones ? "!border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.15)]" : ""}`}>
                                         <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                                             <span className="text-orange-400 font-bold text-sm tabular-nums">{row.totalPoints}</span>
+                                            {(row.pointDeduction ?? 0) > 0 && (
+                                                <span className="text-[8px] font-bold text-amber-400 bg-amber-500/20 px-1 py-0.5 rounded">-{row.pointDeduction}</span>
+                                            )}
                                             {row.wins > 0 && <span className="text-xs text-yellow-400 font-semibold">🍗 {row.wins}</span>}
                                         </div>
                                         <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] text-zinc-400">
@@ -859,6 +877,9 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                         <span className="inline-flex items-center gap-1 rounded-md border border-orange-500/30 bg-orange-500/10 px-2 py-0.5">
                                             <span className="text-orange-400/70">TOTAL</span>
                                             <span className="font-bold text-orange-400">{row.totalPoints}</span>
+                                            {(row.pointDeduction ?? 0) > 0 && (
+                                                <span className="text-[8px] font-bold text-amber-400 bg-amber-500/20 px-1 py-0.5 rounded">-{row.pointDeduction}</span>
+                                            )}
                                         </span>
                                         {zone && (
                                             <span className={`text-[9px] font-bold uppercase tracking-wider ${zone.color}`}>

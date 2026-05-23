@@ -187,6 +187,7 @@ export async function GET(request: NextRequest) {
                 clanLogo: team.clan?.logoUrl ?? null,
                 clanTag: team.clan?.tag ?? null,
                 disqualified: team.disqualified,
+                pointDeduction: team.pointDeduction,
                 matchCount: matchCountMap.get(team.id) || team._count.matches,
                 winner: team.tournamentWinner[0] ?? null,
                 players,

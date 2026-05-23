@@ -303,6 +303,13 @@ export default function TeamsPage() {
         teams?.filter((t: any) => t.disqualified).forEach((t: any) => ids.add(t.id));
         return Array.from(ids);
     }, [champEntries, teams]);
+    const pointDeductionMap = useMemo(() => {
+        const map: Record<string, number> = {};
+        teams?.forEach((t: any) => {
+            if (t.pointDeduction > 0) map[t.id] = t.pointDeduction;
+        });
+        return map;
+    }, [teams]);
     const availableTabs = useMemo(() => {
         if (!isChamp) return [];
         const matchPhases = new Set(matches.map(m => m.phase).filter(Boolean));
@@ -784,6 +791,7 @@ export default function TeamsPage() {
                 isChampionship={isChamp}
                 initialGroup={isChamp && champPhase === "HEATS" ? heatsGroup : undefined}
                 disqualifiedTeamIds={dqTeamIds}
+                pointDeductionMap={pointDeductionMap}
                 championshipPhase={isChamp ? champPhase ?? undefined : undefined}
             />
 

@@ -14,7 +14,7 @@ import {
     Spinner,
     Switch,
 } from "@heroui/react";
-import { Search, Plus, X, Pencil, Trash2, Ban } from "lucide-react";
+import { Search, Plus, X, Pencil, Trash2, Ban, MinusCircle } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -54,6 +54,8 @@ export function EditTeamModal({
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [refundOnDelete, setRefundOnDelete] = useState(false);
     const [deductUC, setDeductUC] = useState(false);
+    const [showDeductPoints, setShowDeductPoints] = useState(false);
+    const [deductPointsValue, setDeductPointsValue] = useState("");
     const [refundRemoved, setRefundRemoved] = useState(false);
     const queryClient = useQueryClient();
 
@@ -155,19 +157,23 @@ export function EditTeamModal({
         onError: (err: Error) => toast.error(err.message),
     });
 
-    // DQ status & mutation (works for any tournament)
-    const { data: teamDQStatus } = useQuery<{ disqualified: boolean } | null>({
-        queryKey: ["team-dq", teamId],
+    // DQ & point deduction status (works for any tournament)
+    const { data: teamStatus } = useQuery<{ disqualified: boolean; pointDeduction: number } | null>({
+        queryKey: ["team-status", teamId],
         queryFn: async () => {
             const res = await fetch(`/api/teams/${teamId}`);
             if (!res.ok) return null;
             const json = await res.json();
-            return { disqualified: json.data?.disqualified ?? false };
+            return {
+                disqualified: json.data?.disqualified ?? false,
+                pointDeduction: json.data?.pointDeduction ?? 0,
+            };
         },
         enabled: isOpen,
     });
 
-    const isDQ = teamDQStatus?.disqualified ?? false;
+    const isDQ = teamStatus?.disqualified ?? false;
+    const currentDeduction = teamStatus?.pointDeduction ?? 0;
 
     const dqMutation = useMutation({
         mutationFn: async () => {
@@ -180,12 +186,34 @@ export function EditTeamModal({
         },
         onSuccess: (data) => {
             toast.success(data.message);
-            queryClient.invalidateQueries({ queryKey: ["team-dq", teamId] });
+            queryClient.invalidateQueries({ queryKey: ["team-status", teamId] });
             queryClient.invalidateQueries({ queryKey: ["teams"] });
             if (isChampionship && tournamentId) {
                 queryClient.invalidateQueries({ queryKey: ["championship-status", tournamentId] });
                 queryClient.invalidateQueries({ queryKey: ["champ-entries", tournamentId] });
             }
+        },
+        onError: (err: Error) => toast.error(err.message),
+    });
+
+    // Point deduction mutation
+    const deductPointsMutation = useMutation({
+        mutationFn: async (points: number) => {
+            const res = await fetch(`/api/teams/${teamId}/deduct-points`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ points }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || "Failed to set point deduction");
+            return json;
+        },
+        onSuccess: (data) => {
+            toast.success(data.message);
+            queryClient.invalidateQueries({ queryKey: ["team-status", teamId] });
+            queryClient.invalidateQueries({ queryKey: ["teams"] });
+            setShowDeductPoints(false);
+            setDeductPointsValue("");
         },
         onError: (err: Error) => toast.error(err.message),
     });
@@ -197,6 +225,8 @@ export function EditTeamModal({
         setRefundOnDelete(false);
         setDeductUC(false);
         setRefundRemoved(false);
+        setShowDeductPoints(false);
+        setDeductPointsValue("");
         onClose();
     }
 
@@ -210,6 +240,19 @@ export function EditTeamModal({
                             Edit Team {teamNumber}
                         </div>
                         <div className="flex items-center gap-1">
+                            <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant={currentDeduction > 0 ? "flat" : "light"}
+                                    color={currentDeduction > 0 ? "warning" : "default"}
+                                    onPress={() => {
+                                        setDeductPointsValue(currentDeduction > 0 ? String(currentDeduction) : "");
+                                        setShowDeductPoints(true);
+                                    }}
+                                    title={currentDeduction > 0 ? `${currentDeduction} pts deducted` : "Deduct points"}
+                                >
+                                    <MinusCircle className="h-4 w-4" />
+                                </Button>
                             <Button
                                     isIconOnly
                                     size="sm"
@@ -455,6 +498,77 @@ export function EditTeamModal({
                             isLoading={isDeletePending}
                         >
                             {refundOnDelete ? "Delete & Refund" : "Delete"}
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* Point Deduction Modal */}
+            <Modal
+                isOpen={showDeductPoints}
+                onClose={() => { setShowDeductPoints(false); setDeductPointsValue(""); }}
+                size="sm"
+            >
+                <ModalContent>
+                    <ModalHeader className="flex items-center gap-2">
+                        <MinusCircle className="h-5 w-5 text-warning" />
+                        Deduct Points
+                    </ModalHeader>
+                    <ModalBody className="space-y-3">
+                        <p className="text-sm text-foreground/60">
+                            Set the total number of points to deduct from <strong>{teamName}</strong>&apos;s standings total. Set to 0 to clear.
+                        </p>
+                        {currentDeduction > 0 && (
+                            <div className="flex items-center gap-2 rounded-lg bg-warning/10 border border-warning/20 px-3 py-2">
+                                <span className="text-xs text-warning">Current deduction: <strong>{currentDeduction}</strong> pts</span>
+                            </div>
+                        )}
+                        <Input
+                            type="number"
+                            min={0}
+                            placeholder="Points to deduct"
+                            value={deductPointsValue}
+                            onValueChange={setDeductPointsValue}
+                            size="sm"
+                            autoFocus
+                            startContent={<span className="text-foreground/30 text-sm">−</span>}
+                            description="This subtracts from total points in standings"
+                        />
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button
+                            variant="flat"
+                            size="sm"
+                            onPress={() => { setShowDeductPoints(false); setDeductPointsValue(""); }}
+                        >
+                            Cancel
+                        </Button>
+                        {currentDeduction > 0 && (
+                            <Button
+                                variant="flat"
+                                color="default"
+                                size="sm"
+                                onPress={() => deductPointsMutation.mutate(0)}
+                                isLoading={deductPointsMutation.isPending}
+                            >
+                                Clear
+                            </Button>
+                        )}
+                        <Button
+                            color="warning"
+                            size="sm"
+                            onPress={() => {
+                                const pts = Number(deductPointsValue);
+                                if (isNaN(pts) || pts < 0) {
+                                    toast.error("Enter a valid positive number");
+                                    return;
+                                }
+                                deductPointsMutation.mutate(pts);
+                            }}
+                            isLoading={deductPointsMutation.isPending}
+                            isDisabled={!deductPointsValue && currentDeduction === 0}
+                        >
+                            {Number(deductPointsValue) === 0 ? "Clear Deduction" : "Deduct"}
                         </Button>
                     </ModalFooter>
                 </ModalContent>
