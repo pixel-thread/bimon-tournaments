@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import "./control.css";
 
@@ -42,6 +42,51 @@ export default function StreamControl() {
     const [isVisible, setIsVisible] = useState(true);
     const [loading, setLoading] = useState(false);
     const [lastOcrName, setLastOcrName] = useState<string | null>(null);
+    const [wsStatus, setWsStatus] = useState<"connected" | "disconnected">("disconnected");
+
+    // WebSocket connection to local relay server
+    const wsRef = useRef<WebSocket | null>(null);
+
+    useEffect(() => {
+        let reconnectTimer: ReturnType<typeof setTimeout>;
+        let mounted = true;
+
+        const connect = () => {
+            if (!mounted) return;
+            try {
+                const ws = new WebSocket("ws://localhost:9876");
+                wsRef.current = ws;
+                ws.onopen = () => setWsStatus("connected");
+                ws.onclose = () => {
+                    setWsStatus("disconnected");
+                    wsRef.current = null;
+                    if (mounted) reconnectTimer = setTimeout(connect, 2000);
+                };
+                ws.onerror = () => ws.close();
+            } catch {
+                if (mounted) reconnectTimer = setTimeout(connect, 2000);
+            }
+        };
+
+        connect();
+        return () => { mounted = false; clearTimeout(reconnectTimer); wsRef.current?.close(); };
+    }, []);
+
+    // Send message through WebSocket + BroadcastChannel
+    const relay = useCallback((msg: Record<string, unknown>) => {
+        // WebSocket (for OBS overlay)
+        try {
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify(msg));
+            }
+        } catch {}
+        // BroadcastChannel (for same-browser overlay tab)
+        try {
+            const bc = new BroadcastChannel("stream-overlay");
+            bc.postMessage(msg);
+            bc.close();
+        } catch {}
+    }, []);
 
     // Fetch tournaments on mount
     useEffect(() => {
@@ -76,16 +121,12 @@ export default function StreamControl() {
                         }
                     }
 
-                    // Broadcast full player list to overlay tab (instant cache)
-                    try {
-                        const bc = new BroadcastChannel("stream-overlay");
-                        bc.postMessage({
-                            type: "players",
-                            players: json.data,
-                            tournamentId: selectedTournament,
-                        });
-                        bc.close();
-                    } catch {}
+                    // Send full player list to overlay (WebSocket + BroadcastChannel)
+                    relay({
+                        type: "players",
+                        players: json.data,
+                        tournamentId: selectedTournament,
+                    });
                 }
             })
             .catch(() => {})
@@ -97,7 +138,7 @@ export default function StreamControl() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ tournamentId: selectedTournament }),
         }).catch(() => {});
-    }, [token, selectedTournament]);
+    }, [token, selectedTournament, relay]);
 
     // Poll state to stay in sync with OCR
     useEffect(() => {
@@ -113,7 +154,6 @@ export default function StreamControl() {
                 setSelectedPlayerId(json.data.selectedPlayerId || null);
                 setIsVisible(json.data.isVisible);
 
-                // Track tournament from state
                 if (json.data.tournamentId && !selectedTournament) {
                     setSelectedTournament(json.data.tournamentId);
                 }
@@ -130,28 +170,21 @@ export default function StreamControl() {
         async (playerId: string) => {
             if (!token) return;
             setSelectedPlayerId(playerId);
+            setIsVisible(true);
 
-            // Broadcast to overlay tab instantly (no network)
-            try {
-                const bc = new BroadcastChannel("stream-overlay");
-                bc.postMessage({ type: "select", playerId });
-                bc.close();
-            } catch {}
+            // Instant relay to overlay
+            relay({ type: "select", playerId });
 
-            // Also save to API (for OCR sync / persistence)
+            // Save to API for persistence
             try {
                 await fetch(`/api/stream/state?token=${token}`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        selectedPlayerId: playerId,
-                        isVisible: true,
-                    }),
+                    body: JSON.stringify({ selectedPlayerId: playerId, isVisible: true }),
                 });
-                setIsVisible(true);
             } catch {}
         },
-        [token]
+        [token, relay]
     );
 
     // Toggle visibility
@@ -160,12 +193,7 @@ export default function StreamControl() {
         const newVisible = !isVisible;
         setIsVisible(newVisible);
 
-        // Broadcast instantly
-        try {
-            const bc = new BroadcastChannel("stream-overlay");
-            bc.postMessage({ type: "visibility", isVisible: newVisible });
-            bc.close();
-        } catch {}
+        relay({ type: "visibility", isVisible: newVisible });
 
         try {
             await fetch(`/api/stream/state?token=${token}`, {
@@ -174,19 +202,15 @@ export default function StreamControl() {
                 body: JSON.stringify({ isVisible: newVisible }),
             });
         } catch {}
-    }, [token, isVisible]);
+    }, [token, isVisible, relay]);
 
     // Clear selection
     const clearSelection = useCallback(async () => {
         if (!token) return;
         setSelectedPlayerId(null);
+        setIsVisible(false);
 
-        // Broadcast instantly
-        try {
-            const bc = new BroadcastChannel("stream-overlay");
-            bc.postMessage({ type: "clear" });
-            bc.close();
-        } catch {}
+        relay({ type: "clear" });
 
         try {
             await fetch(`/api/stream/state?token=${token}`, {
@@ -303,6 +327,14 @@ export default function StreamControl() {
                 </div>
             )}
 
+            {/* Relay Status */}
+            <div className="ocr-status">
+                <span className={`ocr-dot ${wsStatus === "connected" ? "active" : ""}`} />
+                {wsStatus === "connected"
+                    ? "Relay: 🟢 Connected (instant mode)"
+                    : "Relay: ⚪ Not running — run: node scripts/stream-relay.mjs"}
+            </div>
+
             {/* OCR Status */}
             <div className="ocr-status">
                 <span className={`ocr-dot ${lastOcrName ? "active" : ""}`} />
@@ -311,7 +343,7 @@ export default function StreamControl() {
                         OCR detected: <span className="ocr-name">&quot;{lastOcrName}&quot;</span>
                     </>
                 ) : (
-                    "OCR: Waiting for detection... (run the OCR script)"
+                    "OCR: Waiting for detection..."
                 )}
             </div>
         </div>

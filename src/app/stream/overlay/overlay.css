@@ -25,8 +25,8 @@ html.bg-transparent, html.bg-transparent body {
 :root {
     --tier-color: #9CA3AF;
     --tier-glow: rgba(156, 163, 175, 0.3);
-    --card-bg: rgba(10, 10, 15, 0.75);
-    --card-border: rgba(255, 255, 255, 0.08);
+    --card-bg: rgba(8, 8, 12, 0.95);
+    --card-border: rgba(255, 255, 255, 0.12);
 }
 
 /* Tier colors set by JS via data attributes */
@@ -68,15 +68,18 @@ html.bg-transparent, html.bg-transparent body {
     width: 380px;
     padding: 20px 24px;
     background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--card-border);
-    border-left: 3px solid var(--tier-color);
+    border-left: 4px solid var(--tier-color);
     border-radius: 12px;
+    outline: 2px solid rgba(0, 0, 0, 0.6);
+    outline-offset: -1px;
     box-shadow:
-        0 0 30px var(--tier-glow),
-        0 8px 32px rgba(0, 0, 0, 0.5),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        0 0 40px var(--tier-glow),
+        0 0 80px rgba(0, 0, 0, 0.7),
+        0 8px 32px rgba(0, 0, 0, 0.8),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
     position: relative;
     overflow: hidden;
 }

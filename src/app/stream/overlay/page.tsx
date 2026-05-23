@@ -105,70 +105,129 @@ export default function StreamOverlay() {
         }, 230);
     }, [currentPlayer]);
 
-    // Listen for instant messages from the control panel tab (BroadcastChannel)
+    // WebSocket connection to local relay server (instant updates)
+    const wsRef = useRef<WebSocket | null>(null);
+    const wsConnected = useRef(false);
+
+    // Handle incoming messages (from WebSocket, BroadcastChannel, or polling)
+    const handleMessage = useCallback((msg: { type: string; playerId?: string; isVisible?: boolean; players?: PlayerData[]; tournamentId?: string; selectedPlayerId?: string }) => {
+        if (msg.type === "sync" || msg.type === "players") {
+            // Full player list — cache everything + preload images
+            if (msg.players && msg.players.length > 0) {
+                const cache = new Map<string, PlayerData>();
+                for (const p of msg.players) {
+                    cache.set(p.id, p);
+                    if (p.imageUrl) {
+                        const img = new Image();
+                        img.src = p.imageUrl;
+                    }
+                }
+                playersCache.current = cache;
+            }
+            if (msg.tournamentId) {
+                currentTournamentIdRef.current = msg.tournamentId;
+            }
+            // For sync, also apply current selection
+            if (msg.type === "sync" && msg.selectedPlayerId) {
+                const playerData = playersCache.current.get(msg.selectedPlayerId);
+                if (playerData) showPlayer(playerData);
+            }
+        } else if (msg.type === "select" && msg.playerId) {
+            const playerData = playersCache.current.get(msg.playerId);
+            if (playerData) {
+                setIsVisible(true);
+                if (currentPlayerIdRef.current && currentPlayerIdRef.current !== msg.playerId) {
+                    isExiting.current = true;
+                    setAnimState("exit");
+                    setTimeout(() => {
+                        setCurrentPlayer(null);
+                        isExiting.current = false;
+                        showPlayer(playerData);
+                    }, 230);
+                } else if (!currentPlayerIdRef.current) {
+                    showPlayer(playerData);
+                }
+            }
+        } else if (msg.type === "visibility") {
+            setIsVisible(!!msg.isVisible);
+            if (!msg.isVisible && currentPlayerIdRef.current) {
+                hidePlayer();
+            }
+        } else if (msg.type === "clear") {
+            hidePlayer();
+            setIsVisible(false);
+        }
+    }, [showPlayer, hidePlayer]);
+
+    // Connect to local WebSocket relay server
+    useEffect(() => {
+        let reconnectTimer: ReturnType<typeof setTimeout>;
+        let mounted = true;
+
+        const connect = () => {
+            if (!mounted) return;
+            try {
+                const ws = new WebSocket("ws://localhost:9876");
+                wsRef.current = ws;
+
+                ws.onopen = () => {
+                    wsConnected.current = true;
+                    console.log("🟢 Connected to relay server");
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        handleMessage(msg);
+                    } catch {}
+                };
+
+                ws.onclose = () => {
+                    wsConnected.current = false;
+                    wsRef.current = null;
+                    // Reconnect after 2s
+                    if (mounted) reconnectTimer = setTimeout(connect, 2000);
+                };
+
+                ws.onerror = () => {
+                    ws.close();
+                };
+            } catch {
+                // WebSocket not available — will use polling fallback
+                if (mounted) reconnectTimer = setTimeout(connect, 2000);
+            }
+        };
+
+        connect();
+
+        return () => {
+            mounted = false;
+            clearTimeout(reconnectTimer);
+            wsRef.current?.close();
+        };
+    }, [handleMessage]);
+
+    // Also listen for BroadcastChannel (same-browser tabs, e.g. control panel)
     useEffect(() => {
         let bc: BroadcastChannel;
         try {
             bc = new BroadcastChannel("stream-overlay");
-            bc.onmessage = (event) => {
-                const { type, playerId, isVisible: visible, players, tournamentId } = event.data;
+            bc.onmessage = (event) => handleMessage(event.data);
+        } catch {}
 
-                if (type === "players" && players) {
-                    // Control panel loaded players — cache everything + preload images
-                    const cache = new Map<string, PlayerData>();
-                    for (const p of players) {
-                        cache.set(p.id, p);
-                        if (p.imageUrl) {
-                            const img = new Image();
-                            img.src = p.imageUrl;
-                        }
-                    }
-                    playersCache.current = cache;
-                    if (tournamentId) {
-                        currentTournamentIdRef.current = tournamentId;
-                    }
-                } else if (type === "select" && playerId) {
-                    const playerData = playersCache.current.get(playerId);
-                    if (playerData) {
-                        setIsVisible(true);
-                        if (currentPlayerIdRef.current && currentPlayerIdRef.current !== playerId) {
-                            isExiting.current = true;
-                            setAnimState("exit");
-                            setTimeout(() => {
-                                setCurrentPlayer(null);
-                                isExiting.current = false;
-                                showPlayer(playerData);
-                            }, 230);
-                        } else if (!currentPlayerIdRef.current) {
-                            showPlayer(playerData);
-                        }
-                    }
-                } else if (type === "visibility") {
-                    setIsVisible(visible);
-                    if (!visible && currentPlayerIdRef.current) {
-                        hidePlayer();
-                    }
-                } else if (type === "clear") {
-                    hidePlayer();
-                    setIsVisible(false);
-                }
-            };
-        } catch {
-            // BroadcastChannel not supported — fall back to polling
-        }
+        return () => { try { bc?.close(); } catch {} };
+    }, [handleMessage]);
 
-        return () => {
-            try { bc?.close(); } catch {}
-        };
-    }, [showPlayer, hidePlayer]);
-
-    // Poll stream state (fallback for OCR + cross-device sync)
+    // API polling fallback (when WebSocket relay is not running)
     useEffect(() => {
         if (!token) return;
 
         let mounted = true;
 
         const poll = async () => {
+            // Skip polling if WebSocket is connected (relay handles updates)
+            if (wsConnected.current) return;
+
             try {
                 const res = await fetch(`/api/stream/state?token=${token}`);
                 const json = await res.json();
@@ -176,12 +235,10 @@ export default function StreamOverlay() {
 
                 const { selectedPlayerId: newPlayerId, isVisible: visible, tournamentId } = json.data;
 
-                // Handle tournament change — preload players
                 if (tournamentId && tournamentId !== currentTournamentIdRef.current) {
                     preloadPlayers(tournamentId);
                 }
 
-                // Handle visibility
                 setIsVisible(visible);
 
                 if (!visible) {
@@ -189,19 +246,14 @@ export default function StreamOverlay() {
                     return;
                 }
 
-                // Handle player change
                 const oldPlayerId = currentPlayerIdRef.current;
-
                 if (newPlayerId !== oldPlayerId) {
                     if (!newPlayerId) {
                         hidePlayer();
                     } else {
-                        // Look up from pre-loaded cache
                         const playerData = playersCache.current.get(newPlayerId);
-
                         if (playerData) {
                             if (oldPlayerId) {
-                                // Transition: exit old, enter new
                                 isExiting.current = true;
                                 setAnimState("exit");
                                 setTimeout(() => {
@@ -215,13 +267,11 @@ export default function StreamOverlay() {
                         }
                     }
                 }
-            } catch {
-                // Network error — keep current state
-            }
+            } catch {}
         };
 
-        poll(); // Initial fetch
-        const interval = setInterval(poll, 300);
+        poll();
+        const interval = setInterval(poll, 500);
 
         return () => {
             mounted = false;
