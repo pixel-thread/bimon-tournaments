@@ -10,18 +10,12 @@ interface PlayerStats {
     kd: number;
 }
 
-interface PlayerStreak {
-    current: number;
-    longest: number;
-}
-
 interface PlayerData {
     id: string;
     displayName: string;
     imageUrl: string | null;
     category: string;
     stats: PlayerStats;
-    streak: PlayerStreak;
     wins: number;
 }
 
@@ -54,7 +48,7 @@ export default function StreamOverlay() {
     const currentTournamentIdRef = useRef<string | null>(null);
     const isExiting = useRef(false);
 
-    // Fetch all players for a tournament (pre-cache)
+    // Fetch all players for a tournament (pre-cache data + images)
     const preloadPlayers = useCallback(
         async (tournamentId: string) => {
             if (!token || tournamentId === currentTournamentIdRef.current) return;
@@ -67,6 +61,11 @@ export default function StreamOverlay() {
                     const cache = new Map<string, PlayerData>();
                     for (const p of json.data) {
                         cache.set(p.id, p);
+                        // Preload profile image into browser cache
+                        if (p.imageUrl) {
+                            const img = new Image();
+                            img.src = p.imageUrl;
+                        }
                     }
                     playersCache.current = cache;
                     currentTournamentIdRef.current = tournamentId;
@@ -231,11 +230,6 @@ export default function StreamOverlay() {
 
                 {/* Bottom Row */}
                 <div className="stats-bottom">
-                    <div className="stat-pill">
-                        <span className="emoji">🔥</span>
-                        <span className="pill-value">{currentPlayer.streak.current}</span>
-                        Streak
-                    </div>
                     <div className="stat-pill">
                         <span className="emoji">🍗</span>
                         <span className="pill-value">{currentPlayer.wins}</span>

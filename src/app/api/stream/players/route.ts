@@ -38,9 +38,6 @@ export async function GET(request: NextRequest) {
                         user: {
                             select: { imageUrl: true },
                         },
-                        streak: {
-                            select: { current: true, longest: true },
-                        },
                     },
                 },
             },
@@ -59,10 +56,19 @@ export async function GET(request: NextRequest) {
 
         const playerIds = uniquePlayers.map((p) => p.id);
 
-        // Batch aggregate stats from TeamPlayerStats
+        // Batch aggregate stats from TeamPlayerStats — RANKED ONLY
+        // Ranked = tournaments where the poll has allowSquads=true
         const statsGroups = await prisma.teamPlayerStats.groupBy({
             by: ["playerId"],
-            where: { playerId: { in: playerIds }, present: true },
+            where: {
+                playerId: { in: playerIds },
+                present: true,
+                match: {
+                    tournament: {
+                        poll: { allowSquads: true },
+                    },
+                },
+            },
             _count: { matchId: true },
             _sum: { kills: true },
         });
@@ -77,11 +83,14 @@ export async function GET(request: NextRequest) {
             ])
         );
 
-        // Batch count wins (position = 1)
+        // Batch count wins (position = 1) — RANKED ONLY
         const winsData = await prisma.teamStats.findMany({
             where: {
                 position: 1,
                 team: { players: { some: { id: { in: playerIds } } } },
+                tournament: {
+                    poll: { allowSquads: true },
+                },
             },
             select: {
                 team: {
@@ -118,9 +127,6 @@ export async function GET(request: NextRequest) {
                     matches: stats.matches,
                     kd: Number(kd.toFixed(2)),
                 },
-                streak: p.streak
-                    ? { current: p.streak.current, longest: p.streak.longest }
-                    : { current: 0, longest: 0 },
                 wins: winsMap.get(p.id) || 0,
             };
         });

@@ -30,6 +30,7 @@ async function getOrCreateState() {
 
 /**
  * Fetch full player data with computed stats for the overlay.
+ * Stats are RANKED ONLY (tournaments with allowSquads=true).
  */
 async function getPlayerWithStats(playerId: string) {
     const player = await prisma.player.findUnique({
@@ -38,17 +39,22 @@ async function getPlayerWithStats(playerId: string) {
             user: {
                 select: { username: true, imageUrl: true },
             },
-            streak: {
-                select: { current: true, longest: true },
-            },
         },
     });
 
     if (!player) return null;
 
-    // Aggregate stats from TeamPlayerStats (source of truth)
+    // Aggregate stats from TeamPlayerStats — RANKED ONLY
     const statsAgg = await prisma.teamPlayerStats.aggregate({
-        where: { playerId, present: true },
+        where: {
+            playerId,
+            present: true,
+            match: {
+                tournament: {
+                    poll: { allowSquads: true },
+                },
+            },
+        },
         _count: { matchId: true },
         _sum: { kills: true },
     });
@@ -57,11 +63,14 @@ async function getPlayerWithStats(playerId: string) {
     const totalKills = statsAgg._sum.kills ?? 0;
     const kd = totalMatches > 0 ? totalKills / totalMatches : 0;
 
-    // Count wins (position = 1)
+    // Count wins (position = 1) — RANKED ONLY
     const winsCount = await prisma.teamStats.count({
         where: {
             position: 1,
             team: { players: { some: { id: playerId } } },
+            tournament: {
+                poll: { allowSquads: true },
+            },
         },
     });
 
@@ -77,9 +86,6 @@ async function getPlayerWithStats(playerId: string) {
             matches: totalMatches,
             kd: Number(kd.toFixed(2)),
         },
-        streak: player.streak
-            ? { current: player.streak.current, longest: player.streak.longest }
-            : { current: 0, longest: 0 },
         wins: winsCount,
     };
 }
