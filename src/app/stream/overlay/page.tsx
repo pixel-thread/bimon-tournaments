@@ -221,7 +221,7 @@ export default function StreamOverlay() {
         };
 
         poll(); // Initial fetch
-        const interval = setInterval(poll, 500);
+        const interval = setInterval(poll, 300);
 
         return () => {
             mounted = false;
