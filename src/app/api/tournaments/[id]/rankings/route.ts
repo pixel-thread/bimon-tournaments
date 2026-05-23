@@ -163,14 +163,23 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
         }
     }
 
-    // BGMI tiebreaker sort — must match standings-modal.tsx exactly
-    const rankings = Array.from(teamMap.values()).sort((a, b) => {
-        if (b.total !== a.total) return b.total - a.total;           // 1. Total points
-        if (b.wins !== a.wins) return b.wins - a.wins;               // 2. Chicken dinners
-        if (b.pts !== a.pts) return b.pts - a.pts;                   // 3. Placement points
-        if (b.kills !== a.kills) return b.kills - a.kills;           // 4. Total kills
-        return a.lastMatchPosition - b.lastMatchPosition;            // 5. Last match position (lower = better)
+    // Fetch DQ'd teams to exclude from prize rankings
+    const dqTeams = await prisma.team.findMany({
+        where: { tournamentId, disqualified: true },
+        select: { id: true },
     });
+    const dqTeamIds = new Set(dqTeams.map(t => t.id));
+
+    // BGMI tiebreaker sort — must match standings-modal.tsx exactly
+    const rankings = Array.from(teamMap.values())
+        .filter(t => !dqTeamIds.has(t.teamId)) // Exclude DQ'd teams from prizes
+        .sort((a, b) => {
+            if (b.total !== a.total) return b.total - a.total;           // 1. Total points
+            if (b.wins !== a.wins) return b.wins - a.wins;               // 2. Chicken dinners
+            if (b.pts !== a.pts) return b.pts - a.pts;                   // 3. Placement points
+            if (b.kills !== a.kills) return b.kills - a.kills;           // 4. Total kills
+            return a.lastMatchPosition - b.lastMatchPosition;            // 5. Last match position (lower = better)
+        });
     const teamCount = teamMap.size;
     const avgTeamSize = teamCount > 0 ? Math.round(allPlayerIds.size / teamCount) : 2;
 
