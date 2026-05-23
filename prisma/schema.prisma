@@ -1595,3 +1595,18 @@ model PlayerSurvey {
 
   @@index([playerId])
 }
+
+// ─── Stream Overlay ──────────────────────────────────────────
+
+/// Single-row table storing current OBS overlay state.
+/// Updated by OCR script or control panel, polled by the overlay browser source.
+model StreamState {
+  id               String   @id @default("default")
+  tournamentId     String?
+  selectedPlayerId String?
+  isVisible        Boolean  @default(true)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("stream_state")
+}

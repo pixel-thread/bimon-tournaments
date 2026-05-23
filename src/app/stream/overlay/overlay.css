@@ -1,0 +1,288 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+/* ── Reset ── */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    background: transparent !important;
+    font-family: 'Inter', sans-serif;
+    color: #fff;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* ── CSS Custom Properties ── */
+:root {
+    --tier-color: #9CA3AF;
+    --tier-glow: rgba(156, 163, 175, 0.3);
+    --card-bg: rgba(10, 10, 15, 0.75);
+    --card-border: rgba(255, 255, 255, 0.08);
+}
+
+/* Tier colors set by JS via data attributes */
+[data-tier="LEGEND"] {
+    --tier-color: #FFD700;
+    --tier-glow: rgba(255, 215, 0, 0.4);
+}
+[data-tier="ULTRA_PRO"] {
+    --tier-color: #A855F7;
+    --tier-glow: rgba(168, 85, 247, 0.35);
+}
+[data-tier="PRO"] {
+    --tier-color: #3B82F6;
+    --tier-glow: rgba(59, 130, 246, 0.3);
+}
+[data-tier="NOOB"] {
+    --tier-color: #22C55E;
+    --tier-glow: rgba(34, 197, 94, 0.3);
+}
+[data-tier="ULTRA_NOOB"] {
+    --tier-color: #9CA3AF;
+    --tier-glow: rgba(156, 163, 175, 0.2);
+}
+[data-tier="BOT"] {
+    --tier-color: #6B7280;
+    --tier-glow: rgba(107, 114, 128, 0.2);
+}
+
+/* ── Card Container ── */
+.overlay-container {
+    position: fixed;
+    bottom: 40px;
+    left: 32px;
+    z-index: 9999;
+}
+
+/* ── Stats Card ── */
+.stats-card {
+    width: 380px;
+    padding: 20px 24px;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-left: 3px solid var(--tier-color);
+    border-radius: 12px;
+    box-shadow:
+        0 0 30px var(--tier-glow),
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle inner highlight */
+.stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+/* ── Player Header ── */
+.player-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.player-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 2.5px solid var(--tier-color);
+    object-fit: cover;
+    box-shadow: 0 0 12px var(--tier-glow);
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.player-avatar-placeholder {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 2.5px solid var(--tier-color);
+    box-shadow: 0 0 12px var(--tier-glow);
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--tier-color);
+}
+
+.player-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.player-name {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-tier {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--tier-color);
+}
+
+.tier-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--tier-color);
+    box-shadow: 0 0 6px var(--tier-color);
+}
+
+/* ── Stats Grid ── */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    margin-bottom: 10px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: #fff;
+}
+
+.stat-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.45);
+    margin-top: 2px;
+}
+
+/* ── Bottom Row ── */
+.stats-bottom {
+    display: flex;
+    gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.stat-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.stat-pill .emoji {
+    font-size: 14px;
+}
+
+.stat-pill .pill-value {
+    color: #fff;
+    font-weight: 700;
+}
+
+/* ── Animations ── */
+.card-enter {
+    animation: slideIn 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.card-exit {
+    animation: slideOut 220ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-40px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes slideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-40px) scale(0.96);
+    }
+}
+
+/* ── LEGEND Shimmer ── */
+[data-tier="LEGEND"] .stats-card {
+    border-image: linear-gradient(
+        135deg,
+        #FFD700,
+        #FFA500,
+        #FFD700,
+        #FFF8DC,
+        #FFD700
+    ) 1;
+    border-image-slice: 1;
+}
+
+[data-tier="LEGEND"] .stats-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg,
+        transparent 40%,
+        rgba(255, 215, 0, 0.06) 45%,
+        rgba(255, 215, 0, 0.1) 50%,
+        rgba(255, 215, 0, 0.06) 55%,
+        transparent 60%
+    );
+    animation: legendShimmer 3s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes legendShimmer {
+    0% { transform: translateX(-50%) translateY(-50%) rotate(45deg); }
+    100% { transform: translateX(50%) translateY(50%) rotate(45deg); }
+}
+
+/* ── KD Highlight ── */
+.kd-value {
+    color: var(--tier-color);
+}
