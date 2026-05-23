@@ -8,12 +8,17 @@
 }
 
 html, body {
-    background: transparent !important;
+    background: #00FF00 !important;  /* Green screen for OBS Chroma Key */
     font-family: 'Inter', sans-serif;
     color: #fff;
     overflow: hidden;
     width: 100vw;
     height: 100vh;
+}
+
+/* Use ?bg=transparent in URL for OBS Browser Source mode */
+html.bg-transparent, html.bg-transparent body {
+    background: transparent !important;
 }
 
 /* ── CSS Custom Properties ── */

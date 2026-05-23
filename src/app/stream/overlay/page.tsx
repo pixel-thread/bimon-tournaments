@@ -19,12 +19,6 @@ interface PlayerData {
     wins: number;
 }
 
-interface StreamState {
-    selectedPlayer: PlayerData | null;
-    isVisible: boolean;
-    tournamentId: string | null;
-}
-
 const TIER_LABELS: Record<string, string> = {
     LEGEND: "Legend",
     ULTRA_PRO: "Ultra Pro",
@@ -37,6 +31,14 @@ const TIER_LABELS: Record<string, string> = {
 export default function StreamOverlay() {
     const searchParams = useSearchParams();
     const token = searchParams.get("token");
+    const bg = searchParams.get("bg");
+
+    // Apply transparent background mode if requested (for OBS Browser Source)
+    useEffect(() => {
+        if (bg === "transparent") {
+            document.documentElement.classList.add("bg-transparent");
+        }
+    }, [bg]);
 
     const [currentPlayer, setCurrentPlayer] = useState<PlayerData | null>(null);
     const [isVisible, setIsVisible] = useState(true);
@@ -115,32 +117,30 @@ export default function StreamOverlay() {
                 const json = await res.json();
                 if (!mounted || !json.data) return;
 
-                const state: StreamState = json.data;
+                const { selectedPlayerId: newPlayerId, isVisible: visible, tournamentId } = json.data;
 
                 // Handle tournament change — preload players
-                if (state.tournamentId && state.tournamentId !== currentTournamentIdRef.current) {
-                    preloadPlayers(state.tournamentId);
+                if (tournamentId && tournamentId !== currentTournamentIdRef.current) {
+                    preloadPlayers(tournamentId);
                 }
 
                 // Handle visibility
-                setIsVisible(state.isVisible);
+                setIsVisible(visible);
 
-                // Handle player change
-                const newPlayerId = state.selectedPlayer?.id || null;
-                const oldPlayerId = currentPlayerIdRef.current;
-
-                if (!state.isVisible) {
+                if (!visible) {
                     if (currentPlayerIdRef.current) hidePlayer();
                     return;
                 }
+
+                // Handle player change
+                const oldPlayerId = currentPlayerIdRef.current;
 
                 if (newPlayerId !== oldPlayerId) {
                     if (!newPlayerId) {
                         hidePlayer();
                     } else {
-                        // Try cache first, fall back to API response
-                        const cached = playersCache.current.get(newPlayerId);
-                        const playerData = cached || state.selectedPlayer;
+                        // Look up from pre-loaded cache
+                        const playerData = playersCache.current.get(newPlayerId);
 
                         if (playerData) {
                             if (oldPlayerId) {

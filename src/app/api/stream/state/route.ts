@@ -173,7 +173,8 @@ async function fuzzyMatchPlayer(name: string, tournamentId: string): Promise<str
 
 /**
  * GET /api/stream/state?token=xxx
- * Returns current overlay state + selected player's full stats.
+ * Returns current overlay state — just the selected player ID and visibility.
+ * The overlay uses its pre-cached player data to look up stats (no heavy queries here).
  */
 export async function GET(request: NextRequest) {
     if (!validateToken(request)) {
@@ -183,14 +184,9 @@ export async function GET(request: NextRequest) {
     try {
         const state = await getOrCreateState();
 
-        let selectedPlayer = null;
-        if (state.selectedPlayerId) {
-            selectedPlayer = await getPlayerWithStats(state.selectedPlayerId);
-        }
-
         return SuccessResponse({
             data: {
-                selectedPlayer,
+                selectedPlayerId: state.selectedPlayerId,
                 isVisible: state.isVisible,
                 tournamentId: state.tournamentId,
             },
