@@ -176,7 +176,7 @@ export function DeclareWinnersModal({
     // Per-tournament org cut override takes priority over global settings
     const isRanked = rankingsData?.meta?.isSquadTournament ?? false;
     const pollOrgCutFixed = pollOrgCut?.orgCutFixed;
-    const hasPollOrgCut = pollOrgCutFixed != null;
+    const hasPollOrgCut = pollOrgCutFixed != null && isChampionship && teamCount >= 20;
     const orgCutMode = hasPollOrgCut
         ? "fixed"
         : isRanked

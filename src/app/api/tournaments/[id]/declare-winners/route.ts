@@ -89,7 +89,9 @@ export async function POST(
         // Per-poll org cut override: only applies for championship tournaments (17+ teams)
         const pollOrgCutFixed = pollForTournament?.orgCutFixed;
         const isChampionship = pollForTournament?.isChampionship ?? false;
-        const hasPollOrgCut = pollOrgCutFixed != null && isChampionship;
+        // orgCutFixed from poll only applies for actual championships (20+ teams)
+        const teamCountForOrgCheck = (await prisma.team.count({ where: { tournamentId: id } }));
+        const hasPollOrgCut = pollOrgCutFixed != null && isChampionship && teamCountForOrgCheck >= 20;
         const orgCutMode = hasPollOrgCut
             ? "fixed" as const
             : isRanked
@@ -763,7 +765,9 @@ async function declareBracketWinners({
     // Per-poll org cut override: only applies for championship tournaments (17+ teams)
     const pollOrgCutFixed = pollForTournament?.orgCutFixed;
     const isChampionship = pollForTournament?.isChampionship ?? false;
-    const hasPollOrgCut = pollOrgCutFixed != null && isChampionship;
+    // orgCutFixed from poll only applies for actual championships (20+ teams)
+    const bracketTeamCount = (await prisma.team.count({ where: { tournamentId: id } }));
+    const hasPollOrgCut = pollOrgCutFixed != null && isChampionship && bracketTeamCount >= 20;
     const orgCutMode = hasPollOrgCut
         ? "fixed" as const
         : isRanked
