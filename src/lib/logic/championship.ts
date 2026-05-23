@@ -556,6 +556,7 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
         disqualified: dqTeamIdSet.has(e.teamId),
         totalPoints: 0,
         kills: 0,
+        pointDeduction: 0 as number | undefined,
     }));
 
     // If heats have been scored, sort entries per group by actual standings rank
