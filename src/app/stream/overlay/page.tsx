@@ -105,7 +105,64 @@ export default function StreamOverlay() {
         }, 230);
     }, [currentPlayer]);
 
-    // Poll stream state
+    // Listen for instant messages from the control panel tab (BroadcastChannel)
+    useEffect(() => {
+        let bc: BroadcastChannel;
+        try {
+            bc = new BroadcastChannel("stream-overlay");
+            bc.onmessage = (event) => {
+                const { type, playerId, isVisible: visible, players, tournamentId } = event.data;
+
+                if (type === "players" && players) {
+                    // Control panel loaded players — cache everything + preload images
+                    const cache = new Map<string, PlayerData>();
+                    for (const p of players) {
+                        cache.set(p.id, p);
+                        if (p.imageUrl) {
+                            const img = new Image();
+                            img.src = p.imageUrl;
+                        }
+                    }
+                    playersCache.current = cache;
+                    if (tournamentId) {
+                        currentTournamentIdRef.current = tournamentId;
+                    }
+                } else if (type === "select" && playerId) {
+                    const playerData = playersCache.current.get(playerId);
+                    if (playerData) {
+                        setIsVisible(true);
+                        if (currentPlayerIdRef.current && currentPlayerIdRef.current !== playerId) {
+                            isExiting.current = true;
+                            setAnimState("exit");
+                            setTimeout(() => {
+                                setCurrentPlayer(null);
+                                isExiting.current = false;
+                                showPlayer(playerData);
+                            }, 230);
+                        } else if (!currentPlayerIdRef.current) {
+                            showPlayer(playerData);
+                        }
+                    }
+                } else if (type === "visibility") {
+                    setIsVisible(visible);
+                    if (!visible && currentPlayerIdRef.current) {
+                        hidePlayer();
+                    }
+                } else if (type === "clear") {
+                    hidePlayer();
+                    setIsVisible(false);
+                }
+            };
+        } catch {
+            // BroadcastChannel not supported — fall back to polling
+        }
+
+        return () => {
+            try { bc?.close(); } catch {}
+        };
+    }, [showPlayer, hidePlayer]);
+
+    // Poll stream state (fallback for OCR + cross-device sync)
     useEffect(() => {
         if (!token) return;
 

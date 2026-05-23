@@ -10,7 +10,6 @@ interface PlayerData {
     imageUrl: string | null;
     category: string;
     stats: { kills: number; matches: number; kd: number };
-    streak: { current: number; longest: number };
     wins: number;
 }
 
@@ -66,7 +65,28 @@ export default function StreamControl() {
         fetch(`/api/stream/players?token=${token}&tournamentId=${selectedTournament}`)
             .then((r) => r.json())
             .then((json) => {
-                if (json.data) setPlayers(json.data);
+                if (json.data) {
+                    setPlayers(json.data);
+
+                    // Preload all images on this tab
+                    for (const p of json.data) {
+                        if (p.imageUrl) {
+                            const img = new Image();
+                            img.src = p.imageUrl;
+                        }
+                    }
+
+                    // Broadcast full player list to overlay tab (instant cache)
+                    try {
+                        const bc = new BroadcastChannel("stream-overlay");
+                        bc.postMessage({
+                            type: "players",
+                            players: json.data,
+                            tournamentId: selectedTournament,
+                        });
+                        bc.close();
+                    } catch {}
+                }
             })
             .catch(() => {})
             .finally(() => setLoading(false));
@@ -90,7 +110,7 @@ export default function StreamControl() {
                 const json = await res.json();
                 if (!mounted || !json.data) return;
 
-                setSelectedPlayerId(json.data.selectedPlayer?.id || null);
+                setSelectedPlayerId(json.data.selectedPlayerId || null);
                 setIsVisible(json.data.isVisible);
 
                 // Track tournament from state
@@ -110,6 +130,15 @@ export default function StreamControl() {
         async (playerId: string) => {
             if (!token) return;
             setSelectedPlayerId(playerId);
+
+            // Broadcast to overlay tab instantly (no network)
+            try {
+                const bc = new BroadcastChannel("stream-overlay");
+                bc.postMessage({ type: "select", playerId });
+                bc.close();
+            } catch {}
+
+            // Also save to API (for OCR sync / persistence)
             try {
                 await fetch(`/api/stream/state?token=${token}`, {
                     method: "POST",
@@ -130,6 +159,14 @@ export default function StreamControl() {
         if (!token) return;
         const newVisible = !isVisible;
         setIsVisible(newVisible);
+
+        // Broadcast instantly
+        try {
+            const bc = new BroadcastChannel("stream-overlay");
+            bc.postMessage({ type: "visibility", isVisible: newVisible });
+            bc.close();
+        } catch {}
+
         try {
             await fetch(`/api/stream/state?token=${token}`, {
                 method: "POST",
@@ -143,6 +180,14 @@ export default function StreamControl() {
     const clearSelection = useCallback(async () => {
         if (!token) return;
         setSelectedPlayerId(null);
+
+        // Broadcast instantly
+        try {
+            const bc = new BroadcastChannel("stream-overlay");
+            bc.postMessage({ type: "clear" });
+            bc.close();
+        } catch {}
+
         try {
             await fetch(`/api/stream/state?token=${token}`, {
                 method: "POST",
