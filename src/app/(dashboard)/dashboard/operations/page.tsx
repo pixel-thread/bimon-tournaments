@@ -715,8 +715,12 @@ function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
         setCopying(true);
 
         try {
-            // Fetch rankings to get exact prize pool data
-            const res = await fetch(`/api/tournaments/${tournament.id}/rankings`);
+            // Fetch rankings, settings, and poll org cut in parallel
+            const [res, settingsRes, pollsRes] = await Promise.all([
+                fetch(`/api/tournaments/${tournament.id}/rankings`),
+                fetch("/api/settings/public"),
+                fetch("/api/polls?all=true"),
+            ]);
             if (!res.ok) throw new Error("Failed to fetch rankings");
             const json = await res.json();
             const meta = json.meta;
@@ -727,12 +731,39 @@ function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
                 return;
             }
 
+            // Determine org cut settings (same logic as DeclareWinnersModal)
+            const isRanked = meta.isSquadTournament ?? false;
+            let orgCut = 0;
+            let orgCutMode: "fixed" | "percent" = "fixed";
+
+            if (settingsRes.ok) {
+                const settingsJson = await settingsRes.json();
+                const settings = settingsJson.data ?? {};
+                orgCutMode = isRanked
+                    ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed")
+                    : (settings.orgCutMode ?? "fixed");
+                orgCut = orgCutMode === "percent"
+                    ? (isRanked ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
+                    : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
+            }
+
+            // Check for per-poll org cut override (championship with 20+ teams)
+            if (pollsRes.ok && tournament.isChampionship && (meta.teamCount ?? 0) >= 20) {
+                const pollsJson = await pollsRes.json();
+                const polls = pollsJson.data?.polls ?? [];
+                const poll = polls.find((p: any) => p.tournament?.id === tournament.id);
+                if (poll?.orgCutFixed != null) {
+                    orgCut = poll.orgCutFixed;
+                    orgCutMode = "fixed";
+                }
+            }
+
             const prizePool = meta.prizePool;
             const entryFee = meta.entryFee ?? 0;
             const teamSize = getTeamSize(meta.teamType ?? "DUO");
 
-            // Compute distribution
-            const dist = getPrizeDistribution(prizePool, entryFee, teamSize);
+            // Compute distribution with org cut
+            const dist = getPrizeDistribution(prizePool, entryFee, teamSize, orgCut, orgCutMode);
 
             // Build text
             const lines: string[] = [];
