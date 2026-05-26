@@ -43,14 +43,17 @@ import {
     Loader2,
     Clock,
     Camera,
+    Copy,
+    ClipboardCheck,
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { DeclareWinnersModal } from "@/components/dashboard/declare-winners-modal";
 
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { GAME } from "@/lib/game-config";
+import { getPrizeDistribution, getTeamSize } from "@/lib/logic/prizeDistribution";
 
 // ─── Types ───────────────────────────────────────────────────
 interface TournamentDTO {
@@ -447,6 +450,7 @@ export default function OperationsPage() {
                                 >
                                     Edit
                                 </Button>
+                                <CopyPrizeButton tournament={selected} />
                                 <Button
                                     isIconOnly
                                     size="sm"
@@ -691,6 +695,85 @@ export default function OperationsPage() {
                 />
             )}
         </div>
+    );
+}
+
+// ─── Copy Prize Pool & Distribution Button ──────────────────
+
+function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
+    const [copying, setCopying] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    const getOrdinal = (n: number) => {
+        const s = ["th", "st", "nd", "rd"];
+        const v = n % 100;
+        return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+
+    const handleCopy = useCallback(async () => {
+        if (copying) return;
+        setCopying(true);
+
+        try {
+            // Fetch rankings to get exact prize pool data
+            const res = await fetch(`/api/tournaments/${tournament.id}/rankings`);
+            if (!res.ok) throw new Error("Failed to fetch rankings");
+            const json = await res.json();
+            const meta = json.meta;
+
+            if (!meta?.prizePool || meta.prizePool <= 0) {
+                toast.error("No prize pool data available");
+                setCopying(false);
+                return;
+            }
+
+            const prizePool = meta.prizePool;
+            const entryFee = meta.entryFee ?? 0;
+            const teamSize = getTeamSize(meta.teamType ?? "DUO");
+
+            // Compute distribution
+            const dist = getPrizeDistribution(prizePool, entryFee, teamSize);
+
+            // Build text
+            const lines: string[] = [];
+            lines.push(`🏆 ${tournament.name}`);
+            lines.push(`💰 Prize Pool: ₹${prizePool.toLocaleString()}`);
+            lines.push("");
+
+            // Prize positions
+            const medals = ["🥇", "🥈", "🥉"];
+            const sortedPrizes = Array.from(dist.prizes.entries()).sort((a, b) => a[0] - b[0]);
+            for (const [pos, prize] of sortedPrizes) {
+                const medal = pos <= 3 ? medals[pos - 1] : "🏅";
+                lines.push(`${medal} ${getOrdinal(pos)}: ₹${prize.amount.toLocaleString()}`);
+            }
+
+            const text = lines.join("\n");
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            toast.success("Prize distribution copied!");
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            toast.error("Failed to copy prize data");
+        } finally {
+            setCopying(false);
+        }
+    }, [tournament.id, tournament.name, copying]);
+
+    return (
+        <Button
+            isIconOnly
+            size="sm"
+            variant="flat"
+            onPress={handleCopy}
+            isLoading={copying}
+        >
+            {copied ? (
+                <ClipboardCheck className="h-3.5 w-3.5 text-success" />
+            ) : (
+                <Copy className="h-3.5 w-3.5" />
+            )}
+        </Button>
     );
 }
 
