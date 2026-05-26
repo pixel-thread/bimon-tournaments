@@ -731,12 +731,28 @@ function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
                 return;
             }
 
-            // Determine org cut settings (same logic as DeclareWinnersModal)
+            // Determine org cut: poll-level override first, then global settings
             const isRanked = meta.isSquadTournament ?? false;
             let orgCut = 0;
             let orgCutMode: "fixed" | "percent" = "fixed";
 
-            if (settingsRes.ok) {
+            // 1. Check per-poll orgCutFixed (set by admin on the poll for this tournament)
+            let usedPollOrgCut = false;
+            if (pollsRes.ok) {
+                try {
+                    const pollsJson = await pollsRes.json();
+                    const polls = pollsJson.data?.polls ?? [];
+                    const poll = polls.find((p: any) => p.tournament?.id === tournament.id);
+                    if (poll?.orgCutFixed != null) {
+                        orgCut = poll.orgCutFixed;
+                        orgCutMode = "fixed";
+                        usedPollOrgCut = true;
+                    }
+                } catch { /* ignore parse errors */ }
+            }
+
+            // 2. Fall back to global settings if no poll-level override
+            if (!usedPollOrgCut && settingsRes.ok) {
                 const settingsJson = await settingsRes.json();
                 const settings = settingsJson.data ?? {};
                 orgCutMode = isRanked
@@ -745,17 +761,6 @@ function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
                 orgCut = orgCutMode === "percent"
                     ? (isRanked ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
                     : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
-            }
-
-            // Check for per-poll org cut override (championship with 20+ teams)
-            if (pollsRes.ok && tournament.isChampionship && (meta.teamCount ?? 0) >= 20) {
-                const pollsJson = await pollsRes.json();
-                const polls = pollsJson.data?.polls ?? [];
-                const poll = polls.find((p: any) => p.tournament?.id === tournament.id);
-                if (poll?.orgCutFixed != null) {
-                    orgCut = poll.orgCutFixed;
-                    orgCutMode = "fixed";
-                }
             }
 
             const prizePool = meta.prizePool;
