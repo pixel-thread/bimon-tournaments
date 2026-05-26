@@ -26,10 +26,12 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Get all players via tournament teams
+        // Get all players via tournament teams — include teamNumber for OCR matching
         const teams = await prisma.team.findMany({
             where: { tournamentId },
             select: {
+                name: true,
+                teamNumber: true,
                 players: {
                     select: {
                         id: true,
@@ -43,7 +45,14 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        const players = teams.flatMap((t) => t.players);
+        // Flatten players — attach team info to each player
+        const players = teams.flatMap((t) =>
+            t.players.map((p) => ({
+                ...p,
+                teamNumber: t.teamNumber,
+                teamName: t.name,
+            }))
+        );
 
         // Deduplicate (a player could be on multiple teams across matches)
         const uniquePlayers = Array.from(
@@ -121,6 +130,8 @@ export async function GET(request: NextRequest) {
                 id: p.id,
                 displayName: p.displayName,
                 imageUrl: p.customProfileImageUrl || p.user.imageUrl,
+                teamNumber: (p as any).teamNumber ?? null,
+                teamName: (p as any).teamName ?? null,
                 category,
                 stats: {
                     kills: stats.kills,
