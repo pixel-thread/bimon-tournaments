@@ -91,52 +91,27 @@ export function TeamDoneSection({
             `${window.location.origin}/api/discord/callback`
         );
         const state = encodeURIComponent(pollId);
-        const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify&state=${state}`;
+        const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20guilds.join&state=${state}`;
         window.location.href = url;
     };
 
     return (
         <div className="space-y-4">
             {/* Discord — ranked tournaments: one-tap OAuth linking */}
-            {isRanked && (
+            {isRanked && !discordLinked && (
                 <div className="space-y-2">
-                    {!discordLinked && (
-                        <>
-                            {/* Join server hint */}
-                            {discordInviteLink && (
-                                <a
-                                    href={discordInviteLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all border border-[#5865F2]/30 bg-[#5865F2]/10 text-[#5865F2] hover:bg-[#5865F2]/20"
-                                >
-                                    <DiscordIcon className="w-4 h-4" />
-                                    Join Discord Server First
-                                </a>
-                            )}
-
-                            {/* One-tap OAuth link button */}
-                            <button
-                                type="button"
-                                onClick={handleDiscordAuth}
-                                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 ring-2 ring-[#5865F2]/40 animate-pulse cursor-pointer active:scale-[0.98]"
-                            >
-                                <DiscordIcon className="w-5 h-5" />
-                                Link with Discord
-                            </button>
-                            <p className="text-[11px] text-foreground/40 text-center">
-                                One tap — grants access to <strong>#ranked-room-id</strong> for match details.
-                            </p>
-                        </>
-                    )}
-
-                    {/* Discord linked success */}
-                    {discordLinked && (
-                        <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm bg-[#5865F2]/20 text-[#5865F2] border border-[#5865F2]/30">
-                            <DiscordIcon className="w-5 h-5" />
-                            Discord Linked ✅
-                        </div>
-                    )}
+                    {/* One-tap OAuth link button */}
+                    <button
+                        type="button"
+                        onClick={handleDiscordAuth}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 ring-2 ring-[#5865F2]/40 animate-pulse cursor-pointer active:scale-[0.98]"
+                    >
+                        <DiscordIcon className="w-5 h-5" />
+                        Link with Discord
+                    </button>
+                    <p className="text-[11px] text-foreground/40 text-center">
+                        One tap — auto-joins the server &amp; grants access to <strong>#ranked-room-id</strong>.
+                    </p>
                 </div>
             )}
 

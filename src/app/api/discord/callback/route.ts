@@ -97,13 +97,23 @@ export async function GET(req: NextRequest) {
             data: { discordId, discordUsername },
         });
 
-        // 6. Check if user is in the guild and grant role
+        // 6. Auto-join user to server (if not already a member) + grant role
         const guildId = getGuildId();
-        const memberRes = await discordFetch(`/guilds/${guildId}/members/${discordId}`);
         const roleId = process.env.DISCORD_RANKED_PLAYER_ROLE_ID;
+        const memberRes = await discordFetch(`/guilds/${guildId}/members/${discordId}`);
 
-        if (memberRes.ok && roleId) {
-            // User is in the server — grant role
+        if (!memberRes.ok) {
+            // User not in server — auto-add them using guilds.join scope
+            await discordFetch(`/guilds/${guildId}/members/${discordId}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    access_token: accessToken,
+                    // Auto-assign the Ranked-Player role on join
+                    ...(roleId ? { roles: [roleId] } : {}),
+                }),
+            });
+        } else if (roleId) {
+            // Already in server — just grant the role
             await grantRole(discordId, roleId);
         }
 
