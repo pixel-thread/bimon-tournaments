@@ -643,7 +643,22 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
                 getPhaseRankings(tournamentId, "HEATS_B"),
             ]);
 
-            // Build rank map: teamId → rank position
+            // Apply deductions and re-sort before building rank map
+            for (const ranks of [groupARanks, groupBRanks]) {
+                for (const t of ranks) {
+                    const deduction = deductionMap.get(t.teamId) ?? 0;
+                    if (deduction > 0) t.totalPoints -= deduction;
+                }
+                ranks.sort((a, b) => {
+                    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+                    if (b.wins !== a.wins) return b.wins - a.wins;
+                    if (b.placementPts !== a.placementPts) return b.placementPts - a.placementPts;
+                    if (b.kills !== a.kills) return b.kills - a.kills;
+                    return a.lastMatchPosition - b.lastMatchPosition;
+                });
+            }
+
+            // Build rank map: teamId → rank position (now with deductions applied)
             const rankMap = new Map<string, number>();
             groupARanks.forEach((t, i) => {
                 rankMap.set(t.teamId, i + 1);
@@ -704,7 +719,8 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
         }
     }
 
-    // Merge points data into entries and apply point deductions
+    // Merge points data into entries
+    // Note: heats pointsMap already has deductions applied from the re-sort above
     for (const entry of rankedEntries) {
         const pts = pointsMap.get(entry.teamId);
         if (pts) {
@@ -713,8 +729,11 @@ export async function getChampionshipStatus(tournamentId: string): Promise<Champ
         }
         const deduction = deductionMap.get(entry.teamId) ?? 0;
         if (deduction > 0) {
-            entry.totalPoints -= deduction;
             entry.pointDeduction = deduction;
+            // Only apply deduction if not already applied via pointsMap
+            if (!pts) {
+                entry.totalPoints -= deduction;
+            }
         }
     }
 
