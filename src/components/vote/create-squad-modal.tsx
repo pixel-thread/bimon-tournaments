@@ -107,6 +107,18 @@ export function CreateSquadModal({
 
     const isLeaderOrCoLeader = myClan?.role === "LEADER" || myClan?.role === "CO_LEADER";
 
+    const handleClose = useCallback(() => {
+        setStep("name");
+        setSquadName("");
+        setCreatedSquadId(null);
+        setCreatedSquadName("");
+        setWhatsappJoined(false);
+        setUseClan(hasClan); // Reset to clan default for next open
+        setUseClanTreasury(false);
+        setTreasuryRequested(false);
+        onClose();
+    }, [onClose, hasClan]);
+
     const handleCreate = useCallback(async () => {
         const effectiveUseClan = useClan && hasClan;
         if (!effectiveUseClan && !squadName.trim()) return;
@@ -123,6 +135,13 @@ export function CreateSquadModal({
                     const name = data?.data?.name ?? squadName.trim();
                     setCreatedSquadId(data?.data?.id ?? null);
                     setCreatedSquadName(name);
+
+                    // Ranked + Discord already linked → close immediately, no second modal
+                    if (isRanked && discordLinked) {
+                        handleClose();
+                        return;
+                    }
+
                     setStep("done");
                     // Persist WhatsApp pending state for global guard
                     if (whatsappGroupLink) {
@@ -136,19 +155,7 @@ export function CreateSquadModal({
                 },
             }
         );
-    }, [pollId, squadName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName]);
-
-    const handleClose = useCallback(() => {
-        setStep("name");
-        setSquadName("");
-        setCreatedSquadId(null);
-        setCreatedSquadName("");
-        setWhatsappJoined(false);
-        setUseClan(hasClan); // Reset to clan default for next open
-        setUseClanTreasury(false);
-        setTreasuryRequested(false);
-        onClose();
-    }, [onClose, hasClan]);
+    }, [pollId, squadName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName, isRanked, discordLinked, handleClose]);
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
@@ -180,7 +187,11 @@ export function CreateSquadModal({
                     </div>
                     <div className="flex-1 min-w-0">
                         <span className="truncate block">
-                            {step === "name" ? "Create Team" : `${createdSquadName} Created! 🎉`}
+                            {step === "name"
+                                ? "Create Team"
+                                : mustJoinDiscord
+                                    ? "Link Discord to Continue"
+                                    : `${createdSquadName} Created! 🎉`}
                         </span>
                         <span className="text-xs font-normal text-foreground/50">{tournamentName}</span>
                     </div>

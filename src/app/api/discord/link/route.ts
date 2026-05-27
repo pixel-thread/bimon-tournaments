@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { getCurrentUser } from "@/lib/auth";
 import { findMemberByUsername, grantRole } from "@/lib/discord-service";
+import { discordFetch, getGuildId } from "@/lib/discord-bot";
 
 /**
  * POST /api/discord/link
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
 /**
  * GET /api/discord/link
  *
- * Check if the current user already has a Discord account linked.
+ * Check if the current user has Discord linked AND is still in the server.
  */
 export async function GET() {
     try {
@@ -104,9 +105,26 @@ export async function GET() {
             select: { discordId: true, discordUsername: true },
         });
 
+        if (!player?.discordId) {
+            return NextResponse.json({ linked: false });
+        }
+
+        // Verify they're actually in the server
+        const guildId = getGuildId();
+        const memberRes = await discordFetch(`/guilds/${guildId}/members/${player.discordId}`);
+
+        if (!memberRes.ok) {
+            // They left the server — clear their discordId so they must re-link
+            await prisma.player.update({
+                where: { id: user.player.id },
+                data: { discordId: null, discordUsername: null },
+            });
+            return NextResponse.json({ linked: false });
+        }
+
         return NextResponse.json({
-            linked: !!player?.discordId,
-            discordUsername: player?.discordUsername || null,
+            linked: true,
+            discordUsername: player.discordUsername || null,
         });
     } catch {
         return NextResponse.json({ linked: false });
