@@ -774,6 +774,11 @@ function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
             const lines: string[] = [];
             lines.push(`🏆 ${tournament.name}`);
             lines.push(`💰 Prize Pool: ₹${prizePool.toLocaleString()}`);
+            if (dist.finalOrgAmount > 0) {
+                lines.push(`💼 Org Cut: ₹${dist.finalOrgAmount.toLocaleString()}`);
+                lines.push(`📊 Distributable: ₹${(prizePool - dist.finalOrgAmount).toLocaleString()}`);
+            }
+            lines.push(`🎮 Teams: ${tournament.teamCount} · Entry: ₹${entryFee}`);
             lines.push("");
 
             // Prize positions

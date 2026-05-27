@@ -1018,7 +1018,7 @@ export function DeclareWinnersModal({
 
                             {/* ─ Simple tab: just show prize pool chip ─ */}
                             {activeTab === "simple" && basePrizePool > 0 && baseDist && (
-                                <div className="flex items-center gap-2 text-sm text-foreground/60">
+                                <div className="flex items-center gap-2 text-sm text-foreground/60 flex-wrap">
                                     <Coins className="h-4 w-4 text-success" />
                                     <span>Prize Pool:</span>
                                     <Chip size="sm" color="success" variant="flat" className="font-semibold">
@@ -1027,6 +1027,11 @@ export function DeclareWinnersModal({
                                     <span className="text-xs text-foreground/30">
                                         ({baseDist.tier.winnerCount} winners)
                                     </span>
+                                    {organizerAmount > 0 && (
+                                        <span className="text-xs text-foreground/40">
+                                            · 💼 Org: ₹{organizerAmount.toLocaleString()}
+                                        </span>
+                                    )}
                                 </div>
                             )}
 
