@@ -166,6 +166,30 @@ export async function progressFromHeats(tournamentId: string, seasonId: string) 
     });
     const dqTeamIds = new Set(dqTeams.map(t => t.id));
 
+    // Get point deductions so rankings reflect penalties
+    const teamsWithDeductions = await prisma.team.findMany({
+        where: { tournamentId, pointDeduction: { gt: 0 } },
+        select: { id: true, pointDeduction: true },
+    });
+    const deductionMap = new Map(teamsWithDeductions.map(t => [t.id, t.pointDeduction]));
+
+    // Apply deductions and re-sort each group
+    for (const rankings of [groupARankings, groupBRankings]) {
+        for (const team of rankings) {
+            const deduction = deductionMap.get(team.teamId) ?? 0;
+            if (deduction > 0) {
+                team.totalPoints -= deduction;
+            }
+        }
+        rankings.sort((a, b) => {
+            if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            if (b.placementPts !== a.placementPts) return b.placementPts - a.placementPts;
+            if (b.kills !== a.kills) return b.kills - a.kills;
+            return a.lastMatchPosition - b.lastMatchPosition;
+        });
+    }
+
     for (const rankings of [groupARankings, groupBRankings]) {
         let qualifiedCount = 0;
         rankings.forEach((team) => {
@@ -273,6 +297,31 @@ export async function progressFromHeatsLite(tournamentId: string, seasonId: stri
         select: { id: true },
     });
     const dqTeamIds = new Set(dqTeams.map(t => t.id));
+
+    // Get point deductions so rankings reflect penalties
+    const teamsWithDeductions = await prisma.team.findMany({
+        where: { tournamentId, pointDeduction: { gt: 0 } },
+        select: { id: true, pointDeduction: true },
+    });
+    const deductionMap = new Map(teamsWithDeductions.map(t => [t.id, t.pointDeduction]));
+
+    // Apply deductions and re-sort each group
+    for (const rankings of [groupARankings, groupBRankings]) {
+        for (const team of rankings) {
+            const deduction = deductionMap.get(team.teamId) ?? 0;
+            if (deduction > 0) {
+                team.totalPoints -= deduction;
+            }
+        }
+        // Re-sort with deductions applied (same tiebreaker logic)
+        rankings.sort((a, b) => {
+            if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            if (b.placementPts !== a.placementPts) return b.placementPts - a.placementPts;
+            if (b.kills !== a.kills) return b.kills - a.kills;
+            return a.lastMatchPosition - b.lastMatchPosition;
+        });
+    }
 
     for (const rankings of [groupARankings, groupBRankings]) {
         let qualifiedCount = 0;
@@ -388,6 +437,28 @@ export async function progressFromWildcard(tournamentId: string, seasonId: strin
         select: { id: true },
     });
     const dqTeamIds = new Set(dqTeams.map(t => t.id));
+
+    // Get point deductions
+    const teamsWithDeductions = await prisma.team.findMany({
+        where: { tournamentId, pointDeduction: { gt: 0 } },
+        select: { id: true, pointDeduction: true },
+    });
+    const deductionMap = new Map(teamsWithDeductions.map(t => [t.id, t.pointDeduction]));
+
+    // Apply deductions and re-sort
+    for (const team of rankings) {
+        const deduction = deductionMap.get(team.teamId) ?? 0;
+        if (deduction > 0) {
+            team.totalPoints -= deduction;
+        }
+    }
+    rankings.sort((a, b) => {
+        if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (b.placementPts !== a.placementPts) return b.placementPts - a.placementPts;
+        if (b.kills !== a.kills) return b.kills - a.kills;
+        return a.lastMatchPosition - b.lastMatchPosition;
+    });
 
     let qualifiedCount = 0;
     rankings.forEach((team) => {
