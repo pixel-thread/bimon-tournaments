@@ -53,7 +53,12 @@ export function TeamDoneSection({
 }: TeamDoneSectionProps) {
     const [inviteSearch, setInviteSearch] = useState("");
     const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
-    const [discordLinked, setDiscordLinked] = useState(false);
+    const [discordLinked, setDiscordLinked] = useState(() => {
+        if (typeof window !== "undefined" && isRanked) {
+            return sessionStorage.getItem("discord_linked") === "true";
+        }
+        return false;
+    });
     const inviteMutation = useInvitePlayer();
     const { data: searchResults, isLoading: isSearching } = useSearchPlayers(
         inviteSearch,
@@ -71,19 +76,9 @@ export function TeamDoneSection({
         const params = new URLSearchParams(window.location.search);
         if (params.get("discord") === "linked") {
             setDiscordLinked(true);
+            sessionStorage.setItem("discord_linked", "true");
         }
     }, []);
-
-    // Check if Discord is already linked (on mount)
-    useEffect(() => {
-        if (!isRanked || discordLinked) return;
-        fetch("/api/discord/link", { method: "GET" })
-            .then((res) => res.json())
-            .then((data) => {
-                if (data.linked) setDiscordLinked(true);
-            })
-            .catch(() => {});
-    }, [isRanked, discordLinked]);
 
     const handleDiscordAuth = () => {
         const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;

@@ -64,18 +64,30 @@ export function CreateSquadModal({
     const [useClanTreasury, setUseClanTreasury] = useState(false);
     const [treasuryRequested, setTreasuryRequested] = useState(false);
     const [whatsappJoined, setWhatsappJoined] = useState(false);
-    const [discordLinked, setDiscordLinked] = useState(false);
+    const [discordLinked, setDiscordLinked] = useState(() => {
+        // Instant check from cache — no network needed
+        if (typeof window !== "undefined" && isRanked) {
+            return sessionStorage.getItem("discord_linked") === "true";
+        }
+        return false;
+    });
 
-    // Check if Discord is already linked (returning captain)
+    // Verify with API in background (fast DB-only check)
     useEffect(() => {
-        if (!isRanked || discordLinked) return;
+        if (!isRanked || !isOpen) return;
         fetch("/api/discord/link", { method: "GET" })
             .then((res) => res.json())
             .then((data) => {
-                if (data.linked) setDiscordLinked(true);
+                if (data.linked) {
+                    setDiscordLinked(true);
+                    sessionStorage.setItem("discord_linked", "true");
+                } else {
+                    setDiscordLinked(false);
+                    sessionStorage.removeItem("discord_linked");
+                }
             })
             .catch(() => {});
-    }, [isRanked, discordLinked, isOpen]);
+    }, [isRanked, isOpen]);
 
     const handleWhatsappJoin = useCallback(() => {
         setWhatsappJoined(true);
