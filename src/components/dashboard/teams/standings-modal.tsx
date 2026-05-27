@@ -13,6 +13,7 @@ import {
     ChevronDown,
     Minus,
     Trophy,
+    Send,
 } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
@@ -98,6 +99,8 @@ export function StandingsModal({
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
+    const [isSendingDiscord, setIsSendingDiscord] = useState(false);
+    const [discordSent, setDiscordSent] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [compareMatches, setCompareMatches] = useState(1);
     const [champGroup, setChampGroup] = useState<"ALL" | "A" | "B" | "FINALS">(initialGroup ?? (championshipPhase === "FINALS" ? "FINALS" : "ALL"));
@@ -375,6 +378,108 @@ export function StandingsModal({
         }
     }, [tournamentTitle, backgroundImage, standings]);
 
+    // ── Capture screenshot as data URL (shared helper) ────────
+
+    const captureScreenshot = useCallback(async (): Promise<string | null> => {
+        const element = document.getElementById("standings-content");
+        if (!element) return null;
+
+        const clone = element.cloneNode(true) as HTMLElement;
+        clone.removeAttribute("id");
+
+        const mobileEl = clone.querySelector(".mobile-standings");
+        if (mobileEl) mobileEl.remove();
+
+        const desktopEl = clone.querySelector(".desktop-standings") as HTMLElement | null;
+        const twoColEl = clone.querySelector(".desktop-two-col") as HTMLElement | null;
+        const singleColEl = clone.querySelector(".desktop-single-col") as HTMLElement | null;
+        if (desktopEl) desktopEl.style.display = "block";
+        if (twoColEl) { twoColEl.style.display = "flex"; twoColEl.style.gap = "1rem"; twoColEl.style.justifyContent = "center"; }
+        if (singleColEl) singleColEl.style.display = "none";
+
+        clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
+
+        const restTeams = Math.max(0, standings.length - 3);
+        const rowsPerCol = Math.ceil(restTeams / 2);
+        const champHeaderExtra = detectedChampionship ? 40 : 0;
+        const captureHeight = Math.max(520, 200 + 160 + champHeaderExtra + rowsPerCol * 38 + 80);
+        const captureWidth = 1280;
+
+        clone.style.cssText = `
+            width: ${captureWidth}px; min-height: ${captureHeight}px;
+            display: flex; align-items: center; justify-content: center;
+            background-image: url(${backgroundImage});
+            background-size: cover; background-position: center;
+            position: relative; overflow: visible;
+        `;
+
+        const tempContainer = document.createElement("div");
+        tempContainer.style.cssText = "position: absolute; left: -9999px; top: 0;";
+        tempContainer.appendChild(clone);
+        document.body.appendChild(tempContainer);
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        try {
+            const dataUrl = await toPng(clone, {
+                width: captureWidth,
+                height: captureHeight,
+                pixelRatio: 2,
+            });
+            return dataUrl;
+        } catch (error) {
+            console.error("Screenshot capture failed:", error);
+            return null;
+        } finally {
+            document.body.removeChild(tempContainer);
+        }
+    }, [backgroundImage, standings, detectedChampionship]);
+
+    // ── Send to Discord ───────────────────────────────────────
+
+    const sendToDiscord = useCallback(async () => {
+        if (isSendingDiscord) return;
+        setIsSendingDiscord(true);
+        setDiscordSent(false);
+
+        try {
+            const dataUrl = await captureScreenshot();
+            if (!dataUrl) {
+                toast.error("Failed to capture screenshot");
+                return;
+            }
+
+            // Determine phase from current view
+            const phase = champGroup === "A" ? "HEATS_A"
+                : champGroup === "B" ? "HEATS_B"
+                : champGroup === "FINALS" ? "FINALS"
+                : null;
+
+            const res = await fetch("/api/discord/send-standings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    image: dataUrl,
+                    tournamentName: tournamentTitle,
+                    phase,
+                }),
+            });
+
+            if (!res.ok) {
+                const json = await res.json();
+                throw new Error(json.error || "Failed");
+            }
+
+            setDiscordSent(true);
+            toast.success("Standings sent to Discord!");
+            setTimeout(() => setDiscordSent(false), 3000);
+        } catch (err) {
+            toast.error((err as Error).message || "Failed to send to Discord");
+        } finally {
+            setIsSendingDiscord(false);
+        }
+    }, [isSendingDiscord, captureScreenshot, champGroup, tournamentTitle]);
+
     if (!isOpen) return null;
 
     const maxMatches = matchData?.length ?? 0;
@@ -415,6 +520,22 @@ export function StandingsModal({
                             <Check className="h-5 w-5 text-green-400" />
                         ) : (
                             <Copy className="h-5 w-5" />
+                        )}
+                    </button>
+
+                    {/* Send to Discord Button */}
+                    <button
+                        onClick={sendToDiscord}
+                        disabled={isSendingDiscord}
+                        className={`relative overflow-hidden text-white hover:text-[#5865F2] bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-[#5865F2]/50 p-2.5 rounded-xl transition-all duration-300 ${discordSent ? "bg-[#5865F2]/20 border-[#5865F2]/50" : ""}`}
+                        title="Send to Discord"
+                    >
+                        {isSendingDiscord ? (
+                            <div className="h-5 w-5 border-2 border-[#5865F2] border-t-transparent rounded-full animate-spin" />
+                        ) : discordSent ? (
+                            <Check className="h-5 w-5 text-[#5865F2]" />
+                        ) : (
+                            <Send className="h-5 w-5" />
                         )}
                     </button>
 

@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
+import { grantRole } from "@/lib/discord-service";
 
 /**
  * POST /api/squads/respond
@@ -149,6 +150,18 @@ export async function POST(request: NextRequest) {
                 ? `${playerName} joined "${squadName}" — your squad is now full for ${tournamentName}! 🎉`
                 : `${playerName} accepted your invite to "${squadName}"`;
             sendPush(captainPlayerId, { title: pushTitle, body: pushBody, url: "/vote" });
+
+            // Auto-grant Discord @Ranked-Player role if member has discordId
+            const rankedRoleId = process.env.DISCORD_RANKED_PLAYER_ROLE_ID;
+            if (rankedRoleId && invite.squad.poll.isActive) {
+                const member = await prisma.player.findUnique({
+                    where: { id: playerId },
+                    select: { discordId: true },
+                });
+                if (member?.discordId) {
+                    grantRole(member.discordId, rankedRoleId).catch(() => {});
+                }
+            }
 
             return SuccessResponse({
                 message: `You joined "${squadName}"!`,
