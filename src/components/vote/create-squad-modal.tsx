@@ -31,6 +31,8 @@ interface CreateSquadModalProps {
     whatsappGroupLink?: string | null;
     /** Whether the current user already has an individual vote on this poll */
     hasVotedIn?: boolean;
+    /** Ranked/squad tournament — uses Discord instead of WhatsApp */
+    isRanked?: boolean;
 }
 
 interface MyClan {
@@ -52,6 +54,7 @@ export function CreateSquadModal({
     entryFee,
     whatsappGroupLink,
     hasVotedIn,
+    isRanked,
 }: CreateSquadModalProps) {
     const [step, setStep] = useState<"name" | "done">("name");
     const [squadName, setSquadName] = useState("");
@@ -137,8 +140,9 @@ export function CreateSquadModal({
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
-    // On the done step, block dismiss until WhatsApp is joined (when a link exists)
-    const mustJoinWhatsapp = step === "done" && !!whatsappGroupLink && !whatsappJoined;
+    // On the done step, block dismiss until communication channel is joined
+    // Ranked tournaments use Discord (handled inside TeamDoneSection), casual uses WhatsApp
+    const mustJoinWhatsapp = step === "done" && !isRanked && !!whatsappGroupLink && !whatsappJoined;
 
     return (
         <>
@@ -307,6 +311,8 @@ export function CreateSquadModal({
                                     onWhatsappJoin={handleWhatsappJoin}
                                     createdSquadId={createdSquadId}
                                     pollId={pollId}
+                                    isRanked={isRanked}
+                                    discordInviteLink={process.env.NEXT_PUBLIC_DISCORD_INVITE_LINK || null}
                                 />
                             </motion.div>
                         )}

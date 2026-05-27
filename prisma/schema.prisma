@@ -194,6 +194,10 @@ model Player {
   customProfileImageUrl   String?
   phoneNumber             String?
 
+  // Discord
+  discordId               String?  @unique  // Discord user ID (for role management)
+  discordUsername          String?           // Cached Discord display name
+
   // Location
   state    String?
   district String?

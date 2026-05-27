@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardBody } from "@heroui/react";
-import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { GAME } from "@/lib/game-config";
 
@@ -114,6 +114,8 @@ function TournamentRow({ tournament, state, onChange }: {
     const [timeEditing, setTimeEditing] = useState(false);
     const [timeInput, setTimeInput] = useState("");
     const timeInputRef = useRef<HTMLInputElement>(null);
+    const [discordSending, setDiscordSending] = useState(false);
+    const [discordSent, setDiscordSent] = useState(false);
 
     const startEditingTime = () => {
         setTimeInput(state.time ? formatTimeDisplay(state.time) : "");
@@ -177,6 +179,33 @@ function TournamentRow({ tournament, state, onChange }: {
     const resetMatch = useCallback(() => {
         onChange({ copyCount: 0, map: "Erangel" });
     }, [onChange]);
+
+    const handleSendDiscord = useCallback(async () => {
+        setDiscordSending(true);
+        try {
+            const res = await fetch("/api/discord/send-room-info", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    tournamentName,
+                    matchNumber,
+                    map: state.map,
+                    time: formatTimeDisplay(state.time),
+                    roomId: state.roomId.trim(),
+                    password: state.password,
+                    gameName: GAME.gameName,
+                }),
+            });
+            if (res.ok) {
+                setDiscordSent(true);
+                setTimeout(() => setDiscordSent(false), 3000);
+            }
+        } catch {
+            // silently fail
+        } finally {
+            setDiscordSending(false);
+        }
+    }, [tournamentName, matchNumber, state.map, state.time, state.roomId, state.password]);
 
     return (
         <div className="space-y-3">
@@ -299,6 +328,41 @@ function TournamentRow({ tournament, state, onChange }: {
                 <p className="text-[11px] text-center text-foreground/40">
                     {state.copyCount} match{state.copyCount !== 1 ? "es" : ""} copied • Next: Match {state.copyCount + 1}
                 </p>
+            )}
+
+            {/* Send to Discord — ranked only */}
+            {isRanked && (
+                <button
+                    type="button"
+                    onClick={handleSendDiscord}
+                    disabled={discordSending || !state.password}
+                    className={`
+                        w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold
+                        transition-all duration-200 cursor-pointer active:scale-[0.98]
+                        ${discordSent
+                            ? "bg-[#5865F2]/20 text-[#5865F2] border border-[#5865F2]/30"
+                            : "bg-[#5865F2] text-white shadow-md shadow-[#5865F2]/25 hover:shadow-lg hover:shadow-[#5865F2]/30"
+                        }
+                        ${(discordSending || !state.password) ? "opacity-60 cursor-not-allowed" : ""}
+                    `}
+                >
+                    {discordSent ? (
+                        <>
+                            <Check className="w-4 h-4" />
+                            Sent to Discord ✅
+                        </>
+                    ) : discordSending ? (
+                        <>
+                            <Send className="w-4 h-4 animate-pulse" />
+                            Sending...
+                        </>
+                    ) : (
+                        <>
+                            <Send className="w-4 h-4" />
+                            Send to Discord
+                        </>
+                    )}
+                </button>
             )}
         </div>
     );

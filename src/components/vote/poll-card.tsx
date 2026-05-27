@@ -1508,6 +1508,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             tournamentName={tournament?.name || poll.question}
                             entryFee={entryFee}
                             whatsappGroupLink={poll.whatsappGroupLink}
+                            isRanked={poll.allowSquads}
                         />
                     </>
                 )}

@@ -21,6 +21,7 @@ import {
     type SoloTaxResult,
 } from "@/lib/logic/soloTax";
 import { getSettings } from "@/lib/settings";
+import { revokeRoleFromAll } from "@/lib/discord-service";
 
 // BGMI placement points — must match rankings API
 const PLACEMENT_PTS: Record<number, number> = {
@@ -667,6 +668,32 @@ export async function POST(
             } catch (couponErr) {
                 // Don't fail winner declaration if coupon assignment fails
                 console.error("Coupon auto-assign error:", couponErr);
+            }
+        }
+
+        // ── 6c. Revoke Discord @Ranked-Player role from all tournament players ──
+        if (isSquadTournament && process.env.DISCORD_RANKED_PLAYER_ROLE_ID) {
+            try {
+                // Get all player IDs in this tournament
+                const allTournamentPlayerIds = Array.from(allPlayerIds);
+                // Find players with Discord IDs
+                const discordPlayers = await prisma.player.findMany({
+                    where: {
+                        id: { in: allTournamentPlayerIds },
+                        discordId: { not: null },
+                    },
+                    select: { discordId: true },
+                });
+                const discordUserIds = discordPlayers
+                    .map((p) => p.discordId)
+                    .filter((id): id is string => !!id);
+                if (discordUserIds.length > 0) {
+                    // Fire-and-forget — don't block the response
+                    revokeRoleFromAll(discordUserIds, process.env.DISCORD_RANKED_PLAYER_ROLE_ID!)
+                        .catch((err) => console.error("Discord role revocation error:", err));
+                }
+            } catch (discordErr) {
+                console.error("Discord cleanup error:", discordErr);
             }
         }
 

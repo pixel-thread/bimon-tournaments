@@ -296,6 +296,8 @@ export default function JoinPage() {
                             onWhatsappJoin={() => { setWhatsappJoined(true); markWhatsAppJoined(pollId); }}
                             createdSquadId={createdSquadId}
                             pollId={pollId}
+                            isRanked={data.allowSquads}
+                            discordInviteLink={process.env.NEXT_PUBLIC_DISCORD_INVITE_LINK || null}
                         />
 
                         {/* Go to tournament — only after WhatsApp gate is cleared */}

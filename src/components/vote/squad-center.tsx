@@ -1340,6 +1340,7 @@ export function SquadCenter({
                 entryFee={entryFee}
                 whatsappGroupLink={whatsappGroupLink}
                 hasVotedIn={hasVotedIn}
+                isRanked
             />
 
             {/* Vote conflict warning modal */}
