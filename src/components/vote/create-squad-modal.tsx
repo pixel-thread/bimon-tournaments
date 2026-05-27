@@ -350,7 +350,7 @@ export function CreateSquadModal({
                                 Create Team
                             </Button>
                         </div>
-                    ) : !mustJoinWhatsapp ? (
+                    ) : !isModalBlocked ? (
                         <Button
                             variant="flat"
                             className="w-full font-medium"
