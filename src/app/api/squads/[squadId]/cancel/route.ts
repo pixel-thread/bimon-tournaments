@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { sendPush } from "@/lib/push";
 import { debitWallet, getEmailByPlayerId } from "@/lib/wallet-service";
+import { revokeRole } from "@/lib/discord-service";
 
 /**
  * POST /api/squads/[squadId]/cancel
@@ -125,6 +126,20 @@ export async function POST(
                 body: `${captainName} cancelled "${squad.name}" for ${tournamentName}.${isSameDay ? ` ${penalty} ${GAME.currency} penalty applied.` : ""}`,
                 url: "/vote",
             });
+        }
+
+        // Revoke Discord @Ranked-Player role from captain
+        const rankedRoleId = process.env.DISCORD_RANKED_PLAYER_ROLE_ID;
+        if (rankedRoleId) {
+            try {
+                const captain = await prisma.player.findUnique({
+                    where: { id: user.player.id },
+                    select: { discordId: true },
+                });
+                if (captain?.discordId) {
+                    revokeRole(captain.discordId, rankedRoleId).catch(() => {});
+                }
+            } catch {}
         }
 
         return SuccessResponse({
