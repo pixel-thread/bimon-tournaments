@@ -715,29 +715,32 @@ function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
         setCopying(true);
 
         try {
-            // Fetch rankings, settings, and poll org cut in parallel
-            const [res, settingsRes, pollsRes] = await Promise.all([
-                fetch(`/api/tournaments/${tournament.id}/rankings`),
+            // Fetch settings, polls, and donations in parallel (no rankings needed)
+            const [settingsRes, pollsRes, donationsRes] = await Promise.all([
                 fetch("/api/settings/public"),
                 fetch("/api/polls?all=true"),
+                fetch(`/api/tournaments/${tournament.id}/donations`),
             ]);
-            if (!res.ok) throw new Error("Failed to fetch rankings");
-            const json = await res.json();
-            const meta = json.meta;
 
-            if (!meta?.prizePool || meta.prizePool <= 0) {
-                toast.error("No prize pool data available");
-                setCopying(false);
-                return;
+            const entryFee = tournament.fee ?? 0;
+            const teamCount = tournament.teamCount;
+            const isSquad = tournament.poll?.allowSquads ?? false;
+
+            // Get donations bonus
+            let donations = 0;
+            if (donationsRes.ok) {
+                try {
+                    const dJson = await donationsRes.json();
+                    donations = dJson.data?.total ?? 0;
+                } catch { /* ignore */ }
             }
 
             // Determine org cut: poll-level override first, then global settings
-            const isRanked = meta.isSquadTournament ?? false;
             let orgCut = 0;
             let orgCutMode: "fixed" | "percent" = "fixed";
-
-            // 1. Check per-poll orgCutFixed (set by admin on the poll for this tournament)
+            let poolFee = entryFee; // default: entry fee = pool fee
             let usedPollOrgCut = false;
+
             if (pollsRes.ok) {
                 try {
                     const pollsJson = await pollsRes.json();
@@ -748,29 +751,39 @@ function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
                         orgCutMode = "fixed";
                         usedPollOrgCut = true;
                     }
-                } catch { /* ignore parse errors */ }
+                    if (poll?.prizePoolFee != null) {
+                        poolFee = poll.prizePoolFee;
+                    }
+                } catch { /* ignore */ }
             }
 
-            // 2. Fall back to global settings if no poll-level override
             if (!usedPollOrgCut && settingsRes.ok) {
                 const settingsJson = await settingsRes.json();
                 const settings = settingsJson.data ?? {};
-                orgCutMode = isRanked
+                orgCutMode = isSquad
                     ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed")
                     : (settings.orgCutMode ?? "fixed");
                 orgCut = orgCutMode === "percent"
-                    ? (isRanked ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
-                    : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
+                    ? (isSquad ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
+                    : (isSquad ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
             }
 
-            const prizePool = meta.prizePool;
-            const entryFee = meta.entryFee ?? 0;
-            const teamSize = getTeamSize(meta.teamType ?? "DUO");
+            // Prize pool = teams × poolFee + donations
+            const prizePool = (poolFee * teamCount) + donations;
 
-            // Compute distribution with org cut
+            if (prizePool <= 0) {
+                toast.error("No prize pool — no teams or entry fee is 0");
+                setCopying(false);
+                return;
+            }
+
+            // teamSize for refund calc (squad=1 since fee is per-team, otherwise per-player)
+            const teamSize = isSquad ? 1 : getTeamSize("DUO");
+
+            // Compute distribution
             const dist = getPrizeDistribution(prizePool, entryFee, teamSize, orgCut, orgCutMode);
 
-            // Build text — dist already deducts org, so prizes and totalWinnerPayout are correct
+            // Build text
             const lines: string[] = [];
             lines.push(`🏆 ${tournament.name}`);
             lines.push(`💰 Prize Pool: ₹${dist.totalWinnerPayout.toLocaleString()}`);
@@ -794,7 +807,7 @@ function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
         } finally {
             setCopying(false);
         }
-    }, [tournament.id, tournament.name, copying]);
+    }, [tournament.id, tournament.name, tournament.fee, tournament.teamCount, tournament.poll?.allowSquads, copying]);
 
     return (
         <Button
