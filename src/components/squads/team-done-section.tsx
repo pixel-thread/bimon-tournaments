@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input, Button, Spinner, Avatar } from "@heroui/react";
 import { Search, X, Share2 } from "lucide-react";
 import { motion } from "motion/react";
@@ -53,11 +53,7 @@ export function TeamDoneSection({
 }: TeamDoneSectionProps) {
     const [inviteSearch, setInviteSearch] = useState("");
     const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
-    const [discordUsername, setDiscordUsername] = useState("");
-    const [discordLinking, setDiscordLinking] = useState(false);
     const [discordLinked, setDiscordLinked] = useState(false);
-    const [discordError, setDiscordError] = useState("");
-    const [discordJoined, setDiscordJoined] = useState(false);
     const inviteMutation = useInvitePlayer();
     const { data: searchResults, isLoading: isSearching } = useSearchPlayers(
         inviteSearch,
@@ -70,102 +66,67 @@ export function TeamDoneSection({
     // For ranked tournaments: Discord must be linked before showing invite tools
     const isBlocked = mustJoinWhatsapp || mustJoinDiscord;
 
-    const handleDiscordLink = async () => {
-        if (!discordUsername.trim()) return;
-        setDiscordLinking(true);
-        setDiscordError("");
-
-        try {
-            const res = await fetch("/api/discord/link", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: discordUsername.trim() }),
-            });
-            const data = await res.json();
-
-            if (!res.ok) {
-                setDiscordError(data.error || "Failed to link Discord");
-                return;
-            }
-
+    // Check URL params for Discord OAuth callback result
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("discord") === "linked") {
             setDiscordLinked(true);
-        } catch {
-            setDiscordError("Network error. Try again.");
-        } finally {
-            setDiscordLinking(false);
         }
+    }, []);
+
+    // Check if Discord is already linked (on mount)
+    useEffect(() => {
+        if (!isRanked || discordLinked) return;
+        fetch("/api/discord/link", { method: "GET" })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.linked) setDiscordLinked(true);
+            })
+            .catch(() => {});
+    }, [isRanked, discordLinked]);
+
+    const handleDiscordAuth = () => {
+        const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
+        const redirectUri = encodeURIComponent(
+            `${window.location.origin}/api/discord/callback`
+        );
+        const state = encodeURIComponent(pollId);
+        const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify&state=${state}`;
+        window.location.href = url;
     };
 
     return (
         <div className="space-y-4">
-            {/* Discord join + link — for ranked tournaments */}
+            {/* Discord — ranked tournaments: one-tap OAuth linking */}
             {isRanked && (
                 <div className="space-y-2">
                     {!discordLinked && (
                         <>
-                            {/* Step 1: Join the Discord server */}
-                            {!discordJoined && discordInviteLink && (
-                                <>
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/15 text-red-500">
-                                            Step 1
-                                        </span>
-                                        <span className="text-xs text-foreground/50">
-                                            Join the Discord server
-                                        </span>
-                                    </div>
-                                    <a
-                                        href={discordInviteLink}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={() => setDiscordJoined(true)}
-                                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 ring-2 ring-[#5865F2]/40 animate-pulse"
-                                    >
-                                        <DiscordIcon className="w-5 h-5" />
-                                        Join Discord Server
-                                    </a>
-                                </>
+                            {/* Join server hint */}
+                            {discordInviteLink && (
+                                <a
+                                    href={discordInviteLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all border border-[#5865F2]/30 bg-[#5865F2]/10 text-[#5865F2] hover:bg-[#5865F2]/20"
+                                >
+                                    <DiscordIcon className="w-4 h-4" />
+                                    Join Discord Server First
+                                </a>
                             )}
 
-                            {/* Step 2: Link Discord username */}
-                            {(discordJoined || !discordInviteLink) && (
-                                <>
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/15 text-red-500">
-                                            {discordInviteLink ? "Step 2" : "Required"}
-                                        </span>
-                                        <span className="text-xs text-foreground/50">
-                                            Link your Discord username
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            size="sm"
-                                            placeholder="Your Discord username"
-                                            value={discordUsername}
-                                            onValueChange={(v) => { setDiscordUsername(v); setDiscordError(""); }}
-                                            classNames={{ input: "text-base" }}
-                                            startContent={<DiscordIcon className="w-4 h-4 text-[#5865F2]" />}
-                                            isInvalid={!!discordError}
-                                            errorMessage={discordError}
-                                            onKeyDown={(e) => { if (e.key === "Enter") handleDiscordLink(); }}
-                                        />
-                                        <Button
-                                            color="primary"
-                                            size="sm"
-                                            className="shrink-0 h-10 bg-[#5865F2]"
-                                            isLoading={discordLinking}
-                                            isDisabled={!discordUsername.trim()}
-                                            onPress={handleDiscordLink}
-                                        >
-                                            Link
-                                        </Button>
-                                    </div>
-                                    <p className="text-[11px] text-foreground/40">
-                                        This grants you access to the <strong>#ranked-room-id</strong> channel for match details.
-                                    </p>
-                                </>
-                            )}
+                            {/* One-tap OAuth link button */}
+                            <button
+                                type="button"
+                                onClick={handleDiscordAuth}
+                                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 ring-2 ring-[#5865F2]/40 animate-pulse cursor-pointer active:scale-[0.98]"
+                            >
+                                <DiscordIcon className="w-5 h-5" />
+                                Link with Discord
+                            </button>
+                            <p className="text-[11px] text-foreground/40 text-center">
+                                One tap — grants access to <strong>#ranked-room-id</strong> for match details.
+                            </p>
                         </>
                     )}
 

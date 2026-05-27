@@ -86,3 +86,29 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Failed to link Discord account" }, { status: 500 });
     }
 }
+
+/**
+ * GET /api/discord/link
+ *
+ * Check if the current user already has a Discord account linked.
+ */
+export async function GET() {
+    try {
+        const user = await getCurrentUser();
+        if (!user?.player?.id) {
+            return NextResponse.json({ linked: false });
+        }
+
+        const player = await prisma.player.findUnique({
+            where: { id: user.player.id },
+            select: { discordId: true, discordUsername: true },
+        });
+
+        return NextResponse.json({
+            linked: !!player?.discordId,
+            discordUsername: player?.discordUsername || null,
+        });
+    } catch {
+        return NextResponse.json({ linked: false });
+    }
+}
