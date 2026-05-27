@@ -770,11 +770,10 @@ function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
             // Compute distribution with org cut
             const dist = getPrizeDistribution(prizePool, entryFee, teamSize, orgCut, orgCutMode);
 
-            // Build text — show distributable pool (after org cut) as the prize pool
-            const distributable = prizePool - (dist.orgFee ?? 0);
+            // Build text — dist already deducts org, so prizes and totalWinnerPayout are correct
             const lines: string[] = [];
             lines.push(`🏆 ${tournament.name}`);
-            lines.push(`💰 Prize Pool: ₹${distributable.toLocaleString()}`);
+            lines.push(`💰 Prize Pool: ₹${dist.totalWinnerPayout.toLocaleString()}`);
             lines.push("");
 
             // Prize positions
