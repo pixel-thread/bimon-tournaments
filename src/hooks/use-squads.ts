@@ -131,8 +131,42 @@ export function useCreateSquad() {
             }
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: (data, variables) => {
             toast.success(data.message || "Squad created!");
+
+            // Optimistic: immediately add the new squad to the cache
+            queryClient.setQueryData(
+                ["squads", variables.pollId],
+                (old: { squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean } | undefined) => {
+                    if (!old) return old;
+                    const newSquad: SquadDTO = {
+                        id: data.data?.id ?? `temp-${Date.now()}`,
+                        name: data.data?.name ?? variables.name,
+                        status: "FORMING",
+                        entryFee: data.data?.entryFee ?? 0,
+                        createdAt: new Date().toISOString(),
+                        captain: { id: "", displayName: "", imageUrl: "" },
+                        clanLogo: null,
+                        clanTag: null,
+                        clanName: null,
+                        isDefendingChampion: false,
+                        isCaptain: true,
+                        myInvite: { id: "", status: "ACCEPTED", initiatedBy: "CAPTAIN" },
+                        members: [],
+                        acceptedCount: 1,
+                        activeCount: 1,
+                        totalSlots: GAME.maxSquadSize,
+                        isFull: false,
+                    };
+                    return {
+                        ...old,
+                        squads: [newSquad, ...old.squads],
+                        squadCount: old.squadCount + 1,
+                    };
+                }
+            );
+
+            // Background refetch for accurate data
             queryClient.invalidateQueries({ queryKey: ["squads"] });
         },
         onError: (err) => {
