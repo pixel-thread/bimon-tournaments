@@ -1,11 +1,10 @@
-import { Routes } from "discord.js";
-import { getDiscordRest, getGuildId } from "./discord-bot";
+import { discordFetch, getGuildId } from "./discord-bot";
 
 /**
  * Discord Service — Business logic for tournament Discord operations.
  *
- * All functions use the REST API (no gateway needed).
- * Designed for serverless — each call is stateless.
+ * All functions use plain fetch() via discordFetch helper.
+ * No discord.js — works on Vercel serverless.
  */
 
 // ─── Role Management ────────────────────────────────────────
@@ -14,10 +13,10 @@ import { getDiscordRest, getGuildId } from "./discord-bot";
  * Grant a role to a Discord user.
  */
 export async function grantRole(discordUserId: string, roleId: string): Promise<void> {
-    const rest = getDiscordRest();
     const guildId = getGuildId();
-    await rest.put(
-        Routes.guildMemberRole(guildId, discordUserId, roleId)
+    await discordFetch(
+        `/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
+        { method: "PUT" }
     );
 }
 
@@ -25,10 +24,10 @@ export async function grantRole(discordUserId: string, roleId: string): Promise<
  * Revoke a role from a Discord user.
  */
 export async function revokeRole(discordUserId: string, roleId: string): Promise<void> {
-    const rest = getDiscordRest();
     const guildId = getGuildId();
-    await rest.delete(
-        Routes.guildMemberRole(guildId, discordUserId, roleId)
+    await discordFetch(
+        `/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`,
+        { method: "DELETE" }
     );
 }
 
@@ -37,11 +36,13 @@ export async function revokeRole(discordUserId: string, roleId: string): Promise
  * Skips users who don't have the role (no error).
  */
 export async function revokeRoleFromAll(discordUserIds: string[], roleId: string): Promise<void> {
-    const rest = getDiscordRest();
     const guildId = getGuildId();
     await Promise.allSettled(
         discordUserIds.map((userId) =>
-            rest.delete(Routes.guildMemberRole(guildId, userId, roleId))
+            discordFetch(
+                `/guilds/${guildId}/members/${userId}/roles/${roleId}`,
+                { method: "DELETE" }
+            )
         )
     );
 }
@@ -61,15 +62,16 @@ export async function findMemberByUsername(username: string): Promise<{
     username: string;
     displayName: string;
 } | null> {
-    const rest = getDiscordRest();
     const guildId = getGuildId();
 
     try {
-        // Search guild members by query (Discord API v10)
-        const members = (await rest.get(
-            Routes.guildMembersSearch(guildId),
-            { query: new URLSearchParams({ query: username, limit: "5" }) }
-        )) as DiscordMember[];
+        const res = await discordFetch(
+            `/guilds/${guildId}/members/search?query=${encodeURIComponent(username)}&limit=5`
+        );
+
+        if (!res.ok) return null;
+
+        const members: DiscordMember[] = await res.json();
 
         // Find exact match
         const match = members.find(
@@ -105,7 +107,6 @@ interface RoomInfoPayload {
  * Send a rich embed with room info to the ranked room ID channel.
  */
 export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
-    const rest = getDiscordRest();
     const channelId = process.env.DISCORD_RANKED_ROOM_CHANNEL_ID;
     if (!channelId) throw new Error("DISCORD_RANKED_ROOM_CHANNEL_ID is not set");
 
@@ -126,10 +127,11 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
         timestamp: new Date().toISOString(),
     };
 
-    await rest.post(Routes.channelMessages(channelId), {
-        body: {
+    await discordFetch(`/channels/${channelId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({
             embeds: [embed],
             content: "@everyone 🚨 Room info is here! Join now!",
-        },
+        }),
     });
 }

@@ -1,19 +1,15 @@
-import { Client, GatewayIntentBits, REST, Routes } from "discord.js";
-
 /**
- * Discord Bot — Lazy singleton client.
+ * Discord Bot — Lightweight REST-only client.
  *
- * The bot connects on first use and stays connected for the life of the
- * serverless function invocation. In production (Vercel), each cold start
- * creates a new connection; warm invocations reuse it.
+ * Uses plain fetch() instead of discord.js to avoid
+ * native module issues on serverless (Vercel).
  *
  * Required env vars:
  *   DISCORD_BOT_TOKEN
  *   DISCORD_GUILD_ID
  */
 
-let _client: Client | null = null;
-let _rest: REST | null = null;
+const DISCORD_API = "https://discord.com/api/v10";
 
 function getToken(): string {
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -21,41 +17,27 @@ function getToken(): string {
     return token;
 }
 
-function getGuildId(): string {
+export function getGuildId(): string {
     const id = process.env.DISCORD_GUILD_ID;
     if (!id) throw new Error("DISCORD_GUILD_ID is not set");
     return id;
 }
 
 /**
- * Get the Discord REST client (no gateway connection needed).
- * Preferred for API-only operations like role management.
+ * Make an authenticated request to the Discord API.
  */
-export function getDiscordRest(): REST {
-    if (!_rest) {
-        _rest = new REST({ version: "10" }).setToken(getToken());
-    }
-    return _rest;
-}
-
-/**
- * Get the full Discord.js client (with gateway).
- * Only use this if you need real-time events.
- */
-export async function getDiscordClient(): Promise<Client> {
-    if (_client?.isReady()) return _client;
-
-    _client = new Client({
-        intents: [
-            GatewayIntentBits.Guilds,
-            GatewayIntentBits.GuildMembers,
-            GatewayIntentBits.GuildMessages,
-            GatewayIntentBits.MessageContent,
-        ],
+export async function discordFetch(
+    path: string,
+    options: RequestInit = {}
+): Promise<Response> {
+    const url = `${DISCORD_API}${path}`;
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            Authorization: `Bot ${getToken()}`,
+            "Content-Type": "application/json",
+            ...options.headers,
+        },
     });
-
-    await _client.login(getToken());
-    return _client;
+    return res;
 }
-
-export { getGuildId };

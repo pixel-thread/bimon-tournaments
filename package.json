@@ -22,7 +22,6 @@
     "@tanstack/react-query": "^5.90.21",
     "canvas": "^3.2.3",
     "cloudinary": "^2.9.0",
-    "discord.js": "^14.26.4",
     "express": "^5.2.1",
     "fastest-levenshtein": "^1.0.16",
     "html-to-image": "^1.11.13",
