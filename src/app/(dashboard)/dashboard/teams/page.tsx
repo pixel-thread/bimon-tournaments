@@ -795,7 +795,7 @@ export default function TeamsPage() {
                 isChampionship={isChamp}
                 initialGroup={isChamp && champPhase === "HEATS" ? heatsGroup : undefined}
                 disqualifiedTeamIds={dqTeamIds}
-                pointDeductionMap={pointDeductionMap}
+                pointDeductionMap={isChamp && champPhase !== "HEATS" ? {} : pointDeductionMap}
                 championshipPhase={isChamp ? champPhase ?? undefined : undefined}
             />
 
