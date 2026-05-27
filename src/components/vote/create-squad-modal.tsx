@@ -64,6 +64,18 @@ export function CreateSquadModal({
     const [useClanTreasury, setUseClanTreasury] = useState(false);
     const [treasuryRequested, setTreasuryRequested] = useState(false);
     const [whatsappJoined, setWhatsappJoined] = useState(false);
+    const [discordLinked, setDiscordLinked] = useState(false);
+
+    // Check if Discord is already linked (returning captain)
+    useEffect(() => {
+        if (!isRanked || discordLinked) return;
+        fetch("/api/discord/link", { method: "GET" })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.linked) setDiscordLinked(true);
+            })
+            .catch(() => {});
+    }, [isRanked, discordLinked, isOpen]);
 
     const handleWhatsappJoin = useCallback(() => {
         setWhatsappJoined(true);
@@ -141,8 +153,10 @@ export function CreateSquadModal({
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
     // On the done step, block dismiss until communication channel is joined
-    // Ranked tournaments use Discord (handled inside TeamDoneSection), casual uses WhatsApp
+    // Ranked tournaments use Discord, casual uses WhatsApp
     const mustJoinWhatsapp = step === "done" && !isRanked && !!whatsappGroupLink && !whatsappJoined;
+    const mustJoinDiscord = step === "done" && !!isRanked && !discordLinked;
+    const isModalBlocked = mustJoinWhatsapp || mustJoinDiscord;
 
     return (
         <>
@@ -151,9 +165,9 @@ export function CreateSquadModal({
             onClose={handleClose}
             placement="center"
             size="md"
-            hideCloseButton={mustJoinWhatsapp}
-            isDismissable={!mustJoinWhatsapp}
-            isKeyboardDismissDisabled={mustJoinWhatsapp}
+            hideCloseButton={isModalBlocked}
+            isDismissable={!isModalBlocked}
+            isKeyboardDismissDisabled={isModalBlocked}
         >
             <ModalContent>
                 <ModalHeader className="flex items-center gap-2 text-base pb-1">
