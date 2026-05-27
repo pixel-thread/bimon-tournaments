@@ -148,47 +148,18 @@ function TournamentRow({ tournament, state, onChange }: {
         return lines.join("\n");
     }, [state.roomId, state.time, state.password, state.map, typeEmoji, typeLabel, tournamentName]);
 
-    const handleCopy = useCallback(async () => {
-        const nextMatch = state.copyCount + 1;
-        const message = generateMessage(nextMatch);
-        const nextMap = getDefaultMapForMatch(nextMatch + 1);
-
-        try {
-            await navigator.clipboard.writeText(message);
-            onChange({ copyCount: nextMatch, justCopied: true, map: nextMap });
-
-            if (timerRef.current) clearTimeout(timerRef.current);
-            timerRef.current = setTimeout(() => {
-                onChange({ justCopied: false });
-            }, 2000);
-        } catch {
-            const textarea = document.createElement("textarea");
-            textarea.value = message;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textarea);
-            onChange({ copyCount: nextMatch, justCopied: true, map: nextMap });
-            if (timerRef.current) clearTimeout(timerRef.current);
-            timerRef.current = setTimeout(() => {
-                onChange({ justCopied: false });
-            }, 2000);
-        }
-    }, [generateMessage, state.copyCount, onChange]);
-
     const resetMatch = useCallback(() => {
         onChange({ copyCount: 0, map: "Erangel" });
     }, [onChange]);
 
-    const handleSendDiscord = useCallback(async () => {
-        setDiscordSending(true);
+    const sendDiscord = useCallback(async (matchNum: number) => {
         try {
-            const res = await fetch("/api/discord/send-room-info", {
+            await fetch("/api/discord/send-room-info", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     tournamentName,
-                    matchNumber,
+                    matchNumber: matchNum,
                     map: state.map,
                     time: formatTimeDisplay(state.time),
                     roomId: state.roomId.trim(),
@@ -196,16 +167,45 @@ function TournamentRow({ tournament, state, onChange }: {
                     gameName: GAME.gameName,
                 }),
             });
-            if (res.ok) {
+        } catch {
+            // silent
+        }
+    }, [tournamentName, state.map, state.time, state.roomId, state.password]);
+
+    /** One tap: copies to clipboard (WhatsApp) + auto-sends to Discord */
+    const handleCopyAndSend = useCallback(async () => {
+        const nextMatch = state.copyCount + 1;
+        const message = generateMessage(nextMatch);
+        const nextMap = getDefaultMapForMatch(nextMatch + 1);
+
+        // 1. Copy to clipboard
+        try {
+            await navigator.clipboard.writeText(message);
+        } catch {
+            const textarea = document.createElement("textarea");
+            textarea.value = message;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+        }
+
+        onChange({ copyCount: nextMatch, justCopied: true, map: nextMap });
+
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => {
+            onChange({ justCopied: false });
+        }, 2000);
+
+        // 2. Auto-send to Discord (ranked only, fire-and-forget)
+        if (isRanked && state.password) {
+            setDiscordSending(true);
+            sendDiscord(nextMatch).then(() => {
                 setDiscordSent(true);
                 setTimeout(() => setDiscordSent(false), 3000);
-            }
-        } catch {
-            // silently fail
-        } finally {
-            setDiscordSending(false);
+            }).finally(() => setDiscordSending(false));
         }
-    }, [tournamentName, matchNumber, state.map, state.time, state.roomId, state.password]);
+    }, [generateMessage, state.copyCount, state.password, onChange, isRanked, sendDiscord]);
 
     return (
         <div className="space-y-3">
@@ -295,10 +295,10 @@ function TournamentRow({ tournament, state, onChange }: {
                 </div>
             </div>
 
-            {/* Copy Button */}
+            {/* Single button: Copy + Send to Discord */}
             <button
                 type="button"
-                onClick={handleCopy}
+                onClick={handleCopyAndSend}
                 className={`
                     w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold
                     transition-all duration-200 cursor-pointer active:scale-[0.98]
@@ -313,12 +313,12 @@ function TournamentRow({ tournament, state, onChange }: {
                 {state.justCopied ? (
                     <>
                         <Check className="w-4 h-4" />
-                        Copied Match {state.copyCount}!
+                        Copied Match {state.copyCount}!{isRanked && discordSent && " + Sent to Discord"}
                     </>
                 ) : (
                     <>
                         <Copy className="w-4 h-4" />
-                        Copy Match {matchNumber}
+                        {isRanked ? `Copy & Send Match ${matchNumber}` : `Copy Match ${matchNumber}`}
                     </>
                 )}
             </button>
@@ -328,41 +328,6 @@ function TournamentRow({ tournament, state, onChange }: {
                 <p className="text-[11px] text-center text-foreground/40">
                     {state.copyCount} match{state.copyCount !== 1 ? "es" : ""} copied • Next: Match {state.copyCount + 1}
                 </p>
-            )}
-
-            {/* Send to Discord — ranked only */}
-            {isRanked && (
-                <button
-                    type="button"
-                    onClick={handleSendDiscord}
-                    disabled={discordSending || !state.password}
-                    className={`
-                        w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold
-                        transition-all duration-200 cursor-pointer active:scale-[0.98]
-                        ${discordSent
-                            ? "bg-[#5865F2]/20 text-[#5865F2] border border-[#5865F2]/30"
-                            : "bg-[#5865F2] text-white shadow-md shadow-[#5865F2]/25 hover:shadow-lg hover:shadow-[#5865F2]/30"
-                        }
-                        ${(discordSending || !state.password) ? "opacity-60 cursor-not-allowed" : ""}
-                    `}
-                >
-                    {discordSent ? (
-                        <>
-                            <Check className="w-4 h-4" />
-                            Sent to Discord ✅
-                        </>
-                    ) : discordSending ? (
-                        <>
-                            <Send className="w-4 h-4 animate-pulse" />
-                            Sending...
-                        </>
-                    ) : (
-                        <>
-                            <Send className="w-4 h-4" />
-                            Send to Discord
-                        </>
-                    )}
-                </button>
             )}
         </div>
     );

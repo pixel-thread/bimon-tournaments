@@ -70,7 +70,7 @@ export interface PollDTO {
  * Fetch active polls with vote data.
  */
 export function usePolls() {
-    return useQuery<{ polls: PollDTO[]; currentPlayerId: string | null; isCouponVerifier: boolean; isUCExempt: boolean }>({
+    return useQuery<{ polls: PollDTO[]; currentPlayerId: string | null; isCouponVerifier: boolean; isUCExempt: boolean; isAdmin: boolean }>({
         queryKey: ["polls"],
         queryFn: async () => {
             const res = await fetch(`/api/polls?_t=${Date.now()}`);

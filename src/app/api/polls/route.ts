@@ -182,6 +182,7 @@ export async function GET(request: Request) {
             isCouponVerifier = playerFlags?.isCouponVerifier ?? false;
             isUCExempt = playerFlags?.isUCExempt ?? false;
         }
+        const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
 
         // Sort: nearest play date first (works for both scheduledDate and day-name polls)
         const DAY_NAMES: Record<string, number> = {
@@ -207,7 +208,7 @@ export async function GET(request: Request) {
         };
         data.sort((a: any, b: any) => getEffectiveDate(a) - getEffectiveDate(b));
 
-        return SuccessResponse({ data: { polls: data, currentPlayerId: playerId ?? null, isCouponVerifier, isUCExempt }, cache: CACHE.NONE });
+        return SuccessResponse({ data: { polls: data, currentPlayerId: playerId ?? null, isCouponVerifier, isUCExempt, isAdmin }, cache: CACHE.NONE });
     } catch (error) {
         console.error("[GET /api/polls] Error:", error);
         return ErrorResponse({ message: "Failed to fetch polls", error });

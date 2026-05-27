@@ -14,6 +14,7 @@ import { Vote, AlertCircle } from "lucide-react";
 import { useAuthGate } from "@/components/common/auth-gate-provider";
 import { ModeTabs } from "@/components/common/ModeTabs";
 import { GAME } from "@/lib/game-config";
+import { RoomInfoGenerator } from "@/components/vote/room-info-generator";
 import { motion, AnimatePresence, LayoutGroup } from "motion/react";
 import { WhatsAppJoinModal } from "@/components/common/WhatsAppJoinModal";
 import { useQuery } from "@tanstack/react-query";
@@ -49,6 +50,9 @@ export default function VotePage() {
     const polls = data?.polls;
     const currentPlayerId = data?.currentPlayerId ?? undefined;
     const isCouponVerifier = data?.isCouponVerifier ?? false;
+    const isUCExempt = data?.isUCExempt ?? false;
+    const isAdmin = data?.isAdmin ?? false;
+    const showRoomInfo = isAdmin || isUCExempt;
     const pendingPollId = voteMutation.isPending ? voteMutation.variables?.pollId : undefined;
     const pendingVote = voteMutation.isPending ? voteMutation.variables?.vote : undefined;
 
@@ -159,6 +163,9 @@ export default function VotePage() {
 
             {/* ── Merit Rating (non-blocking, above polls) ────── */}
             <MeritRatingSection />
+
+            {/* ── Room Info (admins + isucexcemot only) ── */}
+            {showRoomInfo && <RoomInfoGenerator />}
 
 
 
