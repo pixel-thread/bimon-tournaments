@@ -13,6 +13,7 @@ import {
     Download,
     Users,
     ImageIcon,
+    Trophy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,12 @@ interface SelectedPlayer {
     id: string;
     name: string;
     imageUrl: string;
+}
+
+interface TournamentOption {
+    id: string;
+    name: string;
+    seasonName: string | null;
 }
 
 /* ─────────────── prompt data ─────────────── */
@@ -252,9 +259,17 @@ const PROMPTS: Prompt[] = [
  */
 const PRO_SUFFIX = ` IMPORTANT — Pro Thumbnail Polish: For each of the three player images, adjust their body and hand poses to look like professional esports athletes — confident stances, arms crossed, fist clenches, pointing gestures, or victory poses. Avoid awkward or limp hand positions. Give each player a powerful, intentional pose that conveys dominance and skill. CRITICAL — Unified Lighting & Color Grading: All three player images MUST have matching, consistent lighting direction, color temperature, and shadow intensity. Apply a single unified color grade across all players so they look like they were photographed in the same scene — match the warm/cool tones, contrast levels, and rim lighting to the background environment. No player should look pasted in with mismatched lighting. The final result should look like a single professionally composited image, not three separate photos combined.`;
 
-/** Returns the full prompt text with the pro suffix appended */
-function getFullPrompt(prompt: Prompt): string {
-    return prompt.text + PRO_SUFFIX;
+/** Returns the full prompt text with the pro suffix and tournament/season replaced */
+function getFullPrompt(prompt: Prompt, tournamentName?: string, seasonName?: string): string {
+    let text = prompt.text;
+    if (tournamentName) {
+        text = text.replace(/\[TOURNAMENT NAME\]/g, tournamentName);
+    }
+    if (seasonName) {
+        text = text.replace(/\[SEASON X\]/g, seasonName);
+        text = text.replace(/\[SEASON \[X\]\]/g, seasonName);
+    }
+    return text + PRO_SUFFIX;
 }
 
 /* ─────────────── player search hook ─────────────── */
@@ -280,6 +295,25 @@ function usePlayerSearch(search: string) {
         },
         enabled: search.trim().length >= 2,
         staleTime: 30_000,
+    });
+}
+
+/* ─────────────── tournament fetch hook ─────────────── */
+
+function useTournaments() {
+    return useQuery<TournamentOption[]>({
+        queryKey: ["thumbnail-tournaments"],
+        queryFn: async () => {
+            const res = await fetch("/api/tournaments?limit=50");
+            if (!res.ok) return [];
+            const json = await res.json();
+            return (json.data ?? []).map((t: any) => ({
+                id: t.id,
+                name: t.name,
+                seasonName: t.season?.name ?? null,
+            }));
+        },
+        staleTime: 60_000,
     });
 }
 
@@ -351,6 +385,12 @@ async function copyImageToClipboard(url: string) {
 /* ─────────────── page component ─────────────── */
 
 export default function ThumbnailPromptsPage() {
+    // Tournament selection state
+    const [selectedTournament, setSelectedTournament] = useState<TournamentOption | null>(null);
+    const [showTournamentDropdown, setShowTournamentDropdown] = useState(false);
+    const [tournamentSearch, setTournamentSearch] = useState("");
+    const { data: tournaments, isLoading: tournamentsLoading } = useTournaments();
+
     // Player selection state
     const [playerSearch, setPlayerSearch] = useState("");
     const [selected, setSelected] = useState<SelectedPlayer[]>([]);
@@ -362,6 +402,15 @@ export default function ThumbnailPromptsPage() {
     const [copiedId, setCopiedId] = useState<number | null>(null);
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+
+    const filteredTournaments = useMemo(() => {
+        if (!tournaments) return [];
+        if (!tournamentSearch.trim()) return tournaments;
+        const q = tournamentSearch.toLowerCase();
+        return tournaments.filter(
+            (t) => t.name.toLowerCase().includes(q) || t.seasonName?.toLowerCase().includes(q)
+        );
+    }, [tournaments, tournamentSearch]);
 
     const selectPlayer = useCallback(
         (player: PlayerResult) => {
@@ -419,7 +468,9 @@ export default function ThumbnailPromptsPage() {
 
     const handleCopy = async (prompt: Prompt) => {
         try {
-            await navigator.clipboard.writeText(getFullPrompt(prompt));
+            await navigator.clipboard.writeText(
+                getFullPrompt(prompt, selectedTournament?.name, selectedTournament?.seasonName ?? undefined)
+            );
             setCopiedId(prompt.id);
             toast.success(`Copied #${prompt.id} — ${prompt.title}`);
             setTimeout(() => setCopiedId(null), 2000);
@@ -446,8 +497,92 @@ export default function ThumbnailPromptsPage() {
                     Thumbnail Prompts
                 </h1>
                 <p className="text-sm text-foreground/50 mt-1">
-                    Select 3 players, download their images, then copy a prompt.
+                    Pick a tournament, select 3 players, download their images, then copy a prompt.
                 </p>
+            </div>
+
+            {/* ━━━ Tournament Selector ━━━ */}
+            <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-3">
+                <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-2">
+                    <Trophy className="h-4 w-4" />
+                    Tournament
+                </h2>
+
+                {selectedTournament ? (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate">{selectedTournament.name}</p>
+                            {selectedTournament.seasonName && (
+                                <p className="text-[11px] text-foreground/50">{selectedTournament.seasonName}</p>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setSelectedTournament(null)}
+                            className="shrink-0 p-1.5 rounded-lg bg-foreground/5 hover:bg-danger/10 hover:text-danger transition-colors"
+                        >
+                            <X className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="relative">
+                        <Input
+                            size="sm"
+                            placeholder="Search tournament..."
+                            startContent={<Search className="h-4 w-4 text-foreground/40" />}
+                            value={tournamentSearch}
+                            onValueChange={(v) => {
+                                setTournamentSearch(v);
+                                setShowTournamentDropdown(true);
+                            }}
+                            onFocus={() => setShowTournamentDropdown(true)}
+                            isClearable
+                            onClear={() => {
+                                setTournamentSearch("");
+                                setShowTournamentDropdown(false);
+                            }}
+                            classNames={{ inputWrapper: "bg-foreground/[0.04]" }}
+                        />
+
+                        {showTournamentDropdown && (
+                            <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-xl border border-divider bg-content1 shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                                {tournamentsLoading ? (
+                                    <div className="flex items-center justify-center py-6">
+                                        <Spinner size="sm" />
+                                    </div>
+                                ) : !filteredTournaments.length ? (
+                                    <p className="text-xs text-foreground/40 text-center py-6">
+                                        No tournaments found
+                                    </p>
+                                ) : (
+                                    filteredTournaments.map((t) => (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => {
+                                                setSelectedTournament(t);
+                                                setShowTournamentDropdown(false);
+                                                setTournamentSearch("");
+                                                toast.success(`Selected: ${t.name}`);
+                                            }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-foreground/[0.04] transition-colors"
+                                        >
+                                            <Trophy className="h-4 w-4 text-primary/60 shrink-0" />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-medium truncate">{t.name}</p>
+                                                {t.seasonName && (
+                                                    <p className="text-[11px] text-foreground/40">{t.seasonName}</p>
+                                                )}
+                                            </div>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!selectedTournament && (
+                    <p className="text-[11px] text-warning/70">⚠ Prompts will have [TOURNAMENT NAME] and [SEASON X] as placeholders until you select one</p>
+                )}
             </div>
 
             {/* ━━━ Player Selection Section ━━━ */}
@@ -674,7 +809,43 @@ export default function ThumbnailPromptsPage() {
                 )}
             </div>
 
-            {/* ━━━ Prompt Section ━━━ */}
+            {/* ━━━ BIMON Logo — Always Ready ━━━ */}
+            <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-3">
+                <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    BIMON Logo
+                </h2>
+                <div className="flex items-center gap-4">
+                    <div className="shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-black/10 border border-divider">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src="/icons/bgmi/icon-512x512.png"
+                            alt="BIMON Logo"
+                            className="w-full h-full object-contain"
+                        />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">icon-512x512.png</p>
+                        <p className="text-[11px] text-foreground/40">Upload this as the 4th reference image in your AI tool</p>
+                        <div className="flex gap-2 mt-2">
+                            <button
+                                onClick={() => copyImageToClipboard("/icons/bgmi/icon-512x512.png")}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground/5 text-foreground/60 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-colors"
+                            >
+                                <Copy className="h-3 w-3" />
+                                Copy
+                            </button>
+                            <button
+                                onClick={() => downloadImage("/icons/bgmi/icon-512x512.png", "bimon-logo.png")}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground/5 text-foreground/60 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-colors"
+                            >
+                                <Download className="h-3 w-3" />
+                                Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div className="space-y-3">
                 <Input
                     size="sm"
@@ -803,7 +974,7 @@ export default function ThumbnailPromptsPage() {
                                             className="px-4 pb-4 cursor-pointer"
                                         >
                                             <p className="text-xs text-foreground/50 leading-relaxed line-clamp-4 group-hover:line-clamp-none transition-all">
-                                                {getFullPrompt(prompt)}
+                                                {getFullPrompt(prompt, selectedTournament?.name, selectedTournament?.seasonName ?? undefined)}
                                             </p>
                                         </div>
                                     </div>
