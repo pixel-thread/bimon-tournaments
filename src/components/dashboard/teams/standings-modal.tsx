@@ -455,6 +455,11 @@ export function StandingsModal({
                 : champGroup === "FINALS" ? "FINALS"
                 : null;
 
+            // Get max match count from standings
+            const maxMatches = standings.length > 0
+                ? Math.max(...standings.map(s => s.matchCount))
+                : 0;
+
             const res = await fetch("/api/discord/send-standings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -462,6 +467,7 @@ export function StandingsModal({
                     image: dataUrl,
                     tournamentName: tournamentTitle,
                     phase,
+                    matchCount: maxMatches,
                 }),
             });
 
