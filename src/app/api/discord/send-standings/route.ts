@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing image or tournamentName" }, { status: 400 });
         }
 
-        const channelId = process.env.DISCORD_RANKED_ROOM_CHANNEL_ID;
+        const channelId = process.env.DISCORD_STANDINGS_CHANNEL_ID || process.env.DISCORD_RANKED_ROOM_CHANNEL_ID;
         if (!channelId) {
-            return NextResponse.json({ error: "DISCORD_RANKED_ROOM_CHANNEL_ID not set" }, { status: 500 });
+            return NextResponse.json({ error: "DISCORD_STANDINGS_CHANNEL_ID not set" }, { status: 500 });
         }
 
         const token = process.env.DISCORD_BOT_TOKEN;
