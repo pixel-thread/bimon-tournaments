@@ -140,4 +140,12 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
         console.error(`Discord sendRoomInfo failed [${res.status}]:`, errorBody);
         throw new Error(`Discord API error ${res.status}: ${errorBody}`);
     }
+
+    // Send a second plain-text message with just the room ID for easy copying
+    if (payload.roomId.trim()) {
+        await discordFetch(`/channels/${channelId}/messages`, {
+            method: "POST",
+            body: JSON.stringify({ content: payload.roomId.trim() }),
+        });
+    }
 }
