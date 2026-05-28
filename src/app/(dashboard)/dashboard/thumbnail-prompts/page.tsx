@@ -1,39 +1,24 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { Input, Chip, Avatar, Spinner } from "@heroui/react";
+import { useState, useMemo, useEffect } from "react";
+import { Input, Spinner } from "@heroui/react";
 import {
     Clapperboard,
     Copy,
     Check,
     Search,
     ChevronDown,
-    ChevronUp,
-    X,
-    Download,
-    Users,
-    ImageIcon,
     Trophy,
+    RefreshCw,
+    Type,
+    FileText,
+    Pin,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import { getPrizeDistribution, getTeamSize } from "@/lib/logic/prizeDistribution";
 
 /* ─────────────── types ─────────────── */
-
-interface PlayerResult {
-    id: string;
-    displayName: string;
-    username: string;
-    imageUrl: string;
-    category: string;
-    clan: { name: string; tag: string } | null;
-}
-
-interface SelectedPlayer {
-    id: string;
-    name: string;
-    imageUrl: string;
-}
 
 interface TournamentOption {
     id: string;
@@ -47,220 +32,209 @@ interface Prompt {
     id: number;
     title: string;
     text: string;
-    category: string;
 }
 
-const CATEGORIES = [
-    { key: "hype", label: "🔥 Hype & Battle", color: "danger" as const },
-    { key: "champion", label: "🏆 Champion & Leaderboard", color: "warning" as const },
-    { key: "action", label: "🎯 Action & Gameplay", color: "success" as const },
-    { key: "cinematic", label: "🌟 Dramatic & Cinematic", color: "secondary" as const },
-    { key: "stats", label: "📊 Stats & Elimination", color: "primary" as const },
-    { key: "seasonal", label: "🎪 Seasonal & Special", color: "default" as const },
-];
-
 const PROMPTS: Prompt[] = [
-    // ── Hype & Battle (1–6) ──
     {
         id: 1,
-        category: "hype",
-        title: "Fiery Battlefield Heroes",
-        text: `Create a YouTube thumbnail (1280×720) for a BGMI tournament. Show three players as large heroic figures standing side by side in a triangular composition, facing forward with intense expressions. The background features PUBG Mobile characters in full combat gear firing assault rifles amid a fiery orange-red battlefield explosion with smoke, sparks, and military crates. Place the BIMON logo prominently in the top-left corner. Bold white and yellow text reads "[TOURNAMENT NAME]" at the top and "SEASON [X] — WHO WILL DOMINATE?" at the bottom. Gaming esports style, 4K quality, dramatic lighting.`,
+        title: "Main Stage Showdown",
+        text: `Create a YouTube thumbnail (1280×720) for a Bimon Tournament (BT) Tier-1 BGMI live stream. PMGC-style aesthetic. The background features a massive, dark esports arena with sweeping neon laser lights (cyan and gold) and a giant LED screen showing a subtle Erangel map. Foreground: High-fidelity 3D renders of PUBG Mobile characters (or provided player photos) in tactical gear, illuminated by dramatic rim lighting. The BT logo is rendered in premium 3D metallic gold in the top-left. Typography is clean, bold, and modern sans-serif: "[TOURNAMENT NAME] — [SEASON X]" at the top, and "[EVENT]" at the bottom. 8K resolution, octane render, broadcast-quality.`,
     },
     {
         id: 2,
-        category: "hype",
-        title: "VS Triangle Showdown",
-        text: `Design a YouTube thumbnail (1280×720) for a BGMI esports tournament. Three player profile images arranged in a "VS triangle" — two on the left and right glaring at each other, one in the center slightly larger and elevated. Electric blue and neon orange lightning bolts crackle between them. Background filled with BGMI characters in Level 3 helmets and vests crouching behind cover, AKM and M416 rifles drawn, with Erangel buildings crumbling behind them. The BIMON logo as a glowing hologram in the top center. Text: "[TOURNAMENT NAME] | [SEASON X]" in bold metallic chrome font. "THE ULTIMATE SHOWDOWN" in red at the bottom. Cinematic, dramatic, 4K.`,
+        title: "Versus Face-Off",
+        text: `Design a YouTube thumbnail (1280×720) for a Bimon Tournament BGMI live stream. PMGO style "Versus" graphic. Split the frame diagonally with a glowing neon slash. Two star players (or hyper-realistic 3D PUBG characters) face off on opposite sides, bathed in contrasting team colors (e.g., electric blue vs. intense crimson). Background features subtle glassmorphism UI elements and hex-grid patterns. The BT logo sits in the center inside a sleek holographic emblem. Text: "[TOURNAMENT NAME] — [SEASON X]" in sharp metallic chrome. "THE ULTIMATE CLASH" in clean, tracked-out font below. Tier-1 esports broadcast quality.`,
     },
     {
         id: 3,
-        category: "hype",
-        title: "Airdrop Emergence",
-        text: `YouTube thumbnail (1280×720) for a mobile gaming tournament. Three players shown as battle-ready warriors emerging from a BGMI airdrop crate, dramatic low-angle shot. Background shows PUBG Mobile characters parachuting down from a plane over Erangel with neon green and electric purple gradient sky and particle effects. The BIMON logo stamped as a golden badge in the top-right. Large bold text: "[TOURNAMENT NAME]" in white with yellow glow, "[SEASON X] BEGINS!" in red fire font at the bottom. Each player's name displayed below their image. Ultra-sharp, competitive gaming aesthetic.`,
+        title: "Drop Zone Briefing",
+        text: `YouTube thumbnail (1280×720) for a Bimon Tournament live stream. A tactical, high-end broadcast analytical screen. Background is a sleek 3D topographical map of a BGMI map with glowing neon drop paths. Foreground features premium 3D renders of characters (or player photos) standing confidently with crossed arms, wearing Level 3 gear with carbon-fiber textures. The BT logo is displayed as a sleek corporate sponsor badge. Text: "[TOURNAMENT NAME] — [SEASON X]" in bright white, "DROP HOT. SURVIVE." in a glowing accent color. Clean, minimalist, data-driven esports aesthetic.`,
     },
     {
         id: 4,
-        category: "hype",
-        title: "Playing Card Legends",
-        text: `Create a high-energy YouTube thumbnail (1280×720). Three player photos arranged like playing cards fanned out, each with a glowing colored border (gold, red, blue). Behind them, BGMI characters engaged in an intense firefight on a battleground — a military helicopter flying overhead, explosions erupting, AWM sniper shots tracing through a blood-red sky, scattered ammo and weapon crates everywhere. The BIMON logo sits large in the center-top as a metallic emblem. Bold impact text: "3 LEGENDS. 1 CROWN." and "[TOURNAMENT NAME] — [SEASON X]" at the bottom in white with black outline. Hyper-detailed, tournament poster style.`,
+        title: "Star Player Spotlight",
+        text: `Create a premium YouTube thumbnail (1280×720) for Bimon Tournament. Three player portraits (or high-end PUBG character renders) displayed in sleek, modern broadcast "player cards" made of frosted glass and metallic trim. Background is a dark, moody studio environment with subtle volumetric fog and spotlights hitting the cards. The BT logo is embossed in silver at the top center. Clean typography: "PLAYERS TO WATCH" and "[TOURNAMENT NAME] — [SEASON X]". High contrast, corporate esports branding, global championship vibe.`,
     },
     {
         id: 5,
-        category: "hype",
-        title: "Shattered Triple Panel",
-        text: `YouTube thumbnail (1280×720) — Split the frame into 3 vertical panels with each player occupying one panel, each with a different dramatic color wash (red, blue, gold). Behind each panel, a different PUBG Mobile character in an iconic pose — one sniping with an AWM, one charging with a pan, one throwing a grenade — creating action silhouettes. The panels crack and shatter where they meet, with light bursting through. The BIMON logo is centered over the cracks like a seal holding them together. Text overlay: "[TOURNAMENT NAME]" in large 3D extruded letters at the top. "[SEASON X] — THE BATTLE IS ON" in bold white at the bottom. Professional esports broadcast quality.`,
+        title: "Trio Focus Transition",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. A three-panel split-screen graphic identical to PMGC broadcast transitions. Each vertical panel features a different player (or 3D character render) with intense focus, lit by studio lighting. The dividers between panels are thin, glowing neon lines. Backgrounds are deep blacks with subtle moving particle effects. The BT logo is a clean watermark in the bottom right. Text: "[TOURNAMENT NAME]" in massive, thick 3D extruded letters with a matte finish. "[SEASON X] COMMENCES" in a sharp, secondary font. Ultra-professional.`,
     },
     {
         id: 6,
-        category: "hype",
-        title: "Red Zone Fight Night",
-        text: `Design a YouTube thumbnail (1280×720) showing three players in a dramatic "back-to-back" pose arrangement. Background is a war-torn BGMI Erangel map with PUBG Mobile characters in ghillie suits and combat gear running through smoke, fire, and a red zone circle closing in — bullets flying, UAZ vehicles exploding. The BIMON logo as a large watermark behind the players. Text: "[TOURNAMENT NAME]" in aggressive angular font, "[SEASON X] — FIGHT NIGHT" in neon red at bottom. Dark, gritty, cinematic tone.`,
+        title: "Survival Stakes",
+        text: `Design a YouTube thumbnail (1280×720) for Bimon Tournament live stream. A cinematic, high-stakes atmosphere mimicking a major LAN event intro. Foreground features a single, highly detailed 3D PUBG character (or star player) walking away from an exploding vehicle, rendered with realistic physics, sparks, and cinematic depth of field (blurry background). Lighting is dramatic, with heavy shadows and bright orange/red rim lighting. The BT logo hovers as an AR (Augmented Reality) graphic in the scene. Text: "[TOURNAMENT NAME] — [SEASON X]" in sleek, cinematic typography. "SURVIVAL OF THE FITTEST" below.`,
     },
-
-    // ── Champion & Leaderboard (7–12) ──
     {
         id: 7,
-        category: "champion",
-        title: "Golden Podium",
-        text: `YouTube thumbnail (1280×720) — Create a podium-style layout. The center player is elevated on a golden podium with a glowing crown effect above their head. The two other players stand on silver and bronze podiums on either side. Background shows BGMI characters in winner poses holding flare guns and chicken dinners, confetti and golden particles raining down with Erangel's military base skyline behind them. The BIMON logo shines like a trophy emblem at the top-center. Text: "[TOURNAMENT NAME] — [SEASON X]" in gold serif font. "WHO TAKES THE CROWN?" in white bold at the bottom. Celebratory, premium feel.`,
+        title: "Global Championship Stage",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. Tier-1 championship presentation. The central figure (winning player or character) stands on a high-tech LED stage in a massive dark arena, holding a gleaming 3D rendered trophy. Cold blue and warm gold stage lights cut through the arena fog. Confetti falls, frozen in time with sharp clarity. The BT logo is projected massively on the arena screens behind them. Text: "[TOURNAMENT NAME] — [SEASON X]" in premium gold foil text. "[EVENT]" in crisp white. PMGC championship aesthetic.`,
     },
     {
         id: 8,
-        category: "champion",
-        title: "Leaderboard Reveal",
-        text: `YouTube thumbnail (1280×720) for a BGMI leaderboard reveal. Three player images displayed inside circular frames arranged horizontally, each frame decorated with rank badges (#1, #2, #3). Background features PUBG Mobile characters standing at attention in a row like an army lineup, wearing themed outfits and holding weapons, against a dark navy blue backdrop with subtle grid lines and holographic data visualizations. The BIMON logo in the top-left corner. Large white text: "[TOURNAMENT NAME] TOP 3" at the top. "[SEASON X] STANDINGS REVEALED!" in yellow at the bottom. Clean, stats-focused, broadcast-quality design.`,
+        title: "Broadcast Standings",
+        text: `YouTube thumbnail (1280×720) for a Bimon Tournament BGMI live stream leaderboard. Recreate a highly polished, professional broadcast overlay. Three players (or characters) are featured next to a sleek, semi-transparent dark UI displaying team logos and rank numbers (#1, #2, #3). Background is a subtle, out-of-focus esports arena. Clean vector graphics, sharp edges, and a dark navy/carbon-fiber color palette. The BT logo in the top-left corner as a broadcast bug. Text: "[EVENT]" at the top. "[TOURNAMENT NAME] — [SEASON X]" at the bottom. Clean, stats-focused.`,
     },
     {
         id: 9,
-        category: "champion",
-        title: "Grand Finals Trophy",
-        text: `YouTube thumbnail (1280×720) — Grand finals energy. Three player photos placed inside diamond-shaped frames with golden ornate borders. Background shows a massive golden trophy surrounded by BGMI characters in legendary outfits kneeling in reverence, weapons laid down, with divine light rays streaming through a dramatic clouded sky over Miramar's desert. The BIMON logo embossed on the trophy. Bold text: "[TOURNAMENT NAME] GRAND FINALS" in white and gold. "[SEASON X]" in a red banner ribbon across the bottom. Royal, prestigious atmosphere.`,
+        title: "The Ultimate Prize",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. A hyper-realistic, close-up 3D render of the BT Championship Trophy, forged in dark titanium and glowing gold. The background is pitch black with subtle volumetric light rays illuminating the trophy's intricate details. Silhouettes of three players (or characters) are visible in the background reflection or standing in the shadows behind it. Text: "[TOURNAMENT NAME] — [SEASON X] — [EVENT]" in elegant, minimalist typography. "FOR GLORY" in a subtle gold accent. Prestige, elite tier-1 vibe.`,
     },
     {
         id: 10,
-        category: "champion",
-        title: "Champion Celebration",
-        text: `YouTube thumbnail (1280×720) — Winner announcement style. One player image in the center, much larger, with a golden aura and "CHAMPION" text arcing above their head. The other two players flanking smaller, with silver effects. Background shows BGMI characters celebrating a chicken dinner — jumping, fist-pumping, firing into the air — with confetti, stage lights, flare gun trails, and lens flares lighting up a victory lobby. The BIMON logo as a golden stamp in the corner. Text: "[Player 1 Name] WINS [TOURNAMENT NAME]!" in massive bold letters. "[SEASON X] CHAMPION" at the bottom. Maximum celebration energy.`,
+        title: "MVP Crowned",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. MVP announcement graphic. One central player image (or high-end character render) dominating the right side of the screen, lit with a golden "halo" rim light. The left side features sleek, futuristic UI elements displaying impressive stats in neon text. Background is an abstract dark geometric pattern. The BT logo sits as a premium badge next to the text "MOST VALUABLE PLAYER". "[TOURNAMENT NAME] — [SEASON X]" below in a clean, tracked-out font. Broadcast-ready, highly polished.`,
     },
     {
         id: 11,
-        category: "champion",
-        title: "Holographic Player Cards",
-        text: `YouTube thumbnail (1280×720) — Three player images arranged as holographic trading cards floating in space, each card has stats, kill counts, and tier rankings visible. Background features PUBG Mobile character silhouettes in futuristic skins standing in a digital void with blue circuit board patterns, data streams, and weapon holograms (M416, AWM, Groza) floating around them. The BIMON logo projected as a hologram between the cards. Text: "[TOURNAMENT NAME] — [SEASON X]" in futuristic font. "PLAYER CARDS REVEALED" in cyan neon at the bottom. Sci-fi esports aesthetic.`,
+        title: "Augmented Reality Player Profiles",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. Futuristic PMGO-style broadcast graphic. Three players (or characters) are projected as glowing, high-tech holograms standing on a physical stage setup. Data points, kill counts, and tier rankings float around them in AR interfaces. Color palette is deep cyber-blue and crisp white. The BT logo is rendered as an AR projection on the stage floor. Text: "[TOURNAMENT NAME] — [SEASON X]" in a sleek tech font. "PLAYER PROFILES" at the bottom. Sci-fi, cutting-edge esports aesthetic.`,
     },
     {
         id: 12,
-        category: "champion",
-        title: "Kill Feed Stats",
-        text: `YouTube thumbnail (1280×720) — Three players displayed inside a BGMI-style kill feed / scoreboard UI mock-up, showing their photos next to fake impressive stats. Background is a clean dark tactical HUD with PUBG Mobile characters visible through a scope overlay — one enemy being knocked, damage numbers floating, kill feed scrolling. The BIMON logo in a corner badge. Bold text: "[TOURNAMENT NAME] — [SEASON X] RESULTS" in white. "THE NUMBERS DON'T LIE 🔥" in orange at the bottom. Clean, data-driven, professional.`,
+        title: "Warzone Command Center",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. A dramatic, futuristic war-room scene. Three BGMI characters (or player photos) stand in a dark command center surrounded by floating holographic screens showing the Erangel map, kill feeds, and team rankings. The room is lit by the glow of the holograms — deep blue and orange. The BT logo is projected as a massive hologram in the center ceiling. Text: "[TOURNAMENT NAME] — [SEASON X]" in glowing holographic text. "[EVENT]" in sharp, military-stencil font below. Cinematic sci-fi military aesthetic, tier-1 production.`,
     },
-
-    // ── Action & Gameplay (13–18) ──
     {
         id: 13,
-        category: "action",
-        title: "Explosive Charge",
-        text: `YouTube thumbnail (1280×720) — Three player images composited large in the foreground. Background shows BGMI characters in full sprint with M416s and Groza rifles, running toward the viewer with a massive C4 explosion behind them, Dacia vehicles flipping, and supply crates falling from the sky. Dramatic orange and black color scheme. The BIMON logo as a military-style dog tag hanging in the corner. Text: "[TOURNAMENT NAME]" in military stencil font. "[SEASON X] — DROP HOT OR GO HOME" in bold yellow. Michael Bay movie poster energy.`,
+        title: "Action Replay Live",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. A high-octane but clean "Play of the Day" graphic. Foreground features a hyper-detailed 3D render of a BGMI character in mid-vault or aiming down sights, rendered with motion blur on the edges to simulate intense speed. Background is a stylized, desaturated Erangel environment with bright neon bullet tracers cutting through the air. The BT logo is integrated as a sleek broadcast watermark. Text: "[TOURNAMENT NAME] — [SEASON X]" in bold italics. "LIVE NOW" in bright yellow/gold.`,
     },
     {
         id: 14,
-        category: "action",
-        title: "Sniper Crosshair",
-        text: `YouTube thumbnail (1280×720) — Three players arranged inside a crosshair/scope view, each in their own targeting reticle. Background shows PUBG Mobile characters prone in grass with ghillie suits, one peeking from behind a tree with a Kar98k, red laser sights cutting through a dark tactical atmosphere. The BIMON logo displayed as a corner hologram. Text: "[TOURNAMENT NAME] — [SEASON X]" in red and white. "TARGET ACQUIRED 🎯" in bold at the bottom. Tactical, sniper-themed.`,
+        title: "Tactical HUD",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. A sniper or tactical focus graphic mimicking a high-end broadcast telestrator. Characters (or player photos) are framed within sleek, minimalist targeting brackets. Background features a dark, heavily gridded map layout with glowing red and cyan strategic markers. The BT logo is a sharp digital badge. Text: "[TOURNAMENT NAME] — [SEASON X]" in clean tech typography. "TACTICAL MASTERY" at the bottom. Sleek, strategic, intelligence-focused.`,
     },
     {
         id: 15,
-        category: "action",
-        title: "Strategic Map Drop",
-        text: `YouTube thumbnail (1280×720) — Aerial view of a BGMI Erangel map with three player photos pinned to different locations like strategic markers (Pochinki, Military Base, Georgopol). Background shows PUBG Mobile characters parachuting toward the marked locations, red zone expanding around them, plane trail visible in the sky. The BIMON logo as a compass rose in the corner. Text: "[TOURNAMENT NAME]" in bold white. "WHERE WILL THEY LAND? | [SEASON X]" in yellow. Strategic map briefing aesthetic.`,
+        title: "Rotations & Strategy",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. Aerial view of a 3D-rendered BGMI map (like Miramar or Erangel) treated with a dark, premium matte finish. Bright, glowing neon lines show team rotation paths intersecting. Player portraits are pinned to these intersections using sleek, metallic UI markers. The BT logo is embedded in the topography. Text: "[TOURNAMENT NAME] — [SEASON X]" in bold white sans-serif. "MASTERING THE ROTATION" in an accent color. High IQ esports live aesthetic.`,
     },
     {
         id: 16,
-        category: "action",
-        title: "Smoke & Mirrors Combat",
-        text: `YouTube thumbnail (1280×720) — Three players shown emerging from smoke grenades, each with a different color smoke (red, blue, green). Background shows BGMI characters in mid-combat through the colored smoke — one sliding, one hip-firing an UZI, one vaulting over a wall — with motion blur and muzzle flashes. Dark background with the BIMON logo burning through the smoke. Text: "[TOURNAMENT NAME] — [SEASON X]" across the top in white. "SMOKE AND MIRRORS 💨" in bold red at the bottom. Action movie energy, high contrast.`,
+        title: "Volumetric Execution",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. A cinematic combat scene. Characters (or players) are visible pushing through dense, realistic volumetric smoke illuminated by harsh stadium lights from above (cyan and magenta). The render quality is photorealistic, with intricate details on the weapons (M416, Groza). The BT logo shines metallic through the smoke. Text: "[TOURNAMENT NAME] — [SEASON X]" in sharp white. "FLAWLESS EXECUTION" in bold text. Intense, tier-1 production value.`,
     },
     {
         id: 17,
-        category: "action",
-        title: "Airdrop Unboxing",
-        text: `YouTube thumbnail (1280×720) — Loot crate/airdrop opening style. A massive golden BGMI airdrop crate splits open in the center, and the three player images emerge from inside like rare items being unboxed. Background shows PUBG Mobile characters scrambling toward the crate from all directions with weapons drawn, golden glow and sparkle effects everywhere, AWM, Groza, and Level 3 gear floating out. The BIMON logo stamped on the crate. Text: "[TOURNAMENT NAME]" in gold. "RARE PLAYERS UNLOCKED — [SEASON X]" in white at the bottom. Unboxing/gacha energy.`,
+        title: "Premium Loot Secure",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. High-fidelity 3D focus on a BGMI airdrop crate, but stylized like a premium esports asset—carbon fiber textures, glowing neon red lights, sitting on an illuminated stage platform. Characters (or players) stand guard around it in high-fashion/tactical esports apparel. The BT logo is elegantly embossed onto the crate's side. Text: "[TOURNAMENT NAME] — [SEASON X]" in gold foil lettering. "SECURING THE ADVANTAGE" below. Clean, high-stakes aesthetic.`,
     },
     {
         id: 18,
-        category: "action",
-        title: "Squad Goals Vehicle Rush",
-        text: `YouTube thumbnail (1280×720) — Three players positioned in the foreground. Background shows PUBG Mobile characters riding in a UAZ and a Dacia at high speed across Miramar, one character standing on the roof firing a DP-28, another throwing a Molotov, desert dust clouds and explosions behind them. Comic book / pop-art style with halftone dots and bold outlines. Vibrant colors — orange, teal, magenta. The BIMON logo as a license plate on the vehicle. Text: "[TOURNAMENT NAME] — [SEASON X]" in comic book font. "SQUAD GOALS 🚗💨" in bold. Fun, energetic, standout style.`,
+        title: "High-Speed Rotation",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. A polished, dynamic shot of a squad rotating in a vehicle (UAZ/Dacia). The vehicle is a highly detailed 3D render with glossy reflections, kicking up realistic dust particles. The background is a deliberate speed-blur to emphasize motion, maintaining a dark, moody esports color grade. The BT logo acts as a sleek watermark. Text: "[TOURNAMENT NAME] — [SEASON X]" in fast, italicized modern font. "FULL THROTTLE" in bold. Professional action photography style.`,
     },
-
-    // ── Dramatic & Cinematic (19–24) ──
     {
         id: 19,
-        category: "cinematic",
-        title: "Rain-Soaked Bridge",
-        text: `YouTube thumbnail (1280×720) — Dark, rain-soaked cinematic scene. Three player images as large portraits in the foreground. Background shows BGMI characters as silhouettes standing in a row on Erangel's bridge, backlit by a single white spotlight, rain pouring down, holding weapons at their sides — reflections on wet ground, distant lightning illuminating a military compound. The BIMON logo glows faintly in the sky like a signal. Text: "[TOURNAMENT NAME]" in thin elegant white font. "THE STORM IS COMING — [SEASON X]" in red at the bottom. Moody, thriller movie poster.`,
+        title: "The Calm Before",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. Moody, atmospheric esports documentary style. High-contrast black and white aesthetic with only one accent color (e.g., BT's brand color). Silhouettes of players (or characters) standing in a tunnel looking out toward a brilliantly lit arena stage. Rain or subtle fog adds texture. The BT logo glows softly in the distance. Text: "[TOURNAMENT NAME] — [SEASON X]" in thin, elegant tracking. "THE ROAD TO GLORY" in bold below. Cinematic, emotional, prestige tier.`,
     },
     {
         id: 20,
-        category: "cinematic",
-        title: "Wild West Wanted Poster",
-        text: `YouTube thumbnail (1280×720) — Three players arranged in a "Wanted" poster style — their photos in separate aged/weathered frames with "MOST WANTED" stamps, bounty amounts below each. Background shows PUBG Mobile characters in cowboy-themed outfits standing in a dusty Miramar desert town, tumbleweeds rolling, revolvers holstered — Wild West meets BGMI aesthetic with sepia-toned coloring. The BIMON logo as a sheriff's badge. Text: "[TOURNAMENT NAME] — [SEASON X]" in Western slab-serif font. "DEAD OR ALIVE" at the bottom in red.`,
+        title: "Players to Watch",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. A modern "Bounty / Players to Watch" graphic. Three player photos (or character renders) heavily stylized with a dark, grimy cyberpunk or high-tech tactical filter. They are framed in glowing neon targeting rectangles with simulated "threat level" data and stats next to their faces. The BT logo is a sleek tactical insignia. Text: "[TOURNAMENT NAME] — [SEASON X]" in a precise, monospaced tech font. "HIGH VALUE TARGETS" in alert-red.`,
     },
     {
         id: 21,
-        category: "cinematic",
-        title: "Anime Battle Arc",
-        text: `YouTube thumbnail (1280×720) — Anime/manga inspired. Three player images stylized with anime effects. Background features BGMI characters drawn in anime style with dramatic poses, speed lines radiating from the center — one character doing a jump-shot with an AWM, energy auras around them, bold black outlines, vibrant orange and cyan color scheme. The BIMON logo as a Japanese-style stamp/hanko seal in the corner. Text: "[TOURNAMENT NAME]" in dynamic anime title font with motion blur. "[SEASON X] ARC" in white. Epic shonen battle energy.`,
+        title: "Clutch Moment",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. High-intensity esports graphic. A single player or character captured in a dynamic pose (e.g., mid-jump or peeking), rendered with sharp clarity. Surrounding them are subtle, high-tech motion trails and geometric light leaks indicating a split-second clutch play. Background is dark and sleek. The BT logo in the top right. Text: "[TOURNAMENT NAME] — [SEASON X]" in dynamic, slanted typography. "THE 1v4 CLUTCH" in glowing accent colors.`,
     },
     {
         id: 22,
-        category: "cinematic",
-        title: "Shattered Mirror",
-        text: `YouTube thumbnail (1280×720) — Three players arranged inside a shattered mirror effect — each face visible in a different shard of broken glass, reflecting against a dark void. Background shows PUBG Mobile characters frozen mid-combat visible through the glass shards — one character mid-reload, one throwing a frag, one in a prone crawl — dramatic blue and purple lighting with glass particle effects. The BIMON logo reflected in one of the larger shards. Text: "[TOURNAMENT NAME] — [SEASON X]" in elegant serif font. "REFLECTIONS OF CHAMPIONS" in white italic at bottom. Artistic, premium.`,
+        title: "Fragmented Focus",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. A sophisticated broadcast overlay design. The screen is divided by sharp, diagonal "glass" shards. Inside each frosted glass shard is a different angle or different player from the top squad, rendered with premium studio lighting. The background is a dark, abstract mesh gradient. The BT logo sits prominently on a sleek central plate. Text: "[TOURNAMENT NAME] — [SEASON X]" in elegant, uppercase sans-serif. "SHATTERING RECORDS". High-end graphic design.`,
     },
     {
         id: 23,
-        category: "cinematic",
-        title: "Movie Premiere",
-        text: `YouTube thumbnail (1280×720) — Movie credits style. Three player images in cinematic wide-screen aspect ratio bars, each shown in a different dramatic color grade (teal, orange, magenta). Background shows BGMI characters walking in slow motion through Erangel ruins, weapons slung over shoulders, film grain overlay, cinematic depth of field — like a war movie poster. The BIMON logo as a production studio logo at the top. Text: "[TOURNAMENT NAME]" in minimal clean font. "A [SEASON X] PRODUCTION" in small tracking below. "COMING SOON" in large bold white. Cinematic premiere feel.`,
+        title: "The Stage is Set",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. PMGC documentary poster style. Cinematic 21:9 aspect ratio bars at the top and bottom. Center frame shows a wide, epic shot of the BT tournament stage or an awe-inspiring 3D render of Erangel's ruins lit by gorgeous golden hour lighting, with a lone player looking out. The BT logo is presented like a film studio production mark. Text: "[TOURNAMENT NAME] — [SEASON X]" in minimalist, widely spaced font. "[EVENT]" in smaller, crisp text. Highly emotional and cinematic.`,
     },
     {
         id: 24,
-        category: "cinematic",
-        title: "Throne Room",
-        text: `YouTube thumbnail (1280×720) — Three players composited into a flaming throne room scene. One player sits on a massive iron/gaming throne in the center, the other two kneel or stand as challengers. Background shows PUBG Mobile characters in royal/legendary outfits standing guard with flaming swords and pan weapons, dramatic fire and ember effects, a dark medieval castle atmosphere with BGMI crates and weapons mounted on walls. The BIMON logo carved into the throne. Text: "[TOURNAMENT NAME] — [SEASON X]" in Gothic font. "CLAIM THE THRONE 👑" in gold at the bottom. Game of Thrones meets BGMI.`,
+        title: "Defending Champions",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. An imposing, authoritative graphic. The defending champion (player or character) stands at the top of a sleek, dark metallic staircase or podium, looking down at the camera. Harsh, dramatic overhead lighting creates deep shadows. The BT logo is engraved into the steel of the stairs. Text: "[TOURNAMENT NAME] — [SEASON X]" in bold, dominating typography. "DEFEND THE TITLE" at the bottom. Intimidating, boss-fight aesthetic.`,
     },
-
-    // ── Stats & Elimination (25–28) ──
     {
         id: 25,
-        category: "stats",
-        title: "Tournament Bracket Path",
-        text: `YouTube thumbnail (1280×720) — Elimination bracket style. Three player photos placed at the top of a tournament bracket graphic, with lines connecting them showing their path to the finals. Background shows BGMI characters positioned along the bracket lines in combat stances, neon green bracket lines on dark background, weapon silhouettes (M416, AWM, Pan) decorating the bracket nodes. The BIMON logo as a seal at the bracket's apex. Text: "[TOURNAMENT NAME] — [SEASON X] BRACKET" in white. "WHO SURVIVES? ⚔️" in neon green at the bottom. Clean esports broadcast overlay feel.`,
+        title: "Road to Finals Bracket",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. A sleek, glowing tournament bracket UI. The background is a dark, matte texture with subtle hex grids. The bracket lines are illuminated by glowing neon (cyan or gold). Three key player portraits (or characters) hover above the final nodes of the bracket in clean, circular frames. The BT logo is a glowing centerpiece at the top of the bracket. Text: "[TOURNAMENT NAME] — [SEASON X]" in crisp white. "[EVENT]" in neon text. Broadcast-ready informational graphic.`,
     },
     {
         id: 26,
-        category: "stats",
-        title: "Hex Stats Dashboard",
-        text: `YouTube thumbnail (1280×720) — Three player images inside hexagonal frames arranged in a honeycomb pattern, each hex showing different stats (kills, damage, survival time). Background features PUBG Mobile characters displayed as holographic battle avatars in a futuristic dark blue UI environment — data streams flowing around them, weapon loadout cards floating, damage numbers and kill icons orbiting. The BIMON logo as a holographic badge. Text: "[TOURNAMENT NAME]" in tech font. "[SEASON X] — PERFORMANCE BREAKDOWN" in cyan. Dashboard/analytics style, data-rich.`,
+        title: "Advanced Analytics",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. A premium data-visualization graphic. Three players (or characters) displayed alongside complex but clean 3D radar charts, damage output graphs, and survival time metrics. The UI mimics a high-tech command center with frosted glass panels and sleek typography. Background is deep navy blue. The BT logo is a sharp vector badge. Text: "[TOURNAMENT NAME] — [SEASON X]" in a modern tech font. "ANALYTICS & METRICS" below. Ideal for live tournament streams.`,
     },
     {
         id: 27,
-        category: "stats",
-        title: "Venn Diagram Edge",
-        text: `YouTube thumbnail (1280×720) — Three player images placed inside the circles of a Venn diagram, with the overlap area containing a "?" and the BIMON logo. Background subtly shows BGMI characters in faded silhouette form representing different playstyles — a rusher, a sniper, and a support player — with bright, bold colors (yellow, red, blue circles). Clean white background. Text: "[TOURNAMENT NAME]" in bold black. "WHO HAS THE EDGE? — [SEASON X]" in dark grey. Analytical, infographic style — clean and clickable.`,
+        title: "Head-to-Head Comparison",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. A split-screen analytical graphic. Two rival players (or characters) face forward on the left and right, separated by a central column of comparative stats (K/D, Damage, Headshot %). The design uses a clean, dark-mode aesthetic with bright, legible data points and subtle team color glows. The BT logo is perfectly centered at the top. Text: "[TOURNAMENT NAME] — [SEASON X]" in bold black/white. "TALE OF THE TAPE" in a secondary accent color. Clean, engaging, professional.`,
     },
     {
         id: 28,
-        category: "stats",
-        title: "Elimination Shock",
-        text: `YouTube thumbnail (1280×720) — Three player images with X marks over two of them (red X, slightly transparent) and a golden checkmark over the third. Background shows a BGMI endgame circle scenario — PUBG Mobile characters eliminated and crawling on the ground around the crossed-out players, while the surviving player stands victorious with a flare gun aimed at the sky, spotlight illuminating them. The BIMON logo as a judge's stamp in the corner. Text: "[TOURNAMENT NAME] — [SEASON X]" at top. "ELIMINATED! 😱" in massive red impact font across the middle. Shock value, controversy bait.`,
+        title: "Team Eliminated",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. A somber but highly professional elimination graphic. The background is a heavily desaturated, black-and-white image of a player/character looking down or a dropped helmet. Across the center is a striking, sleek red banner with the team logo and the word "ELIMINATED" in bold, spaced-out typography. The BT logo is a subtle watermark in the corner. Text: "[TOURNAMENT NAME] — [SEASON X]" at the top. High emotional impact, standard esports broadcast style.`,
     },
-
-    // ── Seasonal & Special (29–30) ──
     {
         id: 29,
-        category: "seasonal",
-        title: "New Season Launch",
-        text: `YouTube thumbnail (1280×720) — New season launch hype. Three player images bursting through a giant "[SEASON X]" text that's cracking and exploding. Background shows BGMI characters in brand-new seasonal outfits charging forward with upgraded weapons — a collage of Erangel, Miramar, and Sanhok map landmarks, airdrops falling, planes flying overhead, with weapons and helmets scattered dramatically. The BIMON logo as a massive emblem in the sky. Text: "[TOURNAMENT NAME]" in chrome metallic font. "NEW SEASON. NEW LEGENDS. NEW RULES." in white at the bottom. Maximum hype, season premiere energy.`,
+        title: "Season Opener",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament. Massive scale season launch graphic. A sweeping wide shot of a massive, hyper-realistic esports stadium packed with fans. Hovering above the center stage is a colossal 3D hologram of the BT logo and the text "[SEASON X]". Fireworks and laser lights pierce the arena. Foreground features clean silhouettes of players walking onto the stage. Text: "[TOURNAMENT NAME]" in thick, premium metallic font. "A NEW ERA BEGINS" in bright white. Epic PMGC opening ceremony vibe.`,
     },
     {
         id: 30,
-        category: "seasonal",
-        title: "Anniversary Celebration",
-        text: `YouTube thumbnail (1280×720) — Anniversary/milestone celebration. Three players inside party-themed frames with balloons, streamers, and confetti. Background shows PUBG Mobile characters in festive/celebration outfits dancing and cheering around a giant trophy shaped like a BGMI chicken dinner, fireworks exploding in the sky, the BIMON logo displayed on a celebration banner and on the trophy with a "[SEASON X]" ribbon. Vibrant rainbow gradient background. Text: "[TOURNAMENT NAME]" in bold playful font. "🎉 [SEASON X] SPECIAL — THE BIGGEST SEASON YET!" in white. Festive, celebratory, warm energy.`,
+        title: "Major Milestone Event",
+        text: `YouTube thumbnail (1280×720) for Bimon Tournament live stream. A luxurious, premium milestone celebration graphic. The color palette is strictly deep black, polished gold, and crisp white. High-end 3D renders of the BT Championship trophy and iconic BGMI elements (Level 3 Helmet, Airdrop) rendered in pure gold or obsidian. Elegant, subtle light flares. The BT logo is framed in a special anniversary crest. Text: \"[TOURNAMENT NAME] — [SEASON X]\" in elegant serif or highly stylized modern font. \"[EVENT]\" below. Expensive, exclusive, VIP aesthetic.`,
     },
 ];
+
+/* ─────────────── youtube title templates ─────────────── */
+
+function generateTitle(tournament?: string, season?: string, event?: string): string {
+    const parts = [`🔴 LIVE`, `Bimon Tournament`];
+    if (tournament) parts.push(tournament);
+    if (event) parts.push(event);
+    if (season) parts.push(season);
+    return parts.join(" | ");
+}
+
+function generateDescription(tournament?: string, season?: string, event?: string, customNotes?: string, prizeText?: string): string {
+    const tn = tournament ? `Bimon Tournament — ${tournament}` : "Bimon Tournament";
+    const s = season || "";
+    const e = event || "";
+    const eventLine = e ? `\n🎮 Event: ${e}` : "";
+    const seasonLine = s ? `\n📅 Season: ${s}` : "";
+    const notesBlock = customNotes?.trim() ? `\n\n🎵 Music Credits:\n${customNotes.trim()}` : "";
+    const prizeBlock = prizeText?.trim() ? `\n\n${prizeText.trim()}` : "";
+
+    return `🔴 LIVE — ${tn}${e ? " | " + e : ""}${s ? " | " + s : ""}
+
+Welcome to the official Bimon Tournament live stream! Watch top BGMI squads battle it out in real time.${tournament ? `\n🏆 Tournament: ${tournament}` : ""}${eventLine}${seasonLine}
+
+🔥 What to expect:
+• Live competitive BGMI matches
+• Real-time kills, clutches & squad wipes
+• Live commentary & analysis
+• Final standings & results
+
+💬 Drop your predictions in chat!
+🔔 Subscribe & hit the bell for future streams
+
+📲 Join Bimon Tournament 👇
+
+https://bgmi.pixel-thread.in/vote
+${prizeBlock}${notesBlock}
+
+#BGMI #BimonTournament #BGMILive #MobileGaming #Esports #PUBGMobile #LiveStream${s ? " #" + s.replace(/\s+/g, "") : ""}${e ? " #" + e.replace(/\s+/g, "") : ""}`;
+}
 
 /**
  * Pro-level suffix appended to every prompt.
  * Handles body/hand pose adjustments and unified lighting across all 3 players.
  */
-const PRO_SUFFIX = ` IMPORTANT — Pro Thumbnail Polish: For each of the three player images, adjust their body and hand poses to look like professional esports athletes — confident stances, arms crossed, fist clenches, pointing gestures, or victory poses. Avoid awkward or limp hand positions. Give each player a powerful, intentional pose that conveys dominance and skill. CRITICAL — Unified Lighting & Color Grading: All three player images MUST have matching, consistent lighting direction, color temperature, and shadow intensity. Apply a single unified color grade across all players so they look like they were photographed in the same scene — match the warm/cool tones, contrast levels, and rim lighting to the background environment. No player should look pasted in with mismatched lighting. The final result should look like a single professionally composited image, not three separate photos combined.`;
+const PRO_SUFFIX = ` IMPORTANT — Pro Thumbnail Polish: For all characters and player images, adjust their body and hand poses to look like professional esports athletes — confident stances, arms crossed, fist clenches, pointing gestures, or victory poses. Avoid awkward or limp hand positions. Give each figure a powerful, intentional pose that conveys dominance and skill. CRITICAL — Unified Lighting & Color Grading: All character/player images MUST have matching, consistent lighting direction, color temperature, and shadow intensity. Apply a single unified color grade across all figures so they look like they belong in the same scene — match the warm/cool tones, contrast levels, and rim lighting to the background environment. No figure should look pasted in with mismatched lighting. The final result should look like a single professionally composited image, not separate photos combined. MANDATORY — LIVE Badge: Always place a bold red "🔴 LIVE" badge/label in the bottom-right corner of the thumbnail. Use a solid red (#FF0000) rounded rectangle with white bold uppercase "LIVE" text inside it, similar to YouTube's live indicator. It must be clearly visible and not overlap important content.`;
 
-/** Returns the full prompt text with the pro suffix and tournament/season replaced */
-function getFullPrompt(prompt: Prompt, tournamentName?: string, seasonName?: string): string {
+/** Returns the full prompt text with the pro suffix and placeholders replaced */
+function getFullPrompt(prompt: Prompt, tournamentName?: string, seasonName?: string, eventLabel?: string): string {
     let text = prompt.text;
     if (tournamentName) {
         text = text.replace(/\[TOURNAMENT NAME\]/g, tournamentName);
@@ -269,42 +243,39 @@ function getFullPrompt(prompt: Prompt, tournamentName?: string, seasonName?: str
         text = text.replace(/\[SEASON X\]/g, seasonName);
         text = text.replace(/\[SEASON \[X\]\]/g, seasonName);
     }
+    if (eventLabel?.trim()) {
+        if (text.includes("[EVENT]")) {
+            text = text.replace(/\[EVENT\]/g, eventLabel.trim());
+        } else {
+            text += ` Also include the event label "${eventLabel.trim()}" prominently on the thumbnail.`;
+        }
+    }
     return text + PRO_SUFFIX;
 }
 
-/* ─────────────── player search hook ─────────────── */
+/* ─────────────── hooks ─────────────── */
 
-function usePlayerSearch(search: string) {
-    return useQuery<PlayerResult[]>({
-        queryKey: ["thumbnail-players", search],
+function useCurrentSeason() {
+    return useQuery<{ id: string; name: string } | null>({
+        queryKey: ["current-season"],
         queryFn: async () => {
-            if (!search.trim()) return [];
-            const res = await fetch(
-                `/api/players?search=${encodeURIComponent(search)}&limit=10`
-            );
-            if (!res.ok) return [];
+            const res = await fetch("/api/seasons");
+            if (!res.ok) return null;
             const json = await res.json();
-            return (json.data ?? []).map((p: any) => ({
-                id: p.id,
-                displayName: p.displayName,
-                username: p.username,
-                imageUrl: p.imageUrl,
-                category: p.category,
-                clan: p.clan,
-            }));
+            const active = (json.data ?? []).find((s: any) => s.isCurrent);
+            return active ? { id: active.id, name: active.name } : null;
         },
-        enabled: search.trim().length >= 2,
-        staleTime: 30_000,
+        staleTime: 60_000,
     });
 }
 
-/* ─────────────── tournament fetch hook ─────────────── */
-
-function useTournaments() {
+function useTournaments(seasonId: string | undefined) {
     return useQuery<TournamentOption[]>({
-        queryKey: ["thumbnail-tournaments"],
+        queryKey: ["thumbnail-tournaments", seasonId],
         queryFn: async () => {
-            const res = await fetch("/api/tournaments?limit=50");
+            const params = new URLSearchParams({ limit: "50" });
+            if (seasonId) params.set("seasonId", seasonId);
+            const res = await fetch(`/api/tournaments?${params}`);
             if (!res.ok) return [];
             const json = await res.json();
             return (json.data ?? []).map((t: any) => ({
@@ -313,180 +284,211 @@ function useTournaments() {
                 seasonName: t.season?.name ?? null,
             }));
         },
+        enabled: !!seasonId,
         staleTime: 60_000,
     });
 }
 
-/* ─────────────── download helper ─────────────── */
-
-async function downloadImage(url: string, filename: string) {
-    try {
-        const res = await fetch(url);
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-        toast.success(`Downloaded ${filename}`);
-    } catch {
-        // Fallback: open in new tab
-        window.open(url, "_blank");
-        toast.info("Opened image in new tab — right-click to save");
-    }
-}
-
-async function copyImageToClipboard(url: string) {
-    try {
-        const res = await fetch(url);
-        const blob = await res.blob();
-        // Convert to PNG for clipboard compatibility
-        const img = new Image();
-        const canvas = document.createElement("canvas");
-        const blobUrl = URL.createObjectURL(blob);
-
-        await new Promise<void>((resolve, reject) => {
-            img.onload = () => {
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
-                const ctx = canvas.getContext("2d");
-                ctx?.drawImage(img, 0, 0);
-                canvas.toBlob(async (pngBlob) => {
-                    if (pngBlob) {
-                        try {
-                            await navigator.clipboard.write([
-                                new ClipboardItem({ "image/png": pngBlob }),
-                            ]);
-                            toast.success("Image copied to clipboard!");
-                            resolve();
-                        } catch {
-                            toast.error("Browser doesn't support image copy");
-                            resolve();
-                        }
-                    } else {
-                        reject();
-                    }
-                }, "image/png");
-            };
-            img.onerror = reject;
-            img.crossOrigin = "anonymous";
-            img.src = blobUrl;
-        });
-
-        URL.revokeObjectURL(blobUrl);
-    } catch {
-        toast.error("Failed to copy image");
-    }
-}
 
 /* ─────────────── page component ─────────────── */
 
 export default function ThumbnailPromptsPage() {
-    // Tournament selection state
+    // Season (auto-fetched)
+    const { data: currentSeason } = useCurrentSeason();
+
+    // Tournament selector — only current season
     const [selectedTournament, setSelectedTournament] = useState<TournamentOption | null>(null);
     const [showTournamentDropdown, setShowTournamentDropdown] = useState(false);
-    const [tournamentSearch, setTournamentSearch] = useState("");
-    const { data: tournaments, isLoading: tournamentsLoading } = useTournaments();
+    const { data: tournaments, isLoading: tournamentsLoading } = useTournaments(currentSeason?.id);
 
-    // Player selection state
-    const [playerSearch, setPlayerSearch] = useState("");
-    const [selected, setSelected] = useState<SelectedPlayer[]>([]);
-    const [showResults, setShowResults] = useState(false);
-    const { data: searchResults, isLoading: searchLoading } = usePlayerSearch(playerSearch);
-
-    // Prompt filter state
+    // Prompt state
     const [promptSearch, setPromptSearch] = useState("");
     const [copiedId, setCopiedId] = useState<number | null>(null);
-    const [activeCategory, setActiveCategory] = useState<string | null>(null);
-    const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
-    const filteredTournaments = useMemo(() => {
-        if (!tournaments) return [];
-        if (!tournamentSearch.trim()) return tournaments;
-        const q = tournamentSearch.toLowerCase();
-        return tournaments.filter(
-            (t) => t.name.toLowerCase().includes(q) || t.seasonName?.toLowerCase().includes(q)
-        );
-    }, [tournaments, tournamentSearch]);
+    // Event label (e.g. Grand Final, Day 1 Group A)
+    const [eventLabel, setEventLabel] = useState("");
 
-    const selectPlayer = useCallback(
-        (player: PlayerResult) => {
-            if (selected.length >= 3) {
-                toast.error("You can only select 3 players");
-                return;
-            }
-            if (selected.find((s) => s.id === player.id)) {
-                toast("Player already selected");
-                return;
-            }
-            setSelected((prev) => [
-                ...prev,
-                {
-                    id: player.id,
-                    name: player.displayName || player.username,
-                    imageUrl: player.imageUrl,
-                },
+    // Custom notes (e.g. music credits)
+    const [customNotes, setCustomNotes] = useState("");
+
+    // Pinned prompts per tournament (localStorage)
+    const PINNED_KEY = "bt-pinned-prompts";
+    const [pinnedPrompts, setPinnedPrompts] = useState<Record<string, number>>(() => {
+        if (typeof window === "undefined") return {};
+        try { return JSON.parse(localStorage.getItem(PINNED_KEY) || "{}"); } catch { return {}; }
+    });
+
+    const pinPrompt = (tournamentId: string, promptId: number) => {
+        const next = { ...pinnedPrompts, [tournamentId]: promptId };
+        setPinnedPrompts(next);
+        localStorage.setItem(PINNED_KEY, JSON.stringify(next));
+        const prompt = PROMPTS.find((p) => p.id === promptId);
+        if (prompt) setRandomPrompt(prompt);
+        toast.success(`📌 Pinned "${prompt?.title}" for this tournament`);
+    };
+
+    const unpinPrompt = (tournamentId: string) => {
+        const next = { ...pinnedPrompts };
+        delete next[tournamentId];
+        setPinnedPrompts(next);
+        localStorage.setItem(PINNED_KEY, JSON.stringify(next));
+        toast.success("Unpinned prompt");
+    };
+
+    const pinnedId = selectedTournament?.id ? pinnedPrompts[selectedTournament.id] ?? null : null;
+
+    // Prize distribution text
+    const [prizeText, setPrizeText] = useState("");
+    const [fetchingPrize, setFetchingPrize] = useState(false);
+
+    const getOrdinal = (n: number) => {
+        const s = ["th", "st", "nd", "rd"];
+        const v = n % 100;
+        return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+
+    const fetchPrizeData = async () => {
+        if (!selectedTournament) { toast.error("Select a tournament first"); return; }
+        setFetchingPrize(true);
+        try {
+            // Fetch tournaments list, settings, polls, donations in parallel
+            const [tournsRes, settingsRes, pollsRes, donationsRes] = await Promise.all([
+                fetch(`/api/tournaments?limit=50${currentSeason?.id ? `&seasonId=${currentSeason.id}` : ""}`),
+                fetch("/api/settings/public"),
+                fetch("/api/polls?all=true"),
+                fetch(`/api/tournaments/${selectedTournament.id}/donations`),
             ]);
-            setPlayerSearch("");
-            setShowResults(false);
-            toast.success(`Added ${player.displayName || player.username}`);
-        },
-        [selected]
-    );
 
-    const removePlayer = useCallback((id: string) => {
-        setSelected((prev) => prev.filter((p) => p.id !== id));
-    }, []);
+            const tournsJson = await tournsRes.json();
+            const tourn = (tournsJson.data ?? []).find((t: any) => t.id === selectedTournament.id);
+            if (!tourn) { toast.error("Tournament not found"); setFetchingPrize(false); return; }
+
+            const entryFee = tourn.fee ?? 0;
+            const teamCount = tourn.teamCount ?? tourn._count?.teams ?? 0;
+            const isSquad = tourn.poll?.allowSquads ?? false;
+
+            let donations = 0;
+            if (donationsRes.ok) {
+                try { const d = await donationsRes.json(); donations = d.data?.total ?? 0; } catch {}
+            }
+
+            let orgCut = 0;
+            let orgCutMode: "fixed" | "percent" = "fixed";
+            let poolFee = entryFee;
+            let usedPollOrgCut = false;
+
+            if (pollsRes.ok) {
+                try {
+                    const pollsJson = await pollsRes.json();
+                    const polls = pollsJson.data?.polls ?? [];
+                    const poll = polls.find((p: any) => p.tournament?.id === selectedTournament.id);
+                    if (poll?.orgCutFixed != null) { orgCut = poll.orgCutFixed; orgCutMode = "fixed"; usedPollOrgCut = true; }
+                    if (poll?.prizePoolFee != null) { poolFee = poll.prizePoolFee; }
+                } catch {}
+            }
+
+            if (!usedPollOrgCut && settingsRes.ok) {
+                const sJson = await settingsRes.json();
+                const settings = sJson.data ?? {};
+                orgCutMode = isSquad ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed") : (settings.orgCutMode ?? "fixed");
+                orgCut = orgCutMode === "percent"
+                    ? (isSquad ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
+                    : (isSquad ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
+            }
+
+            const prizePool = (poolFee * teamCount) + donations;
+            if (prizePool <= 0) { toast.error("No prize pool"); setFetchingPrize(false); return; }
+
+            const teamSize = isSquad ? 1 : getTeamSize("DUO");
+            const dist = getPrizeDistribution(prizePool, entryFee, teamSize, orgCut, orgCutMode);
+
+            const medals = ["🥇", "🥈", "🥉"];
+            const lines: string[] = [
+                `🎟️ Entry Fee: ₹${entryFee.toLocaleString()}`,
+                `💰 Prize Pool: ₹${dist.totalWinnerPayout.toLocaleString()}`,
+            ];
+            const sortedPrizes = Array.from(dist.prizes.entries()).sort((a, b) => a[0] - b[0]);
+            for (const [pos, prize] of sortedPrizes) {
+                const medal = pos <= 3 ? medals[pos - 1] : "🏅";
+                lines.push(`${medal} ${getOrdinal(pos)}: ₹${prize.amount.toLocaleString()}`);
+            }
+
+            setPrizeText(lines.join("\n"));
+            toast.success("Prize data loaded!");
+        } catch {
+            toast.error("Failed to fetch prize data");
+        } finally {
+            setFetchingPrize(false);
+        }
+    };
+
+    // Randomize order for single-prompt view — persist last shown
+    const LAST_PROMPT_KEY = "bt-last-prompt";
+    const [randomPrompt, setRandomPrompt] = useState<Prompt | null>(() => {
+        if (typeof window === "undefined") return null;
+        try {
+            const saved = localStorage.getItem(LAST_PROMPT_KEY);
+            if (saved) {
+                const id = Number(saved);
+                return PROMPTS.find((p) => p.id === id) ?? null;
+            }
+        } catch {}
+        return null;
+    });
+
+    // Derive the effective season name
+    const seasonName = selectedTournament?.seasonName ?? currentSeason?.name ?? undefined;
+    const tournamentName = selectedTournament?.name ?? undefined;
+
 
     // Prompt filtering
     const filtered = useMemo(() => {
-        let list = PROMPTS;
-        if (activeCategory) list = list.filter((p) => p.category === activeCategory);
-        if (promptSearch.trim()) {
-            const q = promptSearch.toLowerCase();
-            list = list.filter(
-                (p) =>
-                    p.title.toLowerCase().includes(q) ||
-                    p.text.toLowerCase().includes(q)
-            );
-        }
-        return list;
-    }, [promptSearch, activeCategory]);
-
-    const grouped = useMemo(() => {
-        const map = new Map<string, Prompt[]>();
-        for (const p of filtered) {
-            const arr = map.get(p.category) || [];
-            arr.push(p);
-            map.set(p.category, arr);
-        }
-        return map;
-    }, [filtered]);
+        if (!promptSearch.trim()) return PROMPTS;
+        const q = promptSearch.toLowerCase();
+        return PROMPTS.filter(
+            (p) =>
+                p.title.toLowerCase().includes(q) ||
+                p.text.toLowerCase().includes(q)
+        );
+    }, [promptSearch]);
 
     const handleCopy = async (prompt: Prompt) => {
         try {
             await navigator.clipboard.writeText(
-                getFullPrompt(prompt, selectedTournament?.name, selectedTournament?.seasonName ?? undefined)
+                getFullPrompt(prompt, tournamentName, seasonName, eventLabel)
             );
             setCopiedId(prompt.id);
-            toast.success(`Copied #${prompt.id} — ${prompt.title}`);
+            toast.success(`Copied — ${prompt.title}`);
             setTimeout(() => setCopiedId(null), 2000);
         } catch {
             toast.error("Failed to copy");
         }
     };
 
-    const toggleCollapse = (key: string) => {
-        setCollapsedCategories((prev) => {
-            const next = new Set(prev);
-            if (next.has(key)) next.delete(key);
-            else next.add(key);
-            return next;
-        });
+    const getRandomPrompt = () => {
+        const idx = Math.floor(Math.random() * PROMPTS.length);
+        const prompt = PROMPTS[idx];
+        setRandomPrompt(prompt);
+        localStorage.setItem(LAST_PROMPT_KEY, String(prompt.id));
     };
+
+    // Set initial random prompt only if nothing was restored
+    useEffect(() => {
+        if (!randomPrompt) getRandomPrompt();
+    }, []);
+
+    // When tournament changes, restore pinned prompt
+    useEffect(() => {
+        if (!selectedTournament?.id) return;
+        const pinned = pinnedPrompts[selectedTournament.id];
+        if (pinned) {
+            const prompt = PROMPTS.find((p) => p.id === pinned);
+            if (prompt) {
+                setRandomPrompt(prompt);
+                localStorage.setItem(LAST_PROMPT_KEY, String(prompt.id));
+            }
+        }
+    }, [selectedTournament?.id]);
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -497,493 +499,397 @@ export default function ThumbnailPromptsPage() {
                     Thumbnail Prompts
                 </h1>
                 <p className="text-sm text-foreground/50 mt-1">
-                    Pick a tournament, select 3 players, download their images, then copy a prompt.
+                    Pick a tournament, grab the logo, and copy a prompt for AI thumbnail generation.
                 </p>
+                {currentSeason && (
+                    <p className="text-xs text-primary/70 mt-1">
+                        Current Season: <span className="font-semibold">{currentSeason.name}</span>
+                    </p>
+                )}
             </div>
 
             {/* ━━━ Tournament Selector ━━━ */}
             <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-3">
-                <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-2">
-                    <Trophy className="h-4 w-4" />
-                    Tournament
-                </h2>
-
-                {selectedTournament ? (
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
-                        <div className="min-w-0">
-                            <p className="text-sm font-semibold truncate">{selectedTournament.name}</p>
-                            {selectedTournament.seasonName && (
-                                <p className="text-[11px] text-foreground/50">{selectedTournament.seasonName}</p>
-                            )}
-                        </div>
-                        <button
-                            onClick={() => setSelectedTournament(null)}
-                            className="shrink-0 p-1.5 rounded-lg bg-foreground/5 hover:bg-danger/10 hover:text-danger transition-colors"
-                        >
-                            <X className="h-3.5 w-3.5" />
-                        </button>
-                    </div>
-                ) : (
-                    <div className="relative">
-                        <Input
-                            size="sm"
-                            placeholder="Search tournament..."
-                            startContent={<Search className="h-4 w-4 text-foreground/40" />}
-                            value={tournamentSearch}
-                            onValueChange={(v) => {
-                                setTournamentSearch(v);
-                                setShowTournamentDropdown(true);
-                            }}
-                            onFocus={() => setShowTournamentDropdown(true)}
-                            isClearable
-                            onClear={() => {
-                                setTournamentSearch("");
-                                setShowTournamentDropdown(false);
-                            }}
-                            classNames={{ inputWrapper: "bg-foreground/[0.04]" }}
-                        />
-
-                        {showTournamentDropdown && (
-                            <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-xl border border-divider bg-content1 shadow-lg overflow-hidden max-h-64 overflow-y-auto">
-                                {tournamentsLoading ? (
-                                    <div className="flex items-center justify-center py-6">
-                                        <Spinner size="sm" />
-                                    </div>
-                                ) : !filteredTournaments.length ? (
-                                    <p className="text-xs text-foreground/40 text-center py-6">
-                                        No tournaments found
-                                    </p>
-                                ) : (
-                                    filteredTournaments.map((t) => (
-                                        <button
-                                            key={t.id}
-                                            onClick={() => {
-                                                setSelectedTournament(t);
-                                                setShowTournamentDropdown(false);
-                                                setTournamentSearch("");
-                                                toast.success(`Selected: ${t.name}`);
-                                            }}
-                                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-foreground/[0.04] transition-colors"
-                                        >
-                                            <Trophy className="h-4 w-4 text-primary/60 shrink-0" />
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-medium truncate">{t.name}</p>
-                                                {t.seasonName && (
-                                                    <p className="text-[11px] text-foreground/40">{t.seasonName}</p>
-                                                )}
-                                            </div>
-                                        </button>
-                                    ))
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {!selectedTournament && (
-                    <p className="text-[11px] text-warning/70">⚠ Prompts will have [TOURNAMENT NAME] and [SEASON X] as placeholders until you select one</p>
-                )}
-            </div>
-
-            {/* ━━━ Player Selection Section ━━━ */}
-            <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-4">
                 <div className="flex items-center justify-between">
                     <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        Select Players ({selected.length}/3)
+                        <Trophy className="h-4 w-4" />
+                        Tournament
+                        {currentSeason && (
+                            <span className="text-[11px] font-normal text-primary/70 normal-case tracking-normal ml-1">
+                                — {currentSeason.name}
+                            </span>
+                        )}
                     </h2>
-                    {selected.length > 0 && (
-                        <button
-                            onClick={() => setSelected([])}
-                            className="text-[11px] text-foreground/40 hover:text-danger transition-colors"
-                        >
-                            Clear all
-                        </button>
-                    )}
                 </div>
 
-                {/* Search input */}
+                {/* Selected tournament display + dropdown */}
                 <div className="relative">
-                    <Input
-                        size="sm"
-                        placeholder="Search player by name..."
-                        startContent={<Search className="h-4 w-4 text-foreground/40" />}
-                        value={playerSearch}
-                        onValueChange={(v) => {
-                            setPlayerSearch(v);
-                            setShowResults(true);
-                        }}
-                        onFocus={() => setShowResults(true)}
-                        isClearable
-                        onClear={() => {
-                            setPlayerSearch("");
-                            setShowResults(false);
-                        }}
-                        classNames={{ inputWrapper: "bg-foreground/[0.04]" }}
-                        isDisabled={selected.length >= 3}
-                        description={
-                            selected.length >= 3
-                                ? "Max 3 players selected"
-                                : undefined
-                        }
-                    />
+                    <button
+                        onClick={() => setShowTournamentDropdown(!showTournamentDropdown)}
+                        className={`w-full flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                            selectedTournament
+                                ? "border-primary/30 bg-primary/5"
+                                : "border-divider bg-foreground/[0.03]"
+                        }`}
+                    >
+                        <div className="min-w-0 flex-1">
+                            {selectedTournament ? (
+                                <>
+                                    <p className="text-sm font-semibold truncate">{selectedTournament.name}</p>
+                                    {selectedTournament.seasonName && (
+                                        <p className="text-[11px] text-foreground/50">{selectedTournament.seasonName}</p>
+                                    )}
+                                </>
+                            ) : (
+                                <p className="text-sm text-foreground/40">
+                                    {tournamentsLoading ? "Loading tournaments..." : "Select a tournament"}
+                                </p>
+                            )}
+                        </div>
+                        <ChevronDown className={`h-4 w-4 text-foreground/40 shrink-0 transition-transform ${showTournamentDropdown ? "rotate-180" : ""}`} />
+                    </button>
 
-                    {/* Search dropdown */}
-                    {showResults && playerSearch.trim().length >= 2 && (
+                    {showTournamentDropdown && (
                         <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-xl border border-divider bg-content1 shadow-lg overflow-hidden max-h-64 overflow-y-auto">
-                            {searchLoading ? (
+                            {tournamentsLoading ? (
                                 <div className="flex items-center justify-center py-6">
                                     <Spinner size="sm" />
                                 </div>
-                            ) : !searchResults?.length ? (
+                            ) : !tournaments?.length ? (
                                 <p className="text-xs text-foreground/40 text-center py-6">
-                                    No players found
+                                    No tournaments in this season
                                 </p>
                             ) : (
-                                searchResults.map((player) => {
-                                    const isSelected = selected.some(
-                                        (s) => s.id === player.id
-                                    );
-                                    return (
-                                        <button
-                                            key={player.id}
-                                            onClick={() => selectPlayer(player)}
-                                            disabled={isSelected}
-                                            className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                                                isSelected
-                                                    ? "bg-primary/5 opacity-50 cursor-not-allowed"
-                                                    : "hover:bg-foreground/[0.04]"
-                                            }`}
-                                        >
-                                            <Avatar
-                                                src={player.imageUrl}
-                                                name={
-                                                    player.displayName ||
-                                                    player.username
-                                                }
-                                                size="sm"
-                                                className="shrink-0"
-                                            />
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-medium truncate">
-                                                    {player.displayName ||
-                                                        player.username}
-                                                </p>
-                                                <p className="text-[11px] text-foreground/40 truncate">
-                                                    @{player.username}
-                                                    {player.clan
-                                                        ? ` · [${player.clan.tag}]`
-                                                        : ""}
-                                                </p>
-                                            </div>
-                                            <Chip
-                                                size="sm"
-                                                variant="flat"
-                                                color={
-                                                    isSelected
-                                                        ? "success"
-                                                        : "default"
-                                                }
-                                            >
-                                                {isSelected
-                                                    ? "Selected"
-                                                    : player.category}
-                                            </Chip>
-                                        </button>
-                                    );
-                                })
+                                tournaments.map((t) => (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => {
+                                            setSelectedTournament(t);
+                                            setShowTournamentDropdown(false);
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                                            selectedTournament?.id === t.id
+                                                ? "bg-primary/10 text-primary"
+                                                : "hover:bg-foreground/[0.04]"
+                                        }`}
+                                    >
+                                        <Trophy className="h-4 w-4 text-primary/60 shrink-0" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium truncate">{t.name}</p>
+                                            {t.seasonName && (
+                                                <p className="text-[11px] text-foreground/40">{t.seasonName}</p>
+                                            )}
+                                        </div>
+                                        {selectedTournament?.id === t.id && (
+                                            <Check className="h-4 w-4 text-primary shrink-0" />
+                                        )}
+                                    </button>
+                                ))
                             )}
                         </div>
                     )}
                 </div>
+            </div>
 
-                {/* Selected players grid */}
-                {selected.length > 0 && (
-                    <div className="grid grid-cols-3 gap-3">
-                        {selected.map((player, idx) => (
-                            <div
-                                key={player.id}
-                                className="relative rounded-xl border border-divider bg-foreground/[0.03] overflow-hidden group"
-                            >
-                                {/* Player image */}
-                                <div className="relative aspect-square bg-black/10">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={player.imageUrl}
-                                        alt={player.name}
-                                        className="w-full h-full object-cover"
-                                        crossOrigin="anonymous"
-                                    />
-
-                                    {/* Player number badge */}
-                                    <div className="absolute top-2 left-2">
-                                        <span className="w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center shadow-lg">
-                                            {idx + 1}
-                                        </span>
-                                    </div>
-
-                                    {/* Remove button */}
-                                    <button
-                                        onClick={() => removePlayer(player.id)}
-                                        className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-red-500 transition-colors"
-                                    >
-                                        <X className="h-3.5 w-3.5" />
-                                    </button>
-
-                                    {/* Action overlay */}
-                                    <div className="absolute bottom-0 inset-x-0 p-2 flex gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/70 to-transparent pt-6">
-                                        <button
-                                            onClick={() =>
-                                                copyImageToClipboard(
-                                                    player.imageUrl
-                                                )
-                                            }
-                                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/20 backdrop-blur-sm text-white text-[10px] font-medium hover:bg-white/30 transition-colors"
-                                        >
-                                            <Copy className="h-3 w-3" />
-                                            Copy
-                                        </button>
-                                        <button
-                                            onClick={() =>
-                                                downloadImage(
-                                                    player.imageUrl,
-                                                    `player-${idx + 1}-${player.name.replace(/\s+/g, "-").toLowerCase()}.png`
-                                                )
-                                            }
-                                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/20 backdrop-blur-sm text-white text-[10px] font-medium hover:bg-white/30 transition-colors"
-                                        >
-                                            <Download className="h-3 w-3" />
-                                            Save
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Player name */}
-                                <div className="px-2.5 py-2 text-center">
-                                    <p className="text-xs font-medium truncate">
-                                        {player.name}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-
-                        {/* Empty slots */}
-                        {Array.from({ length: 3 - selected.length }).map(
-                            (_, i) => (
-                                <div
-                                    key={`empty-${i}`}
-                                    onClick={() => {
-                                        const input = document.querySelector<HTMLInputElement>(
-                                            '[placeholder="Search player by name..."]'
-                                        );
-                                        input?.focus();
-                                    }}
-                                    className="rounded-xl border-2 border-dashed border-foreground/10 flex flex-col items-center justify-center aspect-square cursor-pointer hover:border-primary/30 transition-colors"
-                                >
-                                    <ImageIcon className="h-6 w-6 text-foreground/15 mb-1" />
-                                    <span className="text-[10px] text-foreground/25">
-                                        Player {selected.length + i + 1}
-                                    </span>
-                                </div>
-                            )
-                        )}
-                    </div>
-                )}
-
-                {/* Download all button */}
-                {selected.length === 3 && (
-                    <button
-                        onClick={async () => {
-                            for (const [idx, p] of selected.entries()) {
-                                await downloadImage(
-                                    p.imageUrl,
-                                    `player-${idx + 1}-${p.name.replace(/\s+/g, "-").toLowerCase()}.png`
-                                );
-                            }
-                        }}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
-                    >
-                        <Download className="h-4 w-4" />
-                        Download All 3 Images
-                    </button>
+            {/* ━━━ Event Label (optional) ━━━ */}
+            <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-2">
+                <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider">
+                    🏷️ Event Label <span className="text-[11px] font-normal normal-case tracking-normal text-foreground/40">— optional</span>
+                </h2>
+                <Input
+                    size="sm"
+                    placeholder="e.g. Grand Final, Day 1 Group A, Day 3..."
+                    value={eventLabel}
+                    onValueChange={setEventLabel}
+                    isClearable
+                    onClear={() => setEventLabel("")}
+                    classNames={{ inputWrapper: "bg-foreground/[0.04]" }}
+                />
+                {!eventLabel.trim() && (
+                    <p className="text-[11px] text-foreground/30">Prompts with [EVENT] will keep the placeholder if left empty</p>
                 )}
             </div>
 
-            {/* ━━━ BIMON Logo — Always Ready ━━━ */}
-            <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-3">
-                <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4" />
-                    BIMON Logo
-                </h2>
-                <div className="flex items-center gap-4">
-                    <div className="shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-black/10 border border-divider">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src="/icons/bgmi/icon-512x512.png"
-                            alt="BIMON Logo"
-                            className="w-full h-full object-contain"
-                        />
+            {/* ━━━ Prize Pool ━━━ */}
+            <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-2">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider">
+                        💰 Prize Pool
+                    </h2>
+                    <button
+                        onClick={fetchPrizeData}
+                        disabled={fetchingPrize || !selectedTournament}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground/5 text-foreground/50 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        {fetchingPrize ? <Spinner size="sm" /> : <Trophy className="h-3 w-3" />}
+                        {prizeText ? "Refresh" : "Fetch Prize Pool"}
+                    </button>
+                </div>
+                {prizeText ? (
+                    <div className="space-y-1.5">
+                        <pre className="text-xs text-foreground/50 leading-relaxed whitespace-pre-wrap bg-foreground/[0.03] rounded-lg px-3 py-2 font-sans">
+                            {prizeText}
+                        </pre>
+                        <button
+                            onClick={() => setPrizeText("")}
+                            className="text-[11px] text-foreground/30 hover:text-danger transition-colors"
+                        >
+                            Clear prize data
+                        </button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">icon-512x512.png</p>
-                        <p className="text-[11px] text-foreground/40">Upload this as the 4th reference image in your AI tool</p>
-                        <div className="flex gap-2 mt-2">
+                ) : (
+                    <p className="text-[11px] text-foreground/30">Fetches prize positions from the selected tournament and includes them in title description and prompts</p>
+                )}
+            </div>
+
+            {/* ━━━ YouTube Title & Description Generator ━━━ */}
+            <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-4">
+                <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider flex items-center gap-2">
+                    <Type className="h-4 w-4" />
+                    YouTube Title & Description
+                </h2>
+
+                {/* Title */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-foreground/50">Title</p>
+                        <button
+                            onClick={async () => {
+                                try {
+                                    await navigator.clipboard.writeText(generateTitle(tournamentName, seasonName, eventLabel?.trim() || undefined));
+                                    toast.success("Title copied!");
+                                } catch {
+                                    toast.error("Failed to copy");
+                                }
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground/5 text-foreground/50 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-colors"
+                        >
+                            <Copy className="h-3 w-3" />
+                            Copy Title
+                        </button>
+                    </div>
+                    <div className="px-4 py-3 rounded-xl bg-foreground/[0.03] border border-divider">
+                        <p className="text-sm font-medium">{generateTitle(tournamentName, seasonName, eventLabel?.trim() || undefined)}</p>
+                    </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-foreground/50 flex items-center gap-1.5">
+                            <FileText className="h-3 w-3" />
+                            Description
+                        </p>
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const desc = generateDescription(tournamentName, seasonName, eventLabel?.trim() || undefined, customNotes, prizeText);
+                                    await navigator.clipboard.writeText(desc);
+                                    toast.success("Description copied!");
+                                } catch {
+                                    toast.error("Failed to copy");
+                                }
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground/5 text-foreground/50 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-colors"
+                        >
+                            <Copy className="h-3 w-3" />
+                            Copy Description
+                        </button>
+                    </div>
+                    <pre className="text-[11px] text-foreground/40 leading-relaxed whitespace-pre-wrap bg-foreground/[0.02] rounded-xl p-4 border border-divider font-sans">
+                        {generateDescription(tournamentName, seasonName, eventLabel?.trim() || undefined, customNotes, prizeText)}
+                    </pre>
+
+                    {/* Custom notes / music credits */}
+                    <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                            <p className="text-[11px] text-foreground/40">🎵 Custom notes (music credits, links, etc.)</p>
                             <button
-                                onClick={() => copyImageToClipboard("/icons/bgmi/icon-512x512.png")}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground/5 text-foreground/60 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-colors"
+                                onClick={async () => {
+                                    try {
+                                        const text = await navigator.clipboard.readText();
+                                        setCustomNotes((prev) => prev ? prev + "\n" + text : text);
+                                        toast.success("Pasted from clipboard!");
+                                    } catch {
+                                        toast.error("Failed to read clipboard");
+                                    }
+                                }}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md bg-foreground/5 text-foreground/40 text-[11px] hover:bg-primary/10 hover:text-primary transition-colors"
                             >
-                                <Copy className="h-3 w-3" />
-                                Copy
-                            </button>
-                            <button
-                                onClick={() => downloadImage("/icons/bgmi/icon-512x512.png", "bimon-logo.png")}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground/5 text-foreground/60 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-colors"
-                            >
-                                <Download className="h-3 w-3" />
-                                Download
+                                📋 Paste
                             </button>
                         </div>
+                        <textarea
+                            value={customNotes}
+                            onChange={(e) => setCustomNotes(e.target.value)}
+                            placeholder="Paste music credits, sponsor links, etc..."                            rows={3}
+                            className="w-full text-xs bg-foreground/[0.03] border border-divider rounded-lg px-3 py-2 placeholder:text-foreground/20 focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
+                        />
                     </div>
                 </div>
             </div>
+
+            {randomPrompt && (
+                <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider">
+                            {pinnedId === randomPrompt.id ? "📌 Pinned Prompt" : "🎲 Random Prompt"}
+                        </h2>
+                        <div className="flex items-center gap-1.5">
+                            {/* Pin/Unpin button */}
+                            {selectedTournament && (
+                                <button
+                                    onClick={() => {
+                                        if (pinnedId === randomPrompt.id) {
+                                            unpinPrompt(selectedTournament.id);
+                                        } else {
+                                            pinPrompt(selectedTournament.id, randomPrompt.id);
+                                        }
+                                    }}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                        pinnedId === randomPrompt.id
+                                            ? "bg-warning/20 text-warning hover:bg-warning/30"
+                                            : "bg-foreground/5 text-foreground/50 hover:bg-warning/10 hover:text-warning"
+                                    }`}
+                                >
+                                    <Pin className={`h-3 w-3 ${pinnedId === randomPrompt.id ? "fill-warning" : ""}`} />
+                                    {pinnedId === randomPrompt.id ? "Unpin" : "Pin"}
+                                </button>
+                            )}
+                            <button
+                                onClick={getRandomPrompt}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground/5 text-foreground/50 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-colors"
+                            >
+                                <RefreshCw className="h-3 w-3" />
+                                Shuffle
+                            </button>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-sm font-semibold">{randomPrompt.title}</p>
+                        <p className="text-xs text-foreground/50 leading-relaxed">
+                            {getFullPrompt(randomPrompt, tournamentName, seasonName, eventLabel)}
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => handleCopy(randomPrompt)}
+                        className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                            copiedId === randomPrompt.id
+                                ? "bg-success/15 text-success"
+                                : "bg-primary/10 text-primary hover:bg-primary/20"
+                        }`}
+                    >
+                        {copiedId === randomPrompt.id ? (
+                            <>
+                                <Check className="h-4 w-4" />
+                                Copied!
+                            </>
+                        ) : (
+                            <>
+                                <Copy className="h-4 w-4" />
+                                Copy Prompt
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
+
+            {/* ━━━ All Prompts ━━━ */}
             <div className="space-y-3">
                 <Input
                     size="sm"
                     placeholder="Search prompts..."
-                    startContent={
-                        <Search className="h-4 w-4 text-foreground/40" />
-                    }
+                    startContent={<Search className="h-4 w-4 text-foreground/40" />}
                     value={promptSearch}
                     onValueChange={setPromptSearch}
                     isClearable
                     onClear={() => setPromptSearch("")}
                     classNames={{ inputWrapper: "bg-foreground/[0.04]" }}
                 />
-                <div className="flex flex-wrap gap-2">
-                    <Chip
-                        size="sm"
-                        variant={activeCategory === null ? "solid" : "flat"}
-                        color="primary"
-                        className="cursor-pointer"
-                        onClick={() => setActiveCategory(null)}
-                    >
-                        All ({PROMPTS.length})
-                    </Chip>
-                    {CATEGORIES.map((cat) => {
-                        const count = PROMPTS.filter(
-                            (p) => p.category === cat.key
-                        ).length;
-                        return (
-                            <Chip
-                                key={cat.key}
-                                size="sm"
-                                variant={
-                                    activeCategory === cat.key ? "solid" : "flat"
-                                }
-                                color={cat.color}
-                                className="cursor-pointer"
-                                onClick={() =>
-                                    setActiveCategory(
-                                        activeCategory === cat.key
-                                            ? null
-                                            : cat.key
-                                    )
-                                }
-                            >
-                                {cat.label} ({count})
-                            </Chip>
-                        );
-                    })}
-                </div>
             </div>
 
             {/* Results count */}
-            {(promptSearch || activeCategory) && (
+            {promptSearch && (
                 <p className="text-xs text-foreground/40">
                     Showing {filtered.length} of {PROMPTS.length} prompts
                 </p>
             )}
 
-            {/* Grouped prompt cards */}
-            {CATEGORIES.filter((cat) => grouped.has(cat.key)).map((cat) => {
-                const prompts = grouped.get(cat.key)!;
-                const isCollapsed = collapsedCategories.has(cat.key);
-
-                return (
-                    <div key={cat.key} className="space-y-3">
-                        {/* Category header */}
-                        <button
-                            onClick={() => toggleCollapse(cat.key)}
-                            className="w-full flex items-center justify-between group"
-                        >
-                            <div className="flex items-center gap-2">
-                                <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider">
-                                    {cat.label}
-                                </h2>
-                                <Chip size="sm" variant="flat" color={cat.color}>
-                                    {prompts.length}
-                                </Chip>
+            {/* Prompt cards */}
+            <div className="space-y-2">
+                {filtered.map((prompt) => (
+                    <div
+                        key={prompt.id}
+                        className={`group rounded-2xl border overflow-hidden transition-colors ${
+                            pinnedId === prompt.id
+                                ? "border-warning/40 bg-warning/[0.04] hover:bg-warning/[0.07]"
+                                : "border-divider bg-foreground/[0.02] hover:bg-foreground/[0.05]"
+                        }`}
+                    >
+                        {/* Card header + copy button */}
+                        <div className="flex items-center justify-between px-4 py-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <span className="shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                                    {prompt.id}
+                                </span>
+                                <span className="font-medium text-sm truncate">
+                                    {prompt.title}
+                                </span>
                             </div>
-                            {isCollapsed ? (
-                                <ChevronDown className="h-4 w-4 text-foreground/30 group-hover:text-foreground/60 transition-colors" />
-                            ) : (
-                                <ChevronUp className="h-4 w-4 text-foreground/30 group-hover:text-foreground/60 transition-colors" />
+                            <button
+                                onClick={() => handleCopy(prompt)}
+                                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                                    copiedId === prompt.id
+                                        ? "bg-success/20 text-success"
+                                        : "bg-foreground/5 text-foreground/40 hover:bg-primary/10 hover:text-primary"
+                                }`}
+                            >
+                                {copiedId === prompt.id ? (
+                                    <>
+                                        <Check className="h-3.5 w-3.5" />
+                                        Copied
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy className="h-3.5 w-3.5" />
+                                        Copy
+                                    </>
+                                )}
+                            </button>
+                            {/* Pin button */}
+                            {selectedTournament && (
+                                <button
+                                    onClick={() => {
+                                        if (pinnedId === prompt.id) {
+                                            unpinPrompt(selectedTournament.id);
+                                        } else {
+                                            pinPrompt(selectedTournament.id, prompt.id);
+                                        }
+                                    }}
+                                    className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                                        pinnedId === prompt.id
+                                            ? "bg-warning/20 text-warning"
+                                            : "bg-foreground/5 text-foreground/30 hover:bg-warning/10 hover:text-warning"
+                                    }`}
+                                    title={pinnedId === prompt.id ? "Unpin from this tournament" : "Pin for this tournament"}
+                                >
+                                    <Pin className={`h-3 w-3 ${pinnedId === prompt.id ? "fill-warning" : ""}`} />
+                                </button>
                             )}
-                        </button>
+                        </div>
 
-                        {/* Prompt cards */}
-                        {!isCollapsed && (
-                            <div className="space-y-2">
-                                {prompts.map((prompt) => (
-                                    <div
-                                        key={prompt.id}
-                                        className="group rounded-2xl border border-divider bg-foreground/[0.02] hover:bg-foreground/[0.05] transition-colors overflow-hidden"
-                                    >
-                                        {/* Card header */}
-                                        <div className="flex items-center justify-between px-4 py-3">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <span className="shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
-                                                    {prompt.id}
-                                                </span>
-                                                <span className="font-medium text-sm truncate">
-                                                    {prompt.title}
-                                                </span>
-                                            </div>
-                                            <button
-                                                onClick={() =>
-                                                    handleCopy(prompt)
-                                                }
-                                                className={`shrink-0 p-2 rounded-xl transition-all ${
-                                                    copiedId === prompt.id
-                                                        ? "bg-success/20 text-success"
-                                                        : "bg-foreground/5 text-foreground/40 hover:bg-primary/10 hover:text-primary"
-                                                }`}
-                                                title="Copy prompt"
-                                            >
-                                                {copiedId === prompt.id ? (
-                                                    <Check className="h-4 w-4" />
-                                                ) : (
-                                                    <Copy className="h-4 w-4" />
-                                                )}
-                                            </button>
-                                        </div>
-
-                                        {/* Prompt text */}
-                                        <div
-                                            onClick={() => handleCopy(prompt)}
-                                            className="px-4 pb-4 cursor-pointer"
-                                        >
-                                            <p className="text-xs text-foreground/50 leading-relaxed line-clamp-4 group-hover:line-clamp-none transition-all">
-                                                {getFullPrompt(prompt, selectedTournament?.name, selectedTournament?.seasonName ?? undefined)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        {/* Prompt text — click to copy */}
+                        <div
+                            onClick={() => handleCopy(prompt)}
+                            className="px-4 pb-4 cursor-pointer"
+                        >
+                            <p className="text-xs text-foreground/50 leading-relaxed line-clamp-3 group-hover:line-clamp-none transition-all">
+                                {getFullPrompt(prompt, tournamentName, seasonName, eventLabel)}
+                            </p>
+                        </div>
                     </div>
-                );
-            })}
+                ))}
+            </div>
 
             {/* Empty state */}
             {filtered.length === 0 && (
@@ -1001,32 +907,12 @@ export default function ThumbnailPromptsPage() {
                     💡 Tips
                 </h2>
                 <ul className="text-xs text-foreground/50 space-y-1.5 list-disc list-inside">
-                    <li>
-                        Upload 3 player images + BIMON logo as reference images
-                        in your AI tool
-                    </li>
-                    <li>
-                        Replace{" "}
-                        <code className="text-primary/70 bg-primary/5 px-1 rounded">
-                            [TOURNAMENT NAME]
-                        </code>{" "}
-                        and{" "}
-                        <code className="text-primary/70 bg-primary/5 px-1 rounded">
-                            [SEASON X]
-                        </code>{" "}
-                        before pasting
-                    </li>
-                    <li>
-                        Use 16:9 aspect ratio (1280×720) in your generator
-                        settings
-                    </li>
-                    <li>
-                        AI struggles with text — add text overlay in Canva or
-                        Photoshop after
-                    </li>
-                    <li>
-                        Generate 3–4 variations per prompt and pick the best one
-                    </li>
+                    <li>Upload the BIMON logo as a reference image in your AI tool</li>
+                    <li>Optionally upload legendary PUBG character images for the AI to use</li>
+                    <li>Use 16:9 aspect ratio (1280×720) in your generator settings</li>
+                    <li>AI struggles with text — add text overlay in Canva or Photoshop after</li>
+                    <li>Generate 3–4 variations per prompt and pick the best one</li>
+                    <li>Hit <strong>Shuffle</strong> on the random prompt to quickly try different styles</li>
                 </ul>
             </div>
         </div>
