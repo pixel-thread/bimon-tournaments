@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { image, tournamentName, phase, matchCount } = body;
+        const { image, tournamentName, phase, matchCount, isFinal } = body;
 
         if (!image || !tournamentName) {
             return NextResponse.json({ error: "Missing image or tournamentName" }, { status: 400 });
@@ -44,13 +44,39 @@ export async function POST(req: NextRequest) {
             : phase === "FINALS" ? "Finals"
             : "";
 
-        const matchInfo = matchCount ? ` (After ${matchCount} Match${matchCount !== 1 ? "es" : ""})` : "";
-        const caption = phaseLabel
-            ? `🏆 **${tournamentName}** — ${phaseLabel}${matchInfo}`
-            : `🏆 **${tournamentName}** — Overall Standings${matchInfo}`;
+        // Build caption
+        let caption: string;
+        if (isFinal) {
+            caption = phaseLabel
+                ? `🏆 **${tournamentName}** — ${phaseLabel} (FINAL STANDINGS)`
+                : `🏆 **${tournamentName}** — FINAL STANDINGS`;
+        } else {
+            const matchInfo = matchCount ? ` (After ${matchCount} Match${matchCount !== 1 ? "es" : ""})` : "";
+            caption = phaseLabel
+                ? `🏆 **${tournamentName}** — ${phaseLabel}${matchInfo}`
+                : `🏆 **${tournamentName}** — Overall Standings${matchInfo}`;
+        }
 
-        // Random hype messages to keep it fresh
-        const hypeMessages = [
+        // Random hype messages
+        const finalHypeMessages = [
+            "🎉 The dust has settled! Congratulations to the champions! 👑",
+            "🏆 What a tournament! History has been written!",
+            "👑 The champions have been crowned! GG WP to everyone!",
+            "🥇 From start to finish, it was an incredible journey!",
+            "🫡 Respect to every team that competed! Final standings are here!",
+            "🎊 It's OVER! What a ride! Here are your final standings!",
+            "💪 Blood, sweat, and chicken dinners! The results are IN!",
+            "⭐ Legends were made today! Final results below!",
+            "🔥 That was absolutely INSANE! Here are the final standings!",
+            "🍗 The last chicken dinner has been served! Final standings!",
+            "🏅 Season finale! Every point mattered and here's the proof!",
+            "👏 What a show! Thank you to all teams! Final standings!",
+            "💯 Tournament COMPLETE! The best have proven themselves!",
+            "🎯 Aim true, play smart, win big! Final results are here!",
+            "🥊 The final bell has rung! Here are your standings!",
+        ];
+
+        const regularHypeMessages = [
             "🔥 The battle heats up! Who's climbing the ranks?",
             "⚔️ Every kill counts. Every position matters!",
             "👀 Look at those standings! Things are getting intense!",
@@ -82,7 +108,9 @@ export async function POST(req: NextRequest) {
             "📈 Moving up or sliding down? The table tells the story!",
             "🎪 What a tournament! The drama is REAL!",
         ];
-        const hype = hypeMessages[Math.floor(Math.random() * hypeMessages.length)];
+
+        const messages = isFinal ? finalHypeMessages : regularHypeMessages;
+        const hype = messages[Math.floor(Math.random() * messages.length)];
 
         // Build multipart form data for Discord file upload
         const boundary = "----BimonBoundary" + Date.now();

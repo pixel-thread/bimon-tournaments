@@ -101,6 +101,7 @@ export function StandingsModal({
     const [shareSuccess, setShareSuccess] = useState(false);
     const [isSendingDiscord, setIsSendingDiscord] = useState(false);
     const [discordSent, setDiscordSent] = useState(false);
+    const [isFinalStandings, setIsFinalStandings] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [compareMatches, setCompareMatches] = useState(1);
     const [champGroup, setChampGroup] = useState<"ALL" | "A" | "B" | "FINALS">(initialGroup ?? (championshipPhase === "FINALS" ? "FINALS" : "ALL"));
@@ -468,6 +469,7 @@ export function StandingsModal({
                     tournamentName: tournamentTitle,
                     phase,
                     matchCount: maxMatches,
+                    isFinal: isFinalStandings,
                 }),
             });
 
@@ -484,7 +486,7 @@ export function StandingsModal({
         } finally {
             setIsSendingDiscord(false);
         }
-    }, [isSendingDiscord, captureScreenshot, champGroup, tournamentTitle]);
+    }, [isSendingDiscord, captureScreenshot, champGroup, tournamentTitle, standings, isFinalStandings]);
 
     if (!isOpen) return null;
 
@@ -529,12 +531,25 @@ export function StandingsModal({
                         )}
                     </button>
 
+                    {/* Final Standings Toggle */}
+                    <button
+                        onClick={() => setIsFinalStandings(!isFinalStandings)}
+                        className={`text-white bg-black/60 hover:bg-black/80 backdrop-blur-md border p-2.5 rounded-xl transition-all duration-300 text-sm font-bold ${
+                            isFinalStandings
+                                ? "border-amber-500/60 text-amber-400 bg-amber-500/10"
+                                : "border-white/20 hover:border-amber-500/30 hover:text-amber-400"
+                        }`}
+                        title={isFinalStandings ? "Final Standings ON" : "Mark as Final Standings"}
+                    >
+                        👑
+                    </button>
+
                     {/* Send to Discord Button */}
                     <button
                         onClick={sendToDiscord}
                         disabled={isSendingDiscord}
-                        className={`relative overflow-hidden text-white hover:text-[#5865F2] bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-[#5865F2]/50 p-2.5 rounded-xl transition-all duration-300 ${discordSent ? "bg-[#5865F2]/20 border-[#5865F2]/50" : ""}`}
-                        title="Send to Discord"
+                        className={`relative overflow-hidden text-white hover:text-[#5865F2] bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-[#5865F2]/50 p-2.5 rounded-xl transition-all duration-300 ${discordSent ? "bg-[#5865F2]/20 border-[#5865F2]/50" : ""} ${isFinalStandings ? "ring-1 ring-amber-500/40" : ""}`}
+                        title={isFinalStandings ? "Send FINAL standings to Discord" : "Send to Discord"}
                     >
                         {isSendingDiscord ? (
                             <div className="h-5 w-5 border-2 border-[#5865F2] border-t-transparent rounded-full animate-spin" />
