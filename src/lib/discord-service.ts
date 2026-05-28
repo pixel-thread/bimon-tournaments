@@ -127,11 +127,17 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
         timestamp: new Date().toISOString(),
     };
 
-    await discordFetch(`/channels/${channelId}/messages`, {
+    const res = await discordFetch(`/channels/${channelId}/messages`, {
         method: "POST",
         body: JSON.stringify({
             embeds: [embed],
             content: "@everyone 🚨 Room info is here! Join now!",
         }),
     });
+
+    if (!res.ok) {
+        const errorBody = await res.text().catch(() => "unknown");
+        console.error(`Discord sendRoomInfo failed [${res.status}]:`, errorBody);
+        throw new Error(`Discord API error ${res.status}: ${errorBody}`);
+    }
 }

@@ -153,22 +153,22 @@ function TournamentRow({ tournament, state, onChange }: {
     }, [onChange]);
 
     const sendDiscord = useCallback(async (matchNum: number) => {
-        try {
-            await fetch("/api/discord/send-room-info", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    tournamentName,
-                    matchNumber: matchNum,
-                    map: state.map,
-                    time: formatTimeDisplay(state.time),
-                    roomId: state.roomId.trim(),
-                    password: state.password,
-                    gameName: GAME.gameName,
-                }),
-            });
-        } catch {
-            // silent
+        const res = await fetch("/api/discord/send-room-info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                tournamentName,
+                matchNumber: matchNum,
+                map: state.map,
+                time: formatTimeDisplay(state.time),
+                roomId: state.roomId.trim(),
+                password: state.password,
+                gameName: GAME.gameName,
+            }),
+        });
+        if (!res.ok) {
+            const json = await res.json().catch(() => ({ error: "Unknown error" }));
+            throw new Error(json.error || `Discord send failed (${res.status})`);
         }
     }, [tournamentName, state.map, state.time, state.roomId, state.password]);
 
@@ -203,6 +203,9 @@ function TournamentRow({ tournament, state, onChange }: {
             sendDiscord(nextMatch).then(() => {
                 setDiscordSent(true);
                 setTimeout(() => setDiscordSent(false), 3000);
+            }).catch(async (err) => {
+                const { toast } = await import("sonner");
+                toast.error(`Discord: ${err.message || "Failed to send"}`);
             }).finally(() => setDiscordSending(false));
         }
     }, [generateMessage, state.copyCount, state.password, onChange, isRanked, sendDiscord]);
