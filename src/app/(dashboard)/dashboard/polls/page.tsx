@@ -443,6 +443,7 @@ export default function PollsAdminPage() {
                 onConfirm={handleConfirm}
                 onRegenerate={handleRegenerate}
                 error={previewError}
+                allowSquads={activePoll?.allowSquads ?? false}
             />
 
             {/* Create/Edit Poll Modal */}

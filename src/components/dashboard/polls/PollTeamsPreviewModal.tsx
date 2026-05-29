@@ -131,6 +131,7 @@ interface PollTeamsPreviewModalProps {
     onConfirm: () => void;
     onRegenerate: () => void;
     error?: string | null;
+    allowSquads?: boolean;
 }
 
 export function PollTeamsPreviewModal({
@@ -142,6 +143,7 @@ export function PollTeamsPreviewModal({
     onConfirm,
     onRegenerate,
     error,
+    allowSquads = false,
 }: PollTeamsPreviewModalProps) {
     const isConfirming = jobStatus === "loading";
 
@@ -235,6 +237,7 @@ export function PollTeamsPreviewModal({
                                 <ChampionshipGroupedTeams
                                     teams={previewData.teams}
                                     entryFee={previewData.entryFee}
+                                    allowSquads={allowSquads}
                                 />
                             ) : (
                                 <p className="py-8 text-center text-sm text-foreground/50">
@@ -316,11 +319,14 @@ export function PollTeamsPreviewModal({
 function ChampionshipGroupedTeams({
     teams,
     entryFee,
+    allowSquads = false,
 }: {
     teams: TeamPreview[];
     entryFee: number;
+    allowSquads?: boolean;
 }) {
-    const isChampionship = GAME.features.hasSquads && teams.length > GAME.maxSquadTeams;
+    // Only show championship grouping for ranked/squad polls, never for casual
+    const isChampionship = allowSquads && teams.length > GAME.maxSquadTeams;
     const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
     // Simulate group assignment (same logic as assignGroups but for preview)
