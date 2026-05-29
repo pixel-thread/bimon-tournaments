@@ -22,6 +22,7 @@ import {
     Swords,
     Plus,
     Pencil,
+    Send,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useCallback } from "react";
@@ -394,6 +395,9 @@ export default function PollsAdminPage() {
                                                         >
                                                             <Pencil className="h-3 w-3" />
                                                         </Button>
+                                                        {poll.tournament && (
+                                                            <DiscordAnnounceButton pollId={poll.id} />
+                                                        )}
                                                         {poll.tournament && poll.tournament.type === "BR" && (
                                                             <Button
                                                                 size="sm"
@@ -495,6 +499,43 @@ function BracketButton({
             onPress={handleGenerate}
         >
             Bracket
+        </Button>
+    );
+}
+
+/* ─── Discord Announce Button ─────────────────────────────── */
+function DiscordAnnounceButton({ pollId }: { pollId: string }) {
+    const [loading, setLoading] = useState(false);
+
+    const handleAnnounce = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch("/api/discord/announce-poll", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pollId }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || "Failed");
+            toast.success("Announced on Discord!");
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Button
+            size="sm"
+            variant="flat"
+            isIconOnly
+            className="min-w-0 h-7 w-7"
+            isLoading={loading}
+            onPress={handleAnnounce}
+            title="Announce on Discord"
+        >
+            <Send className="h-3 w-3" />
         </Button>
     );
 }

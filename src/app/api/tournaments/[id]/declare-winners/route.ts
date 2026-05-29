@@ -21,7 +21,7 @@ import {
     type SoloTaxResult,
 } from "@/lib/logic/soloTax";
 import { getSettings } from "@/lib/settings";
-import { revokeRoleFromAll } from "@/lib/discord-service";
+import { revokeRoleFromAll, deleteTournamentChannel } from "@/lib/discord-service";
 
 // BGMI placement points — must match rankings API
 const PLACEMENT_PTS: Record<number, number> = {
@@ -66,7 +66,7 @@ export async function POST(
         // ── 1. Fetch tournament ──────────────────────────────
         const tournament = await prisma.tournament.findUnique({
             where: { id },
-            select: { id: true, name: true, fee: true, seasonId: true, isWinnerDeclared: true, type: true, season: { select: { name: true } } },
+            select: { id: true, name: true, fee: true, seasonId: true, isWinnerDeclared: true, type: true, discordChannelId: true, season: { select: { name: true } } },
         });
         if (!tournament) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
         if (!dryRun && tournament.isWinnerDeclared) return NextResponse.json({ error: "Winners already declared" }, { status: 400 });
@@ -697,6 +697,12 @@ export async function POST(
             }
         }
 
+        // ── 6d. Auto-delete tournament Discord channel ──
+        if (tournament.discordChannelId) {
+            deleteTournamentChannel(tournament.discordChannelId)
+                .catch((err) => console.error("Discord channel deletion error:", err));
+        }
+
         // ── 6. Post-transaction: Solo tax distribution ────────
         // (Outside transaction — needs winners committed first for loser calc)
 
@@ -1046,6 +1052,12 @@ async function declareBracketWinners({
             data: { isWinnerDeclared: true, status: "INACTIVE" },
         });
     }, { timeout: 30000, maxWait: 35000 });
+
+    // Auto-delete tournament Discord channel
+    if ((tournament as any).discordChannelId) {
+        deleteTournamentChannel((tournament as any).discordChannelId)
+            .catch((err) => console.error("Discord channel deletion error:", err));
+    }
 
     return NextResponse.json({ success: true, message: "Bracket winners declared and rewards created" });
 }

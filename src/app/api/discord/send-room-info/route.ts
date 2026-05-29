@@ -5,10 +5,11 @@ import { sendRoomInfo } from "@/lib/discord-service";
 /**
  * POST /api/discord/send-room-info
  *
- * Sends a rich embed with room info to the #ranked-room-id channel.
+ * Sends a rich embed with room info to a per-tournament Discord channel.
+ * Auto-creates the channel under TOURNAMENTS category on first send.
  * Admin-only.
  *
- * Body: { tournamentName, matchNumber, map, time, roomId, password, gameName }
+ * Body: { tournamentId, tournamentName, matchNumber, map, time, roomId, password, gameName }
  */
 export async function POST(req: NextRequest) {
     try {
@@ -18,13 +19,14 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { tournamentName, matchNumber, map, time, roomId, password, gameName } = body;
+        const { tournamentId, tournamentName, matchNumber, map, time, roomId, password, gameName } = body;
 
-        if (!tournamentName || !matchNumber || !map || !time || !password) {
+        if (!tournamentId || !tournamentName || !matchNumber || !map || !time || !password) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
         await sendRoomInfo({
+            tournamentId,
             tournamentName,
             matchNumber,
             map,

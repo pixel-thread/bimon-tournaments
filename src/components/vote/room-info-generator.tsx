@@ -157,6 +157,7 @@ function TournamentRow({ tournament, state, onChange }: {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+                tournamentId: tournament.id,
                 tournamentName,
                 matchNumber: matchNum,
                 map: state.map,
@@ -170,7 +171,7 @@ function TournamentRow({ tournament, state, onChange }: {
             const json = await res.json().catch(() => ({ error: "Unknown error" }));
             throw new Error(json.error || `Discord send failed (${res.status})`);
         }
-    }, [tournamentName, state.map, state.time, state.roomId, state.password]);
+    }, [tournament.id, tournamentName, state.map, state.time, state.roomId, state.password]);
 
     /** One tap: copies to clipboard (WhatsApp) + auto-sends to Discord */
     const handleCopyAndSend = useCallback(async () => {
