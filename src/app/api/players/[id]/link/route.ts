@@ -7,7 +7,7 @@ import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
  * POST /api/players/[id]/link
  * Admin-only: Merge a legacy Player's data into a target User's Player.
  *
- * Body: { targetEmail: string }
+ * Body: { query: string }
  *
  * Scenario: A Season 1 player signs up again in Season 4.3 with a new
  * account. They now have two Player records:
@@ -96,116 +96,90 @@ export async function POST(
 
         const newPlayerId = newPlayer.id;
 
-        // 4. Merge: move all old player's records to the new player (120s timeout for large histories)
+        // 4. Merge: move all old player's records to the new player
         await prisma.$transaction(async (tx) => {
-            // ── Phase 1: Gather all existing data in parallel ──
+            // ── Phase 1: Gather data for unique-constraint conflict resolution ──
             const [
-                existingTeams,
-                oldTeams,
-                existingMatches,
-                oldMatches,
-                existingSeasons,
-                oldSeasons,
                 newPlayerStats,
                 newTPS,
                 newPollVotes,
                 newGameScore,
-                oldTeamStats,
-                existingTeamStats,
-                oldPolls,
-                existingPolls,
                 newCPV,
+                newRoyalPasses,
             ] = await Promise.all([
-                tx.team.findMany({ where: { players: { some: { id: newPlayerId } } }, select: { id: true } }),
-                tx.team.findMany({ where: { players: { some: { id: oldPlayerId } } }, select: { id: true } }),
-                tx.match.findMany({ where: { players: { some: { id: newPlayerId } } }, select: { id: true } }),
-                tx.match.findMany({ where: { players: { some: { id: oldPlayerId } } }, select: { id: true } }),
-                tx.season.findMany({ where: { players: { some: { id: newPlayerId } } }, select: { id: true } }),
-                tx.season.findMany({ where: { players: { some: { id: oldPlayerId } } }, select: { id: true } }),
                 tx.playerStats.findMany({ where: { playerId: newPlayerId }, select: { seasonId: true } }),
                 tx.teamPlayerStats.findMany({ where: { playerId: newPlayerId }, select: { teamId: true, matchId: true } }),
                 tx.playerPollVote.findMany({ where: { playerId: newPlayerId }, select: { pollId: true } }),
                 tx.gameScore.findFirst({ where: { playerId: newPlayerId } }),
-                tx.teamStats.findMany({ where: { players: { some: { id: oldPlayerId } } }, select: { id: true } }),
-                tx.teamStats.findMany({ where: { players: { some: { id: newPlayerId } } }, select: { id: true } }),
-                tx.poll.findMany({ where: { players: { some: { id: oldPlayerId } } }, select: { id: true } }),
-                tx.poll.findMany({ where: { players: { some: { id: newPlayerId } } }, select: { id: true } }),
                 tx.communityPollVote.findMany({ where: { playerId: newPlayerId }, select: { pollId: true } }),
+                tx.royalPass.findMany({ where: { playerId: newPlayerId }, select: { seasonId: true } }),
             ]);
 
-            const existingTeamIds = new Set(existingTeams.map(t => t.id));
-            const existingMatchIds = new Set(existingMatches.map(m => m.id));
-            const existingSeasonIds = new Set(existingSeasons.map(s => s.id));
-            const existingTeamStatIds = new Set(existingTeamStats.map(ts => ts.id));
-            const existingPollIds = new Set(existingPolls.map(p => p.id));
+            // ── Phase 2: Many-to-many join tables via raw SQL ──
+            // Replaces hundreds of individual Prisma disconnect/connect calls
+            // with ~10 SQL statements regardless of record count.
 
-            // ── Phase 2: Many-to-many disconnect/connect (batched) ──
+            // 2a: Delete old-player join rows where new player already has the same association
             await Promise.all([
-                // Teams
-                ...oldTeams.map(team => tx.team.update({
-                    where: { id: team.id },
-                    data: {
-                        players: {
-                            disconnect: { id: oldPlayerId },
-                            ...(existingTeamIds.has(team.id) ? {} : { connect: { id: newPlayerId } }),
-                        },
-                    },
-                })),
-                // Matches
-                ...oldMatches.map(match => tx.match.update({
-                    where: { id: match.id },
-                    data: {
-                        players: {
-                            disconnect: { id: oldPlayerId },
-                            ...(existingMatchIds.has(match.id) ? {} : { connect: { id: newPlayerId } }),
-                        },
-                    },
-                })),
-                // Seasons
-                ...oldSeasons.map(season => tx.season.update({
-                    where: { id: season.id },
-                    data: {
-                        players: {
-                            disconnect: { id: oldPlayerId },
-                            ...(existingSeasonIds.has(season.id) ? {} : { connect: { id: newPlayerId } }),
-                        },
-                    },
-                })),
+                // _PlayerToTeam (A=Player.id, B=Team.id)
+                tx.$executeRaw`DELETE FROM "_PlayerToTeam" WHERE "A" = ${oldPlayerId} AND "B" IN (SELECT "B" FROM "_PlayerToTeam" WHERE "A" = ${newPlayerId})`,
+                // _MatchToPlayer (A=Match.id, B=Player.id)
+                tx.$executeRaw`DELETE FROM "_MatchToPlayer" WHERE "B" = ${oldPlayerId} AND "A" IN (SELECT "A" FROM "_MatchToPlayer" WHERE "B" = ${newPlayerId})`,
+                // _PlayerSeason (A=Player.id, B=Season.id)
+                tx.$executeRaw`DELETE FROM "_PlayerSeason" WHERE "A" = ${oldPlayerId} AND "B" IN (SELECT "B" FROM "_PlayerSeason" WHERE "A" = ${newPlayerId})`,
+                // _PlayerToTeamStats (A=Player.id, B=TeamStats.id)
+                tx.$executeRaw`DELETE FROM "_PlayerToTeamStats" WHERE "A" = ${oldPlayerId} AND "B" IN (SELECT "B" FROM "_PlayerToTeamStats" WHERE "A" = ${newPlayerId})`,
+                // _PlayerToPoll (A=Player.id, B=Poll.id)
+                tx.$executeRaw`DELETE FROM "_PlayerToPoll" WHERE "A" = ${oldPlayerId} AND "B" IN (SELECT "B" FROM "_PlayerToPoll" WHERE "A" = ${newPlayerId})`,
+            ]);
+
+            // 2b: Move remaining join rows to new player
+            await Promise.all([
+                tx.$executeRaw`UPDATE "_PlayerToTeam" SET "A" = ${newPlayerId} WHERE "A" = ${oldPlayerId}`,
+                tx.$executeRaw`UPDATE "_MatchToPlayer" SET "B" = ${newPlayerId} WHERE "B" = ${oldPlayerId}`,
+                tx.$executeRaw`UPDATE "_PlayerSeason" SET "A" = ${newPlayerId} WHERE "A" = ${oldPlayerId}`,
+                tx.$executeRaw`UPDATE "_PlayerToTeamStats" SET "A" = ${newPlayerId} WHERE "A" = ${oldPlayerId}`,
+                tx.$executeRaw`UPDATE "_PlayerToPoll" SET "A" = ${newPlayerId} WHERE "A" = ${oldPlayerId}`,
             ]);
 
             // ── Phase 3: Conflict-safe deletes for unique constraints ──
             const existingStatSeasons = newPlayerStats.map(s => s.seasonId).filter((s): s is string => s !== null);
             const existingPollVoteIds = new Set(newPollVotes.map(v => v.pollId));
+            const existingRPSeasons = new Set(newRoyalPasses.map(rp => rp.seasonId));
 
             await Promise.all([
-                // PlayerStats conflicts
+                // PlayerStats: @@unique([seasonId, playerId])
                 ...(existingStatSeasons.length > 0
                     ? [tx.playerStats.deleteMany({ where: { playerId: oldPlayerId, seasonId: { in: existingStatSeasons } } })]
                     : []),
                 ...(newPlayerStats.some(s => s.seasonId === null)
                     ? [tx.playerStats.deleteMany({ where: { playerId: oldPlayerId, seasonId: null } })]
                     : []),
-                // TeamPlayerStats conflicts
+                // TeamPlayerStats: @@unique([playerId, teamId, matchId])
                 ...newTPS.map(tps => tx.teamPlayerStats.deleteMany({
                     where: { playerId: oldPlayerId, teamId: tps.teamId, matchId: tps.matchId },
                 })),
-                // PlayerPollVote conflicts
+                // PlayerPollVote: @@unique([playerId, pollId])
                 ...(existingPollVoteIds.size > 0
                     ? [tx.playerPollVote.deleteMany({ where: { playerId: oldPlayerId, pollId: { in: [...existingPollVoteIds] } } })]
                     : []),
-                // GameScore conflict
+                // GameScore: @@unique([playerId, difficulty])
                 ...(newGameScore
                     ? [tx.gameScore.deleteMany({ where: { playerId: oldPlayerId } })]
                     : []),
-                // CommunityPollVote conflicts
+                // CommunityPollVote: @@unique([pollId, playerId])
                 ...(newCPV.length > 0
                     ? [tx.communityPollVote.deleteMany({ where: { playerId: oldPlayerId, pollId: { in: newCPV.map(v => v.pollId) } } })]
                     : []),
-                // CommunityVote conflicts (unique on messageId+playerId — just delete old)
+                // CommunityVote: @@unique([messageId, playerId])
                 tx.communityVote.deleteMany({ where: { playerId: oldPlayerId } }),
+                // RoyalPass: @@unique([playerId, seasonId])
+                ...(existingRPSeasons.size > 0
+                    ? [tx.royalPass.deleteMany({ where: { playerId: oldPlayerId, seasonId: { in: [...existingRPSeasons] } } })]
+                    : []),
             ]);
 
-            // ── Phase 4: Bulk moves (all independent, run in parallel) ──
+            // ── Phase 4: Bulk moves (all updateMany, independent) ──
             await Promise.all([
                 tx.playerStats.updateMany({ where: { playerId: oldPlayerId }, data: { playerId: newPlayerId } }),
                 tx.teamPlayerStats.updateMany({ where: { playerId: oldPlayerId }, data: { playerId: newPlayerId } }),
@@ -244,29 +218,7 @@ export async function POST(
                 tx.payment.updateMany({ where: { playerId: oldPlayerId }, data: { playerId: newPlayerId } }),
             ]);
 
-            // ── Phase 5: Many-to-many TeamStats + Polls (batched) ──
-            await Promise.all([
-                ...oldTeamStats.map(ts => tx.teamStats.update({
-                    where: { id: ts.id },
-                    data: {
-                        players: {
-                            disconnect: { id: oldPlayerId },
-                            ...(existingTeamStatIds.has(ts.id) ? {} : { connect: { id: newPlayerId } }),
-                        },
-                    },
-                })),
-                ...oldPolls.map(poll => tx.poll.update({
-                    where: { id: poll.id },
-                    data: {
-                        players: {
-                            disconnect: { id: oldPlayerId },
-                            ...(existingPollIds.has(poll.id) ? {} : { connect: { id: newPlayerId } }),
-                        },
-                    },
-                })),
-            ]);
-
-            // ── Phase 6: Wallet merge + cleanup ──
+            // ── Phase 5: Wallet merge + cleanup ──
             const oldBalance = oldPlayer.wallet?.balance ?? 0;
             if (oldBalance !== 0 && newPlayer.wallet) {
                 await tx.wallet.update({
@@ -295,9 +247,21 @@ export async function POST(
                 tx.playerSurvey.deleteMany({ where: { playerId: oldPlayerId } }),
             ]);
 
-            // Finally delete the old player
+            // Delete the old player
             await tx.player.delete({ where: { id: oldPlayerId } });
-        }, { timeout: 120_000 });
+
+            // Clear the orphaned User's unique fields so the email/username
+            // don't block reuse (e.g. adding as secondary email on the target).
+            // We keep the User row for Clerk sync + promoter referral history.
+            await tx.user.update({
+                where: { id: oldPlayer.user.id },
+                data: {
+                    email: null,
+                    secondaryEmail: null,
+                    username: `merged_${oldPlayer.user.id.slice(0, 8)}`,
+                },
+            });
+        }, { timeout: 300_000 });
 
         return SuccessResponse({
             message: `Merged "${oldPlayer.displayName}" into "${newPlayer.displayName}" (${targetUser.email}). All history has been combined.`,

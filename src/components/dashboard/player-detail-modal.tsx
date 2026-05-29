@@ -324,12 +324,12 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-1.5">
-                                            <h2 className="text-lg font-bold truncate">
+                                        <div className="flex items-start gap-1.5 flex-wrap">
+                                            <h2 className="text-lg font-bold leading-snug" style={{ wordBreak: "break-word" }}>
                                                 {player?.displayName || player?.username}
                                             </h2>
                                             {player?.isBanned && (
-                                                <Chip size="sm" color="danger" variant="flat" className="h-5">
+                                                <Chip size="sm" color="danger" variant="flat" className="h-5 shrink-0 mt-0.5">
                                                     Banned
                                                 </Chip>
                                             )}
@@ -338,33 +338,45 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                                             <span className="text-xs text-foreground/50">@{player?.username}</span>
                                             {player?.category && <CategoryBadge category={player.category} size="sm" />}
                                         </div>
-                                        {/* Real name (Google account name) — admin only */}
-                                        {player?.realName && (
-                                            <p className="text-[11px] text-foreground/40 mt-0.5 flex items-center gap-1">
-                                                <span className="text-foreground/25">Real:</span> {player.realName}
-                                            </p>
-                                        )}
-                                        {/* Contact row */}
+                                        {/* Contact row — always visible */}
                                         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                             {player?.email && (
                                                 <span className="flex items-center gap-1 text-[11px] text-foreground/40">
-                                                    <Mail className="h-3 w-3" />
-                                                    <span className="truncate max-w-[180px]">{player.email}</span>
-                                                </span>
-                                            )}
-                                            {player?.uid && (
-                                                <span className="flex items-center gap-1 text-[11px] text-foreground/40">
-                                                    <Hash className="h-3 w-3" />
-                                                    <span className="font-mono">{player.uid}</span>
+                                                    <Mail className="h-3 w-3 shrink-0" />
+                                                    <span className="break-all">{player.email}</span>
                                                 </span>
                                             )}
                                             {player?.phoneNumber && (
                                                 <span className="flex items-center gap-1 text-[11px] text-foreground/40">
-                                                    <Phone className="h-3 w-3" />
+                                                    <Phone className="h-3 w-3 shrink-0" />
                                                     {player.phoneNumber}
                                                 </span>
                                             )}
                                         </div>
+                                        {/* Expandable details toggle */}
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleSection("headerInfo")}
+                                            className="flex items-center gap-0.5 text-[10px] text-foreground/30 hover:text-primary transition-colors mt-1.5 cursor-pointer"
+                                        >
+                                            {expandedSections.headerInfo ? "Less" : "More info"}
+                                            <ChevronDown className={`h-2.5 w-2.5 transition-transform ${expandedSections.headerInfo ? "rotate-180" : ""}`} />
+                                        </button>
+                                        {expandedSections.headerInfo && (
+                                        <div className="mt-1.5 space-y-1">
+                                            {/* Real name (Google account name) — admin only */}
+                                            {player?.realName && (
+                                                <p className="text-[11px] text-foreground/40 flex items-center gap-1">
+                                                    <span className="text-foreground/25">Real:</span> {player.realName}
+                                                </p>
+                                            )}
+                                            {/* UID */}
+                                            {player?.uid && (
+                                                <span className="flex items-center gap-1 text-[11px] text-foreground/40">
+                                                    <Hash className="h-3 w-3 shrink-0" />
+                                                    <span className="font-mono">{player.uid}</span>
+                                                </span>
+                                            )}
 
                                         {/* Secondary email */}
                                         <div className="flex items-center gap-1.5 mt-1">
@@ -439,14 +451,14 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                                                 </button>
                                             )}
                                         </div>
+                                        {/* Bio */}
+                                        {player?.bio && (
+                                            <p className="text-xs italic text-foreground/40">&ldquo;{player.bio}&rdquo;</p>
+                                        )}
+                                    </div>
+                                    )}
                                     </div>
                                 </div>
-
-
-                                {/* Bio */}
-                                {player?.bio && (
-                                    <p className="text-xs italic text-foreground/40 mt-2">&ldquo;{player.bio}&rdquo;</p>
-                                )}
                             </div>
                         </div>
                     )}
