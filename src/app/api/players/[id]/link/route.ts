@@ -201,6 +201,8 @@ export async function POST(
                 ...(newCPV.length > 0
                     ? [tx.communityPollVote.deleteMany({ where: { playerId: oldPlayerId, pollId: { in: newCPV.map(v => v.pollId) } } })]
                     : []),
+                // CommunityVote conflicts (unique on messageId+playerId — just delete old)
+                tx.communityVote.deleteMany({ where: { playerId: oldPlayerId } }),
             ]);
 
             // ── Phase 4: Bulk moves (all independent, run in parallel) ──
@@ -223,9 +225,23 @@ export async function POST(
                 tx.bracketMatch.updateMany({ where: { player1Id: oldPlayerId }, data: { player1Id: newPlayerId } }),
                 tx.bracketMatch.updateMany({ where: { player2Id: oldPlayerId }, data: { player2Id: newPlayerId } }),
                 tx.bracketMatch.updateMany({ where: { winnerId: oldPlayerId }, data: { winnerId: newPlayerId } }),
+                tx.bracketMatch.updateMany({ where: { mvpPlayerId: oldPlayerId }, data: { mvpPlayerId: newPlayerId } }),
                 tx.bracketResult.updateMany({ where: { submittedById: oldPlayerId }, data: { submittedById: newPlayerId } }),
+                tx.bracketResult.updateMany({ where: { mvpPlayerId: oldPlayerId }, data: { mvpPlayerId: newPlayerId } }),
                 tx.playerMeritRating.updateMany({ where: { fromPlayerId: oldPlayerId }, data: { fromPlayerId: newPlayerId } }),
                 tx.playerMeritRating.updateMany({ where: { toPlayerId: oldPlayerId }, data: { toPlayerId: newPlayerId } }),
+                // Community
+                tx.communityPoll.updateMany({ where: { playerId: oldPlayerId }, data: { playerId: newPlayerId } }),
+                tx.communityPollOption.updateMany({ where: { addedById: oldPlayerId }, data: { addedById: newPlayerId } }),
+                // Clan
+                tx.clanTransaction.updateMany({ where: { playerId: oldPlayerId }, data: { playerId: newPlayerId } }),
+                tx.clanWithdrawRequest.updateMany({ where: { playerId: oldPlayerId }, data: { playerId: newPlayerId } }),
+                tx.clanWithdrawRequest.updateMany({ where: { reviewerId: oldPlayerId }, data: { reviewerId: newPlayerId } }),
+                // Sponsor coupons
+                tx.sponsorCoupon.updateMany({ where: { createdById: oldPlayerId }, data: { createdById: newPlayerId } }),
+                tx.sponsorCoupon.updateMany({ where: { claimedById: oldPlayerId }, data: { claimedById: newPlayerId } }),
+                // Payments
+                tx.payment.updateMany({ where: { playerId: oldPlayerId }, data: { playerId: newPlayerId } }),
             ]);
 
             // ── Phase 5: Many-to-many TeamStats + Polls (batched) ──
@@ -269,6 +285,14 @@ export async function POST(
                 tx.referral.deleteMany({ where: { referredPlayerId: oldPlayerId } }),
                 tx.notification.deleteMany({ where: { playerId: oldPlayerId } }),
                 tx.jobListingReaction.deleteMany({ where: { playerId: oldPlayerId } }),
+                tx.gameScoreThreshold.deleteMany({ where: { playerId: oldPlayerId } }),
+                tx.squadInvite.deleteMany({ where: { playerId: oldPlayerId } }),
+                tx.squad.deleteMany({ where: { captainId: oldPlayerId } }),
+                tx.clanMember.deleteMany({ where: { playerId: oldPlayerId } }),
+                tx.clanInvite.deleteMany({ where: { playerId: oldPlayerId } }),
+                tx.clan.deleteMany({ where: { leaderId: oldPlayerId } }),
+                tx.welcomeBackCoupon.deleteMany({ where: { playerId: oldPlayerId } }),
+                tx.playerSurvey.deleteMany({ where: { playerId: oldPlayerId } }),
             ]);
 
             // Finally delete the old player
