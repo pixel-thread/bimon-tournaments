@@ -56,6 +56,11 @@ export async function POST(req: NextRequest) {
                             allow: "1024", // VIEW_CHANNEL
                             deny: "2048",  // SEND_MESSAGES — only bot messages
                         },
+                        ...(process.env.DISCORD_CLIENT_ID ? [{
+                            id: process.env.DISCORD_CLIENT_ID, // Bot — can send + embed
+                            type: 1, // member
+                            allow: "52224", // VIEW_CHANNEL + SEND_MESSAGES + EMBED_LINKS
+                        }] : []),
                     ],
                 }),
             });
@@ -69,7 +74,18 @@ export async function POST(req: NextRequest) {
             ticketChannelId = channel.id;
         }
 
-        // 4. Post the ticket panel
+        // 4. Ensure bot has send permissions on the channel
+        if (process.env.DISCORD_CLIENT_ID) {
+            await discordFetch(`/channels/${ticketChannelId}/permissions/${process.env.DISCORD_CLIENT_ID}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    type: 1, // member
+                    allow: "52224", // VIEW_CHANNEL + SEND_MESSAGES + EMBED_LINKS
+                }),
+            });
+        }
+
+        // 5. Post the ticket panel
         await postTicketPanel(ticketChannelId);
 
         return NextResponse.json({
