@@ -193,7 +193,7 @@ async function handleTicketSubmit(interaction: any) {
         });
 
         return interactionResponse(
-            `✅ Ticket created! Go to <#${channelId}> to continue.`,
+            `✅ Ticket created! Go to <#${channelId}> to upload screenshots or screen recordings.`,
             true,
         );
     } catch (error) {
