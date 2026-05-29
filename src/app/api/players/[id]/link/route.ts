@@ -145,7 +145,7 @@ export async function POST(
             // ── Phase 3: Conflict-safe deletes for unique constraints ──
             const existingStatSeasons = newPlayerStats.map(s => s.seasonId).filter((s): s is string => s !== null);
             const existingPollVoteIds = new Set(newPollVotes.map(v => v.pollId));
-            const existingRPSeasons = new Set(newRoyalPasses.map(rp => rp.seasonId));
+            const existingRPSeasons = new Set(newRoyalPasses.map(rp => rp.seasonId).filter((s): s is string => s !== null));
 
             await Promise.all([
                 // PlayerStats: @@unique([seasonId, playerId])
