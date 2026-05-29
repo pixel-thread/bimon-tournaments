@@ -242,6 +242,9 @@ export async function GET(request: Request) {
                     clan: clanData,
                     pendingClanInvites,
                     level: player.level,
+                    discord: player.discordId
+                        ? { id: player.discordId, username: player.discordUsername }
+                        : null,
                 }
                 : null,
         };
