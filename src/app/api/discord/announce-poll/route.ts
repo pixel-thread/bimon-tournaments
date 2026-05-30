@@ -6,7 +6,7 @@ import { discordFetch } from "@/lib/discord-bot";
 /**
  * POST /api/discord/announce-poll
  *
- * Sends a poll announcement embed to the tournament's Discord channel.
+ * Sends a poll announcement embed to the dedicated announcements channel.
  * Admin-only, manual trigger from the poll manager.
  *
  * Body: { pollId }
@@ -23,6 +23,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "pollId is required" }, { status: 400 });
         }
 
+        const channelId = process.env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID;
+        if (!channelId) {
+            return NextResponse.json({ error: "DISCORD_ANNOUNCEMENTS_CHANNEL_ID is not set" }, { status: 500 });
+        }
+
         // Fetch poll + tournament
         const poll = await prisma.poll.findUnique({
             where: { id: pollId },
@@ -37,7 +42,6 @@ export async function POST(req: NextRequest) {
                         id: true,
                         name: true,
                         fee: true,
-                        discordChannelId: true,
                     },
                 },
             },
@@ -50,11 +54,6 @@ export async function POST(req: NextRequest) {
         const tournament = poll.tournament;
         if (!tournament) {
             return NextResponse.json({ error: "Poll has no linked tournament" }, { status: 400 });
-        }
-
-        const channelId = tournament.discordChannelId;
-        if (!channelId) {
-            return NextResponse.json({ error: "Tournament has no Discord channel yet" }, { status: 400 });
         }
 
         const isRanked = poll.allowSquads;
