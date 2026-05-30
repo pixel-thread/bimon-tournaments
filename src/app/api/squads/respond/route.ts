@@ -90,6 +90,18 @@ export async function POST(request: NextRequest) {
         const tournamentName = invite.squad.poll.tournament?.name ?? "tournament";
 
         if (action === "ACCEPT") {
+            // Discord linking is mandatory before joining a squad
+            const member = await prisma.player.findUnique({
+                where: { id: playerId },
+                select: { discordId: true },
+            });
+            if (!member?.discordId) {
+                return ErrorResponse({
+                    message: "🔗 Link your Discord account first to join a squad",
+                    status: 403,
+                });
+            }
+
             // Count accepted invites (including this one now)
             const acceptedCount = invite.squad.invites.filter((i) => i.status === "ACCEPTED").length + 1;
             const isFull = acceptedCount >= GAME.maxSquadSize;

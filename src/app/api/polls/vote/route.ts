@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
                             id: true,
                             isBanned: true,
                             isTrusted: true,
+                            discordId: true,
                             wallet: { select: { balance: true } },
                         },
                     },
@@ -73,6 +74,14 @@ export async function POST(request: NextRequest) {
         if (user.player.isBanned) {
             return ErrorResponse({
                 message: "🚫 You are currently banned and cannot vote. Contact admin for help.",
+                status: 403,
+            });
+        }
+
+        // Discord linking is mandatory for IN/SOLO votes
+        if ((vote === "IN" || vote === "SOLO") && !user.player.discordId) {
+            return ErrorResponse({
+                message: "🔗 Link your Discord account first to vote. Go to your Profile to connect Discord.",
                 status: 403,
             });
         }

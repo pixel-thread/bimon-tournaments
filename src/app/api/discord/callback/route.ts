@@ -19,20 +19,22 @@ export async function GET(req: NextRequest) {
     // State format: "pollId|returnTo" (pipe-delimited)
     const [pollId, returnTo] = rawState.split("|");
     const isProfileReturn = returnTo === "profile";
+    const isOnboardingReturn = returnTo === "onboarding";
+
+    /** Build redirect URL based on return context */
+    function getRedirectUrl(suffix: string): string {
+        if (isOnboardingReturn) return `/onboarding?discord=${suffix}`;
+        if (isProfileReturn) return `/profile?discord=${suffix}`;
+        return `/vote?tab=ranked&discord=${suffix}`;
+    }
 
     // User denied access
     if (errorParam) {
-        const errorUrl = isProfileReturn
-            ? `/profile?discord=denied`
-            : `/vote?tab=ranked&discord=denied`;
-        return NextResponse.redirect(new URL(errorUrl, req.url));
+        return NextResponse.redirect(new URL(getRedirectUrl("denied"), req.url));
     }
 
     if (!code) {
-        const errorUrl = isProfileReturn
-            ? `/profile?discord=error`
-            : `/vote?tab=ranked&discord=error`;
-        return NextResponse.redirect(new URL(errorUrl, req.url));
+        return NextResponse.redirect(new URL(getRedirectUrl("error"), req.url));
     }
 
     try {
@@ -59,10 +61,7 @@ export async function GET(req: NextRequest) {
 
         if (!tokenRes.ok) {
             console.error("Discord token exchange failed:", await tokenRes.text());
-            const errorUrl = isProfileReturn
-                ? `/profile?discord=error`
-                : `/vote?tab=ranked&discord=error`;
-            return NextResponse.redirect(new URL(errorUrl, req.url));
+            return NextResponse.redirect(new URL(getRedirectUrl("error"), req.url));
         }
 
         const tokenData = await tokenRes.json();
@@ -74,10 +73,7 @@ export async function GET(req: NextRequest) {
         });
 
         if (!userRes.ok) {
-            const errorUrl = isProfileReturn
-                ? `/profile?discord=error`
-                : `/vote?tab=ranked&discord=error`;
-            return NextResponse.redirect(new URL(errorUrl, req.url));
+            return NextResponse.redirect(new URL(getRedirectUrl("error"), req.url));
         }
 
         const discordUser = await userRes.json();
@@ -94,10 +90,7 @@ export async function GET(req: NextRequest) {
         });
 
         if (existing) {
-            const alreadyUrl = isProfileReturn
-                ? `/profile?discord=already_linked`
-                : `/vote?tab=ranked&discord=already_linked`;
-            return NextResponse.redirect(new URL(alreadyUrl, req.url));
+            return NextResponse.redirect(new URL(getRedirectUrl("already_linked"), req.url));
         }
 
         // 5. Save Discord ID to player
@@ -128,7 +121,9 @@ export async function GET(req: NextRequest) {
 
         // 7. Redirect back to app
         let redirectUrl: string;
-        if (isProfileReturn) {
+        if (isOnboardingReturn) {
+            redirectUrl = `/onboarding?discord=linked`;
+        } else if (isProfileReturn) {
             redirectUrl = `/profile?discord=linked`;
         } else if (pollId) {
             redirectUrl = `/vote?tab=ranked&poll=${pollId}&discord=linked`;
@@ -139,9 +134,6 @@ export async function GET(req: NextRequest) {
         return NextResponse.redirect(new URL(redirectUrl, req.url));
     } catch (error) {
         console.error("Discord OAuth callback error:", error);
-        const errorUrl = isProfileReturn
-            ? `/profile?discord=error`
-            : `/vote?tab=ranked&discord=error`;
-        return NextResponse.redirect(new URL(errorUrl, req.url));
+        return NextResponse.redirect(new URL(getRedirectUrl("error"), req.url));
     }
 }

@@ -639,8 +639,8 @@ function SquadCard({
                             </div>
                         )}
 
-                        {/* Member: Discord join/skip prompt (ranked, non-captain, accepted) */}
-                        {isRanked && !isCaptain && myInvite?.status === "ACCEPTED" && !discordLinked && !discordSkipped && (
+                        {/* Member: Discord join/skip prompt (non-captain, accepted) */}
+                        {!isCaptain && myInvite?.status === "ACCEPTED" && !discordLinked && !discordSkipped && (
                             <div className="px-4 py-3 border-t border-divider/50 space-y-2">
                                 <div className="flex items-center gap-2">
                                     <div className="w-8 h-8 rounded-full bg-[#5865F2]/15 flex items-center justify-center shrink-0">

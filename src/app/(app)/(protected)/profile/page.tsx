@@ -1168,17 +1168,9 @@ export default function ProfilePage() {
                                                 )}
                                             </div>
                                             {player.discord ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="flat"
-                                                    color="danger"
-                                                    className="text-xs shrink-0"
-                                                    isLoading={discordUnlinking}
-                                                    startContent={!discordUnlinking && <Unlink className="h-3 w-3" />}
-                                                    onPress={() => setShowDiscordUnlinkConfirm(true)}
-                                                >
-                                                    Unlink
-                                                </Button>
+                                                <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full shrink-0">
+                                                    ✓ Connected
+                                                </span>
                                             ) : (
                                                 <Button
                                                     size="sm"
@@ -1199,61 +1191,6 @@ export default function ProfilePage() {
                                                 </Button>
                                             )}
                                         </div>
-
-                                        {/* Unlink confirmation */}
-                                        <AnimatePresence>
-                                            {showDiscordUnlinkConfirm && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: "auto" }}
-                                                    exit={{ opacity: 0, height: 0 }}
-                                                    className="overflow-hidden"
-                                                >
-                                                    <div className="mt-2 p-3 rounded-lg bg-danger-50/50 dark:bg-danger-900/20 border border-danger-200/30 dark:border-danger-800/30 space-y-2">
-                                                        <p className="text-xs text-danger-600 dark:text-danger-400">
-                                                            ⚠️ You&apos;ll lose access to <strong>room IDs</strong>, <strong>match updates</strong>, and <strong>support tickets</strong> on Discord.
-                                                        </p>
-                                                        <div className="flex gap-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="flat"
-                                                                className="flex-1"
-                                                                onPress={() => setShowDiscordUnlinkConfirm(false)}
-                                                            >
-                                                                Cancel
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                color="danger"
-                                                                className="flex-1"
-                                                                isLoading={discordUnlinking}
-                                                                onPress={async () => {
-                                                                    setDiscordUnlinking(true);
-                                                                    try {
-                                                                        const res = await fetch("/api/discord/unlink", { method: "POST" });
-                                                                        if (res.ok) {
-                                                                            toast.success("Discord unlinked");
-                                                                            sessionStorage.removeItem("discord_linked");
-                                                                            queryClient.invalidateQueries({ queryKey: ["profile"] });
-                                                                            setShowDiscordUnlinkConfirm(false);
-                                                                        } else {
-                                                                            const json = await res.json();
-                                                                            toast.error(json.error || "Failed to unlink");
-                                                                        }
-                                                                    } catch {
-                                                                        toast.error("Network error");
-                                                                    } finally {
-                                                                        setDiscordUnlinking(false);
-                                                                    }
-                                                                }}
-                                                            >
-                                                                Unlink Discord
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
                                     </div>
 
                                     {/* ── Emails ── */}
