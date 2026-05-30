@@ -385,6 +385,18 @@ export default function JoinPage() {
                             </div>
                         </div>
 
+                        {/* Quick nav — Vote or Create Team */}
+                        <div className="flex gap-2">
+                            <Button
+                                variant="flat"
+                                size="sm"
+                                className="flex-1"
+                                onPress={() => router.push(`/vote?tab=${data.allowSquads ? "ranked" : "casual"}&poll=${pollId}`)}
+                            >
+                                📋 Go to Vote
+                            </Button>
+                        </div>
+
                         {/* ── Team Name / Clan Toggle ── */}
                         {!isFull && (
                             <div className="space-y-3">

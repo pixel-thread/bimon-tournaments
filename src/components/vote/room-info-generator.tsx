@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody } from "@heroui/react";
+import { Card, CardBody, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
 import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { GAME } from "@/lib/game-config";
@@ -30,6 +30,7 @@ function toBold(text: string): string {
 const BGMI_MAPS = [
     "Erangel",
     "Miramar",
+    "Rondo",
     "Sanhok",
     "Vikendi",
     "Livik",
@@ -239,15 +240,35 @@ function TournamentRow({ tournament, state, onChange }: {
             <div className="grid grid-cols-2 gap-2">
                 <div>
                     <label className="text-[10px] text-foreground/40 uppercase tracking-wider mb-1 block">Map</label>
-                    <select
-                        value={state.map}
-                        onChange={(e) => onChange({ map: e.target.value })}
-                        className="w-full px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                    >
-                        {BGMI_MAPS.map((m) => (
-                            <option key={m} value={m}>{m}</option>
-                        ))}
-                    </select>
+                    <Popover placement="bottom-start">
+                        <PopoverTrigger>
+                            <button
+                                type="button"
+                                className="w-full px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm text-left cursor-pointer hover:bg-default-200 transition-colors flex items-center justify-between gap-1"
+                            >
+                                <span>{state.map}</span>
+                                <ChevronDown className="w-3 h-3 text-foreground/40 shrink-0" />
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="p-1 min-w-[140px]">
+                            <div className="flex flex-col">
+                                {BGMI_MAPS.map((m) => (
+                                    <button
+                                        key={m}
+                                        type="button"
+                                        onClick={() => onChange({ map: m })}
+                                        className={`px-3 py-1.5 text-sm text-left rounded-lg cursor-pointer transition-colors ${
+                                            state.map === m
+                                                ? "bg-primary/15 text-primary font-medium"
+                                                : "hover:bg-default-100 text-foreground"
+                                        }`}
+                                    >
+                                        {m}
+                                    </button>
+                                ))}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 </div>
                 <div>
                     <label className="text-[10px] text-foreground/40 uppercase tracking-wider mb-1 block">Time</label>

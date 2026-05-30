@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
                 ...(scheduleText
                     ? [{ name: "📅 Schedule", value: scheduleText, inline: true }]
                     : []),
-                { name: "🔗 Register", value: `[Vote Now](${appUrl}/vote)` },
+                { name: "🔗 Register", value: `[Register Now](${appUrl}/join/${pollId})` },
             ],
             footer: { text: "Bimon Tournament" },
             timestamp: new Date().toISOString(),
