@@ -72,6 +72,7 @@ interface TeamDTO {
 interface TournamentOption {
     id: string;
     name: string;
+    isMangoScrim?: boolean;
 }
 
 interface SeasonOption {
@@ -186,9 +187,10 @@ export default function TeamsPage() {
             const res = await fetch(url);
             if (!res.ok) return [];
             const json = await res.json();
-            return json.data.map((t: { id: string; name: string }) => ({
+            return json.data.map((t: { id: string; name: string; isMangoScrim?: boolean }) => ({
                 id: t.id,
                 name: t.name,
+                isMangoScrim: t.isMangoScrim ?? false,
             }));
         },
         staleTime: 60_000,
@@ -790,7 +792,11 @@ export default function TeamsPage() {
                 teams={teams ?? []}
                 tournamentTitle={tournaments.find((t) => t.id === tournamentId)?.name ?? ""}
                 seasonName={seasons.find((s) => s.id === seasonId)?.name ?? ""}
-                backgroundImage={globalBg?.publicUrl || "/images/image.webp"}
+                backgroundImage={
+                    tournaments.find((t) => t.id === tournamentId)?.isMangoScrim
+                        ? "/images/mango-scrim-bg.png"
+                        : (globalBg?.publicUrl || "/images/image.webp")
+                }
                 allowSquads={allowSquads}
                 isChampionship={isChamp}
                 initialGroup={isChamp && champPhase === "HEATS" ? heatsGroup : undefined}
@@ -811,7 +817,11 @@ export default function TeamsPage() {
                         : (teams ?? [])
                 }
                 seasonName={seasons.find((s) => s.id === seasonId)?.name ?? ""}
-                backgroundImage={globalBg?.publicUrl || "/images/image.webp"}
+                backgroundImage={
+                    tournaments.find((t) => t.id === tournamentId)?.isMangoScrim
+                        ? "/images/mango-scrim-bg.png"
+                        : (globalBg?.publicUrl || "/images/image.webp")
+                }
                 allowSquads={allowSquads}
                 championshipGroups={isChamp && champPhase === "HEATS" ? (champGroupMap ?? undefined) : undefined}
                 phaseLabel={isChamp && champPhase ? (champPhase === "HEATS" ? `Heats · Group ${heatsGroup}` : PHASE_LABELS[champPhase] ?? champPhase) : undefined}

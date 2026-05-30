@@ -577,6 +577,7 @@ model Tournament {
   maxPlacements    Int              @default(3) // Max podium spots: 2 = no 3rd place
   isTDM            Boolean          @default(false) // Team Deathmatch: bracket uses teams instead of players
   isWoW            Boolean          @default(false) // World of Wonder: creative/custom map tournaments
+  isMangoScrim      Boolean          @default(false) // Mango Scrim: uses mango-themed visuals for standings & slots
   discordChannelId String?          // Auto-created Discord channel for room info (deleted on winner declaration)
 
   createdAt DateTime @default(now())

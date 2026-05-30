@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { name, description, fee, seasonId, type, maxPlacements } = body;
+        const { name, description, fee, seasonId, type, maxPlacements, isMangoScrim } = body;
 
         if (!name?.trim()) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
                 startDate: new Date(),
                 type: (ALL_TOURNAMENT_TYPES as readonly string[]).includes(type) ? type : "BR",
                 maxPlacements: maxPlacements ? Math.min(Math.max(Number(maxPlacements), 1), 5) : 3,
+                isMangoScrim: isMangoScrim ?? false,
             },
         });
 
@@ -147,6 +148,7 @@ export async function GET(request: NextRequest) {
                 isWinnerDeclared: t.isWinnerDeclared,
                 maxPlacements: t.maxPlacements,
                 isChampionship: (t as unknown as { isChampionship: boolean }).isChampionship ?? false,
+                isMangoScrim: (t as any).isMangoScrim ?? false,
                 season: t.season,
                 startDate: t.startDate,
                 createdAt: t.createdAt,

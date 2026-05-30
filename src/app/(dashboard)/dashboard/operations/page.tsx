@@ -18,6 +18,7 @@ import {
     Textarea,
     useDisclosure,
     Divider,
+    Switch,
 
 } from "@heroui/react";
 import {
@@ -65,6 +66,7 @@ interface TournamentDTO {
     type: string;
     isWinnerDeclared: boolean;
     isChampionship: boolean;
+    isMangoScrim: boolean;
     maxPlacements: number;
     season: { id: string; name: string } | null;
     startDate: string;
@@ -101,6 +103,7 @@ export default function OperationsPage() {
     const [editDesc, setEditDesc] = useState("");
     const [editFee, setEditFee] = useState("");
     const [editMaxPlacements, setEditMaxPlacements] = useState(3);
+    const [editIsMangoScrim, setEditIsMangoScrim] = useState(false);
 
     // Create tournament form
     const [tName, setTName] = useState("");
@@ -110,6 +113,7 @@ export default function OperationsPage() {
     const [tSeasonId, setTSeasonId] = useState("");
     const [showDesc, setShowDesc] = useState(false);
     const [tMaxPlacements, setTMaxPlacements] = useState(3);
+    const [tIsMangoScrim, setTIsMangoScrim] = useState(false);
 
     // Auto-fill create form when modal opens
     const openCreateModal = () => {
@@ -134,6 +138,7 @@ export default function OperationsPage() {
         setTSeasonId(current?.id ?? seasons[0]?.id ?? "");
         setTDescription("");
         setShowDesc(false);
+        setTIsMangoScrim(false);
         createModal.onOpen();
     };
 
@@ -201,6 +206,7 @@ export default function OperationsPage() {
             setEditDesc(selected.description || "");
             setEditFee(selected.fee?.toString() || "0");
             setEditMaxPlacements(selected.maxPlacements ?? 3);
+            setEditIsMangoScrim(selected.isMangoScrim ?? false);
         }
     }, [selected?.id]);
 
@@ -215,6 +221,7 @@ export default function OperationsPage() {
                     description: editDesc.trim() || null,
                     fee: editFee ? Number(editFee) : 0,
                     maxPlacements: editMaxPlacements,
+                    isMangoScrim: editIsMangoScrim,
                 }),
             });
             if (!res.ok) throw new Error("Failed to update");
@@ -239,6 +246,7 @@ export default function OperationsPage() {
                     seasonId: tSeasonId || undefined,
                     type: tType,
                     maxPlacements: tMaxPlacements,
+                    isMangoScrim: tIsMangoScrim,
                 }),
             });
             if (!res.ok) {
@@ -445,6 +453,7 @@ export default function OperationsPage() {
                                         setEditDesc(selected.description || "");
                                         setEditFee(selected.fee?.toString() || "0");
                                         setEditMaxPlacements(selected.maxPlacements ?? 3);
+                                        setEditIsMangoScrim(selected.isMangoScrim ?? false);
                                         editModal.onOpen();
                                     }}
                                 >
@@ -562,6 +571,20 @@ export default function OperationsPage() {
                                 + Add description
                             </Button>
                         )}
+                        {/* Mango Scrim Toggle */}
+                        <div className="flex items-center justify-between rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
+                            <div>
+                                <span className="text-sm">🥭 Mango Scrim</span>
+                                <p className="text-xs text-foreground/40">Mango theme for standings & slots</p>
+                            </div>
+                            <Switch
+                                size="sm"
+                                color="warning"
+                                isSelected={tIsMangoScrim}
+                                onValueChange={setTIsMangoScrim}
+                                classNames={{ wrapper: tIsMangoScrim ? "" : "bg-default-300" }}
+                            />
+                        </div>
                     </ModalBody>
                     <ModalFooter>
                         <Button variant="flat" onPress={createModal.onClose}>Cancel</Button>
@@ -657,6 +680,21 @@ export default function OperationsPage() {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Mango Scrim Toggle */}
+                            <div className="flex items-center justify-between rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
+                                <div>
+                                    <span className="text-sm">🥭 Mango Scrim</span>
+                                    <p className="text-xs text-foreground/40">Mango theme for standings & slots</p>
+                                </div>
+                                <Switch
+                                    size="sm"
+                                    color="warning"
+                                    isSelected={editIsMangoScrim}
+                                    onValueChange={setEditIsMangoScrim}
+                                    classNames={{ wrapper: editIsMangoScrim ? "" : "bg-default-300" }}
+                                />
+                            </div>
                         </ModalBody>
                         <ModalFooter>
                             <Button size="sm" variant="flat" onPress={editModal.onClose}>

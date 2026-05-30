@@ -36,6 +36,7 @@ export async function PUT(
                 status: body.status ?? tournament.status,
                 ...(body.type && VALID_TYPES.includes(body.type) && { type: body.type }),
                 ...(body.maxPlacements !== undefined && { maxPlacements: Math.min(Math.max(Number(body.maxPlacements), 1), 5) }),
+                ...(body.isMangoScrim !== undefined && { isMangoScrim: !!body.isMangoScrim }),
             },
         });
 
