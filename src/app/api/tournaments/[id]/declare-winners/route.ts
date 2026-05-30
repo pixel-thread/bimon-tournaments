@@ -82,7 +82,7 @@ export async function POST(
         // Check poll-level fund override (squad polls default fund OFF)
         const pollForTournament = await prisma.poll.findUnique({
             where: { tournamentId: id },
-            select: { allowSquads: true, enableFund: true, prizePoolFee: true, orgCutFixed: true, isChampionship: true },
+            select: { allowSquads: true, enableFund: true, prizePoolFee: true, orgCutFixed: true, isChampionship: true, fixedPrizes: true },
         });
         const isRanked = pollForTournament?.allowSquads ?? false;
 
@@ -98,11 +98,13 @@ export async function POST(
             : isRanked
                 ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed")
                 : (settings.orgCutMode ?? "fixed");
-        const orgCut = hasPollOrgCut
+        // Fixed prizes: admin set exact amounts, org cut already included → zero org cut
+        const fixedPrizes = Array.isArray(pollForTournament?.fixedPrizes) ? (pollForTournament.fixedPrizes as number[]) : null;
+        const orgCut = fixedPrizes ? 0 : (hasPollOrgCut
             ? pollOrgCutFixed!
             : orgCutMode === "percent"
                 ? (isRanked ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
-                : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
+                : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0)));
 
         const enableFund = isRanked
             ? (settings.rankedEnableFund ?? false)
@@ -253,9 +255,11 @@ export async function POST(
         // For non-squad: fee is per-player, use actual team size for refund calc
         const teamSize = isSquadTournament ? 1 : (teamCount > 0 ? Math.round(totalPlayers / teamCount) : 2);
         // Squad tournaments: captain pays per team, not per player
-        const prizePool = isSquadTournament
-            ? (poolFee * teamCount) + totalDonations
-            : (poolFee * totalPlayers) + totalDonations;
+        const prizePool = fixedPrizes
+            ? fixedPrizes.reduce((s, n) => s + n, 0) + totalDonations
+            : isSquadTournament
+                ? (poolFee * teamCount) + totalDonations
+                : (poolFee * totalPlayers) + totalDonations;
 
         const placementsToUse = placements && placements.length > 0
             ? placements
@@ -791,7 +795,7 @@ async function declareBracketWinners({
     // Check poll-level fund override (squad polls default fund OFF)
     const pollForTournament = await prisma.poll.findUnique({
         where: { tournamentId: id },
-        select: { allowSquads: true, enableFund: true, prizePoolFee: true, orgCutFixed: true, isChampionship: true },
+        select: { allowSquads: true, enableFund: true, prizePoolFee: true, orgCutFixed: true, isChampionship: true, fixedPrizes: true },
     });
     const isRanked = pollForTournament?.allowSquads ?? false;
 
@@ -806,11 +810,13 @@ async function declareBracketWinners({
         : isRanked
             ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed")
             : (settings.orgCutMode ?? "fixed");
-    const orgCut = hasPollOrgCut
+    // Fixed prizes: admin set exact amounts, org cut already included → zero org cut
+    const bracketFixedPrizes = Array.isArray(pollForTournament?.fixedPrizes) ? (pollForTournament.fixedPrizes as number[]) : null;
+    const orgCut = bracketFixedPrizes ? 0 : (hasPollOrgCut
         ? pollOrgCutFixed!
         : orgCutMode === "percent"
             ? (isRanked ? (settings.rankedOrgCutPercent ?? 0) : (settings.orgCutPercent ?? 0))
-            : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0));
+            : (isRanked ? (settings.rankedOrgCutFixed ?? 0) : (settings.orgCutFixed ?? 0)));
 
     const enableFund = isRanked
         ? (settings.rankedEnableFund ?? false)
@@ -894,7 +900,9 @@ async function declareBracketWinners({
         select: { amount: true },
     });
     const totalDonations = donations.reduce((s, d) => s + d.amount, 0);
-    const prizePool = poolFee * totalPlayers + totalDonations;
+    const prizePool = bracketFixedPrizes
+        ? bracketFixedPrizes.reduce((s, n) => s + n, 0) + totalDonations
+        : poolFee * totalPlayers + totalDonations;
 
     // Org cut (computed based on mode)
     const orgAmount = orgCutMode === "percent"

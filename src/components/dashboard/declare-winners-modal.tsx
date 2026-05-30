@@ -44,6 +44,7 @@ type RankingsMeta = {
     ucExemptCount: number;
     isSquadTournament?: boolean;
     captainMap?: Record<string, { id: string; name: string }>;
+    fixedPrizes?: number[] | null;
 };
 
 type TaxPreviewData = Record<string, {
@@ -184,9 +185,11 @@ export function DeclareWinnersModal({
             : (publicSettings?.orgCutMode ?? "fixed");
     const orgCut = hasPollOrgCut
         ? pollOrgCutFixed!
-        : orgCutMode === "percent"
-            ? (isRanked ? (publicSettings?.rankedOrgCutPercent ?? 0) : (publicSettings?.orgCutPercent ?? 0))
-            : (isRanked ? (publicSettings?.rankedOrgCutFixed ?? 0) : (publicSettings?.orgCutFixed ?? 0));
+        : (rankingsData?.meta?.fixedPrizes && rankingsData.meta.fixedPrizes.length > 0)
+            ? 0 // Fixed prizes: admin already included org cut
+            : orgCutMode === "percent"
+                ? (isRanked ? (publicSettings?.rankedOrgCutPercent ?? 0) : (publicSettings?.orgCutPercent ?? 0))
+                : (isRanked ? (publicSettings?.rankedOrgCutFixed ?? 0) : (publicSettings?.orgCutFixed ?? 0));
     const enableFund = isRanked
         ? (publicSettings?.rankedEnableFund ?? false)
         : (publicSettings?.enableFund ?? false);
@@ -336,10 +339,30 @@ export function DeclareWinnersModal({
     // baseDist calculates prize placements — must use pool AFTER UC exempt deduction
     // UC exempt players didn't pay, so their entry fee reduces what's available for prizes
     const ucExemptCost = ucExemptCount * entryFee;
+    const fixedPrizes = meta?.fixedPrizes;
     const effectivePool = prizePool - ucExemptCost;
     const baseDist = useMemo(
-        () => effectivePool > 0 ? getPrizeDistribution(effectivePool, entryFee, teamSize, orgCut, orgCutMode) : null,
-        [effectivePool, entryFee, teamSize, orgCut, orgCutMode]
+        () => {
+            if (effectivePool <= 0) return null;
+            // Fixed prizes: build a fake distribution with exact amounts
+            if (fixedPrizes && fixedPrizes.length > 0) {
+                const prizes = new Map<number, { position: number; percentage: null; amount: number; isFixed: boolean }>();
+                fixedPrizes.forEach((amt, idx) => prizes.set(idx + 1, { position: idx + 1, percentage: null, amount: amt, isFixed: true }));
+                return {
+                    tier: { level: 0, minPool: 0, maxPool: null, winnerCount: fixedPrizes.length, description: `Top ${fixedPrizes.length} paid` },
+                    totalPool: effectivePool,
+                    orgFee: 0,
+                    fundAmount: 0,
+                    totalWinnerPayout: fixedPrizes.reduce((s, n) => s + n, 0),
+                    prizes,
+                    summaryText: `Fixed: ${fixedPrizes.length} positions`,
+                    splitText: "Fixed",
+                    refundAmount: 0,
+                };
+            }
+            return getPrizeDistribution(effectivePool, entryFee, teamSize, orgCut, orgCutMode);
+        },
+        [effectivePool, entryFee, teamSize, orgCut, orgCutMode, fixedPrizes]
     );
 
     // Build placements param: "pos:amount:p1|p2,pos:amount:p1|p2"

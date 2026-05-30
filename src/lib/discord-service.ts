@@ -123,10 +123,12 @@ export async function createTournamentChannel(
     // Bot itself needs access (use bot's application/client ID)
     const botClientId = process.env.DISCORD_CLIENT_ID;
     if (botClientId) {
+        // VIEW_CHANNEL (1<<10) + SEND_MESSAGES (1<<11) + EMBED_LINKS (1<<14) + ATTACH_FILES (1<<15) + MENTION_EVERYONE (1<<17)
+        // = 1024 + 2048 + 16384 + 32768 + 131072 = 183296
         permissionOverwrites.push({
             id: botClientId,
             type: 1, // member (bot user)
-            allow: "52224", // VIEW_CHANNEL + SEND_MESSAGES + EMBED_LINKS + MENTION_EVERYONE
+            allow: "183296",
         });
     }
 

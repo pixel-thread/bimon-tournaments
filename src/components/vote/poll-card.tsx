@@ -68,6 +68,7 @@ function PrizeBreakdownTooltip({
     theme,
     orgPercent,
     orgCutMode,
+    fixedPrizes,
     onDoubleTap,
 }: {
     prizePool: number;
@@ -76,6 +77,7 @@ function PrizeBreakdownTooltip({
     theme: PollTheme;
     orgPercent: number;
     orgCutMode?: OrgCutMode;
+    fixedPrizes?: number[] | null;
     onDoubleTap?: () => void;
 }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -160,6 +162,24 @@ function PrizeBreakdownTooltip({
                                 className="space-y-0.5 whitespace-nowrap text-white"
                             >
                                 {(() => {
+                                    // Fixed prizes: show exact amounts, bypass tier calculation
+                                    if (fixedPrizes && fixedPrizes.length > 0) {
+                                        const getMedal = (pos: number) => pos === 1 ? "🥇" : pos === 2 ? "🥈" : pos === 3 ? "🥉" : "🏅";
+                                        return fixedPrizes.map((amount, idx) => {
+                                            const position = idx + 1;
+                                            const medal = getMedal(position);
+                                            const ordinal = position === 1 ? "st" : position === 2 ? "nd" : position === 3 ? "rd" : "th";
+                                            return (
+                                                <div key={position} className="flex items-center justify-between gap-4">
+                                                    <span>{medal} {position}{ordinal}</span>
+                                                    <span className="font-semibold">
+                                                        {amount.toLocaleString()} <CurrencyIcon size={14} />
+                                                    </span>
+                                                </div>
+                                            );
+                                        });
+                                    }
+
                                     const distribution = getPrizeDistribution(prizePool, entryFee, teamSize, orgPercent, orgCutMode);
                                     const getMedal = (pos: number) => pos === 1 ? "🥇" : pos === 2 ? "🥈" : pos === 3 ? "🥉" : "🏅";
                                     const prizeRows = Array.from(distribution.prizes.entries())
@@ -822,7 +842,9 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const estimatedTeams = poll.allowSquads && GAME.squadSize > 1
         ? confirmedSquads + Math.floor(participantCount / GAME.squadSize)
         : participantCount; // Regular: fee × players
-    const prizePool = (poolFee * estimatedTeams) + donationTotal;
+    const prizePool = poll.fixedPrizes && Array.isArray(poll.fixedPrizes) && poll.fixedPrizes.length > 0
+        ? (poll.fixedPrizes as number[]).reduce((s, n) => s + n, 0) + donationTotal
+        : (poolFee * estimatedTeams) + donationTotal;
     const hasPrizePool = prizePool > 0;
     const hasEntryFee = entryFee > 0;
     const showThemedHeader = hasPrizePool || hasEntryFee;
@@ -1084,6 +1106,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     theme={theme}
                                     orgPercent={orgCut}
                                     orgCutMode={orgCutMode}
+                                    fixedPrizes={poll.fixedPrizes as number[] | undefined}
                                     onDoubleTap={onRefetch}
                                 />}
                                 {/* Team type badge — only for BR games with team sizes */}

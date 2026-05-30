@@ -104,6 +104,7 @@ export default function OperationsPage() {
     const [editFee, setEditFee] = useState("");
     const [editMaxPlacements, setEditMaxPlacements] = useState(3);
     const [editIsMangoScrim, setEditIsMangoScrim] = useState(false);
+    const [editFixedPrizes, setEditFixedPrizes] = useState(""); // Comma-separated: "250,120,50,50"
 
     // Create tournament form
     const [tName, setTName] = useState("");
@@ -207,6 +208,22 @@ export default function OperationsPage() {
             setEditFee(selected.fee?.toString() || "0");
             setEditMaxPlacements(selected.maxPlacements ?? 3);
             setEditIsMangoScrim(selected.isMangoScrim ?? false);
+            // Load fixedPrizes from poll
+            if (selected.poll?.id) {
+                fetch("/api/polls?all=true")
+                    .then(r => r.json())
+                    .then(json => {
+                        const poll = (json.data?.polls ?? []).find((p: any) => p.tournament?.id === selected.id);
+                        if (poll?.fixedPrizes && Array.isArray(poll.fixedPrizes) && poll.fixedPrizes.length > 0) {
+                            setEditFixedPrizes(poll.fixedPrizes.join(","));
+                        } else {
+                            setEditFixedPrizes("");
+                        }
+                    })
+                    .catch(() => setEditFixedPrizes(""));
+            } else {
+                setEditFixedPrizes("");
+            }
         }
     }, [selected?.id]);
 
@@ -225,11 +242,27 @@ export default function OperationsPage() {
                 }),
             });
             if (!res.ok) throw new Error("Failed to update");
+
+            // Save fixedPrizes to poll (if poll exists)
+            if (selected?.poll?.id) {
+                const parsedPrizes = editFixedPrizes.trim()
+                    ? editFixedPrizes.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0)
+                    : null;
+                await fetch("/api/polls", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        id: selected.poll.id,
+                        fixedPrizes: parsedPrizes,
+                    }),
+                });
+            }
         },
         onSuccess: async () => {
             toast.success("Tournament updated!");
             queryClient.removeQueries({ queryKey: ["admin-tournaments", seasonId] });
             await queryClient.invalidateQueries({ queryKey: ["admin-tournaments"] });
+            await queryClient.invalidateQueries({ queryKey: ["polls"] });
         },
         onError: () => toast.error("Failed to update"),
     });
@@ -695,6 +728,26 @@ export default function OperationsPage() {
                                     classNames={{ wrapper: editIsMangoScrim ? "" : "bg-default-300" }}
                                 />
                             </div>
+
+                            {/* Fixed Prizes */}
+                            <div className="space-y-1.5">
+                                <Input
+                                    label="Fixed Prizes (comma-separated)"
+                                    placeholder="250,120,50,50"
+                                    value={editFixedPrizes}
+                                    onValueChange={setEditFixedPrizes}
+                                    size="sm"
+                                    description={editFixedPrizes.trim()
+                                        ? (() => {
+                                            const amounts = editFixedPrizes.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
+                                            if (amounts.length === 0) return "No valid amounts";
+                                            const medals = ["🥇", "🥈", "🥉", "🏅"];
+                                            return amounts.map((a, i) => `${medals[Math.min(i, 3)]} ${a}`).join(" · ") + ` = ${amounts.reduce((s, n) => s + n, 0)} total`;
+                                        })()
+                                        : "Leave empty for auto-calculated prizes"
+                                    }
+                                />
+                            </div>
                         </ModalBody>
                         <ModalFooter>
                             <Button size="sm" variant="flat" onPress={editModal.onClose}>
@@ -791,6 +844,31 @@ function CopyPrizeButton({ tournament }: { tournament: TournamentDTO }) {
                     }
                     if (poll?.prizePoolFee != null) {
                         poolFee = poll.prizePoolFee;
+                    }
+                    // Fixed prizes: use exact amounts, skip all calculations
+                    if (poll?.fixedPrizes && Array.isArray(poll.fixedPrizes) && poll.fixedPrizes.length > 0) {
+                        const fixedPrizes = poll.fixedPrizes as number[];
+                        const fixedTotal = fixedPrizes.reduce((s: number, n: number) => s + n, 0) + donations;
+                        const lines: string[] = [];
+                        lines.push(`🏆 ${tournament.name}`);
+                        lines.push(`💰 Prize Pool: ₹${fixedTotal.toLocaleString()}`);
+                        lines.push("");
+                        const medals = ["🥇", "🥈", "🥉"];
+                        fixedPrizes.forEach((amount, idx) => {
+                            const pos = idx + 1;
+                            const medal = pos <= 3 ? medals[pos - 1] : "🏅";
+                            lines.push(`${medal} ${getOrdinal(pos)}: ₹${amount.toLocaleString()}`);
+                        });
+                        if (donations > 0) {
+                            lines.push(`\n🎁 +₹${donations.toLocaleString()} donations`);
+                        }
+                        const text = lines.join("\n");
+                        await navigator.clipboard.writeText(text);
+                        setCopied(true);
+                        toast.success("Prize distribution copied!");
+                        setTimeout(() => setCopied(false), 2000);
+                        setCopying(false);
+                        return;
                     }
                 } catch { /* ignore */ }
             }

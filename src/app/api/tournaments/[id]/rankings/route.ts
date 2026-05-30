@@ -208,17 +208,20 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
         }),
         prisma.poll.findUnique({
             where: { tournamentId },
-            select: { allowSquads: true, id: true, prizePoolFee: true },
+            select: { allowSquads: true, id: true, prizePoolFee: true, fixedPrizes: true },
         }),
     ]);
     const totalDonations = donations.reduce((sum: number, d: { amount: number }) => sum + d.amount, 0);
     const isSquadTournament = pollForTournament?.allowSquads ?? false;
     const entryFee = tournament.fee ?? 0;
     const poolFee = pollForTournament?.prizePoolFee ?? entryFee;
+    const fixedPrizes = Array.isArray(pollForTournament?.fixedPrizes) ? (pollForTournament.fixedPrizes as number[]) : null;
     // Squad tournaments: captain pays per team, not per player
-    const prizePool = isSquadTournament
-        ? (poolFee * poolTeamCount) + totalDonations
-        : (poolFee * poolPlayerCount) + totalDonations;
+    const prizePool = fixedPrizes
+        ? fixedPrizes.reduce((s, n) => s + n, 0) + totalDonations
+        : isSquadTournament
+            ? (poolFee * poolTeamCount) + totalDonations
+            : (poolFee * poolPlayerCount) + totalDonations;
 
     // For squad tournaments: build captain map (teamId → captainId/captainName)
     let captainMap: Record<string, { id: string; name: string }> = {};
@@ -262,6 +265,7 @@ async function handleBRRankings(tournamentId: string, tournament: any) {
             teamType: avgTeamSize === 1 ? "SOLO" : avgTeamSize === 2 ? "DUO" : avgTeamSize === 3 ? "TRIO" : "SQUAD",
             isWinnerDeclared: tournament.isWinnerDeclared,
             ucExemptCount: isSquadTournament ? 0 : ucExemptPlayerIds.size,
+            fixedPrizes,
         },
     });
 }
@@ -384,10 +388,12 @@ async function handleBracketRankings(tournamentId: string, tournament: any) {
         }),
         prisma.poll.findUnique({
             where: { tournamentId },
-            select: { prizePoolFee: true },
+            select: { prizePoolFee: true, fixedPrizes: true },
         }),
     ]);
     const totalDonations = donations.reduce((sum: number, d: { amount: number }) => sum + d.amount, 0);
+
+    const bracketFixedPrizes = Array.isArray(pollForBracket?.fixedPrizes) ? (pollForBracket.fixedPrizes as number[]) : null;
 
     return NextResponse.json({
         success: true,
@@ -395,11 +401,14 @@ async function handleBracketRankings(tournamentId: string, tournament: any) {
         meta: {
             entryFee: tournament.fee ?? 0,
             totalPlayers: playerIds.length,
-            prizePool: ((pollForBracket?.prizePoolFee ?? tournament.fee ?? 0) * playerIds.length) + totalDonations,
+            prizePool: bracketFixedPrizes
+                ? bracketFixedPrizes.reduce((s, n) => s + n, 0) + totalDonations
+                : ((pollForBracket?.prizePoolFee ?? tournament.fee ?? 0) * playerIds.length) + totalDonations,
             donations: totalDonations,
             teamType: "SOLO",
             isWinnerDeclared: tournament.isWinnerDeclared,
             ucExemptCount,
+            fixedPrizes: bracketFixedPrizes,
         },
     });
 }

@@ -814,6 +814,7 @@ model Poll {
   expectedPrizePool Int?    // Admin-set expected prize pool for share/registration links
   whatsappGroupLink String?  // WhatsApp group invite link for squad captains
   orgCutFixed      Int?      // Per-tournament fixed org cut override (null = use global setting)
+  fixedPrizes      Json?     // Fixed prize amounts per position: [250,120,50,50] — bypasses tier calculation, no org cut
   startDate    DateTime  @default(now())
   endDate      DateTime?
   tournamentId String    @unique

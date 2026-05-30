@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { toPng } from "html-to-image";
 import { toast } from "sonner";
-import { X, Copy, Check } from "lucide-react";
+import { X, Copy, Check, Send, Loader2 } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -20,6 +20,7 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     tournamentTitle: string;
+    tournamentId?: string;
     teams: TeamDTO[];
     seasonName?: string;
     backgroundImage?: string;
@@ -34,6 +35,7 @@ export function SlotsModal({
     isOpen,
     onClose,
     tournamentTitle,
+    tournamentId,
     teams,
     seasonName = "",
     backgroundImage = "/images/image.webp",
@@ -43,6 +45,8 @@ export function SlotsModal({
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
+    const [discordSending, setDiscordSending] = useState(false);
+    const [discordSent, setDiscordSent] = useState(false);
 
     // Deduplicate teams by player composition
     const uniqueTeams = useMemo(() => {
@@ -83,51 +87,40 @@ export function SlotsModal({
         return { groupA, groupB, other };
     }, [uniqueTeams, championshipGroups]);
 
-    // ── Screenshot / Copy ─────────────────────────────────────
+    // ── Screenshot capture helper ─────────────────────────────
 
-    const copyToClipboard = useCallback(async () => {
-        setIsSharing(true);
-        setShareSuccess(false);
-
+    const captureImage = useCallback(async (): Promise<string | null> => {
         const element = document.getElementById("teams-list-content");
-        if (!element) {
-            setIsSharing(false);
-            return;
-        }
+        if (!element) return null;
+
+        // Temporarily remove viewport constraints so full content is captured
+        const prevMinH = element.style.minHeight;
+        const prevH = element.style.height;
+        const prevMinW = element.style.minWidth;
+        const prevW = element.style.width;
+        const prevOverflowEl = element.style.overflow;
+        element.style.minHeight = 'auto';
+        element.style.height = 'auto';
+        const captureWidth = 60 + (hasSquadTeams ? 140 : 0) + maxPlayers * 140 + 40;
+        element.style.minWidth = `${Math.max(600, captureWidth)}px`;
+        element.style.width = 'max-content';
+        element.style.overflow = 'visible';
+
+        const scrollWrapper = element.querySelector('.overflow-x-auto') as HTMLElement | null;
+        const prevScrollOverflow = scrollWrapper?.style.overflow;
+        if (scrollWrapper) scrollWrapper.style.overflow = 'visible';
+
+        const tableContainer = scrollWrapper?.parentElement as HTMLElement | null;
+        const prevContainerOverflow = tableContainer?.style.overflow;
+        if (tableContainer) tableContainer.style.overflow = 'visible';
 
         try {
-            // Temporarily remove viewport constraints so full content is captured
-            // On mobile, the table (min-w-500px) is wider than the screen, so
-            // toPng only captures visible columns unless we expand the container.
-            const prevMinH = element.style.minHeight;
-            const prevH = element.style.height;
-            const prevMinW = element.style.minWidth;
-            const prevW = element.style.width;
-            const prevOverflowEl = element.style.overflow;
-            element.style.minHeight = 'auto';
-            element.style.height = 'auto';
-            // Dynamic width: Slot(60px) + Team(140px if squad) + per-player(140px) + padding
-            const captureWidth = 60 + (hasSquadTeams ? 140 : 0) + maxPlayers * 140 + 40;
-            element.style.minWidth = `${Math.max(600, captureWidth)}px`;
-            element.style.width = 'max-content';
-            element.style.overflow = 'visible';
-
-            // Also expand the scrollable table wrapper
-            const scrollWrapper = element.querySelector('.overflow-x-auto') as HTMLElement | null;
-            const prevScrollOverflow = scrollWrapper?.style.overflow;
-            if (scrollWrapper) scrollWrapper.style.overflow = 'visible';
-
-            // And the outer rounded container (overflow-hidden from border-radius)
-            const tableContainer = scrollWrapper?.parentElement as HTMLElement | null;
-            const prevContainerOverflow = tableContainer?.style.overflow;
-            if (tableContainer) tableContainer.style.overflow = 'visible';
-
             const dataUrl = await toPng(element, {
                 pixelRatio: 2,
                 filter: (node) => !node.classList?.contains("floating-controls"),
             });
-
-            // Restore original styles
+            return dataUrl;
+        } finally {
             element.style.minHeight = prevMinH;
             element.style.height = prevH;
             element.style.minWidth = prevMinW;
@@ -135,8 +128,19 @@ export function SlotsModal({
             element.style.overflow = prevOverflowEl;
             if (scrollWrapper && prevScrollOverflow !== undefined) scrollWrapper.style.overflow = prevScrollOverflow;
             if (tableContainer && prevContainerOverflow !== undefined) tableContainer.style.overflow = prevContainerOverflow;
+        }
+    }, [hasSquadTeams, maxPlayers]);
 
-            // Convert data URL to blob
+    // ── Copy / Share ─────────────────────────────────────────
+
+    const copyToClipboard = useCallback(async () => {
+        setIsSharing(true);
+        setShareSuccess(false);
+
+        try {
+            const dataUrl = await captureImage();
+            if (!dataUrl) { setIsSharing(false); return; }
+
             const res = await fetch(dataUrl);
             const blob = await res.blob();
 
@@ -185,7 +189,52 @@ export function SlotsModal({
         } finally {
             setIsSharing(false);
         }
-    }, [tournamentTitle, hasSquadTeams, maxPlayers]);
+    }, [tournamentTitle, captureImage]);
+
+    // ── Send to Discord ──────────────────────────────────────
+
+    const sendToDiscord = useCallback(async () => {
+        if (!tournamentId) {
+            toast.error("No tournament selected");
+            return;
+        }
+
+        setDiscordSending(true);
+        setDiscordSent(false);
+
+        try {
+            const dataUrl = await captureImage();
+            if (!dataUrl) {
+                toast.error("Failed to capture image");
+                setDiscordSending(false);
+                return;
+            }
+
+            const res = await fetch("/api/discord/send-slot-image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    image: dataUrl,
+                    tournamentId,
+                    tournamentName: tournamentTitle,
+                }),
+            });
+
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({ error: "Unknown error" }));
+                throw new Error(json.error || `Failed (${res.status})`);
+            }
+
+            setDiscordSent(true);
+            toast.success("Slot image sent to Discord!");
+            setTimeout(() => setDiscordSent(false), 3000);
+        } catch (error) {
+            console.error("Discord send error:", error);
+            toast.error(`Discord: ${(error as Error).message || "Failed to send"}`);
+        } finally {
+            setDiscordSending(false);
+        }
+    }, [tournamentId, tournamentTitle, captureImage]);
 
     if (!isOpen) return null;
 
@@ -241,6 +290,29 @@ export function SlotsModal({
             <div className="fixed inset-0 z-50 flex items-center justify-center">
                 {/* Floating Controls */}
                 <div className="floating-controls absolute top-4 right-4 z-30 flex gap-2">
+                    {/* Send to Discord */}
+                    {tournamentId && (
+                        <button
+                            onClick={sendToDiscord}
+                            disabled={discordSending}
+                            title="Send to Discord"
+                            className={`relative overflow-hidden text-white bg-black/60 backdrop-blur-md border p-2.5 rounded-xl transition-all duration-300 ${
+                                discordSent
+                                    ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
+                                    : "hover:text-indigo-400 border-white/20 hover:border-indigo-500/50 hover:bg-black/80"
+                            }`}
+                        >
+                            {discordSending ? (
+                                <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />
+                            ) : discordSent ? (
+                                <Check className="h-5 w-5 text-indigo-400" />
+                            ) : (
+                                <Send className="h-5 w-5" />
+                            )}
+                        </button>
+                    )}
+
+                    {/* Copy / Share */}
                     <button
                         onClick={copyToClipboard}
                         disabled={isSharing}

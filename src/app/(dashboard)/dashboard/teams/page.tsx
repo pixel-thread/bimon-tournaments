@@ -810,6 +810,7 @@ export default function TeamsPage() {
                 isOpen={showSlots}
                 onClose={() => setShowSlots(false)}
                 tournamentTitle={tournaments.find((t) => t.id === tournamentId)?.name ?? ""}
+                tournamentId={tournamentId}
                 teams={
                     // Finals: show only qualified teams (flat, no A/B grouping)
                     isChamp && champPhase === "FINALS" && finalsTeamIds

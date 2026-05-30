@@ -133,6 +133,7 @@ export async function GET(request: Request) {
                 prizePoolFee: poll.prizePoolFee,
                 whatsappGroupLink: poll.whatsappGroupLink,
                 orgCutFixed: poll.orgCutFixed,
+                fixedPrizes: poll.fixedPrizes ?? null,
                 isChampionship: poll.isChampionship,
                 tournament: poll.tournament ? {
                     id: poll.tournament.id,
@@ -328,7 +329,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, whatsappGroupLink, orgCutFixed } = body;
+        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, whatsappGroupLink, orgCutFixed, fixedPrizes } = body;
 
         if (!id) {
             return ErrorResponse({ message: "id is required", status: 400 });
@@ -349,6 +350,13 @@ export async function PATCH(request: Request) {
         if (whatsappGroupLink !== undefined) updateData.whatsappGroupLink = whatsappGroupLink?.trim() || null;
         if (matchSchedule !== undefined) updateData.matchSchedule = matchSchedule;
         if (orgCutFixed !== undefined) updateData.orgCutFixed = orgCutFixed != null ? Number(orgCutFixed) : null;
+        if (fixedPrizes !== undefined) {
+            if (fixedPrizes === null || (Array.isArray(fixedPrizes) && fixedPrizes.length === 0)) {
+                updateData.fixedPrizes = null; // Clear fixed prizes
+            } else if (Array.isArray(fixedPrizes)) {
+                updateData.fixedPrizes = fixedPrizes.map(Number).filter(n => !isNaN(n) && n > 0);
+            }
+        }
 
         // If tournamentType is provided, update the linked tournament's type
         if (tournamentType && (ALL_TOURNAMENT_TYPES as readonly string[]).includes(tournamentType)) {
