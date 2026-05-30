@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GAME } from "@/lib/game-config";
 import { creditWallet, debitWallet, getEmailByPlayerId } from "@/lib/wallet-service";
 import { getActiveCoupon, redeemCoupon } from "@/lib/logic/welcomeBack";
+import { grantChannelAccess, revokeChannelAccess } from "@/lib/discord-service";
 
 /**
  * PATCH /api/teams/[teamId]
@@ -39,7 +40,7 @@ export async function PATCH(
             where: { id: teamId },
             include: {
                 players: { select: { id: true } },
-                tournament: { select: { id: true, fee: true, name: true, seasonId: true } },
+                tournament: { select: { id: true, fee: true, name: true, seasonId: true, discordChannelId: true } },
                 matches: { select: { id: true } },
             },
         });
@@ -166,6 +167,29 @@ export async function PATCH(
             }
         }
 
+        // Discord channel access — grant added, revoke removed (fire-and-forget)
+        const discordChannelId = team.tournament?.discordChannelId;
+        if (discordChannelId) {
+            if (addPlayerIds.length > 0) {
+                const addedPlayers = await prisma.player.findMany({
+                    where: { id: { in: addPlayerIds }, discordId: { not: null } },
+                    select: { discordId: true },
+                });
+                for (const p of addedPlayers) {
+                    if (p.discordId) grantChannelAccess(discordChannelId, p.discordId).catch(() => {});
+                }
+            }
+            if (removePlayerIds.length > 0) {
+                const removedPlayers = await prisma.player.findMany({
+                    where: { id: { in: removePlayerIds }, discordId: { not: null } },
+                    select: { discordId: true },
+                });
+                for (const p of removedPlayers) {
+                    if (p.discordId) revokeChannelAccess(discordChannelId, p.discordId).catch(() => {});
+                }
+            }
+        }
+
         // Fetch updated team
         const updated = await prisma.team.findUnique({
             where: { id: teamId },
@@ -233,10 +257,10 @@ export async function DELETE(
             where: { id: teamId },
             include: {
                 players: {
-                    select: { id: true, user: { select: { username: true } } },
+                    select: { id: true, discordId: true, user: { select: { username: true } } },
                 },
                 tournament: {
-                    select: { id: true, name: true, fee: true },
+                    select: { id: true, name: true, fee: true, discordChannelId: true },
                 },
             },
         });
@@ -284,6 +308,14 @@ export async function DELETE(
             refund && entryFee > 0 && refundedPlayers.length > 0
                 ? ` ${entryFee} ${GAME.currency} refunded to ${refundedPlayers.length} player(s).`
                 : "";
+
+        // Revoke Discord channel access for all team members (fire-and-forget)
+        const discordChannelId = team.tournament?.discordChannelId;
+        if (discordChannelId) {
+            for (const p of team.players) {
+                if (p.discordId) revokeChannelAccess(discordChannelId, p.discordId).catch(() => {});
+            }
+        }
 
         return SuccessResponse({
             message: `Team "${team.name}" deleted.${refundMsg}`,

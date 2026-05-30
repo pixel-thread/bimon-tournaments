@@ -104,8 +104,6 @@ export async function createTournamentChannel(
     const categoryId = process.env.DISCORD_TOURNAMENTS_CATEGORY_ID;
     if (!categoryId) throw new Error("DISCORD_TOURNAMENTS_CATEGORY_ID is not set");
 
-    const rankedRoleId = process.env.DISCORD_RANKED_PLAYER_ROLE_ID;
-
     // Slugify the tournament name for the channel (Discord max 100 chars)
     const slug = tournamentName
         .toLowerCase()
@@ -114,21 +112,14 @@ export async function createTournamentChannel(
         .slice(0, 80);
     const channelName = `🏆-${slug}`;
 
-    // Permission overwrites: @everyone can't see, @Ranked-Player can see + send
+    // Permission overwrites: @everyone can't see or send messages, per-user access granted separately
     const permissionOverwrites: any[] = [
         {
             id: guildId, // @everyone role (same as guild ID)
             type: 0, // role
-            deny: "1024", // VIEW_CHANNEL
+            deny: "3072", // VIEW_CHANNEL + SEND_MESSAGES
         },
     ];
-    if (rankedRoleId) {
-        permissionOverwrites.push({
-            id: rankedRoleId,
-            type: 0, // role
-            allow: "3072", // VIEW_CHANNEL + SEND_MESSAGES
-        });
-    }
     // Bot itself needs access (use bot's application/client ID)
     const botClientId = process.env.DISCORD_CLIENT_ID;
     if (botClientId) {
@@ -174,6 +165,41 @@ export async function deleteTournamentChannel(channelId: string): Promise<void> 
     }
 }
 
+/**
+ * Grant a Discord user access to a specific tournament channel.
+ * They can VIEW the channel and CREATE/REPLY to THREADS but NOT send regular messages.
+ */
+export async function grantChannelAccess(channelId: string, discordUserId: string): Promise<void> {
+    // VIEW_CHANNEL (1<<10) + CREATE_PUBLIC_THREADS (1<<35) + SEND_MESSAGES_IN_THREADS (1<<38)
+    // = 1024 + 34359738368 + 274877906944 = 309237646336
+    const allow = "309237646336";
+    const res = await discordFetch(`/channels/${channelId}/permissions/${discordUserId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+            type: 1,   // member (user)
+            allow,
+        }),
+    });
+    if (!res.ok) {
+        const errorBody = await res.text().catch(() => "unknown");
+        console.error(`Discord grantChannelAccess failed [${res.status}]:`, errorBody);
+    }
+}
+
+/**
+ * Revoke a Discord user's VIEW_CHANNEL access from a specific channel.
+ * Deletes the per-user permission overwrite.
+ */
+export async function revokeChannelAccess(channelId: string, discordUserId: string): Promise<void> {
+    const res = await discordFetch(`/channels/${channelId}/permissions/${discordUserId}`, {
+        method: "DELETE",
+    });
+    if (!res.ok) {
+        const errorBody = await res.text().catch(() => "unknown");
+        console.error(`Discord revokeChannelAccess failed [${res.status}]:`, errorBody);
+    }
+}
+
 // ─── Room Info Embed ────────────────────────────────────────
 
 interface RoomInfoPayload {
@@ -204,7 +230,7 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
     let channelId = tournament?.discordChannelId;
 
     if (!channelId) {
-        // Create a new channel for this tournament
+        // Fallback: create channel for legacy tournaments that weren't created at team generation
         channelId = await createTournamentChannel(payload.tournamentName);
 
         // Store it on the tournament
@@ -212,6 +238,20 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
             where: { id: payload.tournamentId },
             data: { discordChannelId: channelId },
         });
+
+        // Grant access to all team members (per-user overwrites)
+        const teamPlayers = await prisma.player.findMany({
+            where: {
+                teams: { some: { tournamentId: payload.tournamentId } },
+                discordId: { not: null },
+            },
+            select: { discordId: true },
+        });
+        await Promise.allSettled(
+            teamPlayers
+                .filter(p => p.discordId)
+                .map(p => grantChannelAccess(channelId!, p.discordId!))
+        );
     }
 
     // 2. Send the rich embed

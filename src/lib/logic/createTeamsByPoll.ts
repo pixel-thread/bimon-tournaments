@@ -15,6 +15,7 @@ import { debitWallet, getEmailByPlayerId } from "@/lib/wallet-service";
 import { getActiveCoupon, redeemCoupon } from "@/lib/logic/welcomeBack";
 import { GAME } from "@/lib/game-config";
 import { assignGroups, getConfirmedSquadCap } from "./championship";
+import { createTournamentChannel, grantChannelAccess } from "@/lib/discord-service";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -818,6 +819,39 @@ export async function createTeamsByPoll({
         }
 
         console.log(`[createTeamsByPoll] Championship setup: Group A (${groupA.length}), Group B (${groupB.length})`);
+    }
+
+    // ── Post-transaction: create Discord channel + grant per-user access ──
+    // Channel is created AFTER teams are finalized so only confirmed participants see it.
+    try {
+        const participantDiscordIds = await prisma.player.findMany({
+            where: { id: { in: [...allTeamPlayerIds] }, discordId: { not: null } },
+            select: { discordId: true },
+        });
+        const discordIds = participantDiscordIds
+            .map(p => p.discordId)
+            .filter((id): id is string => !!id);
+
+        if (discordIds.length > 0) {
+            const channelId = await createTournamentChannel(tournamentName);
+            await prisma.tournament.update({
+                where: { id: tournamentId },
+                data: { discordChannelId: channelId },
+            });
+
+            // Bulk grant per-user VIEW_CHANNEL (fire-and-forget, batched)
+            const DISCORD_BATCH = 5;
+            for (let i = 0; i < discordIds.length; i += DISCORD_BATCH) {
+                const batch = discordIds.slice(i, i + DISCORD_BATCH);
+                await Promise.allSettled(
+                    batch.map(discordId => grantChannelAccess(channelId, discordId))
+                );
+            }
+            console.log(`[createTeamsByPoll] Discord channel created (${channelId}) — ${discordIds.length} users granted access`);
+        }
+    } catch (err) {
+        console.error("[createTeamsByPoll] Discord channel creation failed (non-blocking):", err);
+        // Don't throw — Discord channel is best-effort, don't block team generation
     }
 
     return {

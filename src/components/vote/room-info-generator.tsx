@@ -198,8 +198,8 @@ function TournamentRow({ tournament, state, onChange }: {
             onChange({ justCopied: false });
         }, 2000);
 
-        // 2. Auto-send to Discord (ranked only, fire-and-forget)
-        if (isRanked && state.password) {
+        // 2. Auto-send to Discord (fire-and-forget)
+        if (state.password) {
             setDiscordSending(true);
             sendDiscord(nextMatch).then(() => {
                 setDiscordSent(true);
@@ -209,7 +209,7 @@ function TournamentRow({ tournament, state, onChange }: {
                 toast.error(`Discord: ${err.message || "Failed to send"}`);
             }).finally(() => setDiscordSending(false));
         }
-    }, [generateMessage, state.copyCount, state.password, onChange, isRanked, sendDiscord]);
+    }, [generateMessage, state.copyCount, state.password, onChange, sendDiscord]);
 
     return (
         <div className="space-y-3">
@@ -317,12 +317,12 @@ function TournamentRow({ tournament, state, onChange }: {
                 {state.justCopied ? (
                     <>
                         <Check className="w-4 h-4" />
-                        Copied Match {state.copyCount}!{isRanked && discordSent && " + Sent to Discord"}
+                        Copied Match {state.copyCount}!{discordSent && " + Sent to Discord"}
                     </>
                 ) : (
                     <>
                         <Copy className="w-4 h-4" />
-                        {isRanked ? `Copy & Send Match ${matchNumber}` : `Copy Match ${matchNumber}`}
+                        {`Copy & Send Match ${matchNumber}`}
                     </>
                 )}
             </button>
