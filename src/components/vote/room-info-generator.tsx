@@ -3,8 +3,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardBody, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 
 /* ─── Unicode bold text helper (renders bold in WhatsApp) ───── */
@@ -117,6 +118,8 @@ function TournamentRow({ tournament, state, onChange }: {
     const timeInputRef = useRef<HTMLInputElement>(null);
     const [discordSending, setDiscordSending] = useState(false);
     const [discordSent, setDiscordSent] = useState(false);
+    const [rulesSending, setRulesSending] = useState(false);
+    const [rulesSent, setRulesSent] = useState(false);
 
     const startEditingTime = () => {
         setTimeInput(state.time ? formatTimeDisplay(state.time) : "");
@@ -211,6 +214,32 @@ function TournamentRow({ tournament, state, onChange }: {
             }).finally(() => setDiscordSending(false));
         }
     }, [generateMessage, state.copyCount, state.password, onChange, sendDiscord]);
+
+    const handleSendRules = useCallback(async () => {
+        if (rulesSending) return;
+        setRulesSending(true);
+        try {
+            const res = await fetch("/api/discord/send-rules", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    tournamentId: tournament.id,
+                    tournamentName,
+                }),
+            });
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({ error: "Unknown error" }));
+                throw new Error(json.error || "Failed to send rules");
+            }
+            setRulesSent(true);
+            toast.success("Rules sent to Discord!");
+            setTimeout(() => setRulesSent(false), 3000);
+        } catch (err: any) {
+            toast.error(`Failed: ${err.message || "Unknown error"}`);
+        } finally {
+            setRulesSending(false);
+        }
+    }, [tournament.id, tournamentName, rulesSending]);
 
     return (
         <div className="space-y-3">
@@ -354,6 +383,215 @@ function TournamentRow({ tournament, state, onChange }: {
                     {state.copyCount} match{state.copyCount !== 1 ? "es" : ""} copied • Next: Match {state.copyCount + 1}
                 </p>
             )}
+
+            {/* Send Rules button */}
+            <button
+                type="button"
+                onClick={handleSendRules}
+                disabled={rulesSending}
+                className={`
+                    w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium
+                    transition-all duration-200 cursor-pointer active:scale-[0.98]
+                    ${rulesSent
+                        ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/20"
+                        : rulesSending
+                            ? "bg-default-100 text-foreground/40 border border-divider"
+                            : "bg-default-100 text-foreground/60 border border-divider hover:bg-default-200 hover:text-foreground/80"
+                    }
+                `}
+            >
+                {rulesSent ? (
+                    <>
+                        <Check className="w-3.5 h-3.5" />
+                        Rules Sent!
+                    </>
+                ) : rulesSending ? (
+                    <>
+                        <ShieldAlert className="w-3.5 h-3.5 animate-pulse" />
+                        Sending Rules...
+                    </>
+                ) : (
+                    <>
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                        Send Rules to Discord
+                    </>
+                )}
+            </button>
+        </div>
+    );
+}
+
+/* ─── Rules Editor (shared across tournaments) ──────────────── */
+
+interface SavedRule {
+    id: string;
+    text: string;
+    imageUrl?: string;
+}
+
+function RulesEditor() {
+    const [rules, setRules] = useState<SavedRule[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [dirty, setDirty] = useState(false);
+    const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+    const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+    // Load saved rules on mount
+    useEffect(() => {
+        fetch("/api/settings/tournament-rules")
+            .then(r => r.json())
+            .then(json => setRules(json.data ?? []))
+            .catch(() => {})
+            .finally(() => setLoading(false));
+    }, []);
+
+    const addRule = () => {
+        setRules(prev => [...prev, { id: crypto.randomUUID(), text: "" }]);
+        setDirty(true);
+    };
+
+    const removeRule = (idx: number) => {
+        setRules(prev => prev.filter((_, i) => i !== idx));
+        setDirty(true);
+    };
+
+    const updateRuleText = (idx: number, text: string) => {
+        setRules(prev => prev.map((r, i) => i === idx ? { ...r, text } : r));
+        setDirty(true);
+    };
+
+    const handleImageUpload = async (idx: number, file: File) => {
+        setUploadingIdx(idx);
+        try {
+            const formData = new FormData();
+            formData.append("image", file);
+            const res = await fetch("/api/settings/tournament-rules", {
+                method: "POST",
+                body: formData,
+            });
+            if (!res.ok) throw new Error("Upload failed");
+            const json = await res.json();
+            setRules(prev => prev.map((r, i) => i === idx ? { ...r, imageUrl: json.data.imageUrl } : r));
+            setDirty(true);
+            toast.success("Image uploaded!");
+        } catch {
+            toast.error("Failed to upload image");
+        } finally {
+            setUploadingIdx(null);
+        }
+    };
+
+    const removeImage = (idx: number) => {
+        setRules(prev => prev.map((r, i) => i === idx ? { ...r, imageUrl: undefined } : r));
+        setDirty(true);
+    };
+
+    const saveRules = async () => {
+        setSaving(true);
+        try {
+            const res = await fetch("/api/settings/tournament-rules", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rules: rules.filter(r => r.text.trim()) }),
+            });
+            if (!res.ok) throw new Error("Failed to save");
+            const json = await res.json();
+            setRules(json.data);
+            setDirty(false);
+            toast.success("Rules saved!");
+        } catch {
+            toast.error("Failed to save rules");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) {
+        return <p className="text-[11px] text-foreground/40 text-center py-2">Loading rules...</p>;
+    }
+
+    return (
+        <div className="space-y-2">
+            {rules.map((rule, idx) => (
+                <div key={rule.id} className="rounded-lg border border-divider bg-default-50 p-2 space-y-1.5">
+                    <div className="flex items-start gap-1.5">
+                        <span className="text-[10px] font-bold text-foreground/30 mt-1.5 shrink-0 w-4 text-center">{idx + 1}</span>
+                        <textarea
+                            value={rule.text}
+                            onChange={(e) => updateRuleText(idx, e.target.value)}
+                            placeholder="Type your rule here..."
+                            rows={3}
+                            className="flex-1 text-xs bg-transparent border-none outline-none resize-none text-foreground placeholder:text-foreground/30"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => removeRule(idx)}
+                            className="text-danger/50 hover:text-danger transition-colors cursor-pointer p-0.5"
+                        >
+                            <Trash2 className="w-3 h-3" />
+                        </button>
+                    </div>
+
+                    {/* Image preview + upload */}
+                    {rule.imageUrl ? (
+                        <div className="relative rounded-md overflow-hidden border border-divider">
+                            <img src={rule.imageUrl} alt="Rule" className="w-full max-h-24 object-cover" />
+                            <button
+                                type="button"
+                                onClick={() => removeImage(idx)}
+                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 cursor-pointer hover:bg-black/80"
+                            >
+                                <Trash2 className="w-2.5 h-2.5" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => fileInputRefs.current[idx]?.click()}
+                            disabled={uploadingIdx === idx}
+                            className="flex items-center gap-1 text-[10px] text-foreground/40 hover:text-foreground/60 transition-colors cursor-pointer"
+                        >
+                            <ImagePlus className="w-3 h-3" />
+                            {uploadingIdx === idx ? "Uploading..." : "Add image"}
+                        </button>
+                    )}
+                    <input
+                        ref={(el) => { fileInputRefs.current[idx] = el; }}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload(idx, file);
+                            e.target.value = "";
+                        }}
+                    />
+                </div>
+            ))}
+
+            {/* Add + Save buttons */}
+            <div className="flex gap-2">
+                <button
+                    type="button"
+                    onClick={addRule}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-dashed border-divider text-[11px] text-foreground/40 hover:text-foreground/60 hover:border-foreground/20 transition-colors cursor-pointer"
+                >
+                    <Plus className="w-3 h-3" />
+                    Add Rule
+                </button>
+                {dirty && (
+                    <button
+                        type="button"
+                        onClick={saveRules}
+                        disabled={saving}
+                        className="flex items-center justify-center gap-1 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11px] font-medium cursor-pointer hover:opacity-90 transition-opacity"
+                    >
+                        <Save className="w-3 h-3" />
+                        {saving ? "Saving..." : "Save"}
+                    </button>
+                )}
+            </div>
         </div>
     );
 }
@@ -362,6 +600,7 @@ function TournamentRow({ tournament, state, onChange }: {
 
 export function RoomInfoGenerator() {
     const [isOpen, setIsOpen] = useState(false);
+    const [rulesEditorOpen, setRulesEditorOpen] = useState(false);
     // Default time = now + 10 minutes
     const getDefaultTime = () => {
         const now = new Date();
@@ -487,6 +726,34 @@ export function RoomInfoGenerator() {
                                     />
                                 </div>
                             ))}
+
+                            {/* Rules Section */}
+                            <div className="border-t border-divider pt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setRulesEditorOpen(!rulesEditorOpen)}
+                                    className="w-full flex items-center justify-between text-xs text-foreground/50 hover:text-foreground/70 transition-colors cursor-pointer mb-2"
+                                >
+                                    <span className="flex items-center gap-1.5 font-medium">
+                                        <Pencil className="w-3 h-3" />
+                                        Tournament Rules
+                                    </span>
+                                    {rulesEditorOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                </button>
+                                <AnimatePresence>
+                                    {rulesEditorOpen && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.15 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <RulesEditor />
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         </CardBody>
                     </motion.div>
                 )}

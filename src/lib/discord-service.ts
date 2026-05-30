@@ -297,6 +297,78 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
     }
 }
 
+// ─── Tournament Rules ───────────────────────────────────────
+
+/**
+ * Send saved tournament rules to a tournament's Discord channel.
+ * Reads rules from AppConfig (managed via /api/settings/tournament-rules).
+ * Each rule becomes a Discord embed with optional image.
+ */
+export async function sendTournamentRules(tournamentId: string, tournamentName: string): Promise<void> {
+    const { prisma } = await import("@/lib/database");
+
+    // Get channel (or create it)
+    const tournament = await prisma.tournament.findUnique({
+        where: { id: tournamentId },
+        select: { discordChannelId: true },
+    });
+
+    let channelId = tournament?.discordChannelId;
+    if (!channelId) {
+        channelId = await createTournamentChannel(tournamentName);
+        await prisma.tournament.update({
+            where: { id: tournamentId },
+            data: { discordChannelId: channelId },
+        });
+    }
+
+    // Load saved rules from AppConfig
+    const rulesRow = await prisma.appConfig.findUnique({
+        where: { key: "tournament_rules" },
+    });
+
+    interface SavedRule { id: string; text: string; imageUrl?: string }
+    const rules: SavedRule[] = rulesRow ? JSON.parse(rulesRow.value) : [];
+
+    if (rules.length === 0) {
+        // No rules saved — send a simple message
+        await discordFetch(`/channels/${channelId}/messages`, {
+            method: "POST",
+            body: JSON.stringify({
+                content: `📜 No tournament rules configured yet. Add them in Dashboard → Room Info → Edit Rules.`,
+            }),
+        });
+        return;
+    }
+
+    // Build embeds from saved rules (Discord allows max 10 embeds per message)
+    const colors = [0xef4444, 0xf59e0b, 0x22c55e, 0x3b82f6, 0x8b5cf6, 0xec4899];
+    const embeds = rules.slice(0, 10).map((rule, idx) => {
+        const embed: any = {
+            description: rule.text,
+            color: colors[idx % colors.length],
+        };
+        if (rule.imageUrl) {
+            embed.image = { url: rule.imageUrl };
+        }
+        return embed;
+    });
+
+    // Send embeds (split into batches of 10 if needed)
+    const res = await discordFetch(`/channels/${channelId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({
+            content: `@everyone 📜 **Tournament Rules — ${tournamentName}**`,
+            embeds,
+        }),
+    });
+
+    if (!res.ok) {
+        const err = await res.text().catch(() => "unknown");
+        throw new Error(`Discord sendRules failed [${res.status}]: ${err}`);
+    }
+}
+
 // ─── Ticket System ──────────────────────────────────────────
 
 /**
