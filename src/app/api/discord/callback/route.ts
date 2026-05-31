@@ -19,11 +19,14 @@ export async function GET(req: NextRequest) {
     const [pollId, returnTo] = rawState.split("|");
     const isProfileReturn = returnTo === "profile";
     const isOnboardingReturn = returnTo === "onboarding";
+    const isInviteReturn = returnTo?.startsWith("invite_");
+    const inviteSquadId = isInviteReturn ? returnTo.replace("invite_", "") : null;
 
     /** Build redirect URL based on return context */
     function getRedirectUrl(suffix: string): string {
         if (isOnboardingReturn) return `/onboarding?discord=${suffix}`;
         if (isProfileReturn) return `/profile?discord=${suffix}`;
+        if (isInviteReturn && inviteSquadId) return `/invite/${inviteSquadId}?discord=${suffix}`;
         return `/vote?tab=ranked&discord=${suffix}`;
     }
 
