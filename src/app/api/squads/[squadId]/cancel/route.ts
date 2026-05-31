@@ -4,7 +4,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { sendPush } from "@/lib/push";
 import { debitWallet, getEmailByPlayerId } from "@/lib/wallet-service";
-import { revokeRole } from "@/lib/discord-service";
 
 /**
  * POST /api/squads/[squadId]/cancel

@@ -4,7 +4,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
-import { grantRole } from "@/lib/discord-service";
 
 /**
  * POST /api/squads/respond

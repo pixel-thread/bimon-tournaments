@@ -124,9 +124,25 @@ export default function JoinPage() {
     // Check URL params for Discord OAuth callback result
     useEffect(() => {
         const discordParam = searchParams.get("discord");
-        if (discordParam === "linked") {
-            setDiscordLinked(true);
-            sessionStorage.setItem("discord_linked", "true");
+        if (!discordParam) return;
+        switch (discordParam) {
+            case "linked":
+                setDiscordLinked(true);
+                sessionStorage.setItem("discord_linked", "true");
+                break;
+            case "not_in_server":
+                toast.error("You must join our Discord server first! Join the server, then link again.");
+                break;
+            case "already_linked":
+                toast.error("This Discord account is already linked to another player");
+                break;
+            case "denied":
+                toast.error("Discord authorization is required to create a team");
+                break;
+            default:
+                if (discordParam !== "linked") {
+                    toast.error("Failed to link Discord — please try again");
+                }
         }
     }, [searchParams]);
 

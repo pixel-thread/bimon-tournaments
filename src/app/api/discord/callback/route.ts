@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { getCurrentUser } from "@/lib/auth";
 import { discordFetch, getGuildId } from "@/lib/discord-bot";
-import { grantRole } from "@/lib/discord-service";
 
 /**
  * GET /api/discord/callback
@@ -99,18 +98,38 @@ export async function GET(req: NextRequest) {
             data: { discordId, discordUsername },
         });
 
-        // 6. Auto-join user to server (if not already a member)
+        // 6. Ensure user is in the Discord server
         const guildId = getGuildId();
         const memberRes = await discordFetch(`/guilds/${guildId}/members/${discordId}`);
 
         if (!memberRes.ok) {
             // User not in server — auto-add them using guilds.join scope
-            await discordFetch(`/guilds/${guildId}/members/${discordId}`, {
+            const joinRes = await discordFetch(`/guilds/${guildId}/members/${discordId}`, {
                 method: "PUT",
                 body: JSON.stringify({
                     access_token: accessToken,
                 }),
             });
+
+            // 201 = added, 204 = already member
+            if (!joinRes.ok && joinRes.status !== 204) {
+                const errBody = await joinRes.text().catch(() => "unknown");
+                console.error(`[discord-callback] Auto-join failed for ${discordUsername} (${discordId}) [${joinRes.status}]:`, errBody);
+            } else {
+                console.log(`[discord-callback] Auto-joined ${discordUsername} (${discordId}) to guild`);
+            }
+        }
+
+        // 7. Verify they're actually in the server — if not, rollback and block
+        const verifyRes = await discordFetch(`/guilds/${guildId}/members/${discordId}`);
+        if (!verifyRes.ok) {
+            // Rollback: clear discordId since they're not in the server
+            await prisma.player.update({
+                where: { id: user.player.id },
+                data: { discordId: null, discordUsername: null },
+            });
+            console.error(`[discord-callback] ${discordUsername} (${discordId}) is NOT in the server after auto-join attempt — blocking link`);
+            return NextResponse.redirect(new URL(getRedirectUrl("not_in_server"), req.url));
         }
 
         // 7. Redirect back to app

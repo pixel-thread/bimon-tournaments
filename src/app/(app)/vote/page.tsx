@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePolls, useVote, useEntryMutation } from "@/hooks/use-polls";
 import { PollCard } from "@/components/vote/poll-card";
-
+import { toast } from "sonner";
 import { MeritRatingSection } from "@/components/vote/merit-rating-gate";
 
 import { VotePageJobListings } from "@/components/vote/vote-page-jobs";
@@ -112,6 +112,35 @@ export default function VotePage() {
         }, 300);
         return () => clearTimeout(timer);
     }, [filteredPolls, searchParams]);
+
+    // Handle Discord OAuth callback result via URL params
+    useEffect(() => {
+        const discordResult = searchParams.get("discord");
+        if (!discordResult) return;
+        // Clean the URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete("discord");
+        window.history.replaceState({}, "", url.toString());
+
+        switch (discordResult) {
+            case "linked":
+                toast.success("Discord linked successfully!");
+                sessionStorage.setItem("discord_linked", "true");
+                break;
+            case "not_in_server":
+                toast.error("You must join our Discord server first! Join the server, then link again.");
+                break;
+            case "already_linked":
+                toast.error("This Discord account is already linked to another player");
+                break;
+            case "denied":
+                toast.error("Discord authorization was denied");
+                break;
+            case "error":
+                toast.error("Failed to link Discord — please try again");
+                break;
+        }
+    }, [searchParams]);
 
     // Wrap vote to show first-time casual WA modal (blocks vote until modal dismissed)
     const handleVote = useCallback((pollId: string, vote: "IN" | "OUT" | "SOLO") => {

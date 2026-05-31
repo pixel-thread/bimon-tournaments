@@ -228,6 +228,10 @@ export default function OnboardingPage() {
                 toast.error("This Discord account is already linked to another player");
                 setShowDiscord(true); // Show Discord screen again
                 break;
+            case "not_in_server":
+                toast.error("You must join our Discord server first! Join the server, then link again.");
+                setShowDiscord(true);
+                break;
             default:
                 toast.error("Failed to link Discord — please try again");
                 setShowDiscord(true); // Stay on Discord screen

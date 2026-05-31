@@ -184,6 +184,9 @@ export default function ProfilePage() {
             case "already_linked":
                 toast.error("This Discord account is already linked to another player");
                 break;
+            case "not_in_server":
+                toast.error("You must join our Discord server first! Join the server, then link again.");
+                break;
             case "error":
                 toast.error("Failed to link Discord — please try again");
                 break;
