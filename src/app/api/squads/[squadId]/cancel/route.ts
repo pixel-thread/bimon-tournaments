@@ -128,20 +128,6 @@ export async function POST(
             });
         }
 
-        // Revoke Discord @Ranked-Player role from captain
-        const rankedRoleId = process.env.DISCORD_RANKED_PLAYER_ROLE_ID;
-        if (rankedRoleId) {
-            try {
-                const captain = await prisma.player.findUnique({
-                    where: { id: user.player.id },
-                    select: { discordId: true },
-                });
-                if (captain?.discordId) {
-                    revokeRole(captain.discordId, rankedRoleId).catch(() => {});
-                }
-            } catch {}
-        }
-
         return SuccessResponse({
             message: isSameDay
                 ? `Squad "${squad.name}" cancelled. Same-day penalty: ${penalty} ${GAME.currency} deducted.`

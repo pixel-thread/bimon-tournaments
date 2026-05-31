@@ -420,17 +420,6 @@ export async function POST(request: NextRequest) {
 
         const isWaitlisted = activeSquadCount >= maxSquads; // squad was created as #(activeSquadCount+1)
 
-        // Auto-grant Discord @Ranked-Player role for returning captains
-        const rankedRoleId = process.env.DISCORD_RANKED_PLAYER_ROLE_ID;
-        if (rankedRoleId && poll.allowSquads) {
-            const captain = await prisma.player.findUnique({
-                where: { id: playerId },
-                select: { discordId: true },
-            });
-            if (captain?.discordId) {
-                grantRole(captain.discordId, rankedRoleId).catch(() => {});
-            }
-        }
         return SuccessResponse({
             data: {
                 id: squad.id,
