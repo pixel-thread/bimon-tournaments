@@ -380,6 +380,7 @@ export function StandingsModal({
     }, [tournamentTitle, backgroundImage, standings]);
 
     // ── Capture screenshot as data URL (shared helper) ────────
+    // Uses landscape two-col layout with boosted DPI for Discord clarity
 
     const captureScreenshot = useCallback(async (): Promise<string | null> => {
         const element = document.getElementById("standings-content");
@@ -412,6 +413,7 @@ export function StandingsModal({
             background-image: url(${backgroundImage});
             background-size: cover; background-position: center;
             position: relative; overflow: visible;
+            font-size: 115%;
         `;
 
         const tempContainer = document.createElement("div");
@@ -425,7 +427,7 @@ export function StandingsModal({
             const dataUrl = await toPng(clone, {
                 width: captureWidth,
                 height: captureHeight,
-                pixelRatio: 2,
+                pixelRatio: 3, // Higher pixel ratio for sharper text on Discord
             });
             return dataUrl;
         } catch (error) {
