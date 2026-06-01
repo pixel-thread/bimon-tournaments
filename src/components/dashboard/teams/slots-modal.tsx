@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { toPng } from "html-to-image";
+import { toPng, toJpeg } from "html-to-image";
 import { toast } from "sonner";
 import { X, Copy, Check, Send, Loader2 } from "lucide-react";
 import { GAME } from "@/lib/game-config";
@@ -115,8 +115,9 @@ export function SlotsModal({
         if (tableContainer) tableContainer.style.overflow = 'visible';
 
         try {
-            const dataUrl = await toPng(element, {
-                pixelRatio: 2,
+            const dataUrl = await toJpeg(element, {
+                pixelRatio: 3,
+                quality: 0.92,
                 filter: (node) => !node.classList?.contains("floating-controls"),
             });
             return dataUrl;
@@ -146,8 +147,8 @@ export function SlotsModal({
 
             const file = new File(
                 [blob],
-                `${(tournamentTitle || "teams").replace(/\s+/g, "-")}-teams.png`,
-                { type: "image/png" }
+                `${(tournamentTitle || "teams").replace(/\s+/g, "-")}-teams.jpg`,
+                { type: "image/jpeg" }
             );
 
             // Try share API first (mobile)
@@ -166,7 +167,7 @@ export function SlotsModal({
             if (navigator.clipboard && window.ClipboardItem) {
                 try {
                     await navigator.clipboard.write([
-                        new window.ClipboardItem({ "image/png": blob }),
+                        new window.ClipboardItem({ "image/jpeg": blob }),
                     ]);
                     setShareSuccess(true);
                     setTimeout(() => setShareSuccess(false), 2000);

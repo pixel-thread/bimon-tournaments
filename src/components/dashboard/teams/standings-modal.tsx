@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toPng } from "html-to-image";
+import { toPng, toJpeg } from "html-to-image";
 import { toast } from "sonner";
 import {
     X,
@@ -310,6 +310,7 @@ export function StandingsModal({
             background-image: url(${backgroundImage});
             background-size: cover; background-position: center;
             position: relative; overflow: visible;
+            font-size: 115%;
         `;
 
         // Create offscreen container
@@ -321,10 +322,11 @@ export function StandingsModal({
         await new Promise((resolve) => setTimeout(resolve, 300));
 
         try {
-            const dataUrl = await toPng(clone, {
+            const dataUrl = await toJpeg(clone, {
                 width: captureWidth,
                 height: captureHeight,
-                pixelRatio: 2,
+                pixelRatio: 3,
+                quality: 0.92,
             });
 
             // Convert data URL to blob
@@ -333,8 +335,8 @@ export function StandingsModal({
 
             const file = new File(
                 [blob],
-                `${(tournamentTitle || "standings").replace(/\s+/g, "-")}.png`,
-                { type: "image/png" }
+                `${(tournamentTitle || "standings").replace(/\s+/g, "-")}.jpg`,
+                { type: "image/jpeg" }
             );
 
             // Try share API first (mobile)
@@ -353,7 +355,7 @@ export function StandingsModal({
             if (navigator.clipboard && window.ClipboardItem) {
                 try {
                     await navigator.clipboard.write([
-                        new window.ClipboardItem({ "image/png": blob }),
+                        new window.ClipboardItem({ "image/jpeg": blob }),
                     ]);
                     setShareSuccess(true);
                     setTimeout(() => setShareSuccess(false), 2000);
@@ -424,10 +426,11 @@ export function StandingsModal({
         await new Promise((resolve) => setTimeout(resolve, 300));
 
         try {
-            const dataUrl = await toPng(clone, {
+            const dataUrl = await toJpeg(clone, {
                 width: captureWidth,
                 height: captureHeight,
-                pixelRatio: 2,
+                pixelRatio: 3,
+                quality: 0.92,
             });
             return dataUrl;
         } catch (error) {

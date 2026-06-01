@@ -34,9 +34,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "DISCORD_BOT_TOKEN not set" }, { status: 500 });
         }
 
-        // Convert base64 data URL to Buffer
+        // Convert base64 data URL to Buffer — detect format (jpeg or png)
+        const isJpeg = image.startsWith("data:image/jpeg");
         const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
         const imageBuffer = Buffer.from(base64Data, "base64");
+        const imageExt = isJpeg ? "jpg" : "png";
+        const imageMime = isJpeg ? "image/jpeg" : "image/png";
 
         // Phase label
         const phaseLabel = phase === "HEATS_A" ? "Heats · Group A"
@@ -114,7 +117,7 @@ export async function POST(req: NextRequest) {
 
         // Build multipart form data for Discord file upload
         const boundary = "----BimonBoundary" + Date.now();
-        const filename = `${tournamentName.replace(/\s+/g, "-")}-standings.png`;
+        const filename = `${tournamentName.replace(/\s+/g, "-")}-standings.${imageExt}`;
 
         const parts: Buffer[] = [];
 
@@ -131,7 +134,7 @@ export async function POST(req: NextRequest) {
         parts.push(Buffer.from(
             `--${boundary}\r\n` +
             `Content-Disposition: form-data; name="files[0]"; filename="${filename}"\r\n` +
-            `Content-Type: image/png\r\n\r\n`
+            `Content-Type: ${imageMime}\r\n\r\n`
         ));
         parts.push(imageBuffer);
         parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));

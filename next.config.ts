@@ -9,6 +9,11 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   turbopack: {},
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
   env: {
     NEXT_PUBLIC_BUILD_DATE: new Date().toLocaleDateString("en-IN", {
       day: "numeric",
