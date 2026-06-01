@@ -26,6 +26,7 @@ import {
     UserX,
     ClipboardList,
     Clapperboard,
+    KeyRound,
 } from "lucide-react";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useState, useEffect, useCallback } from "react";
@@ -56,6 +57,7 @@ const sidebarItems: SidebarSection[] = [
             { label: "Players", href: "/dashboard/players", icon: Users, superAdminOnly: true },
             { label: GAME.clanLabel + "s", href: "/dashboard/clan", icon: Shield },
             { label: "Polls", href: "/dashboard/polls", icon: Vote },
+            { label: "Room Info", href: "/dashboard/room-info", icon: KeyRound },
             { label: "Operations", href: "/dashboard/operations", icon: Settings },
         ],
     },

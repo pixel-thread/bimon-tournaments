@@ -213,6 +213,7 @@ interface RoomInfoPayload {
     roomId: string;
     password: string;
     gameName: string;
+    image?: string; // optional base64 data URL
 }
 
 /**
@@ -256,8 +257,8 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
         );
     }
 
-    // 2. Send the rich embed
-    const embed = {
+    // 2. Send the rich embed (with optional image attachment)
+    const embed: any = {
         title: `🏆 ${payload.tournamentName}`,
         description: `**Match ${payload.matchNumber}** — Room details below`,
         color: 0xf59e0b, // amber
@@ -274,13 +275,61 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
         timestamp: new Date().toISOString(),
     };
 
-    const res = await discordFetch(`/channels/${channelId}/messages`, {
-        method: "POST",
-        body: JSON.stringify({
-            embeds: [embed],
+    let res: Response;
+
+    if (payload.image) {
+        // Multipart upload: embed + image in one message
+        const base64Data = payload.image.replace(/^data:image\/\w+;base64,/, "");
+        const imageBuffer = Buffer.from(base64Data, "base64");
+        const filename = `match-${payload.matchNumber}.png`;
+
+        // Reference the attached file in the embed
+        embed.image = { url: `attachment://${filename}` };
+
+        const boundary = "----BimonRoomInfo" + Date.now();
+        const messagePayload = {
             content: "@everyone 🚨 Room info is here! Join now!",
-        }),
-    });
+            embeds: [embed],
+            attachments: [{ id: 0, filename }],
+        };
+
+        const parts: Buffer[] = [];
+        parts.push(Buffer.from(
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="payload_json"\r\n` +
+            `Content-Type: application/json\r\n\r\n` +
+            JSON.stringify(messagePayload) +
+            `\r\n`
+        ));
+        parts.push(Buffer.from(
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="files[0]"; filename="${filename}"\r\n` +
+            `Content-Type: image/png\r\n\r\n`
+        ));
+        parts.push(imageBuffer);
+        parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+
+        const token = process.env.DISCORD_BOT_TOKEN;
+        if (!token) throw new Error("DISCORD_BOT_TOKEN is not set");
+
+        res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bot ${token}`,
+                "Content-Type": `multipart/form-data; boundary=${boundary}`,
+            },
+            body: Buffer.concat(parts),
+        });
+    } else {
+        // Simple JSON message (no image)
+        res = await discordFetch(`/channels/${channelId}/messages`, {
+            method: "POST",
+            body: JSON.stringify({
+                embeds: [embed],
+                content: "@everyone 🚨 Room info is here! Join now!",
+            }),
+        });
+    }
 
     if (!res.ok) {
         const errorBody = await res.text().catch(() => "unknown");
@@ -343,7 +392,7 @@ export async function sendTournamentRules(tournamentId: string, tournamentName: 
 
     // Build embeds from saved rules (Discord allows max 10 embeds per message)
     const colors = [0xef4444, 0xf59e0b, 0x22c55e, 0x3b82f6, 0x8b5cf6, 0xec4899];
-    const embeds = rules.slice(0, 10).map((rule, idx) => {
+    const ruleEmbeds = rules.slice(0, 9).map((rule, idx) => {
         const embed: any = {
             description: rule.text,
             color: colors[idx % colors.length],
@@ -354,12 +403,19 @@ export async function sendTournamentRules(tournamentId: string, tournamentName: 
         return embed;
     });
 
-    // Send embeds (split into batches of 10 if needed)
+    // Add a link embed at the bottom
+    const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://bgmi.pixel-thread.in";
+    ruleEmbeds.push({
+        description: `📖 [**View full rules on the website →**](${siteUrl}/rules)`,
+        color: 0x5865f2, // Discord blurple
+    });
+
+    // Send embeds (max 10 per message)
     const res = await discordFetch(`/channels/${channelId}/messages`, {
         method: "POST",
         body: JSON.stringify({
             content: `@everyone 📜 **Tournament Rules — ${tournamentName}**`,
-            embeds,
+            embeds: ruleEmbeds,
         }),
     });
 

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { tournamentId, tournamentName, matchNumber, map, time, roomId, password, gameName } = body;
+        const { tournamentId, tournamentName, matchNumber, map, time, roomId, password, gameName, image } = body;
 
         if (!tournamentId || !tournamentName || !matchNumber || !map || !time || !password) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
             roomId: roomId || "",
             password,
             gameName: gameName || "BGMI",
+            image: image || undefined,
         });
 
         return NextResponse.json({ success: true, message: "Room info sent to Discord" });

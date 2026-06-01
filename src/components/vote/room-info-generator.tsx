@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardBody, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save, Camera, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
@@ -120,6 +120,8 @@ function TournamentRow({ tournament, state, onChange }: {
     const [discordSent, setDiscordSent] = useState(false);
     const [rulesSending, setRulesSending] = useState(false);
     const [rulesSent, setRulesSent] = useState(false);
+    const [attachedImage, setAttachedImage] = useState<string | null>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
 
     const startEditingTime = () => {
         setTimeInput(state.time ? formatTimeDisplay(state.time) : "");
@@ -169,13 +171,14 @@ function TournamentRow({ tournament, state, onChange }: {
                 roomId: state.roomId.trim(),
                 password: state.password,
                 gameName: GAME.gameName,
+                image: attachedImage || undefined,
             }),
         });
         if (!res.ok) {
             const json = await res.json().catch(() => ({ error: "Unknown error" }));
             throw new Error(json.error || `Discord send failed (${res.status})`);
         }
-    }, [tournament.id, tournamentName, state.map, state.time, state.roomId, state.password]);
+    }, [tournament.id, tournamentName, state.map, state.time, state.roomId, state.password, attachedImage]);
 
     /** One tap: copies to clipboard (WhatsApp) + auto-sends to Discord */
     const handleCopyAndSend = useCallback(async () => {
@@ -207,6 +210,7 @@ function TournamentRow({ tournament, state, onChange }: {
             setDiscordSending(true);
             sendDiscord(nextMatch).then(() => {
                 setDiscordSent(true);
+                setAttachedImage(null); // Clear image after successful send
                 setTimeout(() => setDiscordSent(false), 3000);
             }).catch(async (err) => {
                 const { toast } = await import("sonner");
@@ -429,7 +433,7 @@ interface SavedRule {
     imageUrl?: string;
 }
 
-function RulesEditor() {
+export function RulesEditor() {
     const [rules, setRules] = useState<SavedRule[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -596,10 +600,15 @@ function RulesEditor() {
     );
 }
 
-/* ─── Main Component ────────────────────────────────────────── */
+interface RoomInfoGeneratorProps {
+    /** Skip the collapsible card wrapper — render content directly */
+    alwaysExpanded?: boolean;
+    /** Hide the rules editor section (when rules are shown separately) */
+    hideRulesEditor?: boolean;
+}
 
-export function RoomInfoGenerator() {
-    const [isOpen, setIsOpen] = useState(false);
+export function RoomInfoGenerator({ alwaysExpanded = false, hideRulesEditor = false }: RoomInfoGeneratorProps = {}) {
+    const [isOpen, setIsOpen] = useState(alwaysExpanded);
     const [rulesEditorOpen, setRulesEditorOpen] = useState(false);
     // Default time = now + 10 minutes
     const getDefaultTime = () => {
@@ -674,8 +683,71 @@ export function RoomInfoGenerator() {
         });
     };
 
-    if (tournaments.length === 0) return null;
+    if (tournaments.length === 0) {
+        if (alwaysExpanded) {
+            return (
+                <div className="rounded-xl border border-divider bg-default-50 p-6 text-center">
+                    <KeyRound className="w-8 h-8 text-foreground/20 mx-auto mb-2" />
+                    <p className="text-sm text-foreground/40">No active tournaments</p>
+                    <p className="text-xs text-foreground/25 mt-1">Room info will appear here when a tournament is in play</p>
+                </div>
+            );
+        }
+        return null;
+    }
 
+    // Content shared between card and standalone modes
+    const content = (
+        <div className="space-y-4">
+            {tournaments.map((t, i) => (
+                <div key={t.id}>
+                    {i > 0 && <div className="border-t border-divider my-3" />}
+                    <TournamentRow
+                        tournament={t}
+                        state={getState(t.id)}
+                        onChange={(update) => updateState(t.id, update)}
+                    />
+                </div>
+            ))}
+
+            {/* Rules Section — only in card mode */}
+            {!hideRulesEditor && (
+                <div className="border-t border-divider pt-3">
+                    <button
+                        type="button"
+                        onClick={() => setRulesEditorOpen(!rulesEditorOpen)}
+                        className="w-full flex items-center justify-between text-xs text-foreground/50 hover:text-foreground/70 transition-colors cursor-pointer mb-2"
+                    >
+                        <span className="flex items-center gap-1.5 font-medium">
+                            <Pencil className="w-3 h-3" />
+                            Tournament Rules
+                        </span>
+                        {rulesEditorOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                    <AnimatePresence>
+                        {rulesEditorOpen && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="overflow-hidden"
+                            >
+                                <RulesEditor />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+        </div>
+    );
+
+    // Standalone mode — no card wrapper
+    if (alwaysExpanded) {
+        return content;
+    }
+
+    // Card mode — collapsible (used on vote page)
     return (
         <Card className="mb-4 border border-divider overflow-hidden">
             {/* Collapsible Header */}
@@ -715,45 +787,8 @@ export function RoomInfoGenerator() {
                         transition={{ duration: 0.2, ease: "easeInOut" }}
                         className="overflow-hidden"
                     >
-                        <CardBody className="px-4 pt-0 pb-4 space-y-4">
-                            {tournaments.map((t, i) => (
-                                <div key={t.id}>
-                                    {i > 0 && <div className="border-t border-divider my-3" />}
-                                    <TournamentRow
-                                        tournament={t}
-                                        state={getState(t.id)}
-                                        onChange={(update) => updateState(t.id, update)}
-                                    />
-                                </div>
-                            ))}
-
-                            {/* Rules Section */}
-                            <div className="border-t border-divider pt-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setRulesEditorOpen(!rulesEditorOpen)}
-                                    className="w-full flex items-center justify-between text-xs text-foreground/50 hover:text-foreground/70 transition-colors cursor-pointer mb-2"
-                                >
-                                    <span className="flex items-center gap-1.5 font-medium">
-                                        <Pencil className="w-3 h-3" />
-                                        Tournament Rules
-                                    </span>
-                                    {rulesEditorOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                                </button>
-                                <AnimatePresence>
-                                    {rulesEditorOpen && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: "auto", opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.15 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <RulesEditor />
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
+                        <CardBody className="px-4 pt-0 pb-4">
+                            {content}
                         </CardBody>
                     </motion.div>
                 )}
