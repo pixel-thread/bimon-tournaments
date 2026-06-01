@@ -18,6 +18,7 @@ interface AuthUser {
         category: string;
         isBanned: boolean;
         phoneNumber: string | null;
+        discordId: string | null;
         wallet: {
             id: string;
             balance: number;

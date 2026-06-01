@@ -81,13 +81,7 @@ export function TeamDoneSection({
     }, []);
 
     const handleDiscordAuth = () => {
-        const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
-        const redirectUri = encodeURIComponent(
-            `${window.location.origin}/api/discord/callback`
-        );
-        const state = encodeURIComponent(pollId);
-        const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20guilds.join&state=${state}`;
-        window.location.href = url;
+        window.location.href = `/api/discord/authorize?returnTo=&pollId=${encodeURIComponent(pollId)}`;
     };
 
     return (

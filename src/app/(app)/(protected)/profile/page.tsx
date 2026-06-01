@@ -1193,13 +1193,7 @@ export default function ProfilePage() {
                                                     className="text-xs shrink-0 bg-[#5865F2]/15 text-[#5865F2] hover:bg-[#5865F2]/25"
                                                     startContent={<Link2 className="h-3 w-3" />}
                                                     onPress={() => {
-                                                        const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
-                                                        const redirectUri = encodeURIComponent(
-                                                            `${window.location.origin}/api/discord/callback`
-                                                        );
-                                                        const state = encodeURIComponent(`|profile`);
-                                                        const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20guilds.join&state=${state}`;
-                                                        window.location.href = url;
+                                                        window.location.href = `/api/discord/authorize?returnTo=profile`;
                                                     }}
                                                 >
                                                     Link Discord

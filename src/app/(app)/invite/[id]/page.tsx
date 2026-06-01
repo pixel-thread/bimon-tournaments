@@ -272,13 +272,7 @@ export default function InvitePage() {
                         <button
                             type="button"
                             onClick={() => {
-                                const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
-                                const redirectUri = encodeURIComponent(
-                                    `${window.location.origin}/api/discord/callback`
-                                );
-                                const state = encodeURIComponent(`${data.pollId}|profile`);
-                                const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20guilds.join&state=${state}`;
-                                window.location.href = url;
+                                window.location.href = `/api/discord/authorize?returnTo=profile&pollId=${encodeURIComponent(data.pollId)}`;
                             }}
                             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 cursor-pointer active:scale-[0.98]"
                         >

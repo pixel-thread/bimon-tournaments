@@ -86,6 +86,7 @@ export const getCurrentUser = cache(async () => {
                 category: user.player.category,
                 isBanned: user.player.isBanned,
                 phoneNumber: user.player.phoneNumber ?? null,
+                discordId: user.player.discordId ?? null,
                 wallet: {
                     id: user.player.wallet?.id ?? "",
                     balance: await getBalance(email).catch(() => user.player?.wallet?.balance ?? 0),

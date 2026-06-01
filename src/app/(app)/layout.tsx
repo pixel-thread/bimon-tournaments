@@ -10,6 +10,7 @@ import { PhoneGuard } from "@/components/common/phone-guard";
 import { AdSenseScript } from "@/components/common/adsense-script";
 import { WhatsAppSquadGuard } from "@/components/common/whatsapp-squad-guard";
 import { WhatsAppMainGroupGuard } from "@/components/common/WhatsAppMainGroupGuard";
+import { DiscordGuard } from "@/components/common/discord-guard";
 
 
 /**
@@ -26,6 +27,7 @@ export default function AppLayout({
     return (
         <WhatsAppMainGroupGuard>
         <OnboardingGuard>
+            <DiscordGuard>
             <AuthGateProvider>
                 <div className="flex min-h-dvh flex-col">
                     <Header />
@@ -54,6 +56,7 @@ export default function AppLayout({
 
                 </div>
             </AuthGateProvider>
+            </DiscordGuard>
         </OnboardingGuard>
         </WhatsAppMainGroupGuard>
     );
