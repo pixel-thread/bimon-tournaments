@@ -14,7 +14,7 @@ import { Vote, AlertCircle } from "lucide-react";
 import { useAuthGate } from "@/components/common/auth-gate-provider";
 import { ModeTabs } from "@/components/common/ModeTabs";
 import { GAME } from "@/lib/game-config";
-
+import { RoomInfoGenerator } from "@/components/vote/room-info-generator";
 import { motion, AnimatePresence, LayoutGroup } from "motion/react";
 import { WhatsAppJoinModal } from "@/components/common/WhatsAppJoinModal";
 import { useQuery } from "@tanstack/react-query";
@@ -193,9 +193,8 @@ export default function VotePage() {
             {/* ── Merit Rating (non-blocking, above polls) ────── */}
             <MeritRatingSection />
 
-            {/* ── Room Info (admins + isucexcemot only) ── */}
-
-
+            {/* ── Room Info (UC exempt only — admins use /dashboard/room-info) ── */}
+            {isUCExempt && !isAdmin && <RoomInfoGenerator />}
 
             {/* ── Casual / Ranked Tabs (premium animated) ── */}
             {hasBothTypes && (
