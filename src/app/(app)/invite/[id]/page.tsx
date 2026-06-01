@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Spinner, Avatar } from "@heroui/react";
 import { Shield, Users, Clock, Check, X } from "lucide-react";
@@ -44,52 +44,28 @@ interface SquadPublicData {
 export default function InvitePage() {
     const { id: squadId } = useParams<{ id: string }>();
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { isSignedIn, isLoading: authLoading } = useAuthUser();
     const [joining, setJoining] = useState(false);
     const [joined, setJoined] = useState(false);
     const [conflictSquad, setConflictSquad] = useState<string | null>(null);
-    const [discordLinked, setDiscordLinked] = useState<boolean | null>(null); // null = loading
+    const [discordLinked, setDiscordLinked] = useState(() => {
+        if (typeof window !== "undefined") return sessionStorage.getItem("discord_linked") === "true";
+        return false;
+    });
 
     // Check Discord link status
     useEffect(() => {
         if (!isSignedIn) return;
         fetch("/api/discord/link", { method: "GET" })
             .then((res) => res.json())
-            .then((d) => setDiscordLinked(!!d.linked))
-            .catch(() => setDiscordLinked(false));
+            .then((d) => {
+                if (d.linked) {
+                    setDiscordLinked(true);
+                    sessionStorage.setItem("discord_linked", "true");
+                }
+            })
+            .catch(() => {});
     }, [isSignedIn]);
-
-    // Handle Discord callback result from URL params
-    useEffect(() => {
-        const discordParam = searchParams.get("discord");
-        if (!discordParam) return;
-        // Clean the URL
-        const url = new URL(window.location.href);
-        url.searchParams.delete("discord");
-        window.history.replaceState({}, "", url.toString());
-
-        switch (discordParam) {
-            case "linked":
-                setDiscordLinked(true);
-                sessionStorage.setItem("discord_linked", "true");
-                toast.success("Discord linked! Joining team...");
-                // Auto-accept after a brief delay
-                setTimeout(() => handleAccept(false), 500);
-                break;
-            case "not_in_server":
-                toast.error("You must join our Discord server first! Join the server, then link again.");
-                break;
-            case "already_linked":
-                toast.error("This Discord account is already linked to another player");
-                break;
-            case "denied":
-                toast.error("Discord authorization is required to join a team");
-                break;
-            default:
-                toast.error("Failed to link Discord — please try again");
-        }
-    }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Fetch squad info
     const { data, isLoading, error } = useQuery<SquadPublicData>({
@@ -262,20 +238,77 @@ export default function InvitePage() {
     // ── Success state ──
     if (joined) {
         return (
-            <div className="mx-auto max-w-lg px-4 py-20 text-center">
+            <div className="mx-auto max-w-lg px-4 py-20 text-center space-y-5">
                 <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                    className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4"
+                    className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto"
                 >
                     <Check className="w-10 h-10 text-success" />
                 </motion.div>
-                <h1 className="text-2xl font-bold mb-2">You&apos;re In! 🎉</h1>
-                <p className="text-foreground/50">
-                    Joined <strong>{data.squadName}</strong> • Redirecting...
-                </p>
-                <Spinner size="sm" className="mt-4" />
+                <div>
+                    <h1 className="text-2xl font-bold mb-1">You&apos;re In! 🎉</h1>
+                    <p className="text-foreground/50">
+                        Joined <strong>{data.squadName}</strong>
+                    </p>
+                </div>
+
+                {/* Skippable Discord prompt — only if not linked */}
+                {!discordLinked ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="space-y-3"
+                    >
+                        <div className="flex items-center gap-2 p-3 rounded-xl bg-[#5865F2]/10 border border-[#5865F2]/20">
+                            <svg className="w-5 h-5 text-[#5865F2] shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/></svg>
+                            <div className="flex-1 min-w-0 text-left">
+                                <p className="text-sm font-semibold text-[#5865F2]">Link Discord</p>
+                                <p className="text-[11px] text-foreground/40">Get room IDs & match updates directly</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
+                                const redirectUri = encodeURIComponent(
+                                    `${window.location.origin}/api/discord/callback`
+                                );
+                                const state = encodeURIComponent(`${data.pollId}|profile`);
+                                const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20guilds.join&state=${state}`;
+                                window.location.href = url;
+                            }}
+                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 cursor-pointer active:scale-[0.98]"
+                        >
+                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/></svg>
+                            Link Discord
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => router.push("/vote")}
+                            className="w-full text-center text-xs text-foreground/35 hover:text-foreground/50 transition-colors py-1 cursor-pointer"
+                        >
+                            Skip — I&apos;ll get the room ID from my leader
+                        </button>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                    >
+                        <Button
+                            color="primary"
+                            size="lg"
+                            className="w-full font-semibold"
+                            onPress={() => router.push("/vote")}
+                        >
+                            Go to Tournament
+                        </Button>
+                    </motion.div>
+                )}
             </div>
         );
     }
@@ -316,51 +349,27 @@ export default function InvitePage() {
                 )}
 
                 {/* Action buttons */}
-                {isSignedIn && discordLinked === false ? (
-                    <div className="space-y-3">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
-                                const redirectUri = encodeURIComponent(
-                                    `${window.location.origin}/api/discord/callback`
-                                );
-                                const state = encodeURIComponent(`${data.pollId}|invite_${squadId}`);
-                                const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify%20guilds.join&state=${state}`;
-                                window.location.href = url;
-                            }}
-                            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 cursor-pointer active:scale-[0.98]"
-                        >
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/></svg>
-                            Link Discord to Join
-                        </button>
-                        <p className="text-xs text-foreground/40 text-center">
-                            Discord is required to receive room IDs & match updates
-                        </p>
-                    </div>
-                ) : (
-                    <div className="flex gap-3">
-                        <Button
-                            color="success"
-                            size="lg"
-                            className="flex-1 font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/20"
-                            isLoading={joining}
-                            startContent={!joining ? <Check className="w-5 h-5" /> : undefined}
-                            onPress={() => handleAccept(!!conflictSquad)}
-                        >
-                            {!isSignedIn ? "Sign In & Join" : joining ? "Joining..." : "Accept & Join"}
-                        </Button>
-                        <Button
-                            variant="flat"
-                            size="lg"
-                            className="flex-1 font-medium"
-                            startContent={<X className="w-4 h-4" />}
-                            onPress={handleDecline}
-                        >
-                            Decline
-                        </Button>
-                    </div>
-                )}
+                <div className="flex gap-3">
+                    <Button
+                        color="success"
+                        size="lg"
+                        className="flex-1 font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/20"
+                        isLoading={joining}
+                        startContent={!joining ? <Check className="w-5 h-5" /> : undefined}
+                        onPress={() => handleAccept(!!conflictSquad)}
+                    >
+                        {!isSignedIn ? "Sign In & Join" : joining ? "Joining..." : "Accept & Join"}
+                    </Button>
+                    <Button
+                        variant="flat"
+                        size="lg"
+                        className="flex-1 font-medium"
+                        startContent={<X className="w-4 h-4" />}
+                        onPress={handleDecline}
+                    >
+                        Decline
+                    </Button>
+                </div>
             </motion.div>
         </div>
     );
