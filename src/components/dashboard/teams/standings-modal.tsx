@@ -427,7 +427,7 @@ export function StandingsModal({
             const dataUrl = await toPng(clone, {
                 width: captureWidth,
                 height: captureHeight,
-                pixelRatio: 3, // Higher pixel ratio for sharper text on Discord
+                pixelRatio: 2,
             });
             return dataUrl;
         } catch (error) {
