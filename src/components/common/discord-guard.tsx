@@ -27,9 +27,13 @@ export function DiscordGuard({ children }: { children: React.ReactNode }) {
         window.location.href = `/api/discord/authorize?returnTo=${returnTo}`;
     }, []);
 
+    // Only gate users who onboarded AFTER this guard was deployed
+    const GUARD_DEPLOYED_AT = 1780318164000; // 2026-06-01 ~6:15 PM IST
     const isNewUser = useMemo(() => {
         if (typeof window === "undefined") return false;
-        return !!localStorage.getItem("onboarded-at");
+        const onboardedAt = localStorage.getItem("onboarded-at");
+        if (!onboardedAt) return false;
+        return Number(onboardedAt) >= GUARD_DEPLOYED_AT;
     }, []);
 
     const discordInvite = process.env.NEXT_PUBLIC_DISCORD_INVITE_LINK || "";
@@ -43,6 +47,7 @@ export function DiscordGuard({ children }: { children: React.ReactNode }) {
 
     // Only gate new users (onboarded after this feature was added)
     if (!isNewUser) return <>{children}</>;
+
 
     return (
         <>
