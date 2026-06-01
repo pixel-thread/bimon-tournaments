@@ -192,6 +192,74 @@ async function handleTicketSubmit(interaction: any) {
             }),
         });
 
+        // Auto-lookup the player's Bimon profile and post it for admins
+        try {
+            const { prisma } = await import("@/lib/database");
+            const player = await prisma.player.findFirst({
+                where: { discordId: discordUserId },
+                select: {
+                    displayName: true,
+                    phoneNumber: true,
+                    uid: true,
+                    category: true,
+                    isBanned: true,
+                    discordUsername: true,
+                    user: { select: { username: true } },
+                    teams: {
+                        take: 3,
+                        orderBy: { createdAt: "desc" },
+                        select: {
+                            name: true,
+                            tournament: { select: { name: true } },
+                        },
+                    },
+                    wallet: { select: { balance: true } },
+                },
+            });
+
+            if (player) {
+                const profileFields = [
+                    { name: "🎮 IGN", value: player.displayName || "Not set", inline: true },
+                    { name: "👤 Username", value: player.user?.username || "—", inline: true },
+                    { name: "🏷️ Tier", value: player.category, inline: true },
+                    ...(player.phoneNumber ? [{ name: "📱 Phone", value: `||${player.phoneNumber}||`, inline: true }] : []),
+                    ...(player.uid ? [{ name: "🆔 UID", value: player.uid, inline: true }] : []),
+                    ...(player.wallet ? [{ name: "💰 Balance", value: `${player.wallet.balance} UC`, inline: true }] : []),
+                ];
+
+                if (player.teams.length > 0) {
+                    const teamList = player.teams
+                        .map(t => `• ${t.name}${t.tournament ? ` (${t.tournament.name})` : ""}`)
+                        .join("\n");
+                    profileFields.push({ name: "🏆 Recent Teams", value: teamList, inline: false });
+                }
+
+                await discordFetch(`/channels/${channelId}/messages`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        embeds: [{
+                            title: "🔍 Player Profile (Auto-Lookup)",
+                            description: player.isBanned ? "⚠️ **This player is currently BANNED**" : undefined,
+                            color: player.isBanned ? 0xed4245 : 0x5865f2,
+                            fields: profileFields,
+                            footer: { text: "Matched by Discord ID → Bimon database" },
+                        }],
+                    }),
+                });
+            } else {
+                // Player not found — they haven't linked their Discord
+                await discordFetch(`/channels/${channelId}/messages`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        content: "⚠️ *This Discord user is not linked to any Bimon player account.*",
+                    }),
+                });
+            }
+        } catch (profileError) {
+            console.error("Profile lookup in ticket failed (non-critical):", profileError);
+            // Don't fail the ticket — profile lookup is best-effort
+        }
+
         return interactionResponse(
             `✅ Ticket created! Go to <#${channelId}> to upload screenshots or screen recordings.`,
             true,

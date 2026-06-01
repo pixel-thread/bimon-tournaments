@@ -15,6 +15,7 @@ export function playerSearchFilter(q: string, options?: { includeEmail?: boolean
         { realName: { contains: q, mode: "insensitive" } },
         { phoneNumber: { contains: q, mode: "insensitive" } },
         { uid: { contains: q, mode: "insensitive" } },
+        { discordUsername: { contains: q, mode: "insensitive" } },
         { user: { username: { contains: q, mode: "insensitive" } } },
     ];
 

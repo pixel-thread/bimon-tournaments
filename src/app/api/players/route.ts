@@ -246,6 +246,7 @@ export async function GET(request: NextRequest) {
                 clan: playerClan,
                 level: p.level,
                 hasDiscord: !!p.discordId,
+                discordUsername: p.discordUsername || null,
             };
         });
 

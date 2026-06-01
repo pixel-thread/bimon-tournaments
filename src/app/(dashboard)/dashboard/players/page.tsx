@@ -36,6 +36,7 @@ interface PlayerDTO {
     balance: number;
     hasRoyalPass: boolean;
     hasDiscord: boolean;
+    discordUsername: string | null;
 }
 
 interface PlayersResponse {
@@ -207,8 +208,13 @@ export default function AdminPlayersPage() {
                                             )}
                                         </div>
                                         <p className="truncate text-xs text-foreground/40 sm:hidden">
-                                            {p.category} · {p.balance} <CurrencyIcon size={10} />{!p.hasDiscord && " · Not in server"}
+                                            {p.category} · {p.balance} <CurrencyIcon size={10} />{p.discordUsername && ` · ${p.discordUsername}`}{!p.hasDiscord && " · Not in server"}
                                         </p>
+                                        {p.discordUsername && (
+                                            <p className="hidden sm:block truncate text-[11px] text-[#5865F2]/60">
+                                                {p.discordUsername}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Tier */}

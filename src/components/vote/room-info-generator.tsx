@@ -82,7 +82,7 @@ interface InPlayTournament {
 }
 
 interface TournamentState {
-    time: string; // 24h "HH:MM" internal format
+    time: string; // Human-readable "H:MM AM/PM" format
     password: string;
     roomId: string;
     map: string;
@@ -98,6 +98,109 @@ interface PersistedTournamentState {
 
 const LS_KEY = "room-info-states";
 
+/* ─── Custom Time Input ─────────────────────────────────────── */
+
+/** Parse "9:30 PM" → { digits: "0930", ampm: "PM" } */
+function parseTimeString(time: string): { digits: string; ampm: "AM" | "PM" } {
+    const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+        const h = match[1].padStart(2, "0");
+        return { digits: h + match[2], ampm: match[3].toUpperCase() as "AM" | "PM" };
+    }
+    return { digits: "", ampm: "PM" };
+}
+
+/** Format raw digits "0930" → display "09:30" */
+function formatDigits(digits: string): string {
+    if (digits.length <= 2) return digits;
+    return digits.slice(0, 2) + ":" + digits.slice(2);
+}
+
+/** Build final time string from digits + ampm → "9:30 PM" */
+function buildTimeFromDigits(digits: string, ampm: "AM" | "PM"): string {
+    if (digits.length < 3) return "";
+    const h = parseInt(digits.slice(0, 2)) || 0;
+    const m = digits.slice(2).padEnd(2, "0");
+    return `${h}:${m} ${ampm}`;
+}
+
+function TimeInput({ value, onChange }: { value: string; onChange: (time: string) => void }) {
+    const parsed = parseTimeString(value);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [rawDigits, setRawDigits] = useState(parsed.digits);
+    const [ampm, setAmpm] = useState<"AM" | "PM">(parsed.ampm);
+
+    // Sync from parent when value changes externally
+    useEffect(() => {
+        const p = parseTimeString(value);
+        if (p.digits && p.digits !== rawDigits) setRawDigits(p.digits);
+        if (p.ampm !== ampm) setAmpm(p.ampm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value]);
+
+    const syncToParent = (digits: string, ap: "AM" | "PM") => {
+        if (digits.length >= 3) {
+            onChange(buildTimeFromDigits(digits, ap));
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let raw = e.target.value.replace(/[^\d]/g, "");
+        if (raw.length > 4) raw = raw.slice(0, 4);
+
+        // Clamp hours (max 12) and minutes (max 59)
+        if (raw.length >= 2) {
+            const h = parseInt(raw.slice(0, 2));
+            if (h > 12) raw = "12" + raw.slice(2);
+        }
+        if (raw.length >= 4) {
+            const m = parseInt(raw.slice(2, 4));
+            if (m > 59) raw = raw.slice(0, 2) + "59";
+        }
+
+        setRawDigits(raw);
+        syncToParent(raw, ampm);
+
+        // Keep cursor at the right position (account for auto-inserted colon)
+        setTimeout(() => {
+            if (inputRef.current) {
+                const pos = raw.length > 2 ? raw.length + 1 : raw.length;
+                inputRef.current.setSelectionRange(pos, pos);
+            }
+        }, 0);
+    };
+
+    const toggleAmPm = () => {
+        const next = ampm === "AM" ? "PM" : "AM";
+        setAmpm(next);
+        syncToParent(rawDigits.length >= 3 ? rawDigits : "1200", next);
+    };
+
+    return (
+        <div className="flex items-center gap-1.5">
+            <input
+                ref={inputRef}
+                type="text"
+                inputMode="numeric"
+                value={formatDigits(rawDigits)}
+                onChange={handleChange}
+                onFocus={(e) => e.target.select()}
+                placeholder="00:00"
+                maxLength={5}
+                className="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary font-mono tracking-wider placeholder:text-foreground/25"
+                autoComplete="off"
+            />
+            <button
+                type="button"
+                onClick={toggleAmPm}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer select-none transition-colors bg-default-100 border border-divider hover:bg-default-200 text-primary shrink-0"
+            >
+                {ampm}
+            </button>
+        </div>
+    );
+}
+
 /* ─── Per-Tournament Row ────────────────────────────────────── */
 
 function TournamentRow({ tournament, state, onChange }: {
@@ -112,30 +215,13 @@ function TournamentRow({ tournament, state, onChange }: {
     const tournamentName = tournament.name;
     const matchNumber = state.copyCount + 1;
 
-    // Time editing state
-    const [timeEditing, setTimeEditing] = useState(false);
-    const [timeInput, setTimeInput] = useState("");
-    const timeInputRef = useRef<HTMLInputElement>(null);
     const [discordSending, setDiscordSending] = useState(false);
     const [discordSent, setDiscordSent] = useState(false);
     const [rulesSending, setRulesSending] = useState(false);
     const [rulesSent, setRulesSent] = useState(false);
     const [attachedImage, setAttachedImage] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
-
-    const startEditingTime = () => {
-        setTimeInput(state.time ? formatTimeDisplay(state.time) : "");
-        setTimeEditing(true);
-        setTimeout(() => timeInputRef.current?.focus(), 50);
-    };
-
-    const commitTime = () => {
-        setTimeEditing(false);
-        const parsed = parse12hTo24h(timeInput.trim());
-        if (parsed) {
-            onChange({ time: parsed });
-        }
-    };
+    const [matchPickerOpen, setMatchPickerOpen] = useState(false);
 
     const generateMessage = useCallback((matchNum: number) => {
         const divider = "━━━━━━━━━━━━━━━";
@@ -144,7 +230,7 @@ function TournamentRow({ tournament, state, onChange }: {
             divider,
             `🎯 ${tournamentName}`,
             `🗺️ Map: ${state.map}`,
-            `🕐 Match ${matchNum} — ${formatTimeDisplay(state.time)}`,
+            `🕐 Match ${matchNum} — ${state.time.trim() || "TBD"}`,
             `🔐 Room ID: ${state.roomId.trim() || ""}`,
             `🔑 Password: ${state.password}`,
             divider,
@@ -155,7 +241,7 @@ function TournamentRow({ tournament, state, onChange }: {
     }, [state.roomId, state.time, state.password, state.map, typeEmoji, typeLabel, tournamentName]);
 
     const resetMatch = useCallback(() => {
-        onChange({ copyCount: 0, map: "Erangel" });
+        onChange({ copyCount: 0 });
     }, [onChange]);
 
     const sendDiscord = useCallback(async (matchNum: number) => {
@@ -167,7 +253,7 @@ function TournamentRow({ tournament, state, onChange }: {
                 tournamentName,
                 matchNumber: matchNum,
                 map: state.map,
-                time: formatTimeDisplay(state.time),
+                time: state.time.trim() || "TBD",
                 roomId: state.roomId.trim(),
                 password: state.password,
                 gameName: GAME.gameName,
@@ -182,9 +268,7 @@ function TournamentRow({ tournament, state, onChange }: {
 
     /** One tap: copies to clipboard (WhatsApp) + auto-sends to Discord */
     const handleCopyAndSend = useCallback(async () => {
-        const nextMatch = state.copyCount + 1;
-        const message = generateMessage(nextMatch);
-        const nextMap = getDefaultMapForMatch(nextMatch + 1);
+        const message = generateMessage(matchNumber);
 
         // 1. Copy to clipboard
         try {
@@ -198,7 +282,7 @@ function TournamentRow({ tournament, state, onChange }: {
             document.body.removeChild(textarea);
         }
 
-        onChange({ copyCount: nextMatch, justCopied: true, map: nextMap });
+        onChange({ justCopied: true });
 
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
@@ -208,16 +292,16 @@ function TournamentRow({ tournament, state, onChange }: {
         // 2. Auto-send to Discord (fire-and-forget)
         if (state.password) {
             setDiscordSending(true);
-            sendDiscord(nextMatch).then(() => {
+            sendDiscord(matchNumber).then(() => {
                 setDiscordSent(true);
-                setAttachedImage(null); // Clear image after successful send
+                setAttachedImage(null);
                 setTimeout(() => setDiscordSent(false), 3000);
             }).catch(async (err) => {
                 const { toast } = await import("sonner");
                 toast.error(`Discord: ${err.message || "Failed to send"}`);
             }).finally(() => setDiscordSending(false));
         }
-    }, [generateMessage, state.copyCount, state.password, onChange, sendDiscord]);
+    }, [generateMessage, matchNumber, state.password, onChange, sendDiscord]);
 
     const handleSendRules = useCallback(async () => {
         if (rulesSending) return;
@@ -303,28 +387,12 @@ function TournamentRow({ tournament, state, onChange }: {
                         </PopoverContent>
                     </Popover>
                 </div>
-                <div>
+                <div className="min-w-0">
                     <label className="text-[10px] text-foreground/40 uppercase tracking-wider mb-1 block">Time</label>
-                    {timeEditing ? (
-                        <input
-                            ref={timeInputRef}
-                            type="text"
-                            value={timeInput}
-                            onChange={(e) => setTimeInput(e.target.value)}
-                            onBlur={commitTime}
-                            onKeyDown={(e) => { if (e.key === "Enter") commitTime(); }}
-                            placeholder="8:00 PM"
-                            className="w-full px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={startEditingTime}
-                            className="w-full px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm text-left cursor-pointer hover:bg-default-200 transition-colors"
-                        >
-                            {state.time ? formatTimeDisplay(state.time) : <span className="text-foreground/30">8:00 PM</span>}
-                        </button>
-                    )}
+                    <TimeInput
+                        value={state.time}
+                        onChange={(time) => onChange({ time })}
+                    />
                 </div>
             </div>
 
@@ -353,7 +421,44 @@ function TournamentRow({ tournament, state, onChange }: {
                 </div>
             </div>
 
-            {/* Single button: Copy + Send to Discord */}
+            {/* Match Selector */}
+            <div>
+                <label className="text-[10px] text-foreground/40 uppercase tracking-wider mb-1 block">Match</label>
+                <Popover placement="bottom-start" isOpen={matchPickerOpen} onOpenChange={setMatchPickerOpen}>
+                    <PopoverTrigger>
+                        <button
+                            type="button"
+                            className="w-full px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm text-left cursor-pointer hover:bg-default-200 transition-colors flex items-center justify-between gap-1"
+                        >
+                            <span>Match {matchNumber}</span>
+                            <ChevronDown className="w-3 h-3 text-foreground/40 shrink-0" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-1 min-w-[160px]">
+                        <div className="flex flex-col max-h-[280px] overflow-y-auto">
+                            {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
+                                <button
+                                    key={num}
+                                    type="button"
+                                    onClick={() => {
+                                        onChange({ copyCount: num - 1 });
+                                        setMatchPickerOpen(false);
+                                    }}
+                                    className={`px-3 py-1.5 text-sm text-left rounded-lg cursor-pointer transition-colors ${
+                                        matchNumber === num
+                                            ? "bg-primary/15 text-primary font-medium"
+                                            : "hover:bg-default-100 text-foreground"
+                                    }`}
+                                >
+                                    Match {num}
+                                </button>
+                            ))}
+                        </div>
+                    </PopoverContent>
+                </Popover>
+            </div>
+
+            {/* Copy + Send to Discord */}
             <button
                 type="button"
                 onClick={handleCopyAndSend}
@@ -371,7 +476,7 @@ function TournamentRow({ tournament, state, onChange }: {
                 {state.justCopied ? (
                     <>
                         <Check className="w-4 h-4" />
-                        Copied Match {state.copyCount}!{discordSent && " + Sent to Discord"}
+                        Copied Match {matchNumber}!{discordSent && " + Sent to Discord"}
                     </>
                 ) : (
                     <>
@@ -380,13 +485,6 @@ function TournamentRow({ tournament, state, onChange }: {
                     </>
                 )}
             </button>
-
-            {/* Match counter indicator */}
-            {state.copyCount > 0 && (
-                <p className="text-[11px] text-center text-foreground/40">
-                    {state.copyCount} match{state.copyCount !== 1 ? "es" : ""} copied • Next: Match {state.copyCount + 1}
-                </p>
-            )}
 
             {/* Send Rules button */}
             <button
@@ -610,12 +708,7 @@ interface RoomInfoGeneratorProps {
 export function RoomInfoGenerator({ alwaysExpanded = false, hideRulesEditor = false }: RoomInfoGeneratorProps = {}) {
     const [isOpen, setIsOpen] = useState(alwaysExpanded);
     const [rulesEditorOpen, setRulesEditorOpen] = useState(false);
-    // Default time = now + 10 minutes
-    const getDefaultTime = () => {
-        const now = new Date();
-        now.setMinutes(now.getMinutes() + 10);
-        return `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-    };
+    const getDefaultTime = () => "8:00 PM";
 
     // Fetch in-play tournaments independently
     const { data: tournaments = [] } = useQuery<InPlayTournament[]>({
