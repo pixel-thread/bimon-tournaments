@@ -89,7 +89,6 @@ interface TournamentState {
     roomId: string;
     map: string;
     copyCount: number;
-    justCopied: boolean;
 }
 
 interface PersistedTournamentState {
@@ -296,42 +295,19 @@ function TournamentRow({ tournament, state, onChange, group }: {
         }
     }, [tournament.id, tournamentName, state.map, state.time, state.roomId, state.password, attachedImage, group]);
 
-    /** One tap: copies to clipboard (WhatsApp) + auto-sends to Discord */
-    const handleCopyAndSend = useCallback(async () => {
-        const message = generateMessage(matchNumber);
-
-        // 1. Copy to clipboard
-        try {
-            await navigator.clipboard.writeText(message);
-        } catch {
-            const textarea = document.createElement("textarea");
-            textarea.value = message;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textarea);
-        }
-
-        onChange({ justCopied: true });
-
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => {
-            onChange({ justCopied: false });
-        }, 2000);
-
-        // 2. Auto-send to Discord (fire-and-forget)
-        if (state.password) {
-            setDiscordSending(true);
-            sendDiscord(matchNumber).then(() => {
-                setDiscordSent(true);
-                setAttachedImage(null);
-                setTimeout(() => setDiscordSent(false), 3000);
-            }).catch(async (err) => {
-                const { toast } = await import("sonner");
-                toast.error(`Discord: ${err.message || "Failed to send"}`);
-            }).finally(() => setDiscordSending(false));
-        }
-    }, [generateMessage, matchNumber, state.password, onChange, sendDiscord]);
+    /** Send room info to Discord */
+    const handleSend = useCallback(async () => {
+        if (state.roomId.length !== 7) return;
+        setDiscordSending(true);
+        sendDiscord(matchNumber).then(() => {
+            setDiscordSent(true);
+            setAttachedImage(null);
+            setTimeout(() => setDiscordSent(false), 3000);
+        }).catch(async (err) => {
+            const { toast } = await import("sonner");
+            toast.error(`Discord: ${err.message || "Failed to send"}`);
+        }).finally(() => setDiscordSending(false));
+    }, [matchNumber, state.roomId, sendDiscord]);
 
     const handleSendRules = useCallback(async () => {
         if (rulesSending) return;
@@ -456,14 +432,30 @@ function TournamentRow({ tournament, state, onChange, group }: {
                     />
                 </div>
                 <div>
-                    <label className="text-[10px] text-foreground/40 uppercase tracking-wider mb-1 block">Room ID</label>
+                    <label className="text-[10px] text-foreground/40 uppercase tracking-wider mb-1 block">
+                        Room ID
+                        {state.roomId.length > 0 && state.roomId.length !== 7 && (
+                            <span className="text-danger ml-1">({state.roomId.length}/7)</span>
+                        )}
+                        {state.roomId.length === 7 && (
+                            <span className="text-emerald-500 ml-1">✓</span>
+                        )}
+                    </label>
                     <input
                         type="text"
+                        inputMode="numeric"
                         value={state.roomId}
-                        onChange={(e) => onChange({ roomId: e.target.value })}
-                        placeholder="optional"
-                        maxLength={10}
-                        className="w-full px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                        onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, "");
+                            if (val.length <= 7) onChange({ roomId: val });
+                        }}
+                        placeholder="7 digits"
+                        maxLength={7}
+                        className={`w-full px-2 py-1.5 rounded-lg bg-default-100 border text-sm focus:outline-none focus:ring-1 focus:ring-primary font-mono tracking-wider ${
+                            state.roomId.length > 0 && state.roomId.length !== 7
+                                ? "border-danger/50"
+                                : "border-divider"
+                        }`}
                     />
                 </div>
             </div>
@@ -505,30 +497,38 @@ function TournamentRow({ tournament, state, onChange, group }: {
                 </Popover>
             </div>
 
-            {/* Copy + Send to Discord */}
+            {/* Send to Discord */}
             <button
                 type="button"
-                onClick={handleCopyAndSend}
+                onClick={handleSend}
+                disabled={state.roomId.length !== 7 || discordSending}
                 className={`
                     w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold
-                    transition-all duration-200 cursor-pointer active:scale-[0.98]
-                    ${state.justCopied
-                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                        : isRanked
-                            ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30"
-                            : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30"
+                    transition-all duration-200 active:scale-[0.98]
+                    ${state.roomId.length !== 7 || discordSending
+                        ? "bg-default-200 text-foreground/30 cursor-not-allowed"
+                        : discordSent
+                            ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 cursor-pointer"
+                            : isRanked
+                                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 cursor-pointer"
+                                : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 cursor-pointer"
                     }
                 `}
             >
-                {state.justCopied ? (
+                {discordSending ? (
+                    <>
+                        <Send className="w-4 h-4 animate-pulse" />
+                        Sending...
+                    </>
+                ) : discordSent ? (
                     <>
                         <Check className="w-4 h-4" />
-                        Copied Match {matchNumber}!{discordSent && " + Sent to Discord"}
+                        Sent!
                     </>
                 ) : (
                     <>
-                        <Copy className="w-4 h-4" />
-                        {`Copy & Send Match ${matchNumber}`}
+                        <Send className="w-4 h-4" />
+                        Send Match {matchNumber}
                     </>
                 )}
             </button>
@@ -783,7 +783,6 @@ export function RoomInfoGenerator({ alwaysExpanded = false, hideRulesEditor = fa
                         roomId: "",
                         map: getDefaultMapForMatch((data.copyCount ?? 0) + 1),
                         copyCount: data.copyCount ?? 0,
-                        justCopied: false,
                     };
                 }
             }
@@ -809,7 +808,7 @@ export function RoomInfoGenerator({ alwaysExpanded = false, hideRulesEditor = fa
     }, [states]);
 
     const getDefaultState = (): TournamentState => ({
-        time: getDefaultTime(), password: "m", roomId: "", map: "Erangel", copyCount: 0, justCopied: false,
+        time: getDefaultTime(), password: "m", roomId: "", map: "Erangel", copyCount: 0,
     });
 
     const getState = (id: string): TournamentState => {
