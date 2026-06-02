@@ -95,7 +95,8 @@ export async function findMemberByUsername(username: string): Promise<{
 
 /**
  * Grant channel access to multiple Discord users with rate-limit-safe
- * sequential processing (200ms delay between calls).
+ * batched processing (3 parallel per batch, 400ms between batches).
+ * Handles up to 100+ players (e.g. 17 squads × 6 = 102).
  */
 export async function batchGrantChannelAccess(
     channelId: string,
@@ -103,19 +104,23 @@ export async function batchGrantChannelAccess(
 ): Promise<{ granted: number; failed: number }> {
     let granted = 0;
     let failed = 0;
-    for (const userId of discordUserIds) {
-        try {
-            await grantChannelAccess(channelId, userId);
-            granted++;
-        } catch (err) {
-            failed++;
-            console.error(`grantChannelAccess failed for ${userId}:`, err);
+    const BATCH_SIZE = 3; // Discord allows ~10 req/10s per channel endpoint
+
+    for (let i = 0; i < discordUserIds.length; i += BATCH_SIZE) {
+        const batch = discordUserIds.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+            batch.map(userId => grantChannelAccess(channelId, userId))
+        );
+        for (const r of results) {
+            if (r.status === "fulfilled") granted++;
+            else { failed++; console.error("grantChannelAccess failed:", r.reason); }
         }
-        // Small delay to avoid Discord rate limits (~3 req/sec per channel)
-        if (discordUserIds.length > 5) {
-            await new Promise(r => setTimeout(r, 350));
+        // Delay between batches to stay under rate limit
+        if (i + BATCH_SIZE < discordUserIds.length) {
+            await new Promise(r => setTimeout(r, 400));
         }
     }
+
     if (failed > 0) {
         console.warn(`batchGrantChannelAccess: ${granted} granted, ${failed} failed out of ${discordUserIds.length}`);
     }

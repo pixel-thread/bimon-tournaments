@@ -49,19 +49,6 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        // Auto-create Discord channel for this tournament (fire-and-forget)
-        try {
-            const { createTournamentChannel } = await import("@/lib/discord-service");
-            const channelId = await createTournamentChannel(cleanName);
-            await prisma.tournament.update({
-                where: { id: tournament.id },
-                data: { discordChannelId: channelId },
-            });
-            (tournament as any).discordChannelId = channelId;
-        } catch (discordErr) {
-            console.error("Discord channel creation skipped:", discordErr);
-        }
-
         return NextResponse.json({ success: true, data: tournament });
     } catch (error) {
         console.error("Error creating tournament:", error);
