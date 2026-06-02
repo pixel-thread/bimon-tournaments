@@ -227,6 +227,31 @@ function TournamentRow({ tournament, state, onChange, group }: {
     const imageInputRef = useRef<HTMLInputElement>(null);
     const [matchPickerOpen, setMatchPickerOpen] = useState(false);
 
+    // Discord sync indicator
+    const [syncInfo, setSyncInfo] = useState<{ total: number; linked: number; syncing: boolean } | null>(null);
+
+    const syncDiscordAccess = useCallback(async () => {
+        setSyncInfo(prev => prev ? { ...prev, syncing: true } : { total: 0, linked: 0, syncing: true });
+        try {
+            const res = await fetch("/api/discord/sync-channel-access", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tournamentId: tournament.id, group: group || undefined }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setSyncInfo({ total: data.totalPlayers, linked: data.linkedPlayers, syncing: false });
+            } else {
+                setSyncInfo(prev => prev ? { ...prev, syncing: false } : null);
+            }
+        } catch {
+            setSyncInfo(prev => prev ? { ...prev, syncing: false } : null);
+        }
+    }, [tournament.id, group]);
+
+    // Auto-sync on mount
+    useEffect(() => { syncDiscordAccess(); }, [syncDiscordAccess]);
+
     const generateMessage = useCallback((matchNum: number) => {
         const divider = "━━━━━━━━━━━━━━━";
         const lines = [
@@ -341,10 +366,27 @@ function TournamentRow({ tournament, state, onChange, group }: {
                 <span className="text-lg">{typeEmoji}</span>
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate">{tournamentName}</p>
-                    <p className={`text-[11px] font-medium ${isRanked ? "text-amber-500" : "text-emerald-500"}`}>
+                    <p className={`text-[11px] font-medium ${isChamp ? "text-blue-400" : isRanked ? "text-amber-500" : "text-emerald-500"}`}>
                         {typeLabel}
                     </p>
                 </div>
+                {/* Discord sync indicator */}
+                {syncInfo && (
+                    <button
+                        type="button"
+                        onClick={syncDiscordAccess}
+                        disabled={syncInfo.syncing}
+                        className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-default-100 border border-divider hover:bg-default-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                        title={`${syncInfo.linked}/${syncInfo.total} players have Discord linked. Click to re-sync.`}
+                    >
+                        {syncInfo.syncing ? (
+                            <span className="animate-pulse">⟳</span>
+                        ) : (
+                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${syncInfo.linked === syncInfo.total ? "bg-green-500" : "bg-yellow-500"}`} />
+                        )}
+                        {syncInfo.linked}/{syncInfo.total}
+                    </button>
+                )}
                 {state.copyCount > 0 && (
                     <button
                         type="button"

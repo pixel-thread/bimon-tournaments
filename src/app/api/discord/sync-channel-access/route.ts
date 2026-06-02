@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/database";
-import { grantChannelAccess } from "@/lib/discord-service";
+import { batchGrantChannelAccess } from "@/lib/discord-service";
 
 /**
  * POST /api/discord/sync-channel-access
@@ -44,51 +44,43 @@ export async function POST(req: NextRequest) {
         }
 
         if (!channelId) {
-            return NextResponse.json({ error: "No Discord channel found for this tournament" }, { status: 404 });
+            return NextResponse.json({ error: "No Discord channel found" }, { status: 404 });
         }
 
-        // Find all players with discordId in this tournament
+        // Count total players in tournament (or group)
+        const teamFilter: any = { tournamentId };
+        if (group) {
+            teamFilter.championshipEntry = { group };
+        }
+
+        const totalPlayers = await prisma.player.count({
+            where: { teams: { some: teamFilter } },
+        });
+
+        // Find players with discordId
         const playerFilter: any = {
-            teams: { some: { tournamentId } },
+            teams: { some: teamFilter },
             discordId: { not: null },
         };
-        if (group) {
-            playerFilter.teams = {
-                some: {
-                    tournamentId,
-                    championshipEntry: { group },
-                },
-            };
-        }
 
         const players = await prisma.player.findMany({
             where: playerFilter,
-            select: { id: true, discordId: true, displayName: true },
+            select: { discordId: true },
         });
+        const discordIds = players.map(p => p.discordId).filter((id): id is string => !!id);
 
-        // Grant access with rate-limit-safe batching (5 per second)
-        let granted = 0;
-        let failed = 0;
-        for (const player of players) {
-            if (!player.discordId) continue;
-            try {
-                await grantChannelAccess(channelId, player.discordId);
-                granted++;
-                // Small delay to avoid Discord rate limits
-                await new Promise(r => setTimeout(r, 200));
-            } catch (err) {
-                failed++;
-                console.error(`Failed to grant access to ${player.displayName}:`, err);
-            }
-        }
+        // Grant access with rate-limited batching
+        const { granted, failed } = discordIds.length > 0
+            ? await batchGrantChannelAccess(channelId, discordIds)
+            : { granted: 0, failed: 0 };
 
         return NextResponse.json({
             success: true,
-            message: `Synced ${granted} players to channel (${failed} failed)`,
-            total: players.length,
+            totalPlayers,
+            linkedPlayers: discordIds.length,
+            unlinkedPlayers: totalPlayers - discordIds.length,
             granted,
             failed,
-            playersWithDiscord: players.map(p => p.displayName),
         });
     } catch (error) {
         console.error("sync-channel-access error:", error);
