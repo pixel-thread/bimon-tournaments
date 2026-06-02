@@ -91,6 +91,37 @@ export async function findMemberByUsername(username: string): Promise<{
     }
 }
 
+// ─── Rate-limited batch access granting ─────────────────────
+
+/**
+ * Grant channel access to multiple Discord users with rate-limit-safe
+ * sequential processing (200ms delay between calls).
+ */
+export async function batchGrantChannelAccess(
+    channelId: string,
+    discordUserIds: string[],
+): Promise<{ granted: number; failed: number }> {
+    let granted = 0;
+    let failed = 0;
+    for (const userId of discordUserIds) {
+        try {
+            await grantChannelAccess(channelId, userId);
+            granted++;
+        } catch (err) {
+            failed++;
+            console.error(`grantChannelAccess failed for ${userId}:`, err);
+        }
+        // Small delay to avoid Discord rate limits (~3 req/sec per channel)
+        if (discordUserIds.length > 5) {
+            await new Promise(r => setTimeout(r, 350));
+        }
+    }
+    if (failed > 0) {
+        console.warn(`batchGrantChannelAccess: ${granted} granted, ${failed} failed out of ${discordUserIds.length}`);
+    }
+    return { granted, failed };
+}
+
 // ─── Per-Tournament Channel Management ─────────────────────
 
 /**
@@ -289,11 +320,8 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
             where: playerFilter,
             select: { discordId: true },
         });
-        await Promise.allSettled(
-            teamPlayers
-                .filter(p => p.discordId)
-                .map(p => grantChannelAccess(channelId!, p.discordId!))
-        );
+        const discordIds = teamPlayers.map(p => p.discordId).filter((id): id is string => !!id);
+        await batchGrantChannelAccess(channelId!, discordIds);
     }
 
     // 2. Send the rich embed (with optional image attachment)

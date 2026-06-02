@@ -7,6 +7,7 @@ import {
     createTournamentChannel,
     deleteTournamentChannel,
     grantChannelAccess,
+    batchGrantChannelAccess,
 } from "@/lib/discord-service";
 
 /**
@@ -129,11 +130,8 @@ export async function POST(
                 select: { discordId: true },
             });
 
-            await Promise.allSettled(
-                qualifyingPlayers
-                    .filter(p => p.discordId)
-                    .map(p => grantChannelAccess(newChannelId, p.discordId!))
-            );
+            const discordIds = qualifyingPlayers.map(p => p.discordId).filter((id): id is string => !!id);
+            await batchGrantChannelAccess(newChannelId, discordIds);
 
             // Update tournament: set new main channel, clear group channels
             await prisma.tournament.update({

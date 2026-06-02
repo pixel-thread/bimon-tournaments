@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/database";
-import { createTournamentChannel, grantChannelAccess } from "@/lib/discord-service";
+import { createTournamentChannel, grantChannelAccess, batchGrantChannelAccess } from "@/lib/discord-service";
 
 /**
  * POST /api/discord/send-slot-image
@@ -86,11 +86,8 @@ export async function POST(req: NextRequest) {
                 where: playerFilter,
                 select: { discordId: true },
             });
-            await Promise.allSettled(
-                teamPlayers
-                    .filter(p => p.discordId)
-                    .map(p => grantChannelAccess(channelId!, p.discordId!))
-            );
+            const discordIds = teamPlayers.map(p => p.discordId).filter((id): id is string => !!id);
+            await batchGrantChannelAccess(channelId!, discordIds);
         }
 
         // 2. Convert base64 data URL to Buffer — detect format (jpeg or png)
