@@ -821,37 +821,86 @@ export async function createTeamsByPoll({
         console.log(`[createTeamsByPoll] Championship setup: Group A (${groupA.length}), Group B (${groupB.length})`);
     }
 
-    // ── Post-transaction: create Discord channel + grant per-user access ──
-    // Channel is created AFTER teams are finalized so only confirmed participants see it.
-    // If a channel already exists (e.g. from prior send), reuse it.
+    // ── Post-transaction: create Discord channel(s) + grant per-user access ──
+    // Championship: per-group channels (only group members see their channel)
+    // Regular: one shared channel for all participants
     try {
         const existingTournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
-            select: { discordChannelId: true },
+            select: { discordChannelId: true, discordGroupChannels: true },
         });
 
-        const participantDiscordIds = await prisma.player.findMany({
-            where: { id: { in: [...allTeamPlayerIds] }, discordId: { not: null } },
-            select: { discordId: true },
-        });
-        const discordIds = participantDiscordIds
-            .map(p => p.discordId)
-            .filter((id): id is string => !!id);
+        if (shouldChampionship) {
+            // Championship: create per-group channels
+            const groups: Record<string, string[]> = {}; // group -> teamIds
 
-        if (discordIds.length > 0) {
-            let channelId = existingTournament?.discordChannelId;
-
-            if (!channelId) {
-                channelId = await createTournamentChannel(tournamentName);
-                await prisma.tournament.update({
-                    where: { id: tournamentId },
-                    data: { discordChannelId: channelId },
-                });
+            const entries = await prisma.championshipEntry.findMany({
+                where: { tournamentId },
+                select: { group: true, teamId: true },
+            });
+            for (const e of entries) {
+                if (!e.group) continue;
+                if (!groups[e.group]) groups[e.group] = [];
+                groups[e.group].push(e.teamId);
             }
 
-            // Rate-limited sequential grant
-            await batchGrantChannelAccess(channelId, discordIds);
-            console.log(`[createTeamsByPoll] Discord channel (${channelId}) — ${discordIds.length} users granted access`);
+            const existingGroupChannels = (existingTournament?.discordGroupChannels as Record<string, string>) || {};
+            const groupChannels: Record<string, string> = { ...existingGroupChannels };
+
+            for (const [group, teamIds] of Object.entries(groups)) {
+                // Get players with Discord in this group
+                const groupPlayers = await prisma.player.findMany({
+                    where: {
+                        teams: { some: { id: { in: teamIds } } },
+                        discordId: { not: null },
+                    },
+                    select: { discordId: true },
+                });
+                const discordIds = groupPlayers.map(p => p.discordId).filter((id): id is string => !!id);
+
+                if (discordIds.length === 0) continue;
+
+                // Create or reuse group channel
+                let channelId = existingGroupChannels[group];
+                if (!channelId) {
+                    const suffix = `group-${group.toLowerCase()}`;
+                    channelId = await createTournamentChannel(tournamentName, suffix);
+                }
+                groupChannels[group] = channelId;
+
+                await batchGrantChannelAccess(channelId, discordIds);
+                console.log(`[createTeamsByPoll] Discord Group ${group} channel (${channelId}) — ${discordIds.length} users`);
+            }
+
+            // Store group channels in tournament
+            await prisma.tournament.update({
+                where: { id: tournamentId },
+                data: { discordGroupChannels: groupChannels },
+            });
+        } else {
+            // Regular: single channel for all players
+            const participantDiscordIds = await prisma.player.findMany({
+                where: { id: { in: [...allTeamPlayerIds] }, discordId: { not: null } },
+                select: { discordId: true },
+            });
+            const discordIds = participantDiscordIds
+                .map(p => p.discordId)
+                .filter((id): id is string => !!id);
+
+            if (discordIds.length > 0) {
+                let channelId = existingTournament?.discordChannelId;
+
+                if (!channelId) {
+                    channelId = await createTournamentChannel(tournamentName);
+                    await prisma.tournament.update({
+                        where: { id: tournamentId },
+                        data: { discordChannelId: channelId },
+                    });
+                }
+
+                await batchGrantChannelAccess(channelId, discordIds);
+                console.log(`[createTeamsByPoll] Discord channel (${channelId}) — ${discordIds.length} users granted access`);
+            }
         }
     } catch (err) {
         console.error("[createTeamsByPoll] Discord channel creation failed (non-blocking):", err);
