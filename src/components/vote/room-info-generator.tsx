@@ -228,10 +228,10 @@ function TournamentRow({ tournament, state, onChange, group }: {
     const [matchPickerOpen, setMatchPickerOpen] = useState(false);
 
     // Discord sync indicator
-    const [syncInfo, setSyncInfo] = useState<{ total: number; linked: number; syncing: boolean } | null>(null);
+    const [syncInfo, setSyncInfo] = useState<{ granted: number; linked: number; syncing: boolean } | null>(null);
 
     const syncDiscordAccess = useCallback(async () => {
-        setSyncInfo(prev => prev ? { ...prev, syncing: true } : { total: 0, linked: 0, syncing: true });
+        setSyncInfo(prev => prev ? { ...prev, syncing: true } : { granted: 0, linked: 0, syncing: true });
         try {
             const res = await fetch("/api/discord/sync-channel-access", {
                 method: "POST",
@@ -240,7 +240,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
             });
             if (res.ok) {
                 const data = await res.json();
-                setSyncInfo({ total: data.totalPlayers, linked: data.linkedPlayers, syncing: false });
+                setSyncInfo({ granted: data.granted, linked: data.linkedPlayers, syncing: false });
             } else {
                 setSyncInfo(prev => prev ? { ...prev, syncing: false } : null);
             }
@@ -377,16 +377,14 @@ function TournamentRow({ tournament, state, onChange, group }: {
                         onClick={syncDiscordAccess}
                         disabled={syncInfo.syncing}
                         className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-default-100 border border-divider hover:bg-default-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
-                        title={`${syncInfo.linked} of ${syncInfo.total} players have Discord linked. Click to re-sync.`}
+                        title={`${syncInfo.granted} synced out of ${syncInfo.linked} Discord-linked players. Click to re-sync.`}
                     >
                         {syncInfo.syncing ? (
                             <span className="animate-pulse">⟳</span>
                         ) : (
-                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${syncInfo.linked === syncInfo.total ? "bg-green-500" : "bg-yellow-500"}`} />
+                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${syncInfo.granted >= syncInfo.linked ? "bg-green-500" : "bg-yellow-500"}`} />
                         )}
-                        <span>{syncInfo.linked}</span>
-                        <span className="text-foreground/30">/</span>
-                        <span>{syncInfo.total} 🔗</span>
+                        {syncInfo.granted}/{syncInfo.linked}
                     </button>
                 )}
                 {state.copyCount > 0 && (
