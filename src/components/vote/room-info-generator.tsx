@@ -79,6 +79,8 @@ interface InPlayTournament {
     pollId: string | null;
     allowSquads: boolean;
     question: string;
+    isChampionship: boolean;
+    groups: string[]; // ["A", "B", "C", ...] or []
 }
 
 interface TournamentState {
@@ -203,15 +205,17 @@ function TimeInput({ value, onChange }: { value: string; onChange: (time: string
 
 /* ─── Per-Tournament Row ────────────────────────────────────── */
 
-function TournamentRow({ tournament, state, onChange }: {
+function TournamentRow({ tournament, state, onChange, group }: {
     tournament: InPlayTournament;
     state: TournamentState;
     onChange: (update: Partial<TournamentState>) => void;
+    group?: string; // "A", "B", etc. — for championship group routing
 }) {
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const isRanked = tournament.allowSquads;
-    const typeEmoji = isRanked ? "🏆" : "🎮";
-    const typeLabel = isRanked ? "RANKED" : "CASUAL";
+    const isChamp = tournament.isChampionship && !!group;
+    const typeEmoji = isChamp ? "🏅" : isRanked ? "🏆" : "🎮";
+    const typeLabel = isChamp ? `GROUP ${group}` : isRanked ? "RANKED" : "CASUAL";
     const tournamentName = tournament.name;
     const matchNumber = state.copyCount + 1;
 
@@ -258,13 +262,14 @@ function TournamentRow({ tournament, state, onChange }: {
                 password: state.password,
                 gameName: GAME.gameName,
                 image: attachedImage || undefined,
+                group: group || undefined,
             }),
         });
         if (!res.ok) {
             const json = await res.json().catch(() => ({ error: "Unknown error" }));
             throw new Error(json.error || `Discord send failed (${res.status})`);
         }
-    }, [tournament.id, tournamentName, state.map, state.time, state.roomId, state.password, attachedImage]);
+    }, [tournament.id, tournamentName, state.map, state.time, state.roomId, state.password, attachedImage, group]);
 
     /** One tap: copies to clipboard (WhatsApp) + auto-sends to Discord */
     const handleCopyAndSend = useCallback(async () => {
@@ -792,16 +797,37 @@ export function RoomInfoGenerator({ alwaysExpanded = false, hideRulesEditor = fa
     // Content shared between card and standalone modes
     const content = (
         <div className="space-y-4">
-            {tournaments.map((t, i) => (
-                <div key={t.id}>
-                    {i > 0 && <div className="border-t border-divider my-3" />}
-                    <TournamentRow
-                        tournament={t}
-                        state={getState(t.id)}
-                        onChange={(update) => updateState(t.id, update)}
-                    />
-                </div>
-            ))}
+            {tournaments.map((t, i) => {
+                // Championship with groups: render one row per group
+                if (t.isChampionship && t.groups.length > 0) {
+                    return t.groups.map((group, gi) => {
+                        const stateKey = `${t.id}__group_${group}`;
+                        return (
+                            <div key={stateKey}>
+                                {(i > 0 || gi > 0) && <div className="border-t border-divider my-3" />}
+                                <TournamentRow
+                                    tournament={t}
+                                    state={getState(stateKey)}
+                                    onChange={(update) => updateState(stateKey, update)}
+                                    group={group}
+                                />
+                            </div>
+                        );
+                    });
+                }
+
+                // Regular tournament: single row
+                return (
+                    <div key={t.id}>
+                        {i > 0 && <div className="border-t border-divider my-3" />}
+                        <TournamentRow
+                            tournament={t}
+                            state={getState(t.id)}
+                            onChange={(update) => updateState(t.id, update)}
+                        />
+                    </div>
+                );
+            })}
 
             {/* Rules Section — only in card mode */}
             {!hideRulesEditor && (

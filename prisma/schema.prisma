@@ -578,7 +578,8 @@ model Tournament {
   isTDM            Boolean          @default(false) // Team Deathmatch: bracket uses teams instead of players
   isWoW            Boolean          @default(false) // World of Wonder: creative/custom map tournaments
   isMangoScrim      Boolean          @default(false) // Mango Scrim: uses mango-themed visuals for standings & slots
-  discordChannelId String?          // Auto-created Discord channel for room info (deleted on winner declaration)
+  discordChannelId       String?          // Auto-created Discord channel for room info (deleted on winner declaration)
+  discordGroupChannels   Json?            // Championship: per-group channel IDs — { "A": "id", "B": "id", "C": "id", ... }
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

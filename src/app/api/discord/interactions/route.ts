@@ -360,13 +360,16 @@ async function handleNextMatch(interaction: any) {
                 name: true,
                 teamNumber: true,
                 disqualified: true,
+                championshipEntry: {
+                    select: { group: true, phase: true, status: true },
+                },
                 tournament: {
                     select: {
                         id: true,
                         name: true,
                         isTDM: true,
                         isWoW: true,
-                        poll: { select: { allowSquads: true } },
+                        poll: { select: { allowSquads: true, isChampionship: true } },
                         matches: {
                             select: { matchNumber: true },
                             orderBy: { matchNumber: "desc" },
@@ -393,22 +396,31 @@ async function handleNextMatch(interaction: any) {
         const fields = teams.map((team) => {
             const t = team.tournament!;
             const isRanked = t.poll?.allowSquads;
-            const type = t.isTDM ? "TDM" : t.isWoW ? "WoW" : isRanked ? "🏆 Ranked" : "🎮 Casual";
+            const isChamp = t.poll?.isChampionship;
+            const ce = team.championshipEntry;
+            const type = t.isTDM ? "TDM" : t.isWoW ? "WoW" : isChamp ? "🏅 Championship" : isRanked ? "🏆 Ranked" : "🎮 Casual";
             const matchesPlayed = t.matches.length > 0 ? t.matches[0].matchNumber : 0;
             const teammates = team.players
                 .filter((p) => p.displayName !== player.displayName)
                 .map((p) => p.displayName || "Unknown")
                 .join(", ");
-            const status = team.disqualified ? "⛔ DQ'd" : "✅ Active";
+            const status = team.disqualified ? "⛔ DQ'd" : ce?.status === "ELIMINATED" ? "💀 Eliminated" : ce?.status === "QUALIFIED" ? "🎉 Qualified" : "✅ Active";
+
+            const lines = [
+                `**Team:** ${team.name} (#${team.teamNumber})`,
+                teammates ? `**Teammates:** ${teammates}` : "**Solo**",
+            ];
+
+            // Championship group + phase info
+            if (ce?.group) lines.push(`**Group:** ${ce.group}`);
+            if (ce?.phase) lines.push(`**Phase:** ${ce.phase}`);
+
+            lines.push(`**Matches played:** ${matchesPlayed}`);
+            lines.push(`**Status:** ${status}`);
 
             return {
                 name: `${type} — ${t.name}`,
-                value: [
-                    `**Team:** ${team.name} (#${team.teamNumber})`,
-                    teammates ? `**Teammates:** ${teammates}` : "**Solo**",
-                    `**Matches played:** ${matchesPlayed}`,
-                    `**Status:** ${status}`,
-                ].join("\n"),
+                value: lines.join("\n"),
                 inline: false,
             };
         });

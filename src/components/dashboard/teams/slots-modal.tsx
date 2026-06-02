@@ -27,6 +27,7 @@ interface Props {
     allowSquads?: boolean;
     championshipGroups?: Map<string, string>;
     phaseLabel?: string;
+    selectedGroup?: string; // "A", "B", etc. — routes Discord send to group channel
 }
 
 // ── Component ─────────────────────────────────────────────────
@@ -42,6 +43,7 @@ export function SlotsModal({
     allowSquads = false,
     championshipGroups,
     phaseLabel,
+    selectedGroup,
 }: Props) {
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
@@ -218,6 +220,7 @@ export function SlotsModal({
                     image: dataUrl,
                     tournamentId,
                     tournamentName: tournamentTitle,
+                    group: selectedGroup || undefined,
                 }),
             });
 
@@ -235,7 +238,7 @@ export function SlotsModal({
         } finally {
             setDiscordSending(false);
         }
-    }, [tournamentId, tournamentTitle, captureImage]);
+    }, [tournamentId, tournamentTitle, captureImage, selectedGroup]);
 
     if (!isOpen) return null;
 

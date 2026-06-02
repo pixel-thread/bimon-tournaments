@@ -23,21 +23,36 @@ export async function GET() {
                         id: true,
                         allowSquads: true,
                         question: true,
+                        isChampionship: true,
                     },
+                },
+                championshipEntries: {
+                    where: { status: "ACTIVE" },
+                    select: { group: true },
+                    distinct: ["group"],
                 },
             },
             orderBy: { createdAt: "desc" },
         });
 
         return SuccessResponse({
-            data: tournaments.map((t) => ({
-                id: t.id,
-                name: t.name,
-                type: t.type,
-                pollId: t.poll?.id ?? null,
-                allowSquads: t.poll?.allowSquads ?? false,
-                question: t.poll?.question ?? t.name,
-            })),
+            data: tournaments.map((t) => {
+                const isChampionship = t.poll?.isChampionship ?? false;
+                const groups = isChampionship
+                    ? [...new Set(t.championshipEntries.map(e => e.group).filter(Boolean))].sort()
+                    : [];
+
+                return {
+                    id: t.id,
+                    name: t.name,
+                    type: t.type,
+                    pollId: t.poll?.id ?? null,
+                    allowSquads: t.poll?.allowSquads ?? false,
+                    question: t.poll?.question ?? t.name,
+                    isChampionship,
+                    groups, // ["A", "B", "C", ...] or []
+                };
+            }),
             cache: CACHE.SHORT,
         });
     } catch (error) {

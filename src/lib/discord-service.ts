@@ -99,6 +99,8 @@ export async function findMemberByUsername(username: string): Promise<{
  */
 export async function createTournamentChannel(
     tournamentName: string,
+    /** Optional suffix for championship groups/phases: "group-a", "group-b", "wildcard", "finals" */
+    suffix?: string,
 ): Promise<string> {
     const guildId = getGuildId();
     const categoryId = process.env.DISCORD_TOURNAMENTS_CATEGORY_ID;
@@ -109,8 +111,9 @@ export async function createTournamentChannel(
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, "")
         .replace(/\s+/g, "-")
-        .slice(0, 80);
-    const channelName = `🏆-${slug}`;
+        .slice(0, 60);
+    const channelName = suffix ? `🏆-${slug}-${suffix}` : `🏆-${slug}`;
+    const topicLabel = suffix ? `${tournamentName} — ${suffix.toUpperCase()}` : tournamentName;
 
     // Permission overwrites: @everyone can't see or send messages, per-user access granted separately
     const permissionOverwrites: any[] = [
@@ -138,7 +141,7 @@ export async function createTournamentChannel(
             name: channelName,
             type: 0, // GUILD_TEXT
             parent_id: categoryId,
-            topic: `🔒 Room IDs for ${tournamentName} — auto-managed by Bimon`,
+            topic: `🔒 Room IDs for ${topicLabel} — auto-managed by Bimon`,
             permission_overwrites: permissionOverwrites,
         }),
     });
@@ -214,10 +217,12 @@ interface RoomInfoPayload {
     password: string;
     gameName: string;
     image?: string; // optional base64 data URL
+    group?: string; // championship group name: "A", "B", "C", etc.
 }
 
 /**
  * Send room info to a tournament-specific Discord channel.
+ * For championship heats, routes to group-specific channels.
  * Auto-creates the channel on first send and stores it on the tournament.
  */
 export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
@@ -227,27 +232,61 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
     // 1. Get or create the channel
     const tournament = await prisma.tournament.findUnique({
         where: { id: payload.tournamentId },
-        select: { discordChannelId: true },
+        select: {
+            discordChannelId: true,
+            discordGroupChannels: true,
+        },
     });
 
-    let channelId = tournament?.discordChannelId;
+    let channelId: string | null | undefined;
+    const group = payload.group;
+
+    if (group) {
+        // Championship group channel
+        const groupChannels = (tournament?.discordGroupChannels as Record<string, string>) || {};
+        channelId = groupChannels[group] || null;
+    } else {
+        channelId = tournament?.discordChannelId;
+    }
 
     if (!channelId) {
-        // Fallback: create channel for legacy tournaments that weren't created at team generation
-        channelId = await createTournamentChannel(payload.tournamentName);
+        // Create the channel
+        const suffix = group ? `group-${group.toLowerCase()}` : undefined;
+        channelId = await createTournamentChannel(payload.tournamentName, suffix);
 
         // Store it on the tournament
-        await prisma.tournament.update({
-            where: { id: payload.tournamentId },
-            data: { discordChannelId: channelId },
-        });
+        if (group) {
+            const groupChannels = (tournament?.discordGroupChannels as Record<string, string>) || {};
+            groupChannels[group] = channelId;
+            await prisma.tournament.update({
+                where: { id: payload.tournamentId },
+                data: { discordGroupChannels: groupChannels },
+            });
+        } else {
+            await prisma.tournament.update({
+                where: { id: payload.tournamentId },
+                data: { discordChannelId: channelId },
+            });
+        }
 
-        // Grant access to all team members (per-user overwrites)
+        // Grant access to the right players
+        const playerFilter: any = {
+            teams: { some: { tournamentId: payload.tournamentId } },
+            discordId: { not: null },
+        };
+
+        // For group channels, only grant access to players in that group
+        if (group) {
+            playerFilter.teams = {
+                some: {
+                    tournamentId: payload.tournamentId,
+                    championshipEntry: { group },
+                },
+            };
+        }
+
         const teamPlayers = await prisma.player.findMany({
-            where: {
-                teams: { some: { tournamentId: payload.tournamentId } },
-                discordId: { not: null },
-            },
+            where: playerFilter,
             select: { discordId: true },
         });
         await Promise.allSettled(

@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { image, tournamentId, tournamentName } = body;
+        const { image, tournamentId, tournamentName, group } = body;
 
         if (!image || !tournamentId || !tournamentName) {
             return NextResponse.json({ error: "Missing image, tournamentId, or tournamentName" }, { status: 400 });
@@ -31,29 +31,59 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "DISCORD_BOT_TOKEN not set" }, { status: 500 });
         }
 
-        // 1. Get or create the tournament's Discord channel
+        // 1. Get or create the tournament's Discord channel (group-aware)
         const tournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
-            select: { discordChannelId: true },
+            select: {
+                discordChannelId: true,
+                discordGroupChannels: true,
+            },
         });
 
-        let channelId = tournament?.discordChannelId;
+        let channelId: string | null | undefined;
+
+        if (group) {
+            const groupChannels = (tournament?.discordGroupChannels as Record<string, string>) || {};
+            channelId = groupChannels[group] || null;
+        } else {
+            channelId = tournament?.discordChannelId;
+        }
 
         if (!channelId) {
-            // Create channel and grant access to all team members
-            channelId = await createTournamentChannel(tournamentName);
+            // Create channel and grant access to the right players
+            const suffix = group ? `group-${group.toLowerCase()}` : undefined;
+            channelId = await createTournamentChannel(tournamentName, suffix);
 
-            await prisma.tournament.update({
-                where: { id: tournamentId },
-                data: { discordChannelId: channelId },
-            });
+            if (group) {
+                const groupChannels = (tournament?.discordGroupChannels as Record<string, string>) || {};
+                groupChannels[group] = channelId;
+                await prisma.tournament.update({
+                    where: { id: tournamentId },
+                    data: { discordGroupChannels: groupChannels },
+                });
+            } else {
+                await prisma.tournament.update({
+                    where: { id: tournamentId },
+                    data: { discordChannelId: channelId },
+                });
+            }
 
-            // Grant access to all team members
+            // Grant access — for groups, only players in that group
+            const playerFilter: any = {
+                teams: { some: { tournamentId } },
+                discordId: { not: null },
+            };
+            if (group) {
+                playerFilter.teams = {
+                    some: {
+                        tournamentId,
+                        championshipEntry: { group },
+                    },
+                };
+            }
+
             const teamPlayers = await prisma.player.findMany({
-                where: {
-                    teams: { some: { tournamentId } },
-                    discordId: { not: null },
-                },
+                where: playerFilter,
                 select: { discordId: true },
             });
             await Promise.allSettled(

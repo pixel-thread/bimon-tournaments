@@ -66,7 +66,7 @@ export async function POST(
         // ── 1. Fetch tournament ──────────────────────────────
         const tournament = await prisma.tournament.findUnique({
             where: { id },
-            select: { id: true, name: true, fee: true, seasonId: true, isWinnerDeclared: true, type: true, discordChannelId: true, season: { select: { name: true } } },
+            select: { id: true, name: true, fee: true, seasonId: true, isWinnerDeclared: true, type: true, discordChannelId: true, discordGroupChannels: true, season: { select: { name: true } } },
         });
         if (!tournament) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
         if (!dryRun && tournament.isWinnerDeclared) return NextResponse.json({ error: "Winners already declared" }, { status: 400 });
@@ -701,10 +701,16 @@ export async function POST(
             }
         }
 
-        // ── 6d. Auto-delete tournament Discord channel ──
+        // ── 6d. Auto-delete tournament Discord channels ──
         if (tournament.discordChannelId) {
             deleteTournamentChannel(tournament.discordChannelId)
                 .catch((err) => console.error("Discord channel deletion error:", err));
+        }
+        // Also delete any group channels (championship)
+        const groupChannels = (tournament.discordGroupChannels as Record<string, string>) || {};
+        for (const chId of Object.values(groupChannels)) {
+            deleteTournamentChannel(chId)
+                .catch((err) => console.error("Discord group channel deletion error:", err));
         }
 
         // ── 6. Post-transaction: Solo tax distribution ────────
@@ -1061,10 +1067,15 @@ async function declareBracketWinners({
         });
     }, { timeout: 30000, maxWait: 35000 });
 
-    // Auto-delete tournament Discord channel
+    // Auto-delete tournament Discord channels
     if ((tournament as any).discordChannelId) {
         deleteTournamentChannel((tournament as any).discordChannelId)
             .catch((err) => console.error("Discord channel deletion error:", err));
+    }
+    const groupChs = ((tournament as any).discordGroupChannels as Record<string, string>) || {};
+    for (const chId of Object.values(groupChs)) {
+        deleteTournamentChannel(chId)
+            .catch((err) => console.error("Discord group channel deletion error:", err));
     }
 
     return NextResponse.json({ success: true, message: "Bracket winners declared and rewards created" });
