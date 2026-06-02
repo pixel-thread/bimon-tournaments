@@ -56,6 +56,15 @@ export async function POST(req: NextRequest) {
         }
     }
 
+    // APPLICATION_COMMAND — slash command
+    if (interaction.type === 2) {
+        const commandName = interaction.data?.name;
+
+        if (commandName === "nextmatch") {
+            return handleNextMatch(interaction);
+        }
+    }
+
     // MODAL_SUBMIT — form submitted
     if (interaction.type === 5) {
         const customId = interaction.data?.custom_id;
@@ -304,6 +313,130 @@ async function findExistingTicket(
     } catch {
         return null;
     }
+}
+
+/**
+ * Handle /nextmatch — show the player their active tournaments and team info.
+ */
+async function handleNextMatch(interaction: any) {
+    const user = interaction.member?.user || interaction.user;
+    if (!user) {
+        return interactionResponse("❌ Could not identify you.", true);
+    }
+
+    const discordUserId = user.id;
+
+    try {
+        const { prisma } = await import("@/lib/database");
+
+        // Find the player linked to this Discord account
+        const player = await prisma.player.findFirst({
+            where: { discordId: discordUserId },
+            select: {
+                id: true,
+                displayName: true,
+                category: true,
+            },
+        });
+
+        if (!player) {
+            return embeddedResponse({
+                title: "❌ Account Not Linked",
+                description: "Your Discord is not linked to a Bimon account.\nGo to the Bimon app → Settings → Link Discord.",
+                color: 0xed4245,
+            }, true);
+        }
+
+        // Find active tournaments where this player is on a team
+        const teams = await prisma.team.findMany({
+            where: {
+                players: { some: { id: player.id } },
+                tournament: {
+                    status: "ACTIVE",
+                    isWinnerDeclared: false,
+                },
+            },
+            select: {
+                name: true,
+                teamNumber: true,
+                disqualified: true,
+                tournament: {
+                    select: {
+                        id: true,
+                        name: true,
+                        isTDM: true,
+                        isWoW: true,
+                        poll: { select: { allowSquads: true } },
+                        matches: {
+                            select: { matchNumber: true },
+                            orderBy: { matchNumber: "desc" },
+                            take: 1,
+                        },
+                    },
+                },
+                players: {
+                    select: { displayName: true },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        if (teams.length === 0) {
+            return embeddedResponse({
+                title: "📭 No Active Matches",
+                description: `**${player.displayName || "Player"}**, you're not in any active tournament right now.\n\nKeep an eye on the polls for the next one! 🎮`,
+                color: 0xfee75c,
+            }, true);
+        }
+
+        // Build fields for each active tournament
+        const fields = teams.map((team) => {
+            const t = team.tournament!;
+            const isRanked = t.poll?.allowSquads;
+            const type = t.isTDM ? "TDM" : t.isWoW ? "WoW" : isRanked ? "🏆 Ranked" : "🎮 Casual";
+            const matchesPlayed = t.matches.length > 0 ? t.matches[0].matchNumber : 0;
+            const teammates = team.players
+                .filter((p) => p.displayName !== player.displayName)
+                .map((p) => p.displayName || "Unknown")
+                .join(", ");
+            const status = team.disqualified ? "⛔ DQ'd" : "✅ Active";
+
+            return {
+                name: `${type} — ${t.name}`,
+                value: [
+                    `**Team:** ${team.name} (#${team.teamNumber})`,
+                    teammates ? `**Teammates:** ${teammates}` : "**Solo**",
+                    `**Matches played:** ${matchesPlayed}`,
+                    `**Status:** ${status}`,
+                ].join("\n"),
+                inline: false,
+            };
+        });
+
+        return embeddedResponse({
+            title: `🎯 ${player.displayName}'s Active Matches`,
+            description: `You're in **${teams.length}** active tournament${teams.length > 1 ? "s" : ""}. Good luck! 💪`,
+            color: 0x5865f2,
+            fields,
+            footer: { text: `Tier: ${player.category}` },
+        }, true);
+    } catch (error) {
+        console.error("nextmatch error:", error);
+        return interactionResponse("❌ Something went wrong. Try again later.", true);
+    }
+}
+
+/**
+ * Build a Discord interaction response with an embed (ephemeral = only visible to the user).
+ */
+function embeddedResponse(embed: Record<string, unknown>, ephemeral: boolean) {
+    return NextResponse.json({
+        type: 4,
+        data: {
+            embeds: [embed],
+            flags: ephemeral ? 64 : 0,
+        },
+    });
 }
 
 /**
