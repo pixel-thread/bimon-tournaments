@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { sendRoomInfo } from "@/lib/discord-service";
+import { prisma } from "@/lib/database";
 
 /**
  * POST /api/discord/send-room-info
  *
  * Sends a rich embed with room info to a per-tournament Discord channel.
  * Auto-creates the channel under TOURNAMENTS category on first send.
- * Admin-only.
+ * Admin or UC-exempt players.
  *
  * Body: { tournamentId, tournamentName, matchNumber, map, time, roomId, password, gameName }
  */
 export async function POST(req: NextRequest) {
     try {
         const user = await getCurrentUser();
-        if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+        const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+        const isUCExempt = user?.player
+            ? (await prisma.player.findUnique({ where: { id: user.player.id }, select: { isUCExempt: true } }))?.isUCExempt
+            : false;
+        if (!user || (!isAdmin && !isUCExempt)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 

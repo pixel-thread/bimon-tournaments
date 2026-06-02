@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getRequestPrisma } from "@/lib/database";
+import { getRequestPrisma, prisma } from "@/lib/database";
 
 const RULES_KEY = "tournament_rules";
 
@@ -17,7 +17,11 @@ export interface TournamentRule {
 export async function GET() {
     try {
         const user = await getCurrentUser();
-        if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+        const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+        const isUCExempt = user?.player
+            ? (await prisma.player.findUnique({ where: { id: user.player.id }, select: { isUCExempt: true } }))?.isUCExempt
+            : false;
+        if (!user || (!isAdmin && !isUCExempt)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 
@@ -39,7 +43,11 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
     try {
         const user = await getCurrentUser();
-        if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+        const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+        const isUCExempt = user?.player
+            ? (await prisma.player.findUnique({ where: { id: user.player.id }, select: { isUCExempt: true } }))?.isUCExempt
+            : false;
+        if (!user || (!isAdmin && !isUCExempt)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 
@@ -81,7 +89,11 @@ export async function PUT(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const user = await getCurrentUser();
-        if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+        const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+        const isUCExempt = user?.player
+            ? (await prisma.player.findUnique({ where: { id: user.player.id }, select: { isUCExempt: true } }))?.isUCExempt
+            : false;
+        if (!user || (!isAdmin && !isUCExempt)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 

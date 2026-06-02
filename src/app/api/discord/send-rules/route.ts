@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { sendTournamentRules } from "@/lib/discord-service";
+import { prisma } from "@/lib/database";
 
 /**
  * POST /api/discord/send-rules
  *
  * Sends pre-configured tournament rules (banned items, slot scam prevention,
  * server issues) to the tournament's Discord channel.
- * Admin-only.
+ * Admin or UC-exempt players.
  *
  * Body: { tournamentId, tournamentName }
  */
 export async function POST(req: NextRequest) {
     try {
         const user = await getCurrentUser();
-        if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+        const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+        const isUCExempt = user?.player
+            ? (await prisma.player.findUnique({ where: { id: user.player.id }, select: { isUCExempt: true } }))?.isUCExempt
+            : false;
+        if (!user || (!isAdmin && !isUCExempt)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 

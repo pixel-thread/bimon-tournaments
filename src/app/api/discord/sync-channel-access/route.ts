@@ -12,7 +12,11 @@ import { batchGrantChannelAccess } from "@/lib/discord-service";
 export async function POST(req: NextRequest) {
     try {
         const user = await getCurrentUser();
-        if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+        const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+        const isUCExempt = user?.player
+            ? (await prisma.player.findUnique({ where: { id: user.player.id }, select: { isUCExempt: true } }))?.isUCExempt
+            : false;
+        if (!user || (!isAdmin && !isUCExempt)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 
