@@ -377,14 +377,16 @@ function TournamentRow({ tournament, state, onChange, group }: {
                         onClick={syncDiscordAccess}
                         disabled={syncInfo.syncing}
                         className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-default-100 border border-divider hover:bg-default-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
-                        title={`${syncInfo.linked}/${syncInfo.total} players have Discord linked. Click to re-sync.`}
+                        title={`${syncInfo.linked} of ${syncInfo.total} players have Discord linked. Click to re-sync.`}
                     >
                         {syncInfo.syncing ? (
                             <span className="animate-pulse">⟳</span>
                         ) : (
                             <span className={`inline-block w-1.5 h-1.5 rounded-full ${syncInfo.linked === syncInfo.total ? "bg-green-500" : "bg-yellow-500"}`} />
                         )}
-                        {syncInfo.linked}/{syncInfo.total}
+                        <span>{syncInfo.linked}</span>
+                        <span className="text-foreground/30">/</span>
+                        <span>{syncInfo.total} 🔗</span>
                     </button>
                 )}
                 {state.copyCount > 0 && (
