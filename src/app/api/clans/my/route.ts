@@ -18,6 +18,7 @@ export async function GET() {
             where: { playerId: user.player.id },
             select: {
                 role: true,
+                autoAcceptSquadInvites: true,
                 clan: {
                     select: {
                         id: true,
@@ -63,6 +64,7 @@ export async function GET() {
                 logoUrl: membership.clan.logoUrl,
                 role: membership.role,
                 balance: membership.clan.balance,
+                autoAcceptSquadInvites: membership.autoAcceptSquadInvites,
             },
             cache: CACHE.NONE,
         });

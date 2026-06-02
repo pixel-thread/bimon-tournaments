@@ -82,6 +82,7 @@ export async function GET() {
                 level: membership.clan.level,
                 levelProgress: getLevelFromXP(membership.clan.xp).progress,
                 myRole: membership.role,
+                autoAcceptSquadInvites: membership.autoAcceptSquadInvites,
                 members: membership.clan.members.map((m) => ({
                     id: m.player.id,
                     displayName: m.player.displayName || m.player.user.username,

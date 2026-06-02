@@ -1514,6 +1514,7 @@ model ClanMember {
   clanId   String
   playerId String   @unique              // Enforces one-clan-per-player
   role     ClanRole @default(MEMBER)
+  autoAcceptSquadInvites Boolean @default(false) // Auto-join clan squad invites
 
   joinedAt DateTime @default(now())
 

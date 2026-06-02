@@ -116,9 +116,110 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "Player not found", status: 404 });
         }
 
+        const playerName = invitedPlayer.displayName ?? invitedPlayer.user.username;
         const tournamentName = squad.poll.tournament?.name ?? "tournament";
 
-        // Create PENDING invite — player joins when they click the invite link
+        // ─── Auto-accept check ──────────────────────────────────────
+        // If the squad represents a clan AND the invited player is a member
+        // of that same clan with autoAcceptSquadInvites enabled, skip PENDING
+        // and immediately accept.
+        let shouldAutoAccept = false;
+        if (squad.clanId) {
+            const clanMembership = await prisma.clanMember.findUnique({
+                where: { playerId },
+                select: { clanId: true, autoAcceptSquadInvites: true, role: true },
+            });
+            if (
+                clanMembership &&
+                clanMembership.clanId === squad.clanId &&
+                clanMembership.autoAcceptSquadInvites &&
+                clanMembership.role !== "LEADER" // Leaders create squads, not auto-join
+            ) {
+                shouldAutoAccept = true;
+            }
+        }
+
+        if (shouldAutoAccept) {
+            // Auto-accept: create as ACCEPTED immediately
+            const newAcceptedCount = acceptedCount + 1;
+            const isFull = newAcceptedCount >= GAME.maxSquadSize;
+            const shouldBeSub = newAcceptedCount > GAME.squadSize;
+
+            await prisma.$transaction(async (tx) => {
+                // Create invite as ACCEPTED
+                await tx.squadInvite.create({
+                    data: {
+                        squadId,
+                        playerId,
+                        status: "ACCEPTED",
+                        initiatedBy: "CAPTAIN",
+                        respondedAt: new Date(),
+                        isSub: shouldBeSub,
+                    },
+                });
+
+                // Mark squad as FULL if needed
+                if (isFull) {
+                    await tx.squad.update({
+                        where: { id: squadId },
+                        data: { status: "FULL" },
+                    });
+                }
+
+                // Remove any existing poll vote (silent remove as approved by user)
+                await tx.playerPollVote.deleteMany({
+                    where: { pollId: squad.pollId, playerId },
+                });
+
+                // Auto-decline other pending invites/requests for the same poll
+                await tx.squadInvite.updateMany({
+                    where: {
+                        playerId,
+                        status: "PENDING",
+                        squad: {
+                            pollId: squad.pollId,
+                            status: { in: ["FORMING", "FULL"] },
+                        },
+                    },
+                    data: { status: "DECLINED", respondedAt: new Date() },
+                });
+
+                // Notify captain
+                await tx.notification.create({
+                    data: {
+                        title: isFull ? "🛡 Squad Complete!" : "🛡 Auto-Joined",
+                        message: isFull
+                            ? `${playerName} auto-joined "${squad.name}" — your squad is now full for ${tournamentName}! 🎉`
+                            : `${playerName} auto-joined "${squad.name}" (auto-accept enabled)`,
+                        type: "squad_accept",
+                        userId: user.id,
+                        playerId: currentPlayerId,
+                        link: "/vote",
+                    },
+                });
+            });
+
+            // Push to the auto-joined player
+            sendPush(playerId, {
+                title: "🛡 Auto-Joined Squad",
+                body: `You were auto-joined to "${squad.name}" for ${tournamentName}`,
+                url: "/vote",
+            });
+
+            // Push to captain
+            const pushTitle = isFull ? "🛡 Squad Complete!" : "🛡 Auto-Joined";
+            const pushBody = isFull
+                ? `${playerName} auto-joined "${squad.name}" — squad full! 🎉`
+                : `${playerName} auto-joined "${squad.name}"`;
+            sendPush(currentPlayerId, { title: pushTitle, body: pushBody, url: "/vote" });
+
+            return SuccessResponse({
+                message: `${playerName} auto-joined "${squad.name}"!`,
+                data: { autoAccepted: true },
+            });
+        }
+
+        // ─── Normal flow: create PENDING invite ─────────────────────
         await prisma.squadInvite.create({
             data: {
                 squadId,
@@ -136,7 +237,7 @@ export async function POST(request: NextRequest) {
         });
 
         return SuccessResponse({
-            message: `Invite sent to ${invitedPlayer.displayName ?? invitedPlayer.user.username}!`,
+            message: `Invite sent to ${playerName}!`,
         });
     } catch (error) {
         return ErrorResponse({ message: "Failed to send invite", error });

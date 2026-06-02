@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
     Modal,
     ModalContent,
@@ -288,6 +289,19 @@ function SquadCard({
     const inviteMutation = useInvitePlayer();
     const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
     const emptySlots = squad.totalSlots - squad.members.length;
+
+    // Auto-accept clan members (only for clan squads when captain opens invite)
+    const { data: autoAcceptMembers = [], refetch: refetchAutoAccept } = useQuery<{ id: string; displayName: string; imageUrl: string }[]>({
+        queryKey: ["auto-accept-members", squad.id],
+        queryFn: async () => {
+            const res = await fetch(`/api/squads/auto-accept-members?squadId=${squad.id}`);
+            if (!res.ok) return [];
+            const json = await res.json();
+            return json.data ?? [];
+        },
+        enabled: showInvite && isCaptain && !!squad.clanTag,
+        staleTime: 15_000,
+    });
 
     // Can player request to join?
     const isGuest = !currentPlayerId;
@@ -781,6 +795,51 @@ function SquadCard({
                             ) : undefined}
                             classNames={{ input: "text-base" }}
                         />
+
+                        {/* Auto-accept clan members — shown above search results */}
+                        {autoAcceptMembers.length > 0 && !inviteSearch && (
+                            <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                                <p className="text-xs font-semibold text-primary mb-2 flex items-center gap-1.5">
+                                    <CheckCheck className="w-3.5 h-3.5" />
+                                    Auto-Join Enabled ({autoAcceptMembers.length})
+                                </p>
+                                <p className="text-[10px] text-foreground/40 mb-2">
+                                    These clan members will be instantly added — no accept needed
+                                </p>
+                                <div className="space-y-0.5">
+                                    {autoAcceptMembers
+                                        .filter(p => !squad.members.some(m => m.playerId === p.id))
+                                        .map((player) => (
+                                        <div key={player.id} className="flex items-center gap-3 py-2 px-1">
+                                            <Avatar
+                                                src={player.imageUrl}
+                                                name={player.displayName}
+                                                size="sm"
+                                                className="w-8 h-8 shrink-0"
+                                            />
+                                            <span className="text-sm font-medium truncate flex-1">{player.displayName}</span>
+                                            <Button
+                                                size="sm"
+                                                color="primary"
+                                                className="min-w-0 px-4 h-8 font-semibold"
+                                                isLoading={inviteMutation.isPending && invitingPlayerId === player.id}
+                                                isDisabled={inviteMutation.isPending && invitingPlayerId !== player.id}
+                                                onPress={() => {
+                                                    setInvitingPlayerId(player.id);
+                                                    inviteMutation.mutate(
+                                                        { squadId: squad.id, playerId: player.id },
+                                                        { onSuccess: () => refetchAutoAccept() },
+                                                    );
+                                                }}
+                                                startContent={!(inviteMutation.isPending && invitingPlayerId === player.id) && <Plus className="w-3.5 h-3.5" />}
+                                            >
+                                                Add
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Results */}
                         <div className="mt-3 space-y-1">

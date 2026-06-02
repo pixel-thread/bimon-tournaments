@@ -46,6 +46,7 @@ import {
     ArrowUpFromLine,
     Eye,
     EyeOff,
+    CheckCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -74,6 +75,7 @@ interface ClanData {
     level: number;
     levelProgress: number;
     myRole: "LEADER" | "CO_LEADER" | "MEMBER";
+    autoAcceptSquadInvites: boolean;
     members: ClanMember[];
 }
 
@@ -519,6 +521,45 @@ export default function ClanPage() {
                             />
                         </div>
                     </div>
+
+                    {/* ─── Auto-Join Toggle (non-leaders only) ─── */}
+                    {!isLeader && (
+                        <div className="flex items-center justify-between p-3 rounded-xl border border-divider bg-default-50">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10 shrink-0">
+                                    <CheckCheck className="h-4 w-4 text-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold">Auto-Join Squads</p>
+                                    <p className="text-[10px] text-foreground/40">
+                                        Instantly join when leader invites you
+                                    </p>
+                                </div>
+                            </div>
+                            <Switch
+                                size="sm"
+                                isSelected={clan.autoAcceptSquadInvites}
+                                onValueChange={async (val) => {
+                                    try {
+                                        const res = await fetch("/api/clans/auto-accept", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ enabled: val }),
+                                        });
+                                        const json = await res.json();
+                                        if (res.ok) {
+                                            toast.success(json.message);
+                                            invalidate();
+                                        } else {
+                                            toast.error(json.message || "Failed");
+                                        }
+                                    } catch {
+                                        toast.error("Network error");
+                                    }
+                                }}
+                            />
+                        </div>
+                    )}
 
                     {/* Leave / Disband */}
                     <Button
