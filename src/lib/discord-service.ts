@@ -91,6 +91,40 @@ export async function findMemberByUsername(username: string): Promise<{
     }
 }
 
+/**
+ * Grant a single player access to their tournament's Discord channel.
+ * Called when a player joins/creates a squad — one request at a time,
+ * so no rate limiting issues.
+ *
+ * Fire-and-forget: errors are logged but don't break the squad flow.
+ * If the channel doesn't exist yet, silently skips (it'll be created
+ * when room info is first sent, and sync will catch everyone up).
+ */
+export async function grantPlayerTournamentAccess(pollId: string, discordId: string | null): Promise<void> {
+    if (!discordId) return;
+
+    try {
+        const { prisma } = await import("@/lib/database");
+
+        const poll = await prisma.poll.findUnique({
+            where: { id: pollId },
+            select: {
+                tournament: {
+                    select: { discordChannelId: true },
+                },
+            },
+        });
+
+        const channelId = poll?.tournament?.discordChannelId;
+        if (!channelId) return; // Channel not created yet — sync will handle later
+
+        await grantChannelAccess(channelId, discordId);
+        console.log(`[discord] Granted channel access to ${discordId} for poll ${pollId}`);
+    } catch (error) {
+        console.error(`[discord] Failed to grant channel access to ${discordId}:`, error);
+    }
+}
+
 // ─── Rate-limited batch access granting ─────────────────────
 
 /**

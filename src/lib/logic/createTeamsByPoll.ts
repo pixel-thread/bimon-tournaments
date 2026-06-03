@@ -822,8 +822,8 @@ export async function createTeamsByPoll({
     }
 
     // ── Post-transaction: create Discord channel(s) + grant per-user access ──
-    // Championship: per-group channels (only group members see their channel)
-    // Regular: one shared channel for all participants
+    // Sequential grants with delays to avoid Discord rate limits.
+    // This runs server-side with no Vercel timeout, so we can take our time.
     try {
         const existingTournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
@@ -868,8 +868,18 @@ export async function createTeamsByPoll({
                 }
                 groupChannels[group] = channelId;
 
-                await batchGrantChannelAccess(channelId, discordIds);
-                console.log(`[createTeamsByPoll] Discord Group ${group} channel (${channelId}) — ${discordIds.length} users`);
+                // Grant access one at a time with delay — no rate limits
+                let granted = 0;
+                for (const discordId of discordIds) {
+                    try {
+                        await grantChannelAccess(channelId, discordId);
+                        granted++;
+                    } catch (err) {
+                        console.error(`[createTeamsByPoll] Failed to grant access to ${discordId}:`, err);
+                    }
+                    await new Promise(r => setTimeout(r, 600)); // ~1.6 req/s — well under Discord's limit
+                }
+                console.log(`[createTeamsByPoll] Discord Group ${group} channel (${channelId}) — ${granted}/${discordIds.length} users`);
             }
 
             // Store group channels in tournament
@@ -898,8 +908,18 @@ export async function createTeamsByPoll({
                     });
                 }
 
-                await batchGrantChannelAccess(channelId, discordIds);
-                console.log(`[createTeamsByPoll] Discord channel (${channelId}) — ${discordIds.length} users granted access`);
+                // Grant access one at a time with delay — no rate limits
+                let granted = 0;
+                for (const discordId of discordIds) {
+                    try {
+                        await grantChannelAccess(channelId, discordId);
+                        granted++;
+                    } catch (err) {
+                        console.error(`[createTeamsByPoll] Failed to grant access to ${discordId}:`, err);
+                    }
+                    await new Promise(r => setTimeout(r, 600)); // ~1.6 req/s — well under Discord's limit
+                }
+                console.log(`[createTeamsByPoll] Discord channel (${channelId}) — ${granted}/${discordIds.length} users granted access`);
             }
         }
     } catch (err) {
