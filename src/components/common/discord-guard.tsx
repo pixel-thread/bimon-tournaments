@@ -80,51 +80,10 @@ export function DiscordGuard({ children }: { children: React.ReactNode }) {
 
                         {/* Title + Description */}
                         <div className="space-y-2">
-                            <h3 className="text-lg font-bold">Join Our Discord</h3>
+                            <h3 className="text-lg font-bold">Link Your Discord</h3>
                             <p className="text-sm text-foreground/50 leading-relaxed">
                                 Link your Discord account to receive room IDs, match updates, and participate in tournaments.
                             </p>
-                        </div>
-
-                        {/* Steps */}
-                        <div className="space-y-3 text-left">
-                            {/* Step 1: Join Server */}
-                            <div className="flex items-start gap-3 p-3 rounded-xl bg-default-100 dark:bg-white/5">
-                                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#5865F2] text-white text-xs font-bold flex items-center justify-center mt-0.5">
-                                    1
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium">Join the Discord server</p>
-                                    {discordInvite ? (
-                                        <a
-                                            href={discordInvite}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs font-medium mt-1 inline-block"
-                                            style={{ color: DISCORD_BLURPLE }}
-                                        >
-                                            Open Invite Link →
-                                        </a>
-                                    ) : (
-                                        <p className="text-[11px] text-foreground/40 mt-0.5">
-                                            Ask an admin for the invite link
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Step 2: Link Account */}
-                            <div className="flex items-start gap-3 p-3 rounded-xl bg-default-100 dark:bg-white/5">
-                                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#5865F2] text-white text-xs font-bold flex items-center justify-center mt-0.5">
-                                    2
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium">Link your Discord account</p>
-                                    <p className="text-[11px] text-foreground/40 mt-0.5">
-                                        We&apos;ll verify you&apos;re in the server
-                                    </p>
-                                </div>
-                            </div>
                         </div>
 
                         {/* CTA Button */}
@@ -140,9 +99,13 @@ export function DiscordGuard({ children }: { children: React.ReactNode }) {
                             Link with Discord
                         </Button>
 
-                        <p className="text-[10px] text-foreground/30">
-                            You must be in the server to link successfully
-                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setDismissed(true)}
+                            className="text-[11px] text-foreground/30 hover:text-foreground/50 transition-colors cursor-pointer"
+                        >
+                            Skip for now →
+                        </button>
                     </ModalBody>
                 </ModalContent>
             </Modal>
