@@ -232,7 +232,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
     // Discord sync indicator
     const [syncInfo, setSyncInfo] = useState<{ granted: number; linked: number; syncing: boolean } | null>(null);
 
-    const syncDiscordAccess = useCallback(async () => {
+    const syncDiscordAccess = useCallback(async (cumulative = 0) => {
         setSyncInfo(prev => prev ? { ...prev, syncing: true } : { granted: 0, linked: 0, syncing: true });
         try {
             const res = await fetch("/api/discord/sync-channel-access", {
@@ -242,12 +242,21 @@ function TournamentRow({ tournament, state, onChange, group }: {
             });
             if (res.ok) {
                 const data = await res.json();
-                setSyncInfo({ granted: data.granted, linked: data.linkedPlayers, syncing: false });
-                // Show toast with results
+                const totalGranted = cumulative + data.granted;
+                setSyncInfo({ granted: totalGranted, linked: data.linkedPlayers, syncing: false });
+
+                // Auto-retry if there are more players to process
+                if (data.remaining > 0 && data.granted > 0) {
+                    setSyncInfo(prev => prev ? { ...prev, syncing: true } : null);
+                    setTimeout(() => syncDiscordAccess(totalGranted), 2000);
+                    return;
+                }
+
+                // Done — show final result
                 if (data.failed > 0) {
-                    toast.warning(`Synced ${data.granted}/${data.linkedPlayers} — ${data.failed} failed (Discord rate limit). Try again.`);
-                } else if (data.granted > 0) {
-                    toast.success(`Synced ${data.granted}/${data.linkedPlayers} Discord players`);
+                    toast.warning(`Synced ${totalGranted}/${data.linkedPlayers} — ${data.failed} failed. Try again.`);
+                } else if (totalGranted > 0) {
+                    toast.success(`Synced ${totalGranted}/${data.linkedPlayers} Discord players`);
                 }
             } else {
                 toast.error("Failed to sync Discord access");
