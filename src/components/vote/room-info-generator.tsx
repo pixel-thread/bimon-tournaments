@@ -243,10 +243,18 @@ function TournamentRow({ tournament, state, onChange, group }: {
             if (res.ok) {
                 const data = await res.json();
                 setSyncInfo({ granted: data.granted, linked: data.linkedPlayers, syncing: false });
+                // Show toast with results
+                if (data.failed > 0) {
+                    toast.warning(`Synced ${data.granted}/${data.linkedPlayers} — ${data.failed} failed (Discord rate limit). Try again.`);
+                } else if (data.granted > 0) {
+                    toast.success(`Synced ${data.granted}/${data.linkedPlayers} Discord players`);
+                }
             } else {
+                toast.error("Failed to sync Discord access");
                 setSyncInfo(prev => prev ? { ...prev, syncing: false } : null);
             }
         } catch {
+            toast.error("Failed to sync Discord access");
             setSyncInfo(prev => prev ? { ...prev, syncing: false } : null);
         }
     }, [tournament.id, group]);

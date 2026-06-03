@@ -95,7 +95,7 @@ export async function findMemberByUsername(username: string): Promise<{
 
 /**
  * Grant channel access to multiple Discord users with rate-limit-safe
- * batched processing (3 parallel per batch, 400ms between batches).
+ * batched processing (2 parallel per batch, 1.2s between batches).
  * Handles up to 100+ players (e.g. 17 squads × 6 = 102).
  */
 export async function batchGrantChannelAccess(
@@ -104,12 +104,13 @@ export async function batchGrantChannelAccess(
 ): Promise<{ granted: number; failed: number }> {
     let granted = 0;
     let failed = 0;
-    const BATCH_SIZE = 3; // Discord allows ~10 req/10s per channel endpoint
+    const BATCH_SIZE = 5; // Aggressive but safe with 429 retry — fits in Vercel 10s timeout
+    const BATCH_DELAY = 500; // 500ms between batches
 
     for (let i = 0; i < discordUserIds.length; i += BATCH_SIZE) {
         const batch = discordUserIds.slice(i, i + BATCH_SIZE);
         const results = await Promise.allSettled(
-            batch.map(userId => grantChannelAccess(channelId, userId))
+            batch.map(userId => grantChannelAccessWithRetry(channelId, userId))
         );
         for (const r of results) {
             if (r.status === "fulfilled") granted++;
@@ -117,7 +118,7 @@ export async function batchGrantChannelAccess(
         }
         // Delay between batches to stay under rate limit
         if (i + BATCH_SIZE < discordUserIds.length) {
-            await new Promise(r => setTimeout(r, 400));
+            await new Promise(r => setTimeout(r, BATCH_DELAY));
         }
     }
 
@@ -209,6 +210,7 @@ export async function deleteTournamentChannel(channelId: string): Promise<void> 
 /**
  * Grant a Discord user access to a specific tournament channel.
  * They can VIEW the channel and CREATE/REPLY to THREADS but NOT send regular messages.
+ * Throws on failure so batch processing can properly track failures.
  */
 export async function grantChannelAccess(channelId: string, discordUserId: string): Promise<void> {
     // VIEW_CHANNEL (1<<10) + CREATE_PUBLIC_THREADS (1<<35) + SEND_MESSAGES_IN_THREADS (1<<38)
@@ -223,7 +225,34 @@ export async function grantChannelAccess(channelId: string, discordUserId: strin
     });
     if (!res.ok) {
         const errorBody = await res.text().catch(() => "unknown");
-        console.error(`Discord grantChannelAccess failed [${res.status}]:`, errorBody);
+        throw new Error(`grantChannelAccess failed for ${discordUserId} [${res.status}]: ${errorBody}`);
+    }
+}
+
+/**
+ * Wrapper with retry for 429 (rate limited) responses.
+ * Retries up to 3 times with exponential backoff.
+ */
+async function grantChannelAccessWithRetry(
+    channelId: string,
+    discordUserId: string,
+    maxRetries = 2,
+): Promise<void> {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            await grantChannelAccess(channelId, discordUserId);
+            return;
+        } catch (err: any) {
+            const isRateLimit = err.message?.includes("[429]");
+            if (isRateLimit && attempt < maxRetries) {
+                // Short backoff: 1s, 2s
+                const delay = 1000 * (attempt + 1);
+                console.warn(`Rate limited granting access to ${discordUserId}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+                await new Promise(r => setTimeout(r, delay));
+                continue;
+            }
+            throw err;
+        }
     }
 }
 
