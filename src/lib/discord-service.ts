@@ -254,14 +254,20 @@ interface RoomInfoPayload {
     gameName: string;
     image?: string; // optional base64 data URL
     group?: string; // championship group name: "A", "B", "C", etc.
+    editExisting?: boolean; // When true, edit the last sent message for this match instead of posting new
 }
 
 /**
- * Send room info to a tournament-specific Discord channel.
+ * Send (or edit) room info in a tournament-specific Discord channel.
  * For championship heats, routes to group-specific channels.
  * Auto-creates the channel on first send and stores it on the tournament.
+ *
+ * By default, always posts a new message. When `editExisting: true` is set,
+ * edits the last sent message for that match number instead.
+ *
+ * Returns { edited: boolean } so the caller can distinguish.
  */
-export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
+export async function sendRoomInfo(payload: RoomInfoPayload): Promise<{ edited: boolean }> {
     // Dynamic import to avoid circular deps
     const { prisma } = await import("@/lib/database");
 
@@ -271,6 +277,7 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
         select: {
             discordChannelId: true,
             discordGroupChannels: true,
+            discordRoomMsgIds: true,
         },
     });
 
@@ -329,7 +336,7 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
         await batchGrantChannelAccess(channelId!, discordIds);
     }
 
-    // 2. Send the rich embed (with optional image attachment)
+    // 2. Build the rich embed
     const embed: any = {
         title: `🏆 ${payload.tournamentName}`,
         description: `**Match ${payload.matchNumber}** — Room details below`,
@@ -347,75 +354,137 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<void> {
         timestamp: new Date().toISOString(),
     };
 
-    let res: Response;
+    // Check for existing message to edit
+    // Key includes group for championship channels: "A_1", "B_2" or just "1", "2"
+    const msgKey = group ? `${group}_${payload.matchNumber}` : String(payload.matchNumber);
+    const roomMsgIds = (tournament?.discordRoomMsgIds as Record<string, { embedId: string; roomIdMsgId?: string }>) || {};
+    const existing = roomMsgIds[msgKey];
 
-    if (payload.image) {
-        // Multipart upload: embed + image in one message
-        const base64Data = payload.image.replace(/^data:image\/\w+;base64,/, "");
-        const imageBuffer = Buffer.from(base64Data, "base64");
-        const filename = `match-${payload.matchNumber}.png`;
+    let edited = false;
+    let embedMsgId: string | undefined;
+    let roomIdMsgId: string | undefined;
 
-        // Reference the attached file in the embed
-        embed.image = { url: `attachment://${filename}` };
+    if (payload.editExisting && existing?.embedId) {
+        // Try to edit the existing embed message
+        // Note: editing with attachments (images) via multipart is complex,
+        // so for image messages we fall through to posting a new one
+        if (!payload.image) {
+            const editRes = await discordFetch(`/channels/${channelId}/messages/${existing.embedId}`, {
+                method: "PATCH",
+                body: JSON.stringify({ embeds: [embed] }),
+            });
 
-        const boundary = "----BimonRoomInfo" + Date.now();
-        const messagePayload = {
-            content: "@everyone 🚨 Room info is here! Join now!",
-            embeds: [embed],
-            attachments: [{ id: 0, filename }],
-        };
+            if (editRes.ok) {
+                edited = true;
+                embedMsgId = existing.embedId;
 
-        const parts: Buffer[] = [];
-        parts.push(Buffer.from(
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="payload_json"\r\n` +
-            `Content-Type: application/json\r\n\r\n` +
-            JSON.stringify(messagePayload) +
-            `\r\n`
-        ));
-        parts.push(Buffer.from(
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="files[0]"; filename="${filename}"\r\n` +
-            `Content-Type: image/png\r\n\r\n`
-        ));
-        parts.push(imageBuffer);
-        parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+                // Also edit the plain-text room ID message if it exists
+                if (existing.roomIdMsgId && payload.roomId?.trim()) {
+                    await discordFetch(`/channels/${channelId}/messages/${existing.roomIdMsgId}`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ content: payload.roomId.trim() }),
+                    });
+                    roomIdMsgId = existing.roomIdMsgId;
+                }
+            } else {
+                console.warn(`Discord room info edit failed [${editRes.status}], falling back to new message`);
+            }
+        }
+    }
 
-        const token = process.env.DISCORD_BOT_TOKEN;
-        if (!token) throw new Error("DISCORD_BOT_TOKEN is not set");
+    // 3. Post new message if not edited
+    if (!edited) {
+        let res: Response;
 
-        res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-            method: "POST",
-            headers: {
-                Authorization: `Bot ${token}`,
-                "Content-Type": `multipart/form-data; boundary=${boundary}`,
-            },
-            body: Buffer.concat(parts),
-        });
-    } else {
-        // Simple JSON message (no image)
-        res = await discordFetch(`/channels/${channelId}/messages`, {
-            method: "POST",
-            body: JSON.stringify({
-                embeds: [embed],
+        if (payload.image) {
+            // Multipart upload: embed + image in one message
+            const base64Data = payload.image.replace(/^data:image\/\w+;base64,/, "");
+            const imageBuffer = Buffer.from(base64Data, "base64");
+            const filename = `match-${payload.matchNumber}.png`;
+
+            // Reference the attached file in the embed
+            embed.image = { url: `attachment://${filename}` };
+
+            const boundary = "----BimonRoomInfo" + Date.now();
+            const messagePayload = {
                 content: "@everyone 🚨 Room info is here! Join now!",
-            }),
+                embeds: [embed],
+                attachments: [{ id: 0, filename }],
+            };
+
+            const parts: Buffer[] = [];
+            parts.push(Buffer.from(
+                `--${boundary}\r\n` +
+                `Content-Disposition: form-data; name="payload_json"\r\n` +
+                `Content-Type: application/json\r\n\r\n` +
+                JSON.stringify(messagePayload) +
+                `\r\n`
+            ));
+            parts.push(Buffer.from(
+                `--${boundary}\r\n` +
+                `Content-Disposition: form-data; name="files[0]"; filename="${filename}"\r\n` +
+                `Content-Type: image/png\r\n\r\n`
+            ));
+            parts.push(imageBuffer);
+            parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+
+            const token = process.env.DISCORD_BOT_TOKEN;
+            if (!token) throw new Error("DISCORD_BOT_TOKEN is not set");
+
+            res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bot ${token}`,
+                    "Content-Type": `multipart/form-data; boundary=${boundary}`,
+                },
+                body: Buffer.concat(parts),
+            });
+        } else {
+            // Simple JSON message (no image)
+            res = await discordFetch(`/channels/${channelId}/messages`, {
+                method: "POST",
+                body: JSON.stringify({
+                    embeds: [embed],
+                    content: "@everyone 🚨 Room info is here! Join now!",
+                }),
+            });
+        }
+
+        if (!res.ok) {
+            const errorBody = await res.text().catch(() => "unknown");
+            console.error(`Discord sendRoomInfo failed [${res.status}]:`, errorBody);
+            throw new Error(`Discord API error ${res.status}: ${errorBody}`);
+        }
+
+        const msgBody = await res.json();
+        embedMsgId = msgBody.id;
+
+        // 4. Send a separate plain-text message with just the room ID for easy copying
+        if (payload.roomId?.trim()) {
+            const roomIdRes = await discordFetch(`/channels/${channelId}/messages`, {
+                method: "POST",
+                body: JSON.stringify({ content: payload.roomId.trim() }),
+            });
+            if (roomIdRes.ok) {
+                const roomIdBody = await roomIdRes.json();
+                roomIdMsgId = roomIdBody.id;
+            }
+        }
+    }
+
+    // 5. Save message IDs for future edits
+    if (embedMsgId) {
+        roomMsgIds[msgKey] = {
+            embedId: embedMsgId,
+            ...(roomIdMsgId ? { roomIdMsgId } : {}),
+        };
+        await prisma.tournament.update({
+            where: { id: payload.tournamentId },
+            data: { discordRoomMsgIds: roomMsgIds },
         });
     }
 
-    if (!res.ok) {
-        const errorBody = await res.text().catch(() => "unknown");
-        console.error(`Discord sendRoomInfo failed [${res.status}]:`, errorBody);
-        throw new Error(`Discord API error ${res.status}: ${errorBody}`);
-    }
-
-    // 3. Send a separate plain-text message with just the room ID for easy copying
-    if (payload.roomId?.trim()) {
-        await discordFetch(`/channels/${channelId}/messages`, {
-            method: "POST",
-            body: JSON.stringify({ content: payload.roomId.trim() }),
-        });
-    }
+    return { edited };
 }
 
 // ─── Tournament Rules ───────────────────────────────────────
@@ -476,7 +545,7 @@ export async function sendTournamentRules(tournamentId: string, tournamentName: 
     });
 
     // Add a link embed at the bottom
-    const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://bgmi.pixel-thread.in";
+    const siteUrl = process.env.APP_URL || "https://bgmi.pixel-thread.in";
     ruleEmbeds.push({
         description: `📖 [**View full rules on the website →**](${siteUrl}/rules)`,
         color: 0x5865f2, // Discord blurple

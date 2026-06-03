@@ -10,7 +10,7 @@ import { prisma } from "@/lib/database";
  * Auto-creates the channel under TOURNAMENTS category on first send.
  * Admin or UC-exempt players.
  *
- * Body: { tournamentId, tournamentName, matchNumber, map, time, roomId, password, gameName }
+ * Body: { tournamentId, tournamentName, matchNumber, map, time, roomId, password, gameName, editExisting? }
  */
 export async function POST(req: NextRequest) {
     try {
@@ -24,13 +24,13 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { tournamentId, tournamentName, matchNumber, map, time, roomId, password, gameName, image, group } = body;
+        const { tournamentId, tournamentName, matchNumber, map, time, roomId, password, gameName, image, group, editExisting } = body;
 
         if (!tournamentId || !tournamentName || !matchNumber || !map || !time || !password) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        await sendRoomInfo({
+        const { edited } = await sendRoomInfo({
             tournamentId,
             tournamentName,
             matchNumber,
@@ -41,9 +41,14 @@ export async function POST(req: NextRequest) {
             gameName: gameName || "BGMI",
             image: image || undefined,
             group: group || undefined,
+            editExisting: !!editExisting,
         });
 
-        return NextResponse.json({ success: true, message: "Room info sent to Discord" });
+        return NextResponse.json({
+            success: true,
+            message: edited ? "Room info updated on Discord" : "Room info sent to Discord",
+            edited,
+        });
     } catch (error) {
         console.error("Discord send-room-info error:", error);
         return NextResponse.json({ error: "Failed to send room info to Discord" }, { status: 500 });

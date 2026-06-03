@@ -580,6 +580,7 @@ model Tournament {
   isMangoScrim      Boolean          @default(false) // Mango Scrim: uses mango-themed visuals for standings & slots
   discordChannelId       String?          // Auto-created Discord channel for room info (deleted on winner declaration)
   discordGroupChannels   Json?            // Championship: per-group channel IDs — { "A": "id", "B": "id", "C": "id", ... }
+  discordRoomMsgIds      Json?            // Per-match Discord message IDs for edit-instead-of-resend: { "1": { "embedId": "...", "roomIdMsgId": "..." }, ... }
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -820,6 +821,7 @@ model Poll {
   endDate      DateTime?
   tournamentId String    @unique
   luckyVoterId String?
+  discordAnnouncementMsgId String?  // Discord message ID for editing announcements instead of resending
 
   createdAt DateTime @default(now())
 

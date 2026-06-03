@@ -220,8 +220,11 @@ function TournamentRow({ tournament, state, onChange, group }: {
 
     const [discordSending, setDiscordSending] = useState(false);
     const [discordSent, setDiscordSent] = useState(false);
+    const [discordEditing, setDiscordEditing] = useState(false);
+    const [discordEdited, setDiscordEdited] = useState(false);
     const [rulesSending, setRulesSending] = useState(false);
     const [rulesSent, setRulesSent] = useState(false);
+    const [sentMatchNumbers, setSentMatchNumbers] = useState<Set<number>>(new Set());
     const [attachedImage, setAttachedImage] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const [matchPickerOpen, setMatchPickerOpen] = useState(false);
@@ -272,7 +275,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
         onChange({ copyCount: 0 });
     }, [onChange]);
 
-    const sendDiscord = useCallback(async (matchNum: number) => {
+    const sendDiscord = useCallback(async (matchNum: number, editExisting = false) => {
         const res = await fetch("/api/discord/send-room-info", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -287,6 +290,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
                 gameName: GAME.gameName,
                 image: attachedImage || undefined,
                 group: group || undefined,
+                editExisting,
             }),
         });
         if (!res.ok) {
@@ -295,18 +299,33 @@ function TournamentRow({ tournament, state, onChange, group }: {
         }
     }, [tournament.id, tournamentName, state.map, state.time, state.roomId, state.password, attachedImage, group]);
 
-    /** Send room info to Discord */
+    /** Send room info to Discord (new message) */
     const handleSend = useCallback(async () => {
         if (state.roomId.length !== 7) return;
         setDiscordSending(true);
         sendDiscord(matchNumber).then(() => {
             setDiscordSent(true);
             setAttachedImage(null);
+            setSentMatchNumbers(prev => new Set(prev).add(matchNumber));
             setTimeout(() => setDiscordSent(false), 3000);
         }).catch(async (err) => {
             const { toast } = await import("sonner");
             toast.error(`Discord: ${err.message || "Failed to send"}`);
         }).finally(() => setDiscordSending(false));
+    }, [matchNumber, state.roomId, sendDiscord]);
+
+    /** Edit the last sent message for this match */
+    const handleUpdate = useCallback(async () => {
+        if (state.roomId.length !== 7) return;
+        setDiscordEditing(true);
+        sendDiscord(matchNumber, true).then(() => {
+            setDiscordEdited(true);
+            setAttachedImage(null);
+            setTimeout(() => setDiscordEdited(false), 3000);
+        }).catch(async (err) => {
+            const { toast } = await import("sonner");
+            toast.error(`Update: ${err.message || "Failed to update"}`);
+        }).finally(() => setDiscordEditing(false));
     }, [matchNumber, state.roomId, sendDiscord]);
 
     const handleSendRules = useCallback(async () => {
@@ -532,6 +551,42 @@ function TournamentRow({ tournament, state, onChange, group }: {
                     </>
                 )}
             </button>
+
+            {/* Update last sent message for this match */}
+            {sentMatchNumbers.has(matchNumber) && (
+                <button
+                    type="button"
+                    onClick={handleUpdate}
+                    disabled={state.roomId.length !== 7 || discordEditing}
+                    className={`
+                        w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium
+                        transition-all duration-200 cursor-pointer active:scale-[0.98]
+                        ${state.roomId.length !== 7 || discordEditing
+                            ? "bg-default-200 text-foreground/30 cursor-not-allowed"
+                            : discordEdited
+                                ? "bg-blue-500/15 text-blue-500 border border-blue-500/20"
+                                : "bg-default-100 text-foreground/60 border border-divider hover:bg-blue-500/10 hover:text-blue-500 hover:border-blue-500/20"
+                        }
+                    `}
+                >
+                    {discordEditing ? (
+                        <>
+                            <Pencil className="w-3.5 h-3.5 animate-pulse" />
+                            Updating...
+                        </>
+                    ) : discordEdited ? (
+                        <>
+                            <Check className="w-3.5 h-3.5" />
+                            Updated!
+                        </>
+                    ) : (
+                        <>
+                            <Pencil className="w-3.5 h-3.5" />
+                            Update Match {matchNumber}
+                        </>
+                    )}
+                </button>
+            )}
 
             {/* Send Rules button */}
             <button

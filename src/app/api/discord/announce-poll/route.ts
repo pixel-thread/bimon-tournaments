@@ -6,8 +6,11 @@ import { discordFetch } from "@/lib/discord-bot";
 /**
  * POST /api/discord/announce-poll
  *
- * Sends a poll announcement embed to the dedicated announcements channel.
+ * Sends (or edits) a poll announcement embed in the announcements channel.
  * Admin-only, manual trigger from the poll manager.
+ *
+ * If an announcement was already sent (discordAnnouncementMsgId is stored),
+ * the existing message is edited instead of posting a duplicate.
  *
  * Body: { pollId }
  */
@@ -37,6 +40,7 @@ export async function POST(req: NextRequest) {
                 allowSquads: true,
                 scheduledDate: true,
                 scheduledTime: true,
+                discordAnnouncementMsgId: true,
                 tournament: {
                     select: {
                         id: true,
@@ -89,13 +93,43 @@ export async function POST(req: NextRequest) {
             timestamp: new Date().toISOString(),
         };
 
-        const res = await discordFetch(`/channels/${channelId}/messages`, {
-            method: "POST",
-            body: JSON.stringify({
-                embeds: [embed],
-                content: "@everyone 📢 New tournament — register now!",
-            }),
-        });
+        const existingMsgId = poll.discordAnnouncementMsgId;
+        let res: Response;
+        let isEdit = false;
+
+        if (existingMsgId) {
+            // Try to edit the existing message
+            res = await discordFetch(`/channels/${channelId}/messages/${existingMsgId}`, {
+                method: "PATCH",
+                body: JSON.stringify({
+                    embeds: [embed],
+                    // content is not updated on edit — keeps the original @everyone ping
+                }),
+            });
+
+            if (res.ok) {
+                isEdit = true;
+            } else {
+                // Message may have been deleted — fall back to posting a new one
+                console.warn(`Discord edit failed [${res.status}], falling back to new message`);
+                res = await discordFetch(`/channels/${channelId}/messages`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        embeds: [embed],
+                        content: "@everyone 📢 New tournament — register now!",
+                    }),
+                });
+            }
+        } else {
+            // First announcement — post a new message
+            res = await discordFetch(`/channels/${channelId}/messages`, {
+                method: "POST",
+                body: JSON.stringify({
+                    embeds: [embed],
+                    content: "@everyone 📢 New tournament — register now!",
+                }),
+            });
+        }
 
         if (!res.ok) {
             const errorBody = await res.text().catch(() => "unknown");
@@ -103,7 +137,21 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: `Discord error: ${errorBody}` }, { status: 500 });
         }
 
-        return NextResponse.json({ success: true, message: "Announcement sent to Discord" });
+        // Save the message ID so future triggers edit instead of re-post
+        if (!isEdit) {
+            const body = await res.json();
+            if (body.id) {
+                await prisma.poll.update({
+                    where: { id: pollId },
+                    data: { discordAnnouncementMsgId: body.id },
+                });
+            }
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: isEdit ? "Announcement updated on Discord" : "Announcement sent to Discord",
+        });
     } catch (error) {
         console.error("Discord announce-poll error:", error);
         return NextResponse.json({ error: "Failed to send announcement" }, { status: 500 });
