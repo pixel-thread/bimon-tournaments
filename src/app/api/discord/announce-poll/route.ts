@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
         const isRanked = poll.allowSquads;
         const typeLabel = isRanked ? "🏆 Ranked (Squad)" : "🎮 Casual";
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://bgmi.pixel-thread.in";
+        const appUrl = process.env.APP_URL || "https://bgmi.pixel-thread.in";
 
         // Build schedule text
         let scheduleText = "";

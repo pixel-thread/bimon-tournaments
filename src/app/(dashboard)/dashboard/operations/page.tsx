@@ -251,15 +251,20 @@ export default function OperationsPage() {
                 const parsedPrizes = editFixedPrizes.trim()
                     ? editFixedPrizes.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0)
                     : null;
-                const parsedOrgCut = editOrgCut.trim() ? Number(editOrgCut) : null;
+                // Only send orgCutFixed when fixed prizes are set — otherwise don't touch it
+                // (it may have been set for championship org cut override)
+                const patchBody: Record<string, unknown> = {
+                    id: selected.poll.id,
+                    fixedPrizes: parsedPrizes,
+                };
+                if (parsedPrizes && parsedPrizes.length > 0) {
+                    const parsedOrgCut = editOrgCut.trim() ? Number(editOrgCut) : null;
+                    patchBody.orgCutFixed = parsedOrgCut != null && !isNaN(parsedOrgCut) && parsedOrgCut > 0 ? parsedOrgCut : null;
+                }
                 await fetch("/api/polls", {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        id: selected.poll.id,
-                        fixedPrizes: parsedPrizes,
-                        orgCutFixed: parsedOrgCut != null && !isNaN(parsedOrgCut) && parsedOrgCut > 0 ? parsedOrgCut : null,
-                    }),
+                    body: JSON.stringify(patchBody),
                 });
             }
         },
