@@ -105,6 +105,7 @@ export default function OperationsPage() {
     const [editMaxPlacements, setEditMaxPlacements] = useState(3);
     const [editIsMangoScrim, setEditIsMangoScrim] = useState(false);
     const [editFixedPrizes, setEditFixedPrizes] = useState(""); // Comma-separated: "250,120,50,50"
+    const [editOrgCut, setEditOrgCut] = useState(""); // Org cut for fixed-prize tournaments
 
     // Create tournament form
     const [tName, setTName] = useState("");
@@ -219,10 +220,12 @@ export default function OperationsPage() {
                         } else {
                             setEditFixedPrizes("");
                         }
+                        setEditOrgCut(poll?.orgCutFixed != null ? String(poll.orgCutFixed) : "");
                     })
                     .catch(() => setEditFixedPrizes(""));
             } else {
                 setEditFixedPrizes("");
+                setEditOrgCut("");
             }
         }
     }, [selected?.id]);
@@ -243,17 +246,19 @@ export default function OperationsPage() {
             });
             if (!res.ok) throw new Error("Failed to update");
 
-            // Save fixedPrizes to poll (if poll exists)
+            // Save fixedPrizes + orgCut to poll (if poll exists)
             if (selected?.poll?.id) {
                 const parsedPrizes = editFixedPrizes.trim()
                     ? editFixedPrizes.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0)
                     : null;
+                const parsedOrgCut = editOrgCut.trim() ? Number(editOrgCut) : null;
                 await fetch("/api/polls", {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         id: selected.poll.id,
                         fixedPrizes: parsedPrizes,
+                        orgCutFixed: parsedOrgCut != null && !isNaN(parsedOrgCut) && parsedOrgCut > 0 ? parsedOrgCut : null,
                     }),
                 });
             }
@@ -748,6 +753,22 @@ export default function OperationsPage() {
                                     }
                                 />
                             </div>
+
+                            {/* Org Cut — visible when fixed prizes are set */}
+                            {editFixedPrizes.trim() && (
+                                <Input
+                                    label="Org Cut (₹)"
+                                    placeholder="0"
+                                    value={editOrgCut}
+                                    onValueChange={setEditOrgCut}
+                                    type="number"
+                                    size="sm"
+                                    description={editOrgCut.trim() && Number(editOrgCut) > 0
+                                        ? `₹${Number(editOrgCut).toLocaleString()} org income will be recorded`
+                                        : "No org cut for this tournament"
+                                    }
+                                />
+                            )}
                         </ModalBody>
                         <ModalFooter>
                             <Button size="sm" variant="flat" onPress={editModal.onClose}>

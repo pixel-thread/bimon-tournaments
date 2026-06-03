@@ -98,8 +98,10 @@ export async function POST(
             : isRanked
                 ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed")
                 : (settings.orgCutMode ?? "fixed");
-        // Fixed prizes: admin set exact amounts, org cut already included → zero org cut
+        // Fixed prizes: admin set exact amounts, org cut already included → zero org cut for distribution
         const fixedPrizes = Array.isArray(pollForTournament?.fixedPrizes) ? (pollForTournament.fixedPrizes as number[]) : null;
+        // When fixedPrizes is set, the poll's orgCutFixed is a separate org income amount (not deducted from prizes)
+        const fixedPrizesOrgCut = fixedPrizes && pollOrgCutFixed != null && pollOrgCutFixed > 0 ? pollOrgCutFixed : 0;
         const orgCut = fixedPrizes ? 0 : (hasPollOrgCut
             ? pollOrgCutFixed!
             : orgCutMode === "percent"
@@ -631,6 +633,17 @@ export async function POST(
                 }
             }
 
+            // Fixed prizes org cut: recorded separately (not deducted from prizes)
+            if (fixedPrizesOrgCut > 0) {
+                await tx.income.create({
+                    data: {
+                        amount: fixedPrizesOrgCut,
+                        description: `Org - ${tournament.name} (fixed prizes)`,
+                        tournamentId: id, tournamentName: tournament.name, createdBy: "system",
+                    },
+                });
+            }
+
             // Mark tournament completed (INSIDE transaction)
             await tx.tournament.update({
                 where: { id },
@@ -816,8 +829,10 @@ async function declareBracketWinners({
         : isRanked
             ? (settings.rankedOrgCutMode ?? settings.orgCutMode ?? "fixed")
             : (settings.orgCutMode ?? "fixed");
-    // Fixed prizes: admin set exact amounts, org cut already included → zero org cut
+    // Fixed prizes: admin set exact amounts, org cut already included → zero org cut for distribution
     const bracketFixedPrizes = Array.isArray(pollForTournament?.fixedPrizes) ? (pollForTournament.fixedPrizes as number[]) : null;
+    // When fixedPrizes is set, the poll's orgCutFixed is a separate org income amount (not deducted from prizes)
+    const bracketFixedPrizesOrgCut = bracketFixedPrizes && pollOrgCutFixed != null && pollOrgCutFixed > 0 ? pollOrgCutFixed : 0;
     const orgCut = bracketFixedPrizes ? 0 : (hasPollOrgCut
         ? pollOrgCutFixed!
         : orgCutMode === "percent"
@@ -1058,6 +1073,13 @@ async function declareBracketWinners({
         if (finalFund > 0) {
             await tx.income.create({
                 data: { amount: finalFund, description: `Fund - ${tournament.name} (repeat winner tax)`, tournamentId: id, tournamentName: tournament.name, createdBy: "system" },
+            });
+        }
+
+        // Fixed prizes org cut: recorded separately (not deducted from prizes)
+        if (bracketFixedPrizesOrgCut > 0) {
+            await tx.income.create({
+                data: { amount: bracketFixedPrizesOrgCut, description: `Org - ${tournament.name} (fixed prizes)`, tournamentId: id, tournamentName: tournament.name, createdBy: "system" },
             });
         }
 
