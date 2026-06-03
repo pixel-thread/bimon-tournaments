@@ -386,7 +386,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
                 {syncInfo && (
                     <button
                         type="button"
-                        onClick={syncDiscordAccess}
+                        onClick={() => syncDiscordAccess()}
                         disabled={syncInfo.syncing}
                         className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-default-100 border border-divider hover:bg-default-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
                         title={`${syncInfo.granted} synced out of ${syncInfo.linked} Discord-linked players. Click to re-sync.`}
