@@ -77,28 +77,33 @@ export async function POST(req: NextRequest) {
         const MAX_PER_CALL = 8;
         let granted = 0;
         let failed = 0;
+        let rateLimited = false;
+        let retryAfterMs = 0;
 
         for (let i = 0; i < Math.min(discordIds.length, MAX_PER_CALL); i++) {
             try {
                 await grantChannelAccess(channelId, discordIds[i]);
                 granted++;
             } catch (err: any) {
-                // If rate limited, stop processing — return what we have
+                // If rate limited, stop processing — tell UI to wait and retry
                 if (err.message?.includes("[429]")) {
-                    console.warn(`[sync] Rate limited after ${granted} grants, stopping this call`);
-                    failed = discordIds.length - granted;
+                    // Parse retry_after from error message
+                    const match = err.message.match(/"retry_after":([\d.]+)/);
+                    retryAfterMs = match ? Math.ceil(parseFloat(match[1]) * 1000) + 1000 : 12000;
+                    rateLimited = true;
+                    console.warn(`[sync] Rate limited after ${granted} grants, retry in ${retryAfterMs}ms`);
                     break;
                 }
                 failed++;
                 console.error(`[sync] Failed to grant access to ${discordIds[i]}:`, err);
             }
-            // 600ms between each — ~1.6 req/s, well under Discord's ~10/10s limit
+            // 800ms between each — safe under Discord's ~10/10s limit
             if (i < Math.min(discordIds.length, MAX_PER_CALL) - 1) {
-                await new Promise(r => setTimeout(r, 600));
+                await new Promise(r => setTimeout(r, 800));
             }
         }
 
-        const remaining = Math.max(0, discordIds.length - MAX_PER_CALL);
+        const remaining = discordIds.length - granted - failed;
 
         return NextResponse.json({
             success: true,
@@ -107,7 +112,9 @@ export async function POST(req: NextRequest) {
             unlinkedPlayers: totalPlayers - discordIds.length,
             granted,
             failed,
-            remaining, // UI can auto-retry if > 0
+            remaining,
+            rateLimited,
+            retryAfterMs, // UI waits this long before auto-retry
         });
     } catch (error) {
         console.error("sync-channel-access error:", error);

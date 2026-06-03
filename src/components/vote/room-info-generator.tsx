@@ -229,48 +229,6 @@ function TournamentRow({ tournament, state, onChange, group }: {
     const imageInputRef = useRef<HTMLInputElement>(null);
     const [matchPickerOpen, setMatchPickerOpen] = useState(false);
 
-    // Discord sync indicator
-    const [syncInfo, setSyncInfo] = useState<{ granted: number; linked: number; syncing: boolean } | null>(null);
-
-    const syncDiscordAccess = useCallback(async (cumulative = 0) => {
-        setSyncInfo(prev => prev ? { ...prev, syncing: true } : { granted: 0, linked: 0, syncing: true });
-        try {
-            const res = await fetch("/api/discord/sync-channel-access", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ tournamentId: tournament.id, group: group || undefined }),
-            });
-            if (res.ok) {
-                const data = await res.json();
-                const totalGranted = cumulative + data.granted;
-                setSyncInfo({ granted: totalGranted, linked: data.linkedPlayers, syncing: false });
-
-                // Auto-retry if there are more players to process
-                if (data.remaining > 0 && data.granted > 0) {
-                    setSyncInfo(prev => prev ? { ...prev, syncing: true } : null);
-                    setTimeout(() => syncDiscordAccess(totalGranted), 2000);
-                    return;
-                }
-
-                // Done — show final result
-                if (data.failed > 0) {
-                    toast.warning(`Synced ${totalGranted}/${data.linkedPlayers} — ${data.failed} failed. Try again.`);
-                } else if (totalGranted > 0) {
-                    toast.success(`Synced ${totalGranted}/${data.linkedPlayers} Discord players`);
-                }
-            } else {
-                toast.error("Failed to sync Discord access");
-                setSyncInfo(prev => prev ? { ...prev, syncing: false } : null);
-            }
-        } catch {
-            toast.error("Failed to sync Discord access");
-            setSyncInfo(prev => prev ? { ...prev, syncing: false } : null);
-        }
-    }, [tournament.id, group]);
-
-    // Auto-sync on mount
-    useEffect(() => { syncDiscordAccess(); }, [syncDiscordAccess]);
-
     const generateMessage = useCallback((matchNum: number) => {
         const divider = "━━━━━━━━━━━━━━━";
         const lines = [
@@ -382,23 +340,6 @@ function TournamentRow({ tournament, state, onChange, group }: {
                         {typeLabel}
                     </p>
                 </div>
-                {/* Discord sync indicator */}
-                {syncInfo && (
-                    <button
-                        type="button"
-                        onClick={() => syncDiscordAccess()}
-                        disabled={syncInfo.syncing}
-                        className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-default-100 border border-divider hover:bg-default-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
-                        title={`${syncInfo.granted} synced out of ${syncInfo.linked} Discord-linked players. Click to re-sync.`}
-                    >
-                        {syncInfo.syncing ? (
-                            <span className="animate-pulse">⟳</span>
-                        ) : (
-                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${syncInfo.granted >= syncInfo.linked ? "bg-green-500" : "bg-yellow-500"}`} />
-                        )}
-                        {syncInfo.granted}/{syncInfo.linked}
-                    </button>
-                )}
                 {state.copyCount > 0 && (
                     <button
                         type="button"

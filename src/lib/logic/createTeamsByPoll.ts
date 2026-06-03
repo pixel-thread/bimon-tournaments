@@ -15,7 +15,7 @@ import { debitWallet, getEmailByPlayerId } from "@/lib/wallet-service";
 import { getActiveCoupon, redeemCoupon } from "@/lib/logic/welcomeBack";
 import { GAME } from "@/lib/game-config";
 import { assignGroups, getConfirmedSquadCap } from "./championship";
-import { createTournamentChannel, grantChannelAccess, batchGrantChannelAccess } from "@/lib/discord-service";
+import { createTournamentChannel } from "@/lib/discord-service";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -821,19 +821,27 @@ export async function createTeamsByPoll({
         console.log(`[createTeamsByPoll] Championship setup: Group A (${groupA.length}), Group B (${groupB.length})`);
     }
 
-    // ── Post-transaction: create Discord channel(s) + grant per-user access ──
-    // Sequential grants with delays to avoid Discord rate limits.
-    // This runs server-side with no Vercel timeout, so we can take our time.
+    // ── Post-transaction: create Discord channel(s) — NO access granting ──
+    // Access is granted manually from the Room Info page for full control.
     try {
         const existingTournament = await prisma.tournament.findUnique({
             where: { id: tournamentId },
             select: { discordChannelId: true, discordGroupChannels: true },
         });
 
-        if (shouldChampionship) {
-            // Championship: create per-group channels
-            const groups: Record<string, string[]> = {}; // group -> teamIds
+        // Ensure main channel exists (created at tournament creation, but fallback here)
+        if (!existingTournament?.discordChannelId) {
+            const mainChannelId = await createTournamentChannel(tournamentName);
+            await prisma.tournament.update({
+                where: { id: tournamentId },
+                data: { discordChannelId: mainChannelId },
+            });
+            console.log(`[createTeamsByPoll] Created main Discord channel: ${mainChannelId}`);
+        }
 
+        // Championship: create per-group channels (no access granting)
+        if (shouldChampionship) {
+            const groups: Record<string, string[]> = {};
             const entries = await prisma.championshipEntry.findMany({
                 where: { tournamentId },
                 select: { group: true, teamId: true },
@@ -847,84 +855,21 @@ export async function createTeamsByPoll({
             const existingGroupChannels = (existingTournament?.discordGroupChannels as Record<string, string>) || {};
             const groupChannels: Record<string, string> = { ...existingGroupChannels };
 
-            for (const [group, teamIds] of Object.entries(groups)) {
-                // Get players with Discord in this group
-                const groupPlayers = await prisma.player.findMany({
-                    where: {
-                        teams: { some: { id: { in: teamIds } } },
-                        discordId: { not: null },
-                    },
-                    select: { discordId: true },
-                });
-                const discordIds = groupPlayers.map(p => p.discordId).filter((id): id is string => !!id);
-
-                if (discordIds.length === 0) continue;
-
-                // Create or reuse group channel
-                let channelId = existingGroupChannels[group];
-                if (!channelId) {
+            for (const [group] of Object.entries(groups)) {
+                if (!existingGroupChannels[group]) {
                     const suffix = `group-${group.toLowerCase()}`;
-                    channelId = await createTournamentChannel(tournamentName, suffix);
+                    groupChannels[group] = await createTournamentChannel(tournamentName, suffix);
+                    console.log(`[createTeamsByPoll] Created Discord group channel: ${group}`);
                 }
-                groupChannels[group] = channelId;
-
-                // Grant access one at a time with delay — no rate limits
-                let granted = 0;
-                for (const discordId of discordIds) {
-                    try {
-                        await grantChannelAccess(channelId, discordId);
-                        granted++;
-                    } catch (err) {
-                        console.error(`[createTeamsByPoll] Failed to grant access to ${discordId}:`, err);
-                    }
-                    await new Promise(r => setTimeout(r, 600)); // ~1.6 req/s — well under Discord's limit
-                }
-                console.log(`[createTeamsByPoll] Discord Group ${group} channel (${channelId}) — ${granted}/${discordIds.length} users`);
             }
 
-            // Store group channels in tournament
             await prisma.tournament.update({
                 where: { id: tournamentId },
                 data: { discordGroupChannels: groupChannels },
             });
-        } else {
-            // Regular: single channel for all players
-            const participantDiscordIds = await prisma.player.findMany({
-                where: { id: { in: [...allTeamPlayerIds] }, discordId: { not: null } },
-                select: { discordId: true },
-            });
-            const discordIds = participantDiscordIds
-                .map(p => p.discordId)
-                .filter((id): id is string => !!id);
-
-            if (discordIds.length > 0) {
-                let channelId = existingTournament?.discordChannelId;
-
-                if (!channelId) {
-                    channelId = await createTournamentChannel(tournamentName);
-                    await prisma.tournament.update({
-                        where: { id: tournamentId },
-                        data: { discordChannelId: channelId },
-                    });
-                }
-
-                // Grant access one at a time with delay — no rate limits
-                let granted = 0;
-                for (const discordId of discordIds) {
-                    try {
-                        await grantChannelAccess(channelId, discordId);
-                        granted++;
-                    } catch (err) {
-                        console.error(`[createTeamsByPoll] Failed to grant access to ${discordId}:`, err);
-                    }
-                    await new Promise(r => setTimeout(r, 600)); // ~1.6 req/s — well under Discord's limit
-                }
-                console.log(`[createTeamsByPoll] Discord channel (${channelId}) — ${granted}/${discordIds.length} users granted access`);
-            }
         }
     } catch (err) {
         console.error("[createTeamsByPoll] Discord channel creation failed (non-blocking):", err);
-        // Don't throw — Discord channel is best-effort, don't block team generation
     }
 
     return {

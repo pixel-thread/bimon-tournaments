@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/database";
-import { createTournamentChannel, grantChannelAccess, batchGrantChannelAccess } from "@/lib/discord-service";
+import { createTournamentChannel } from "@/lib/discord-service";
 
 /**
  * POST /api/discord/send-slot-image
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (!channelId) {
-            // Create channel and grant access to the right players
+            // Create channel (no auto-granting — managed from Discord Access tab)
             const suffix = group ? `group-${group.toLowerCase()}` : undefined;
             channelId = await createTournamentChannel(tournamentName, suffix);
 
@@ -67,27 +67,6 @@ export async function POST(req: NextRequest) {
                     data: { discordChannelId: channelId },
                 });
             }
-
-            // Grant access — for groups, only players in that group
-            const playerFilter: any = {
-                teams: { some: { tournamentId } },
-                discordId: { not: null },
-            };
-            if (group) {
-                playerFilter.teams = {
-                    some: {
-                        tournamentId,
-                        championshipEntry: { group },
-                    },
-                };
-            }
-
-            const teamPlayers = await prisma.player.findMany({
-                where: playerFilter,
-                select: { discordId: true },
-            });
-            const discordIds = teamPlayers.map(p => p.discordId).filter((id): id is string => !!id);
-            await batchGrantChannelAccess(channelId!, discordIds);
         }
 
         // 2. Convert base64 data URL to Buffer — detect format (jpeg or png)

@@ -4,7 +4,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
-import { grantPlayerTournamentAccess } from "@/lib/discord-service";
 
 /**
  * POST /api/squads/invite
@@ -213,10 +212,6 @@ export async function POST(request: NextRequest) {
                 ? `${playerName} auto-joined "${squad.name}" — squad full! 🎉`
                 : `${playerName} auto-joined "${squad.name}"`;
             sendPush(currentPlayerId, { title: pushTitle, body: pushBody, url: "/vote" });
-
-            // Grant Discord channel access (fire-and-forget)
-            const autoJoinedPlayer = await prisma.player.findUnique({ where: { id: playerId }, select: { discordId: true } });
-            grantPlayerTournamentAccess(squad.pollId, autoJoinedPlayer?.discordId ?? null).catch(() => {});
 
             return SuccessResponse({
                 message: `${playerName} auto-joined "${squad.name}"!`,

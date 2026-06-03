@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/database";
-import { Prisma } from "@prisma/client";
 import { progressFromHeats, progressFromHeatsLite, progressFromWildcard } from "@/lib/logic/championship";
-import {
-    createTournamentChannel,
-    deleteTournamentChannel,
-    grantChannelAccess,
-    batchGrantChannelAccess,
-} from "@/lib/discord-service";
 
 /**
  * POST /api/tournaments/[id]/championship/progress
@@ -94,59 +87,13 @@ export async function POST(
             nextPhase = "finals";
         }
 
-        // ─── Discord Channel Lifecycle ──────────────────────────────
-        try {
-            const channelsToDelete: string[] = [];
-
-            if (from === "HEATS") {
-                // Delete all group channels
-                const groupChannels = (tournament.discordGroupChannels as Record<string, string>) || {};
-                channelsToDelete.push(...Object.values(groupChannels));
-            } else {
-                // Delete wildcard/main channel
-                if (tournament.discordChannelId) channelsToDelete.push(tournament.discordChannelId);
-            }
-
-            // Delete old channels
-            await Promise.allSettled(channelsToDelete.map(id => deleteTournamentChannel(id)));
-
-            // Create new channel for next phase
-            const newChannelId = await createTournamentChannel(tournament.name, nextPhase);
-
-            // Grant access to qualifying players in the next phase
-            const qualifyingPlayers = await prisma.player.findMany({
-                where: {
-                    teams: {
-                        some: {
-                            tournamentId,
-                            championshipEntry: {
-                                phase: nextPhase === "wildcard" ? "WILDCARD" : "FINALS",
-                                status: "ACTIVE",
-                            },
-                        },
-                    },
-                    discordId: { not: null },
-                },
-                select: { discordId: true },
-            });
-
-            const discordIds = qualifyingPlayers.map(p => p.discordId).filter((id): id is string => !!id);
-            await batchGrantChannelAccess(newChannelId, discordIds);
-
-            // Update tournament: set new main channel, clear group channels
-            await prisma.tournament.update({
-                where: { id: tournamentId },
-                data: {
-                    discordChannelId: newChannelId,
-                    discordGroupChannels: Prisma.JsonNull,
-                },
-            });
-
-            console.log(`[championship/progress] Discord: deleted ${channelsToDelete.length} channel(s), created ${nextPhase} channel`);
-        } catch (discordError) {
-            // Don't fail phase progression if Discord channel management fails
-            console.error("[championship/progress] Discord channel transition error:", discordError);
-        }
+        // ─── Discord Channel: create phase channel (no auto-granting) ─────
+        // Channels are NOT deleted — they serve as archive. Access is managed
+        // manually from the Room Info → Discord Access tab.
+        // New phase channels were already created by the championship progression
+        // functions (progressFromHeats / progressFromHeatsLite / progressFromWildcard),
+        // so no additional channel creation is needed here.
+        console.log(`[championship/progress] Phase progressed to ${nextPhase} — grant access from Discord Access tab`);
 
         return NextResponse.json({
             success: true,

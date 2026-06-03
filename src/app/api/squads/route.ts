@@ -4,7 +4,7 @@ import { getCurrentUser, getAuthEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { getConfirmedSquadCap } from "@/lib/logic/championship";
 import { getAvailableBalance } from "@/lib/wallet-service";
-import { grantRole, grantPlayerTournamentAccess } from "@/lib/discord-service";
+import { grantRole } from "@/lib/discord-service";
 import { type NextRequest } from "next/server";
 
 /**
@@ -419,9 +419,6 @@ export async function POST(request: NextRequest) {
         });
 
         const isWaitlisted = activeSquadCount >= maxSquads; // squad was created as #(activeSquadCount+1)
-
-        // Grant captain Discord channel access (fire-and-forget, single request)
-        grantPlayerTournamentAccess(pollId, captainPlayer.discordId).catch(() => {});
 
         return SuccessResponse({
             data: {

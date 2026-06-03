@@ -3,8 +3,9 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RoomInfoGenerator, RulesEditor } from "@/components/vote/room-info-generator";
+import { DiscordAccessManager } from "@/components/vote/discord-access-manager";
 import { Card, CardBody } from "@heroui/react";
-import { KeyRound, BookOpen, Send, Check, ChevronDown } from "lucide-react";
+import { KeyRound, Shield, BookOpen, Send, Check, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 interface InPlayTournament {
@@ -14,10 +15,13 @@ interface InPlayTournament {
     allowSquads: boolean;
 }
 
+type Tab = "room-info" | "discord-access";
+
 /**
  * /dashboard/room-info — Dedicated page for room info generation & Discord management.
  */
 export default function RoomInfoPage() {
+    const [activeTab, setActiveTab] = useState<Tab>("room-info");
     const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
     const [rulesSending, setRulesSending] = useState(false);
     const [rulesSent, setRulesSent] = useState(false);
@@ -63,10 +67,15 @@ export default function RoomInfoPage() {
         }
     }, [selectedTournament, rulesSending]);
 
+    const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+        { id: "room-info", label: "Room Info", icon: <KeyRound className="w-3.5 h-3.5" /> },
+        { id: "discord-access", label: "Discord Access", icon: <Shield className="w-3.5 h-3.5" /> },
+    ];
+
     return (
         <div className="space-y-5 p-4">
-            {/* Header */}
-            <div>
+            {/* Header + Tabs */}
+            <div className="space-y-3">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">
                         <KeyRound className="w-4 h-4 text-white" />
@@ -78,87 +87,116 @@ export default function RoomInfoPage() {
                         </p>
                     </div>
                 </div>
+
+                {/* Tab switcher */}
+                <div className="flex gap-1 p-1 rounded-xl bg-default-100 border border-divider">
+                    {tabs.map(tab => (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`
+                                flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold
+                                transition-all duration-200 cursor-pointer
+                                ${activeTab === tab.id
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-foreground/40 hover:text-foreground/60"
+                                }
+                            `}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            {/* Room Info Generator — always expanded, rules editor hidden */}
-            <Card className="border border-divider">
-                <CardBody className="p-4">
-                    <RoomInfoGenerator alwaysExpanded hideRulesEditor />
-                </CardBody>
-            </Card>
-
-            {/* Rules Editor — always visible with tournament selector */}
-            <Card className="border border-divider">
-                <CardBody className="p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                        <BookOpen className="w-4 h-4 text-foreground/50" />
-                        <p className="text-sm font-semibold">Tournament Rules</p>
-                    </div>
-                    <p className="text-xs text-foreground/40">
-                        Edit rules below and send them to a tournament&apos;s Discord channel.
-                    </p>
+            {/* Tab content */}
+            {activeTab === "room-info" && (
+                <>
+                    {/* Room Info Generator */}
+                    <Card className="border border-divider">
+                        <CardBody className="p-4">
+                            <RoomInfoGenerator alwaysExpanded hideRulesEditor />
+                        </CardBody>
+                    </Card>
 
                     {/* Rules Editor */}
-                    <RulesEditor />
-
-                    {/* Tournament Selector + Send button */}
-                    {tournaments.length > 0 && (
-                        <div className="border-t border-divider pt-3 space-y-2">
-                            <label className="text-[10px] text-foreground/40 uppercase tracking-wider block">
-                                Send rules to
-                            </label>
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <select
-                                        value={selectedTournament?.id || ""}
-                                        onChange={(e) => setSelectedTournamentId(e.target.value)}
-                                        className="w-full appearance-none px-3 py-2 pr-8 rounded-xl bg-default-100 border border-divider text-sm cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
-                                    >
-                                        {tournaments.map((t) => (
-                                            <option key={t.id} value={t.id}>
-                                                {t.allowSquads ? "🏆" : "🎮"} {t.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/40 pointer-events-none" />
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleSendRules}
-                                    disabled={rulesSending || !selectedTournament}
-                                    className={`
-                                        flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold shrink-0
-                                        transition-all duration-200 cursor-pointer active:scale-[0.98]
-                                        ${rulesSent
-                                            ? "bg-emerald-500 text-white"
-                                            : rulesSending
-                                                ? "bg-default-200 text-foreground/40"
-                                                : "bg-[#5865F2] text-white hover:bg-[#4752C4] shadow-lg shadow-[#5865F2]/25"
-                                        }
-                                    `}
-                                >
-                                    {rulesSent ? (
-                                        <>
-                                            <Check className="w-4 h-4" />
-                                            Sent!
-                                        </>
-                                    ) : rulesSending ? (
-                                        <>
-                                            <Send className="w-4 h-4 animate-pulse" />
-                                            Sending...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send className="w-4 h-4" />
-                                            Send
-                                        </>
-                                    )}
-                                </button>
+                    <Card className="border border-divider">
+                        <CardBody className="p-4 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <BookOpen className="w-4 h-4 text-foreground/50" />
+                                <p className="text-sm font-semibold">Tournament Rules</p>
                             </div>
-                        </div>
-                    )}
-                </CardBody>
-            </Card>
+                            <p className="text-xs text-foreground/40">
+                                Edit rules below and send them to a tournament&apos;s Discord channel.
+                            </p>
+
+                            <RulesEditor />
+
+                            {tournaments.length > 0 && (
+                                <div className="border-t border-divider pt-3 space-y-2">
+                                    <label className="text-[10px] text-foreground/40 uppercase tracking-wider block">
+                                        Send rules to
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <select
+                                                value={selectedTournament?.id || ""}
+                                                onChange={(e) => setSelectedTournamentId(e.target.value)}
+                                                className="w-full appearance-none px-3 py-2 pr-8 rounded-xl bg-default-100 border border-divider text-sm cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                                            >
+                                                {tournaments.map((t) => (
+                                                    <option key={t.id} value={t.id}>
+                                                        {t.allowSquads ? "🏆" : "🎮"} {t.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/40 pointer-events-none" />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleSendRules}
+                                            disabled={rulesSending || !selectedTournament}
+                                            className={`
+                                                flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold shrink-0
+                                                transition-all duration-200 cursor-pointer active:scale-[0.98]
+                                                ${rulesSent
+                                                    ? "bg-emerald-500 text-white"
+                                                    : rulesSending
+                                                        ? "bg-default-200 text-foreground/40"
+                                                        : "bg-[#5865F2] text-white hover:bg-[#4752C4] shadow-lg shadow-[#5865F2]/25"
+                                                }
+                                            `}
+                                        >
+                                            {rulesSent ? (
+                                                <>
+                                                    <Check className="w-4 h-4" />
+                                                    Sent!
+                                                </>
+                                            ) : rulesSending ? (
+                                                <>
+                                                    <Send className="w-4 h-4 animate-pulse" />
+                                                    Sending...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Send className="w-4 h-4" />
+                                                    Send
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </CardBody>
+                    </Card>
+                </>
+            )}
+
+            {activeTab === "discord-access" && (
+                <DiscordAccessManager />
+            )}
         </div>
     );
 }

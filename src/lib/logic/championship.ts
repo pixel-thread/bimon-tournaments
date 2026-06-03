@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/database";
+import { createTournamentChannel } from "@/lib/discord-service";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -252,6 +253,31 @@ export async function progressFromHeats(tournamentId: string, seasonId: string) 
         }
     }
 
+    // Create Discord channels for Wildcard and Finals phases
+    try {
+        const tournament = await prisma.tournament.findUnique({
+            where: { id: tournamentId },
+            select: { name: true, discordGroupChannels: true },
+        });
+        if (tournament) {
+            const groupChannels = (tournament.discordGroupChannels as Record<string, string>) || {};
+            if (!groupChannels["WILDCARD"]) {
+                groupChannels["WILDCARD"] = await createTournamentChannel(tournament.name, "wildcard");
+                console.log(`[championship] Created WILDCARD Discord channel`);
+            }
+            if (!groupChannels["FINALS"]) {
+                groupChannels["FINALS"] = await createTournamentChannel(tournament.name, "finals");
+                console.log(`[championship] Created FINALS Discord channel`);
+            }
+            await prisma.tournament.update({
+                where: { id: tournamentId },
+                data: { discordGroupChannels: groupChannels },
+            });
+        }
+    } catch (err) {
+        console.error("[championship] Discord channel creation failed (non-blocking):", err);
+    }
+
     return {
         directQualifiers: updates.filter(u => u.status === "QUALIFIED").length,
         wildcardTeams: wildcardTeams.length,
@@ -398,6 +424,27 @@ export async function progressFromHeatsLite(tournamentId: string, seasonId: stri
         data: { status: "ACTIVE" },
     });
 
+    // Create Discord channel for Finals phase
+    try {
+        const tournament = await prisma.tournament.findUnique({
+            where: { id: tournamentId },
+            select: { name: true, discordGroupChannels: true },
+        });
+        if (tournament) {
+            const groupChannels = (tournament.discordGroupChannels as Record<string, string>) || {};
+            if (!groupChannels["FINALS"]) {
+                groupChannels["FINALS"] = await createTournamentChannel(tournament.name, "finals");
+                console.log(`[championship] Created FINALS Discord channel (lite)`);
+            }
+            await prisma.tournament.update({
+                where: { id: tournamentId },
+                data: { discordGroupChannels: groupChannels },
+            });
+        }
+    } catch (err) {
+        console.error("[championship] Discord channel creation failed (non-blocking):", err);
+    }
+
     return {
         directQualifiers: finalists.length,
         eliminated: updates.filter(u => u.status === "ELIMINATED").length,
@@ -536,6 +583,27 @@ export async function progressFromWildcard(tournamentId: string, seasonId: strin
         },
         data: { status: "ACTIVE" },
     });
+
+    // Create Discord channel for Finals phase (if not already from heats)
+    try {
+        const tournament = await prisma.tournament.findUnique({
+            where: { id: tournamentId },
+            select: { name: true, discordGroupChannels: true },
+        });
+        if (tournament) {
+            const groupChannels = (tournament.discordGroupChannels as Record<string, string>) || {};
+            if (!groupChannels["FINALS"]) {
+                groupChannels["FINALS"] = await createTournamentChannel(tournament.name, "finals");
+                console.log(`[championship] Created FINALS Discord channel (from wildcard)`);
+            }
+            await prisma.tournament.update({
+                where: { id: tournamentId },
+                data: { discordGroupChannels: groupChannels },
+            });
+        }
+    } catch (err) {
+        console.error("[championship] Discord channel creation failed (non-blocking):", err);
+    }
 
     return {
         qualifiedToFinals: updates.filter(u => u.status === "QUALIFIED").length,

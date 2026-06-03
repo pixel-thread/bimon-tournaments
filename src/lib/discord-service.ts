@@ -264,6 +264,33 @@ export async function grantChannelAccess(channelId: string, discordUserId: strin
 }
 
 /**
+ * Revoke a Discord user's access to a tournament channel.
+ */
+export async function revokeChannelAccess(channelId: string, discordUserId: string): Promise<void> {
+    const res = await discordFetch(`/channels/${channelId}/permissions/${discordUserId}`, {
+        method: "DELETE",
+    });
+    if (!res.ok) {
+        const errorBody = await res.text().catch(() => "unknown");
+        throw new Error(`revokeChannelAccess failed for ${discordUserId} [${res.status}]: ${errorBody}`);
+    }
+}
+
+/**
+ * Get the list of Discord user IDs that have been granted access to a channel.
+ * Returns only member (type=1) overwrites — not role overwrites.
+ */
+export async function getChannelAccessList(channelId: string): Promise<string[]> {
+    const res = await discordFetch(`/channels/${channelId}`);
+    if (!res.ok) return [];
+
+    const channel = await res.json();
+    const overwrites: { id: string; type: number }[] = channel.permission_overwrites || [];
+    // type 1 = member (user), type 0 = role
+    return overwrites.filter(o => o.type === 1).map(o => o.id);
+}
+
+/**
  * Wrapper with retry for 429 (rate limited) responses.
  * Retries up to 3 times with exponential backoff.
  */
@@ -287,20 +314,6 @@ async function grantChannelAccessWithRetry(
             }
             throw err;
         }
-    }
-}
-
-/**
- * Revoke a Discord user's VIEW_CHANNEL access from a specific channel.
- * Deletes the per-user permission overwrite.
- */
-export async function revokeChannelAccess(channelId: string, discordUserId: string): Promise<void> {
-    const res = await discordFetch(`/channels/${channelId}/permissions/${discordUserId}`, {
-        method: "DELETE",
-    });
-    if (!res.ok) {
-        const errorBody = await res.text().catch(() => "unknown");
-        console.error(`Discord revokeChannelAccess failed [${res.status}]:`, errorBody);
     }
 }
 
@@ -356,7 +369,7 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<{ edited: 
     }
 
     if (!channelId) {
-        // Create the channel
+        // Create the channel (no auto-granting — managed from Discord Access tab)
         const suffix = group ? `group-${group.toLowerCase()}` : undefined;
         channelId = await createTournamentChannel(payload.tournamentName, suffix);
 
@@ -374,29 +387,6 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<{ edited: 
                 data: { discordChannelId: channelId },
             });
         }
-
-        // Grant access to the right players
-        const playerFilter: any = {
-            teams: { some: { tournamentId: payload.tournamentId } },
-            discordId: { not: null },
-        };
-
-        // For group channels, only grant access to players in that group
-        if (group) {
-            playerFilter.teams = {
-                some: {
-                    tournamentId: payload.tournamentId,
-                    championshipEntry: { group },
-                },
-            };
-        }
-
-        const teamPlayers = await prisma.player.findMany({
-            where: playerFilter,
-            select: { discordId: true },
-        });
-        const discordIds = teamPlayers.map(p => p.discordId).filter((id): id is string => !!id);
-        await batchGrantChannelAccess(channelId!, discordIds);
     }
 
     // 2. Build the rich embed
