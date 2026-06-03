@@ -5,6 +5,7 @@ import { Input, Button, Spinner, Avatar } from "@heroui/react";
 import { Search, X, Share2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useSearchPlayers, useInvitePlayer } from "@/hooks/use-squads";
+import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
 
 /* ─── WhatsApp Icon ─────────────────────────────────────────── */
 
@@ -80,8 +81,10 @@ export function TeamDoneSection({
         }
     }, []);
 
+    const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
+
     const handleDiscordAuth = () => {
-        window.location.href = `/api/discord/authorize?returnTo=&pollId=${encodeURIComponent(pollId)}`;
+        openDiscordModal(`/api/discord/authorize?returnTo=&pollId=${encodeURIComponent(pollId)}`);
     };
 
     return (
@@ -236,6 +239,7 @@ export function TeamDoneSection({
                         : "Join the WhatsApp group to invite teammates"}
                 </p>
             )}
+            <DiscordCompareModal />
         </div>
     );
 }

@@ -19,6 +19,7 @@ import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { TeamDoneSection } from "@/components/squads/team-done-section";
 import { markWhatsAppPending, markWhatsAppJoined } from "@/components/common/whatsapp-squad-guard";
+import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -95,6 +96,7 @@ export function CreateSquadModal({
     }, [pollId]);
 
     const createMutation = useCreateSquad();
+    const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
 
     // Fetch player's clan membership (lightweight)
     const { data: myClan } = useQuery<MyClan | null>({
@@ -339,7 +341,7 @@ export function CreateSquadModal({
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                window.location.href = `/api/discord/authorize?returnTo=&pollId=${encodeURIComponent(pollId)}`;
+                                                openDiscordModal(`/api/discord/authorize?returnTo=&pollId=${encodeURIComponent(pollId)}`);
                                             }}
                                             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 cursor-pointer active:scale-[0.98]"
                                         >
@@ -407,6 +409,7 @@ export function CreateSquadModal({
                 </ModalFooter>
             </ModalContent>
         </Modal>
+        <DiscordCompareModal />
         </>
     );
 }

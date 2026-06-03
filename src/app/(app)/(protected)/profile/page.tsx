@@ -58,6 +58,7 @@ import { LocationModal } from "@/components/common/location-modal";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { ModeTabs } from "@/components/common/ModeTabs";
 import { SurveyModal, useShouldShowSurvey } from "@/components/profile/SurveyModal";
+import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
 
 interface ProfileData {
     id: string;
@@ -160,6 +161,7 @@ export default function ProfilePage() {
     // Discord link/unlink state
     const [discordUnlinking, setDiscordUnlinking] = useState(false);
     const [showDiscordUnlinkConfirm, setShowDiscordUnlinkConfirm] = useState(false);
+    const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
 
     // Handle Discord OAuth callback result via URL params
     useEffect(() => {
@@ -1193,7 +1195,7 @@ export default function ProfilePage() {
                                                     className="text-xs shrink-0 bg-[#5865F2]/15 text-[#5865F2] hover:bg-[#5865F2]/25"
                                                     startContent={<Link2 className="h-3 w-3" />}
                                                     onPress={() => {
-                                                        window.location.href = `/api/discord/authorize?returnTo=profile`;
+                                                        openDiscordModal(`/api/discord/authorize?returnTo=profile`);
                                                     }}
                                                 >
                                                     Link Discord
@@ -1354,6 +1356,7 @@ export default function ProfilePage() {
                 )}
 
                 {GAME.pasteOnlyIGN && ignTutorial.Modal}
+                <DiscordCompareModal />
 
                 {/* Royal Pass Purchase Modal */}
                 <AnimatePresence>

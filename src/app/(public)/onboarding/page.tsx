@@ -16,6 +16,7 @@ import {
 import { useIGNTutorial } from "@/components/common/IGNTutorialModal";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useLocale } from "@/components/common/locale-provider";
+import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
 
 /**
  * /onboarding — New user setup flow.
@@ -45,6 +46,7 @@ export default function OnboardingPage() {
     const showIGNTutorial = GAME.pasteOnlyIGN || GAME.features.hasBR;
     const ignTutorial = useIGNTutorial({ autoOpen: showIGNTutorial, mandatory: showIGNTutorial });
     const requiresPhone = true; // All games require phone now
+    const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
 
     // Redirect already-onboarded users to home
     useEffect(() => {
@@ -281,7 +283,7 @@ export default function OnboardingPage() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    window.location.href = `/api/discord/authorize?returnTo=onboarding`;
+                                    openDiscordModal(`/api/discord/authorize?returnTo=onboarding`);
                                 }}
                                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-base transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 cursor-pointer active:scale-[0.98]"
                             >
@@ -295,6 +297,7 @@ export default function OnboardingPage() {
                         </p>
                     </div>
                 </motion.div>
+                <DiscordCompareModal />
             </div>
         );
     }
