@@ -4,17 +4,34 @@ import { useState, useCallback } from "react";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { CompareModalUI } from "@/components/common/discord-compare-modal";
 
+const LS_KEY = "discord-modal-dismissed";
+const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+function wasRecentlyDismissed(): boolean {
+    if (typeof window === "undefined") return false;
+    try {
+        const ts = localStorage.getItem(LS_KEY);
+        if (!ts) return false;
+        return Date.now() - Number(ts) < COOLDOWN_MS;
+    } catch { return false; }
+}
+
 /**
- * Global guard — forces unlinked users to see WhatsApp vs Discord comparison
- * before they can use the app.
+ * Global guard — nudges unlinked users to link Discord.
+ * Shows once, then waits 7 days before showing again if skipped.
  */
 export function DiscordGuard({ children }: { children: React.ReactNode }) {
     const { user, isLoading, isSignedIn } = useAuthUser();
-    const [dismissed, setDismissed] = useState(false);
+    const [dismissed, setDismissed] = useState(() => wasRecentlyDismissed());
 
     const handleLinkDiscord = useCallback(() => {
         const returnTo = window.location.pathname.replace("/", "") || "vote";
         window.location.href = `/api/discord/authorize?returnTo=${returnTo}`;
+    }, []);
+
+    const handleSkip = useCallback(() => {
+        setDismissed(true);
+        try { localStorage.setItem(LS_KEY, String(Date.now())); } catch {}
     }, []);
 
     // Don't block guests, loading state, or non-onboarded users
@@ -30,7 +47,7 @@ export function DiscordGuard({ children }: { children: React.ReactNode }) {
                 isOpen={true}
                 onLink={handleLinkDiscord}
                 hideClose
-                onSkip={() => setDismissed(true)}
+                onSkip={handleSkip}
             />
         </>
     );
