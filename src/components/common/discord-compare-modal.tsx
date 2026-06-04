@@ -1,21 +1,105 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Modal, ModalContent, ModalBody, Button } from "@heroui/react";
-import { Check, X, Minus } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Modal, ModalContent, ModalBody } from "@heroui/react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Check, ChevronDown, Download, Shield, Link2, Loader2, Smartphone } from "lucide-react";
+import { useAuthUser } from "@/hooks/use-auth-user";
 
 const DISCORD_BLURPLE = "#5865F2";
-const CHATGPT_Q = encodeURIComponent("Which is better for a gaming tournament community — Discord or WhatsApp? Answer in one line.");
+const DISCORD_INVITE = process.env.NEXT_PUBLIC_DISCORD_INVITE_LINK || "https://discord.gg/Bgq8MaRB";
+const PLAY_STORE = "https://play.google.com/store/apps/details?id=com.discord";
+const APP_STORE = "https://apps.apple.com/app/discord-talk-chat-hang-out/id985746746";
 
-/* ─── Icons ──────────────────────────────────────────────────── */
+/* ─── All text labels — replace with Khasi below ─────────────── */
 
-function WhatsAppIcon({ className }: { className?: string }) {
+const LABELS = {
+    // Header
+    headerTitle: "Link your Discord",
+    headerSubtitle: "Follow these steps to connect — takes ~3 minutes",
+
+    // Steps titles & subtitles
+    step1Title: "Download Discord",
+    step1Subtitle: "Get the app on your phone",
+    step2Title: "Create & Verify Account",
+    step2Subtitle: "Sign up with phone number",
+    step3Title: "Link to Bimon",
+    step3Subtitle: "Connect & auto-join our server",
+
+    // Step 1 content
+    step1Desc: "Discord is a free gaming chat app used by",
+    step1Gamers: "200M+ gamers",
+    step1Worldwide: "worldwide.",
+    step1Android: "Android",
+    step1PlayStore: "Play Store",
+    step1iPhone: "iPhone",
+    step1AppStore: "App Store",
+    step1Done: "✅ I have Discord installed",
+
+    // Step 2 content
+    step2Action1: "Open the Discord app and tap",
+    step2Action1Bold: "Register",
+    step2Action2: "Sign up with your",
+    step2Action2Bold: "phone number",
+    step2Action2Suffix: "",
+    step2Action2Hint: "Only the app lets you use phone number — auto-verifies, no extra steps!",
+    step2Action3: "Complete the",
+    step2Action3Bold: "robot check",
+    step2Action3Hint: "Drag puzzle — this is normal, everyone does it!",
+    step2EmailWarning: "⚠️ Don't sign up on the website — it only allows email and you'll need to verify it separately. Use the app instead!",
+    step2Done: "✅ Done, I'm verified",
+
+    // Step 3 content (Link — auto-joins server)
+    step3Desc: "This will open Discord in a new tab. Just tap",
+    step3DescBold: "\"Authorize\"",
+    step3DescEnd: "and come back here. You'll auto-join our server too!",
+    step3LinkBtn: "Link Discord Account",
+    step3Waiting: "Waiting for you to authorize...",
+    step3WaitingHint: "Complete the authorization in the other tab",
+    step3OpenAgain: "Open Discord again →",
+
+    // Success
+    successTitle: "You're all set!",
+    successSubtitle: "Discord linked & server joined 🎉",
+
+    // Initial question
+    askTitle: "Do you have a Discord account?",
+    askYes: "Yes, I have one",
+    askNo: "No, I'm new to Discord",
+    switchToExisting: "I already have Discord →",
+
+    // Collapsible image
+    seeExample: "See example",
+
+    // Skip
+    skip: "Skip for now →",
+};
+
+/* ─── Collapsible Screenshot ─────────────────────────────────── */
+
+function CollapsibleImage({ src, alt }: { src: string; alt: string }) {
+    const [open, setOpen] = useState(false);
     return (
-        <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-        </svg>
+        <div className="mx-4">
+            <button
+                type="button"
+                onClick={() => setOpen(p => !p)}
+                className="flex items-center gap-1 text-[10px] font-medium transition-colors cursor-pointer"
+                style={{ color: DISCORD_BLURPLE }}
+            >
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+                {LABELS.seeExample}
+            </button>
+            {open && (
+                <div className="mt-1.5 rounded-lg overflow-hidden border border-divider/50 animate-in slide-in-from-top-2 duration-200">
+                    <img src={src} alt={alt} className="w-full h-auto" loading="lazy" />
+                </div>
+            )}
+        </div>
     );
 }
+
+/* ─── Icons ──────────────────────────────────────────────────── */
 
 function DiscordIcon({ className }: { className?: string }) {
     return (
@@ -25,15 +109,37 @@ function DiscordIcon({ className }: { className?: string }) {
     );
 }
 
-function ChatGPTIcon({ className }: { className?: string }) {
-    return (
-        <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-            <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
-        </svg>
-    );
+/* ─── Step Data ──────────────────────────────────────────────── */
+
+interface StepConfig {
+    id: number;
+    title: string;
+    subtitle: string;
+    icon: React.ReactNode;
 }
 
-/* ─── Hook ───────────────────────────────────────────────────── */
+const STEPS: StepConfig[] = [
+    {
+        id: 1,
+        title: LABELS.step1Title,
+        subtitle: LABELS.step1Subtitle,
+        icon: <Download className="w-4 h-4" />,
+    },
+    {
+        id: 2,
+        title: LABELS.step2Title,
+        subtitle: LABELS.step2Subtitle,
+        icon: <Shield className="w-4 h-4" />,
+    },
+    {
+        id: 3,
+        title: LABELS.step3Title,
+        subtitle: LABELS.step3Subtitle,
+        icon: <Link2 className="w-4 h-4" />,
+    },
+];
+
+/* ─── Hook (kept for backward compat) ────────────────────────── */
 
 export function useDiscordCompareModal() {
     const [isOpen, setIsOpen] = useState(false);
@@ -46,7 +152,7 @@ export function useDiscordCompareModal() {
 
     const handleLink = useCallback(() => {
         if (redirectUrl) {
-            window.location.href = redirectUrl;
+            window.open(redirectUrl, "_blank");
         }
     }, [redirectUrl]);
 
@@ -57,7 +163,7 @@ export function useDiscordCompareModal() {
     return { openDiscordModal, DiscordCompareModal };
 }
 
-/* ─── Shared Modal UI ────────────────────────────────────────── */
+/* ─── Main Stepper Modal ─────────────────────────────────────── */
 
 export function CompareModalUI({
     isOpen,
@@ -72,6 +178,122 @@ export function CompareModalUI({
     hideClose?: boolean;
     onSkip?: () => void;
 }) {
+    const { user, refetch } = useAuthUser();
+    const queryClient = useQueryClient();
+    const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+    const [activeStep, setActiveStep] = useState(1);
+    const [isPolling, setIsPolling] = useState(false);
+    const [isLinked, setIsLinked] = useState(false);
+    const [hasAccount, setHasAccount] = useState<boolean | null>(null); // null = not answered yet
+    const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Check if already linked on mount
+    useEffect(() => {
+        if (user?.player?.discordId) {
+            setIsLinked(true);
+            setCompletedSteps(new Set([1, 2, 3]));
+        }
+    }, [user?.player?.discordId]);
+
+    // Auto-close after linking
+    useEffect(() => {
+        if (isLinked) {
+            const timer = setTimeout(() => {
+                onClose?.();
+                onSkip?.();
+            }, 2500);
+            return () => clearTimeout(timer);
+        }
+    }, [isLinked, onClose, onSkip]);
+
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => {
+            if (pollingRef.current) clearInterval(pollingRef.current);
+        };
+    }, []);
+
+    const markComplete = useCallback((step: number) => {
+        setCompletedSteps(prev => {
+            const next = new Set(prev);
+            next.add(step);
+            return next;
+        });
+        // Auto-advance to next step
+        if (step < 3) setActiveStep(step + 1);
+    }, []);
+
+    const startPolling = useCallback(() => {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        setIsPolling(true);
+
+        pollingRef.current = setInterval(async () => {
+            try {
+                const result = await refetch();
+                if (result.data?.player?.discordId) {
+                    if (pollingRef.current) clearInterval(pollingRef.current);
+                    pollingRef.current = null;
+                    setIsPolling(false);
+                    setIsLinked(true);
+                    setCompletedSteps(new Set([1, 2, 3]));
+                    // Invalidate profile & auth queries so the UI updates everywhere
+                    queryClient.invalidateQueries({ queryKey: ["profile"] });
+                    queryClient.invalidateQueries({ queryKey: ["auth-user"] });
+                }
+            } catch {
+                // ignore polling errors
+            }
+        }, 3000);
+    }, [refetch]);
+
+    const isPwa = typeof window !== "undefined" && (
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as any).standalone === true
+    );
+
+    /** Open a URL in the system browser (not inside PWA webview) */
+    const openExternal = useCallback((url: string) => {
+        if (isPwa) {
+            // Create a temporary <a> with target=_blank and rel=noopener
+            // This forces the system browser on most PWA implementations
+            const a = document.createElement("a");
+            a.href = url;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            window.open(url, "_blank");
+        }
+    }, [isPwa]);
+
+    const handleLinkClick = useCallback(() => {
+        const returnTo = window.location.pathname.replace("/", "") || "vote";
+        const authUrl = `/api/discord/authorize?returnTo=${returnTo}`;
+
+        if (isPwa) {
+            // In PWA, navigate away — callback will redirect back to the app
+            window.location.href = authUrl;
+        } else {
+            // In browser, open new tab and poll for completion
+            window.open(authUrl, "_blank");
+            startPolling();
+        }
+    }, [isPwa, startPolling]);
+
+    // The highest step the player can reach (completed + the next one)
+    const nextAvailableStep = completedSteps.size > 0
+        ? Math.max(...Array.from(completedSteps)) + 1
+        : 1;
+
+    const handleToggleStep = useCallback((step: number) => {
+        // Can expand completed steps or the next available step
+        if (completedSteps.has(step) || step <= nextAvailableStep) {
+            setActiveStep(prev => prev === step ? -1 : step);
+        }
+    }, [completedSteps, nextAvailableStep]);
+
     return (
         <Modal
             isOpen={isOpen}
@@ -83,111 +305,175 @@ export function CompareModalUI({
             size="md"
             classNames={{
                 backdrop: "bg-black/60 backdrop-blur-sm",
-                base: "border border-divider bg-background mx-3 shadow-2xl",
+                base: "border border-divider bg-background mx-3 shadow-2xl max-h-[90dvh] overflow-y-auto",
             }}
         >
             <ModalContent>
-                <ModalBody className="py-6 px-4 space-y-5">
-                    {/* Title */}
-                    <div className="text-center space-y-1">
-                        <h3 className="text-lg font-bold">Why Discord?</h3>
+                <ModalBody className="py-5 px-4 space-y-4">
+                    {/* Header */}
+                    <div className="text-center space-y-1.5">
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-1" style={{ backgroundColor: `${DISCORD_BLURPLE}20` }}>
+                            <DiscordIcon className="w-6 h-6" style={{ color: DISCORD_BLURPLE }} />
+                        </div>
+                        <h3 className="text-lg font-bold">{LABELS.headerTitle}</h3>
                         <p className="text-[11px] text-foreground/40">
-                            See why we use Discord for tournaments
+                            {LABELS.headerSubtitle}
                         </p>
                     </div>
 
-                    {/* Comparison Cards */}
-                    <div className="grid grid-cols-2 gap-3">
-                        {/* WhatsApp - Basic */}
-                        <div className="rounded-2xl border border-divider bg-default-50 dark:bg-default-50/50 p-3.5 space-y-3">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-[#25D366]/15 flex items-center justify-center">
-                                    <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
-                                </div>
-                                <div>
-                                    <p className="text-[11px] font-bold">WhatsApp</p>
-                                    <p className="text-[8px] text-foreground/30 uppercase tracking-widest font-medium">Basic</p>
-                                </div>
+                    {/* Success State */}
+                    {isLinked && (
+                        <div className="flex flex-col items-center gap-2 py-4 animate-in fade-in zoom-in duration-300">
+                            <div className="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                                <Check className="w-7 h-7 text-emerald-500" strokeWidth={3} />
                             </div>
-                            <div className="space-y-2">
-                                <CompareItem type="ok">Everyone has it</CompareItem>
-                                <CompareItem type="ok">Easy to use</CompareItem>
-                                <CompareItem type="bad">Phone number exposed</CompareItem>
-                                <CompareItem type="bad">Room ID not secure</CompareItem>
-                                <CompareItem type="bad">Random photos fill gallery</CompareItem>
-                                <CompareItem type="bad">Too many groups</CompareItem>
-                            </div>
+                            <p className="text-sm font-bold text-emerald-500">{LABELS.successTitle}</p>
+                            <p className="text-[11px] text-foreground/40">{LABELS.successSubtitle}</p>
                         </div>
+                    )}
 
-                        {/* Discord - Gaming */}
-                        <div className="rounded-2xl border border-[#5865F2]/30 bg-[#5865F2]/[0.04] dark:bg-[#5865F2]/[0.08] p-3.5 space-y-3 relative overflow-visible">
-                            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10">
-                                <span
-                                    className="px-2.5 py-0.5 rounded-full text-[7px] font-extrabold uppercase tracking-widest text-white shadow-lg shadow-[#5865F2]/30"
-                                    style={{ backgroundColor: DISCORD_BLURPLE }}
+                    {/* Initial Question: Do you have Discord? */}
+                    {!isLinked && hasAccount === null && (
+                        <div className="space-y-3 animate-in fade-in duration-200">
+                            <p className="text-center text-[13px] font-semibold">{LABELS.askTitle}</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setHasAccount(true);
+                                        setCompletedSteps(new Set([1, 2]));
+                                        setActiveStep(3);
+                                    }}
+                                    className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border-2 border-[#5865F2]/30 bg-[#5865F2]/[0.04] hover:bg-[#5865F2]/[0.08] transition-colors"
                                 >
-                                    Recommended
-                                </span>
+                                    <Check className="w-5 h-5" style={{ color: DISCORD_BLURPLE }} />
+                                    <span className="text-[11px] font-semibold">{LABELS.askYes}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setHasAccount(false);
+                                        setActiveStep(1);
+                                    }}
+                                    className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border-2 border-divider bg-default-50 hover:bg-default-100 transition-colors"
+                                >
+                                    <Download className="w-5 h-5 text-foreground/40" />
+                                    <span className="text-[11px] font-semibold">{LABELS.askNo}</span>
+                                </button>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-[#5865F2]/15 flex items-center justify-center">
-                                    <DiscordIcon className="w-4 h-4 text-[#5865F2]" />
-                                </div>
-                                <div>
-                                    <p className="text-[11px] font-bold">Discord</p>
-                                    <p className="text-[8px] uppercase tracking-widest font-semibold" style={{ color: DISCORD_BLURPLE }}>
-                                        For Gaming
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <CompareItem type="neutral">New app download</CompareItem>
-                                <CompareItem type="neutral">Few mins to set up</CompareItem>
-                                <CompareItem type="ok">Phone number private</CompareItem>
-                                <CompareItem type="ok">Room ID secure</CompareItem>
-                                <CompareItem type="ok">Phone gallery clean</CompareItem>
-                                <CompareItem type="ok">Voice, /nextmatch</CompareItem>
-                            </div>
-                            <p className="text-[9px] text-center font-semibold" style={{ color: DISCORD_BLURPLE }}>
-                                + more features
-                            </p>
                         </div>
-                    </div>
+                    )}
 
-                    {/* CTA Button */}
-                    <Button
-                        className="w-full font-bold text-white text-sm h-12 shadow-lg shadow-[#5865F2]/25"
-                        style={{ backgroundColor: DISCORD_BLURPLE }}
-                        radius="lg"
-                        onPress={onLink}
-                    >
-                        <DiscordIcon className="w-5 h-5 mr-1.5" />
-                        Link with Discord
-                    </Button>
+                    {/* Steps — only show after answering the question */}
+                    {!isLinked && hasAccount !== null && (
+                        <div className="space-y-2">
+                            {STEPS.map((step) => {
+                                const isCompleted = completedSteps.has(step.id);
+                                const isActive = activeStep === step.id;
+                                const isLocked = step.id > nextAvailableStep && !isCompleted;
 
-                    {/* Ask ChatGPT */}
-                    <div className="flex items-center justify-center gap-1.5">
-                        <span className="text-[10px] text-foreground/25">Don&apos;t believe us?</span>
-                        <a
-                            href={`https://chatgpt.com/?q=${CHATGPT_Q}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-foreground/40 hover:text-foreground/60 transition-colors"
-                        >
-                            <ChatGPTIcon className="w-3 h-3" />
-                            Ask ChatGPT →
-                        </a>
-                    </div>
+                                return (
+                                    <div
+                                        key={step.id}
+                                        className={`rounded-xl border transition-all duration-200 overflow-hidden ${
+                                            isCompleted
+                                                ? "border-emerald-500/30 bg-emerald-500/[0.04]"
+                                                : isActive
+                                                ? "border-[#5865F2]/40 bg-[#5865F2]/[0.04]"
+                                                : isLocked
+                                                ? "border-divider/50 bg-default-50/30 opacity-50"
+                                                : "border-divider bg-default-50/50"
+                                        }`}
+                                    >
+                                        {/* Step Header (clickable) */}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleToggleStep(step.id)}
+                                            disabled={isLocked}
+                                            className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left"
+                                        >
+                                            {/* Step Number / Check */}
+                                            <div
+                                                className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
+                                                    isCompleted
+                                                        ? "bg-emerald-500 text-white"
+                                                        : isActive
+                                                        ? "text-white"
+                                                        : "bg-default-200 text-foreground/40"
+                                                }`}
+                                                style={isActive && !isCompleted ? { backgroundColor: DISCORD_BLURPLE } : undefined}
+                                            >
+                                                {isCompleted ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : step.id}
+                                            </div>
 
-                    {/* Skip */}
-                    {onSkip && (
-                        <button
-                            type="button"
-                            onClick={onSkip}
-                            className="text-[11px] text-foreground/20 hover:text-foreground/40 transition-colors cursor-pointer w-full text-center"
-                        >
-                            Skip for now →
-                        </button>
+                                            {/* Title & Subtitle */}
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-[13px] font-semibold ${isCompleted ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+                                                    {step.title}
+                                                </p>
+                                                <p className="text-[10px] text-foreground/35 truncate">{step.subtitle}</p>
+                                            </div>
+
+                                            {/* Chevron */}
+                                            {!isLocked && (
+                                                <ChevronDown
+                                                    className={`w-4 h-4 text-foreground/25 transition-transform duration-200 ${isActive ? "rotate-180" : ""}`}
+                                                />
+                                            )}
+                                        </button>
+
+                                        {/* Expanded Content */}
+                                        {isActive && (
+                                            <div className="px-3.5 pb-3.5 pt-0 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                                <div className="h-px bg-divider/50" />
+
+                                                {step.id === 1 && (
+                                                    <StepDownload onDone={() => markComplete(1)} openExternal={openExternal} />
+                                                )}
+                                                {step.id === 2 && (
+                                                    <StepVerify onDone={() => markComplete(2)} />
+                                                )}
+                                                {step.id === 3 && (
+                                                    <StepLink
+                                                        onLinkClick={handleLinkClick}
+                                                        isPolling={isPolling}
+                                                    />
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Switch path + Skip */}
+                    {!isLinked && (
+                        <div className="flex flex-col items-center gap-1.5 pt-1">
+                            {/* Show "I already have Discord" when on the new-user path */}
+                            {hasAccount === false && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setHasAccount(true);
+                                        setCompletedSteps(new Set([1, 2]));
+                                        setActiveStep(3);
+                                    }}
+                                    className="text-[11px] font-medium hover:text-foreground/60 transition-colors cursor-pointer" style={{ color: DISCORD_BLURPLE }}
+                                >
+                                    {LABELS.switchToExisting}
+                                </button>
+                            )}
+                            {onSkip && (
+                                <button
+                                    type="button"
+                                    onClick={onSkip}
+                                    className="text-[11px] text-foreground/20 hover:text-foreground/40 transition-colors cursor-pointer"
+                                >
+                                    {LABELS.skip}
+                                </button>
+                            )}
+                        </div>
                     )}
                 </ModalBody>
             </ModalContent>
@@ -195,31 +481,157 @@ export function CompareModalUI({
     );
 }
 
-/* ─── Compare Item ──────────────────────────────────────────── */
+/* ─── Step 1: Download ───────────────────────────────────────── */
 
-function CompareItem({ type, children }: { type: "ok" | "bad" | "neutral"; children: React.ReactNode }) {
+function StepDownload({ onDone, openExternal }: { onDone: () => void; openExternal: (url: string) => void }) {
     return (
-        <div className="flex items-start gap-1.5">
-            <span className="shrink-0 mt-[1px]">
-                {type === "ok" ? (
-                    <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-emerald-500/20">
-                        <Check className="w-2 h-2 text-emerald-500" strokeWidth={3} />
-                    </span>
-                ) : type === "bad" ? (
-                    <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-red-500/15">
-                        <X className="w-2 h-2 text-red-500" strokeWidth={3} />
-                    </span>
-                ) : (
-                    <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-amber-500/15">
-                        <Minus className="w-2 h-2 text-amber-500" strokeWidth={3} />
-                    </span>
-                )}
-            </span>
-            <span className={`text-[10px] leading-tight ${
-                type === "ok" ? "text-foreground/70" : type === "bad" ? "text-foreground/40" : "text-foreground/50"
-            }`}>
-                {children}
-            </span>
+        <div className="space-y-3">
+            <p className="text-[11px] text-foreground/50">
+                {LABELS.step1Desc} <span className="font-semibold text-foreground/70">{LABELS.step1Gamers}</span> {LABELS.step1Worldwide}
+            </p>
+
+            <div className="grid grid-cols-2 gap-2">
+                <button
+                    type="button"
+                    onClick={() => openExternal(PLAY_STORE)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-divider bg-default-50 hover:bg-default-100 transition-colors text-left"
+                >
+                    <Smartphone className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <div>
+                        <p className="text-[9px] text-foreground/30 uppercase tracking-wider">{LABELS.step1Android}</p>
+                        <p className="text-[11px] font-semibold">{LABELS.step1PlayStore}</p>
+                    </div>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => openExternal(APP_STORE)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-divider bg-default-50 hover:bg-default-100 transition-colors text-left"
+                >
+                    <Smartphone className="w-4 h-4 text-blue-500 shrink-0" />
+                    <div>
+                        <p className="text-[9px] text-foreground/30 uppercase tracking-wider">{LABELS.step1iPhone}</p>
+                        <p className="text-[11px] font-semibold">{LABELS.step1AppStore}</p>
+                    </div>
+                </button>
+            </div>
+
+            <button
+                type="button"
+                onClick={onDone}
+                className="w-full text-[12px] font-semibold py-2 rounded-lg transition-colors text-white"
+                style={{ backgroundColor: DISCORD_BLURPLE }}
+            >
+                {LABELS.step1Done}
+            </button>
+        </div>
+    );
+}
+
+/* ─── Step 2: Create & Verify ────────────────────────────────── */
+
+function StepVerify({ onDone }: { onDone: () => void }) {
+    return (
+        <div className="space-y-3">
+            <div className="space-y-2.5">
+                <div className="flex items-start gap-2.5">
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-[#5865F2]/15 flex items-center justify-center text-[9px] font-bold" style={{ color: DISCORD_BLURPLE }}>1</span>
+                    <p className="text-[11px] text-foreground/60">
+                        {LABELS.step2Action1} <span className="font-semibold text-foreground/80">{LABELS.step2Action1Bold}</span>
+                    </p>
+                </div>
+                {/* Screenshot: Discord register screen */}
+                <CollapsibleImage src="/discord-guide/step2-register.png" alt="Discord Register button" />
+                <div className="flex items-start gap-2.5">
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-[#5865F2]/15 flex items-center justify-center text-[9px] font-bold" style={{ color: DISCORD_BLURPLE }}>2</span>
+                    <div>
+                        <p className="text-[11px] text-foreground/60">
+                            {LABELS.step2Action2} <span className="font-bold text-emerald-500">{LABELS.step2Action2Bold}</span> {LABELS.step2Action2Suffix}
+                        </p>
+                        <p className="text-[9px] text-foreground/30 mt-0.5">
+                            {LABELS.step2Action2Hint}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-[#5865F2]/15 flex items-center justify-center text-[9px] font-bold" style={{ color: DISCORD_BLURPLE }}>3</span>
+                    <div>
+                        <p className="text-[11px] text-foreground/60">
+                            {LABELS.step2Action3} <span className="font-semibold text-foreground/80">{LABELS.step2Action3Bold}</span>
+                        </p>
+                        <p className="text-[9px] text-foreground/30 mt-0.5">
+                            {LABELS.step2Action3Hint}
+                        </p>
+                    </div>
+                </div>
+                {/* Screenshot: Captcha puzzle */}
+                <CollapsibleImage src="/discord-guide/step2-captcha.png" alt="Discord captcha puzzle" />
+            </div>
+
+            {/* Warning for email users */}
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                    {LABELS.step2EmailWarning}
+                </p>
+            </div>
+
+            <button
+                type="button"
+                onClick={onDone}
+                className="w-full text-[12px] font-semibold py-2 rounded-lg transition-colors text-white"
+                style={{ backgroundColor: DISCORD_BLURPLE }}
+            >
+                {LABELS.step2Done}
+            </button>
+        </div>
+    );
+}
+
+/* ─── Step 3: Link Account (auto-joins server) ───────────────── */
+
+function StepLink({ onLinkClick, isPolling }: { onLinkClick: () => void; isPolling: boolean }) {
+    return (
+        <div className="space-y-3">
+            <p className="text-[11px] text-foreground/50">
+                {LABELS.step3Desc} <span className="font-bold text-foreground/70">{LABELS.step3DescBold}</span> {LABELS.step3DescEnd}
+            </p>
+
+            {/* Screenshot: Authorize screen */}
+            <CollapsibleImage src="/discord-guide/step3-authorize.png" alt="Discord Authorize button" />
+
+            {!isPolling ? (
+                <button
+                    type="button"
+                    onClick={onLinkClick}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-white text-[12px] font-semibold transition-all hover:brightness-110 shadow-lg"
+                    style={{
+                        backgroundColor: DISCORD_BLURPLE,
+                        boxShadow: `0 4px 15px ${DISCORD_BLURPLE}40`,
+                    }}
+                >
+                    <DiscordIcon className="w-4 h-4" />
+                    {LABELS.step3LinkBtn}
+                </button>
+            ) : (
+                <div className="flex flex-col items-center gap-2 py-3">
+                    <Loader2 className="w-6 h-6 animate-spin" style={{ color: DISCORD_BLURPLE }} />
+                    <p className="text-[11px] text-foreground/50 font-medium">
+                        {LABELS.step3Waiting}
+                    </p>
+                    <p className="text-[9px] text-foreground/25">
+                        {LABELS.step3WaitingHint}
+                    </p>
+                </div>
+            )}
+
+            {isPolling && (
+                <button
+                    type="button"
+                    onClick={onLinkClick}
+                    className="w-full text-[11px] font-medium py-1.5 rounded-lg border border-divider text-foreground/40 hover:text-foreground/60 transition-colors"
+                >
+                    {LABELS.step3OpenAgain}
+                </button>
+            )}
         </div>
     );
 }
