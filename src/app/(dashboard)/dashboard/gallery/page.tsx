@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Input, Chip, Skeleton, Slider } from "@heroui/react";
-import { ImageIcon, Upload, Trash2, Loader2, Plus, X, CheckCircle2, SlidersHorizontal } from "lucide-react";
+import { ImageIcon, Upload, Trash2, Loader2, Plus, X, CheckCircle2, SlidersHorizontal, Save } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/compress-image";
 import { GAME } from "@/lib/game-config";
@@ -22,8 +22,12 @@ export default function GalleryPage() {
     const [uploading, setUploading] = useState(false);
     const [preview, setPreview] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [overlayOpacity, setOverlayOpacity] = useState(65);
-    const [slotOpacity, setSlotOpacity] = useState(50);
+    const [overlayOpacity, setOverlayOpacity] = useState(50);
+    const [cardTint, setCardTint] = useState(40);
+    const [cardBlur, setCardBlur] = useState(12);
+    const [rowTint, setRowTint] = useState(5);
+    const [isSavingOverlay, setIsSavingOverlay] = useState(false);
+    const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Fetch background images only (excludes character images)
     const { data: images, isLoading } = useQuery({
@@ -46,6 +50,67 @@ export default function GalleryPage() {
             return json.data ?? null;
         },
     });
+
+    // Fetch saved overlay settings
+    const { data: overlaySaved } = useQuery<{ overlayOpacity: number; cardTint: number; cardBlur: number; rowTint: number }>({
+        queryKey: ["overlay-settings"],
+        queryFn: async () => {
+            const res = await fetch("/api/gallery/overlay-settings");
+            if (!res.ok) return { overlayOpacity: 50, cardTint: 40, cardBlur: 12, rowTint: 5 };
+            const json = await res.json();
+            return json.data;
+        },
+    });
+
+    // Initialize sliders from saved values
+    useEffect(() => {
+        if (overlaySaved) {
+            setOverlayOpacity(overlaySaved.overlayOpacity);
+            setCardTint(overlaySaved.cardTint);
+            setCardBlur(overlaySaved.cardBlur);
+            setRowTint(overlaySaved.rowTint);
+        }
+    }, [overlaySaved]);
+
+    // Debounced auto-save
+    const saveAll = useCallback((vals: { overlayOpacity: number; cardTint: number; cardBlur: number; rowTint: number }) => {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(async () => {
+            setIsSavingOverlay(true);
+            try {
+                await fetch("/api/gallery/overlay-settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(vals),
+                });
+                queryClient.invalidateQueries({ queryKey: ["overlay-settings"] });
+            } catch {
+                // silent fail
+            } finally {
+                setIsSavingOverlay(false);
+            }
+        }, 600);
+    }, [queryClient]);
+
+    const handleOverlayChange = (v: number) => {
+        setOverlayOpacity(v);
+        saveAll({ overlayOpacity: v, cardTint, cardBlur, rowTint });
+    };
+
+    const handleCardTintChange = (v: number) => {
+        setCardTint(v);
+        saveAll({ overlayOpacity, cardTint: v, cardBlur, rowTint });
+    };
+
+    const handleCardBlurChange = (v: number) => {
+        setCardBlur(v);
+        saveAll({ overlayOpacity, cardTint, cardBlur: v, rowTint });
+    };
+
+    const handleRowTintChange = (v: number) => {
+        setRowTint(v);
+        saveAll({ overlayOpacity, cardTint, cardBlur, rowTint: v });
+    };
 
     // Upload via existing /api/gallery/upload endpoint
     const uploadMutation = useMutation({
@@ -192,18 +257,22 @@ export default function GalleryPage() {
                                 className="object-cover"
                                 unoptimized
                             />
-                            {/* Overall gradient overlay */}
+                            {/* Overall gradient overlay — no blur, just darkness */}
                             <div
                                 className="absolute inset-0"
                                 style={{
                                     background: `linear-gradient(to bottom, rgba(0,0,0,${overlayOpacity / 100}), rgba(0,0,0,${(overlayOpacity - 10) / 100}), rgba(0,0,0,${overlayOpacity / 100}))`,
                                 }}
                             />
-                            {/* Slot preview card */}
+                            {/* Slot preview card — glass */}
                             <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 z-10">
                                 <div
-                                    className="rounded-xl border border-white/10 p-3 backdrop-blur-sm shadow-2xl"
-                                    style={{ backgroundColor: `rgba(0,0,0,${slotOpacity / 100})` }}
+                                    className="rounded-xl border border-white/[0.15] p-3 shadow-2xl"
+                                    style={{
+                                        backgroundColor: `rgba(0,0,0,${cardTint / 100})`,
+                                        backdropFilter: `blur(${cardBlur}px)`,
+                                        WebkitBackdropFilter: `blur(${cardBlur}px)`,
+                                    }}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-r from-yellow-600 to-yellow-400 text-black text-xs font-black">#1</div>
@@ -222,16 +291,22 @@ export default function GalleryPage() {
                             </div>
                         </div>
 
-                        {/* Opacity Controls */}
+                        {/* Overlay Controls */}
                         <div className="bg-foreground/[0.03] border-t border-divider p-4 space-y-4">
                             <div className="flex items-center gap-2 mb-1">
                                 <SlidersHorizontal className="h-3.5 w-3.5 text-foreground/40" />
-                                <span className="text-[11px] font-semibold text-foreground/50 uppercase tracking-wider">Overlay Preview</span>
+                                <span className="text-[11px] font-semibold text-foreground/50 uppercase tracking-wider">Overlay Controls</span>
+                                {isSavingOverlay && (
+                                    <div className="flex items-center gap-1 ml-auto">
+                                        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                        <span className="text-[10px] text-primary">Saving…</span>
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-3">
                                 <div>
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-xs text-foreground/50">Overall Darkness</span>
+                                        <span className="text-xs text-foreground/50">Background Darkness</span>
                                         <span className="text-xs font-mono text-foreground/40">{overlayOpacity}%</span>
                                     </div>
                                     <Slider
@@ -240,30 +315,62 @@ export default function GalleryPage() {
                                         minValue={0}
                                         maxValue={100}
                                         value={overlayOpacity}
-                                        onChange={(v) => setOverlayOpacity(v as number)}
+                                        onChange={(v) => handleOverlayChange(v as number)}
                                         className="max-w-full"
                                         color="warning"
                                     />
                                 </div>
                                 <div>
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-xs text-foreground/50">Slot Card Darkness</span>
-                                        <span className="text-xs font-mono text-foreground/40">{slotOpacity}%</span>
+                                        <span className="text-xs text-foreground/50">Card Blur (Frost)</span>
+                                        <span className="text-xs font-mono text-foreground/40">{cardBlur}px</span>
+                                    </div>
+                                    <Slider
+                                        size="sm"
+                                        step={2}
+                                        minValue={0}
+                                        maxValue={40}
+                                        value={cardBlur}
+                                        onChange={(v) => handleCardBlurChange(v as number)}
+                                        className="max-w-full"
+                                        color="secondary"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs text-foreground/50">Card Tint (Data Readability)</span>
+                                        <span className="text-xs font-mono text-foreground/40">{cardTint}%</span>
                                     </div>
                                     <Slider
                                         size="sm"
                                         step={5}
                                         minValue={0}
                                         maxValue={100}
-                                        value={slotOpacity}
-                                        onChange={(v) => setSlotOpacity(v as number)}
+                                        value={cardTint}
+                                        onChange={(v) => handleCardTintChange(v as number)}
                                         className="max-w-full"
                                         color="primary"
                                     />
                                 </div>
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs text-foreground/50">Row Tint (Data Rows)</span>
+                                        <span className="text-xs font-mono text-foreground/40">{rowTint}%</span>
+                                    </div>
+                                    <Slider
+                                        size="sm"
+                                        step={1}
+                                        minValue={0}
+                                        maxValue={30}
+                                        value={rowTint}
+                                        onChange={(v) => handleRowTintChange(v as number)}
+                                        className="max-w-full"
+                                        color="success"
+                                    />
+                                </div>
                             </div>
                             <p className="text-[10px] text-foreground/30">
-                                Adjust sliders to preview. Currently standings uses ~65% overall and ~50% slot.
+                                Changes auto-save and apply to standings in real-time.
                             </p>
                         </div>
                     </div>

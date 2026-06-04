@@ -14,6 +14,7 @@ import {
     Minus,
     Trophy,
     Send,
+    RefreshCw,
 } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
@@ -106,6 +107,24 @@ export function StandingsModal({
     const [compareMatches, setCompareMatches] = useState(1);
     const [champGroup, setChampGroup] = useState<"ALL" | "A" | "B" | "FINALS">(initialGroup ?? (championshipPhase === "FINALS" ? "FINALS" : "ALL"));
     const [showZones, setShowZones] = useState(false);
+
+    // Fetch saved overlay settings from gallery
+    const { data: overlaySettings, refetch: refetchOverlay, isFetching: isFetchingOverlay } = useQuery<{ overlayOpacity: number; cardTint: number; cardBlur: number; rowTint: number }>({
+        queryKey: ["overlay-settings"],
+        queryFn: async () => {
+            const res = await fetch("/api/gallery/overlay-settings");
+            if (!res.ok) return { overlayOpacity: 50, cardTint: 40, cardBlur: 12, rowTint: 5 };
+            const json = await res.json();
+            return json.data;
+        },
+        enabled: isOpen,
+        staleTime: 5_000,
+    });
+
+    const overlayOpacity = overlaySettings?.overlayOpacity ?? 50;
+    const cardTint = overlaySettings?.cardTint ?? 40;
+    const cardBlur = overlaySettings?.cardBlur ?? 12;
+    const rowTint = overlaySettings?.rowTint ?? 5;
 
     // Fetch match data
     const { data: matchData, isLoading, refetch } = useQuery<MatchData[]>({
@@ -574,6 +593,15 @@ export function StandingsModal({
                         <Settings className="h-5 w-5" />
                     </button>
 
+                    {/* Refresh Gallery Settings */}
+                    <button
+                        onClick={() => refetchOverlay()}
+                        className={`text-white hover:text-cyan-400 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-cyan-500/50 p-2.5 rounded-xl transition-all duration-300 ${isFetchingOverlay ? "animate-spin" : ""}`}
+                        title="Refresh overlay settings from Gallery"
+                    >
+                        <RefreshCw className="h-5 w-5" />
+                    </button>
+
                     {/* Close Button */}
                     <button
                         onClick={onClose}
@@ -647,8 +675,13 @@ export function StandingsModal({
                     className="relative w-full min-h-screen flex items-center justify-center bg-cover bg-center overflow-auto"
                     style={{ backgroundImage: `url(${backgroundImage})` }}
                 >
-                    {/* Gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/70" />
+                    {/* Gradient overlay — darkness only, no blur */}
+                    <div
+                        className="absolute inset-0"
+                        style={{
+                            background: `linear-gradient(to bottom, rgba(0,0,0,${overlayOpacity / 100}), rgba(0,0,0,${Math.max(0, overlayOpacity - 10) / 100}), rgba(0,0,0,${overlayOpacity / 100}))`,
+                        }}
+                    />
 
 
                     <div className="relative z-10 w-full max-w-7xl mx-auto p-4 sm:p-6">
@@ -665,13 +698,13 @@ export function StandingsModal({
                             </h1>
                             <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
                                 {seasonName && (
-                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30">
-                                        <span className="text-xs font-semibold text-blue-400">{seasonName}</span>
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/40 backdrop-blur-md">
+                                        <span className="text-xs font-semibold text-white">{seasonName}</span>
                                     </div>
                                 )}
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 backdrop-blur-md">
                                     <Trophy className="h-3.5 w-3.5 text-orange-400" />
-                                    <span className="text-xs font-medium text-zinc-300">Overall Rankings</span>
+                                    <span className="text-xs font-medium text-white">Overall Rankings</span>
                                 </div>
                             </div>
 
@@ -713,15 +746,22 @@ export function StandingsModal({
                                 <div className="h-8 w-8 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
                             </div>
                         ) : (
-                            <div className="rounded-2xl border border-white/10 bg-black/50 shadow-2xl shadow-black/50 p-4 sm:p-6">
-                                <StandingsTable standings={standings} allowSquads={allowSquads} isChampionship={detectedChampionship} champGroup={champGroup} showZones={showZones} />
+                            <div
+                                className="rounded-2xl border border-white/[0.15] shadow-2xl shadow-black/40 p-4 sm:p-6"
+                                style={{
+                                    backgroundColor: `rgba(0,0,0,${cardTint / 100})`,
+                                    backdropFilter: `blur(${cardBlur}px)`,
+                                    WebkitBackdropFilter: `blur(${cardBlur}px)`,
+                                }}
+                            >
+                                <StandingsTable standings={standings} allowSquads={allowSquads} isChampionship={detectedChampionship} champGroup={champGroup} showZones={showZones} rowTint={rowTint} />
                             </div>
                         )}
 
                         {/* Footer branding */}
-                        <div className="mt-6 flex items-center justify-center gap-2 text-zinc-500 text-xs">
+                        <div className="mt-6 flex items-center justify-center gap-2 text-white/50 text-xs">
                             <div className="h-px w-8 bg-gradient-to-r from-transparent to-orange-500/50" />
-                            <span className="font-medium text-zinc-400">{GAME.name} × Bimon Tournament</span>
+                            <span className="font-medium text-white/60">{GAME.name} × Bimon Tournament</span>
                             <div className="h-px w-8 bg-gradient-to-l from-transparent to-orange-500/50" />
                         </div>
                     </div>
@@ -762,10 +802,10 @@ function getRankStyles(rank: number) {
 
 function PositionChangeIndicator({ change }: { change: number }) {
     if (!change || change === 0)
-        return <span className="inline-flex items-center justify-center w-5 h-5 text-zinc-500"><Minus className="w-3 h-3" /></span>;
+        return <span className="inline-flex items-center justify-center w-5 h-5 text-white/40"><Minus className="w-3 h-3" /></span>;
     if (change > 0)
-        return <span className="inline-flex items-center gap-0.5 text-emerald-400 text-[10px] font-bold"><ChevronUp className="w-3.5 h-3.5" /><span>{change}</span></span>;
-    return <span className="inline-flex items-center gap-0.5 text-red-400 text-[10px] font-bold"><ChevronDown className="w-3.5 h-3.5" /><span>{Math.abs(change)}</span></span>;
+        return <span className="inline-flex items-center gap-0.5 text-emerald-300 text-[10px] font-bold"><ChevronUp className="w-3.5 h-3.5" /><span>{change}</span></span>;
+    return <span className="inline-flex items-center gap-0.5 text-red-300 text-[10px] font-bold"><ChevronDown className="w-3.5 h-3.5" /><span>{Math.abs(change)}</span></span>;
 }
 
 // ── Championship zone styling ─────────────────────────────────
@@ -781,7 +821,7 @@ function getChampionshipZone(rank: number, total: number): { zone: string; color
 
 // ── Standings Table — Podium Top 3 + Two-column rest ──────────
 
-function StandingsTable({ standings, allowSquads = false, isChampionship = false, champGroup = "ALL", showZones = false }: { standings: StandingRow[]; allowSquads?: boolean; isChampionship?: boolean; champGroup?: string; showZones?: boolean }) {
+function StandingsTable({ standings, allowSquads = false, isChampionship = false, champGroup = "ALL", showZones = false, rowTint = 5 }: { standings: StandingRow[]; allowSquads?: boolean; isChampionship?: boolean; champGroup?: string; showZones?: boolean; rowTint?: number }) {
     const hasSquadTeams = allowSquads;
     const top3 = standings.slice(0, 3);
     const rest = standings.slice(3);
@@ -824,16 +864,19 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
         const zoneBoundaries = showZones ? [8, ...(eliminatedCutoff > 8 ? [eliminatedCutoff - 1] : [])] : [];
 
         return (
-        <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm">
+        <div
+            className="overflow-hidden rounded-xl border border-white/[0.12] backdrop-blur-lg"
+            style={{ backgroundColor: `rgba(255,255,255,${rowTint / 100})` }}
+        >
             <table className="w-full border-collapse">
                 <thead>
-                    <tr className="border-b border-white/10 bg-gradient-to-r from-orange-500/10 via-transparent to-orange-500/10">
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-orange-400">#</th>
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500" title="Position Change">+/-</th>
-                        <th className="px-1 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-orange-400">Team</th>
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500">M</th>
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500">PTS</th>
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500">Kills</th>
+                    <tr className="border-b border-white/[0.08] bg-gradient-to-r from-orange-500/[0.08] via-white/[0.02] to-orange-500/[0.08]">
+                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white">#</th>
+                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white" title="Position Change">+/-</th>
+                        <th className="px-1 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-white">Team</th>
+                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white">M</th>
+                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white">PTS</th>
+                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white">Kills</th>
                         <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-orange-400">Total</th>
                     </tr>
                 </thead>
@@ -862,6 +905,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                         row.isDisqualified ? "opacity-40 bg-red-500/5 border-l-2 border-l-red-500/50" :
                                         zone ? `border-l-2 ${zone.border}` : styles.row
                                     }`}
+                                    style={{ backgroundColor: row.isDisqualified ? undefined : `rgba(255,255,255,${rowTint / 200})` }}
                                 >
                                     <td className="px-1 py-1.5 text-center align-middle">
                                         <span className={`inline-flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold ${
@@ -885,7 +929,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                             <div className="flex flex-col">
                                                 <span className={`text-[11px] leading-tight font-semibold ${
                                                     row.isDisqualified ? "text-red-400/70 line-through" :
-                                                    zone?.zone === "ELIMINATED" ? "text-zinc-500" : "text-zinc-300"
+                                                    zone?.zone === "ELIMINATED" ? "text-zinc-400" : "text-white"
                                                 } ${hasSquadTeams ? "whitespace-nowrap" : ""}`} style={hasSquadTeams ? undefined : { wordBreak: "break-word" }}>
                                                     {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
                                                     {row.isDisqualified && <span className="ml-1 text-[8px] font-bold text-red-400 bg-red-500/20 px-1 py-0.5 rounded no-underline inline-block" style={{ textDecoration: "none" }}>DQ</span>}
@@ -896,9 +940,9 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-1 py-1.5 text-center align-middle text-zinc-500 tabular-nums font-mono text-xs">{row.matchCount}</td>
-                                    <td className="px-1 py-1.5 text-center align-middle text-zinc-300 font-medium tabular-nums font-mono text-xs">{row.placementPts}</td>
-                                    <td className="px-1 py-1.5 text-center align-middle text-zinc-400 tabular-nums font-mono text-xs">{row.totalKills}</td>
+                                    <td className="px-1 py-1.5 text-center align-middle text-white tabular-nums font-mono text-xs">{row.matchCount}</td>
+                                    <td className="px-1 py-1.5 text-center align-middle text-white font-medium tabular-nums font-mono text-xs">{row.placementPts}</td>
+                                    <td className="px-1 py-1.5 text-center align-middle text-white tabular-nums font-mono text-xs">{row.totalKills}</td>
                                     <td className="px-1 py-1.5 text-center align-middle">
                                         <span className="text-orange-400 font-bold tabular-nums font-mono text-xs">{row.totalPoints}</span>
                                         {(row.pointDeduction ?? 0) > 0 && (
@@ -947,12 +991,12 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                     </div>
 
                                     {/* Team Name */}
-                                    <p className={`text-xs font-bold mt-1 w-full ${hasSquadTeams ? "truncate" : "leading-tight"} ${rank === 1 ? "text-yellow-300" : rank === 2 ? "text-gray-200" : "text-orange-300"}`}>
+                                    <p className={`text-xs font-bold mt-1 w-full ${hasSquadTeams ? "truncate" : "leading-tight"} text-white`}>
                                         {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
                                     </p>
 
                                     {/* Stats */}
-                                    <div className={`mt-1.5 w-full rounded-lg border bg-gradient-to-b ${ps.bg} px-2 py-1.5 ${showZones ? "!border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.15)]" : ""}`}>
+                                    <div className={`mt-1.5 w-full rounded-lg border bg-gradient-to-b ${ps.bg} backdrop-blur-md px-2 py-1.5 ${showZones ? "!border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.15)]" : ""}`}>
                                         <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                                             <span className="text-orange-400 font-bold text-sm tabular-nums">{row.totalPoints}</span>
                                             {(row.pointDeduction ?? 0) > 0 && (
@@ -960,9 +1004,9 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                             )}
                                             {row.wins > 0 && <span className="text-xs text-yellow-400 font-semibold">🍗 {row.wins}</span>}
                                         </div>
-                                        <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] text-zinc-400">
+                                        <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] text-white/70">
                                             <span>{row.totalKills} kills</span>
-                                            <span className="text-zinc-600">|</span>
+                                            <span className="text-white/30">|</span>
                                             <span>{row.placementPts} pts</span>
                                         </div>
                                     </div>
@@ -981,9 +1025,11 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                         const styles = getRankStyles(rank);
                         const zone = showZones ? getChampionshipZone(rank, standings.length) : null;
                         return (
-                            <div key={row.teamId} className={`rounded-lg border backdrop-blur-sm px-3 py-2.5 flex items-start gap-3 transition-all ${
-                                zone ? `border-l-2 ${zone.border} border-white/10` : `border-white/10 bg-black/40 ${styles.row}`
-                            }`}>
+                            <div key={row.teamId} className={`rounded-lg border backdrop-blur-lg px-3 py-2.5 flex items-start gap-3 transition-all ${
+                                zone ? `border-l-2 ${zone.border} border-white/[0.12]` : `border-white/[0.12] ${styles.row}`
+                            }`}
+                            style={{ backgroundColor: `rgba(255,255,255,${rowTint / 100})` }}
+                            >
                                 <div className="flex flex-col items-center gap-0.5">
                                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                                         zone
@@ -999,7 +1045,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
                                         <div className="team-name-marquee flex-1 min-w-0">
-                                            <span className={`marquee-inner text-sm font-semibold whitespace-nowrap ${zone?.zone === "ELIMINATED" ? "text-zinc-500" : "text-zinc-200"}`}>
+                                            <span className={`marquee-inner text-sm font-semibold whitespace-nowrap ${zone?.zone === "ELIMINATED" ? "text-zinc-400" : "text-white"}`}>
                                                 <span className="inline-flex items-center gap-1.5">
                                                     {hasSquadTeams && (
                                                         <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0 inline" />
@@ -1013,13 +1059,13 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                         <div className="text-[10px] text-yellow-400 font-semibold mt-0.5">🍗 {row.wins} win{row.wins > 1 ? "s" : ""}</div>
                                     )}
                                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
-                                        <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-zinc-400">
-                                            <span className="text-zinc-500">M</span>
-                                            <span className="font-medium text-zinc-300">{row.matchCount}</span>
+                                        <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-white/60">
+                                            <span className="text-white/40">M</span>
+                                            <span className="font-medium text-white">{row.matchCount}</span>
                                         </span>
-                                        <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-zinc-400">
-                                            <span className="text-zinc-500">K</span>
-                                            <span className="font-medium text-zinc-300">{row.totalKills}</span>
+                                        <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-white/60">
+                                            <span className="text-white/40">K</span>
+                                            <span className="font-medium text-white">{row.totalKills}</span>
                                         </span>
                                         <span className="inline-flex items-center gap-1 rounded-md border border-orange-500/30 bg-orange-500/10 px-2 py-0.5">
                                             <span className="text-orange-400/70">TOTAL</span>

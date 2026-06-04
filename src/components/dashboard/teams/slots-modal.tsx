@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toPng, toJpeg } from "html-to-image";
 import { toast } from "sonner";
 import { X, Copy, Check, Send, Loader2 } from "lucide-react";
@@ -49,6 +50,24 @@ export function SlotsModal({
     const [shareSuccess, setShareSuccess] = useState(false);
     const [discordSending, setDiscordSending] = useState(false);
     const [discordSent, setDiscordSent] = useState(false);
+
+    // Fetch saved overlay settings from gallery
+    const { data: overlaySettings } = useQuery<{ overlayOpacity: number; cardTint: number; cardBlur: number; rowTint: number }>({
+        queryKey: ["overlay-settings"],
+        queryFn: async () => {
+            const res = await fetch("/api/gallery/overlay-settings");
+            if (!res.ok) return { overlayOpacity: 50, cardTint: 40, cardBlur: 12, rowTint: 5 };
+            const json = await res.json();
+            return json.data;
+        },
+        enabled: isOpen,
+        staleTime: 5_000,
+    });
+
+    const overlayOpacity = overlaySettings?.overlayOpacity ?? 50;
+    const cardTint = overlaySettings?.cardTint ?? 40;
+    const cardBlur = overlaySettings?.cardBlur ?? 12;
+    const rowTint = overlaySettings?.rowTint ?? 5;
 
     // Deduplicate teams by player composition
     const uniqueTeams = useMemo(() => {
@@ -247,18 +266,22 @@ export function SlotsModal({
         return teamList.map((team, index) => {
             const players = team.players?.map((p) => p.displayName || p.username) || [];
             const paddedPlayers = [...players, ...Array(maxCols - players.length).fill("")];
-            const textColor = index % 3 === 0 ? "text-zinc-200" : index % 3 === 1 ? "text-sky-300/70" : "text-amber-200/70";
+            const colorCycle = index % 3;
+            const textColor = colorCycle === 0 ? "text-white" : colorCycle === 1 ? "text-sky-100" : "text-amber-100";
+            const rowBg = colorCycle === 0 ? "bg-white/[0.08]" : colorCycle === 1 ? "bg-sky-400/[0.10]" : "bg-amber-400/[0.10]";
+            const textShadow = "0 1px 3px rgba(0,0,0,0.8)";
 
             return (
                 <tr
                     key={team.id || index}
-                    className={`border-b border-white/5 last:border-b-0 ${index % 2 === 0 ? "bg-zinc-900/40" : "bg-zinc-800/30"} hover:bg-zinc-700/40 transition-colors`}
+                    className={`border-b border-white/5 last:border-b-0 ${rowBg} hover:bg-white/15 transition-colors`}
+                    style={{ textShadow }}
                 >
-                    <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-medium ${textColor}`}>
+                    <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-bold ${textColor}`}>
                         {index + 2}
                     </td>
                     {showSquad && (
-                        <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[11px] sm:text-sm font-medium whitespace-nowrap ${textColor}`}>
+                        <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[11px] sm:text-sm font-bold whitespace-nowrap ${textColor}`}>
                             <span className="inline-flex items-center gap-1.5">
                                 <img src={team.clanLogo || GAME.iconUrl} alt={team.clanTag || GAME.name} className="w-4 h-4 rounded-full object-cover shrink-0" />
                                 {team.name}
@@ -266,7 +289,7 @@ export function SlotsModal({
                         </td>
                     )}
                     {paddedPlayers.map((playerName, pi) => (
-                        <td key={pi} className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm whitespace-nowrap ${playerName ? textColor : "text-zinc-600"}`}>
+                        <td key={pi} className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-semibold whitespace-nowrap ${playerName ? textColor : "text-zinc-600"}`}>
                             {playerName || "\u2014"}
                         </td>
                     ))}
@@ -344,8 +367,13 @@ export function SlotsModal({
                     className="relative w-full min-h-dvh flex items-center justify-center bg-cover bg-center py-10 sm:py-14"
                     style={{ backgroundImage: `url(${backgroundImage})` }}
                 >
-                    {/* Gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/70" />
+                    {/* Gradient overlay — controlled by gallery slider */}
+                    <div
+                        className="absolute inset-0"
+                        style={{
+                            background: `linear-gradient(to bottom, rgba(0,0,0,${overlayOpacity / 100}), rgba(0,0,0,${Math.max(0, overlayOpacity - 10) / 100}), rgba(0,0,0,${overlayOpacity / 100}))`,
+                        }}
+                    />
 
                     <div className="relative z-10 w-full max-w-5xl mx-auto px-2 sm:px-6">
                         {/* Title */}
@@ -360,8 +388,8 @@ export function SlotsModal({
                                 {tournamentTitle}
                             </h1>
                             {seasonName && (
-                                <div className="mt-1.5 sm:mt-2 inline-flex items-center gap-2 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-blue-500/10 border border-blue-500/30">
-                                    <span className="text-[10px] sm:text-xs font-semibold text-blue-400">{seasonName}</span>
+                                <div className="mt-1.5 sm:mt-2 inline-flex items-center gap-2 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-blue-500/20 border border-blue-400/40">
+                                    <span className="text-[10px] sm:text-xs font-semibold text-white">{seasonName}</span>
                                 </div>
                             )}
                             {phaseLabel && (
@@ -372,21 +400,28 @@ export function SlotsModal({
                         </div>
 
                         {/* Table — scrollable on mobile */}
-                        <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-black/50 shadow-2xl shadow-black/50 overflow-hidden">
+                        <div
+                            className="rounded-xl sm:rounded-2xl border border-white/[0.15] shadow-2xl shadow-black/50 overflow-hidden"
+                            style={{
+                                backgroundColor: `rgba(0,0,0,${cardTint / 100})`,
+                                backdropFilter: `blur(${cardBlur}px)`,
+                                WebkitBackdropFilter: `blur(${cardBlur}px)`,
+                            }}
+                        >
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-[500px]">
                                     <thead>
-                                        <tr className="bg-zinc-800/80 border-b border-white/10">
-                                            <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-zinc-300 whitespace-nowrap">
+                                        <tr className="bg-white/[0.06] border-b border-white/10">
+                                            <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-white whitespace-nowrap">
                                                 Slot
                                             </th>
                                             {hasSquadTeams && (
-                                                <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[11px] sm:text-sm font-semibold text-zinc-300 whitespace-nowrap">
+                                                <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[11px] sm:text-sm font-semibold text-white whitespace-nowrap">
                                                     Team
                                                 </th>
                                             )}
                                             {Array.from({ length: maxPlayers }, (_, i) => (
-                                                <th key={i} className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-zinc-300 whitespace-nowrap">
+                                                <th key={i} className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-white whitespace-nowrap">
                                                     Player {i + 1}
                                                 </th>
                                             ))}
@@ -427,17 +462,17 @@ export function SlotsModal({
                             </div>
 
                             {/* Footer */}
-                            <div className="px-2 py-2 sm:py-2.5 bg-zinc-800/60 border-t border-white/10 text-center">
-                                <span className="text-[11px] sm:text-sm font-semibold text-zinc-300">
+                            <div className="px-2 py-2 sm:py-2.5 bg-white/[0.04] border-t border-white/10 text-center">
+                                <span className="text-[11px] sm:text-sm font-semibold text-white">
                                     Total Players: {totalPlayers}
                                 </span>
                             </div>
                         </div>
 
                         {/* Footer Branding */}
-                        <div className="mt-4 sm:mt-6 flex items-center justify-center gap-2 text-zinc-500 text-[10px] sm:text-xs">
+                        <div className="mt-4 sm:mt-6 flex items-center justify-center gap-2 text-white/50 text-[10px] sm:text-xs">
                             <div className="h-px w-6 sm:w-8 bg-gradient-to-r from-transparent to-orange-500/50" />
-                            <span className="font-medium text-zinc-400">{GAME.name} × Bimon Tournament</span>
+                            <span className="font-medium text-white/60">{GAME.name} × Bimon Tournament</span>
                             <div className="h-px w-6 sm:w-8 bg-gradient-to-l from-transparent to-orange-500/50" />
                         </div>
                     </div>
