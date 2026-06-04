@@ -593,15 +593,6 @@ export function StandingsModal({
                         <Settings className="h-5 w-5" />
                     </button>
 
-                    {/* Refresh Gallery Settings */}
-                    <button
-                        onClick={() => refetchOverlay()}
-                        className={`text-white hover:text-cyan-400 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-cyan-500/50 p-2.5 rounded-xl transition-all duration-300 ${isFetchingOverlay ? "animate-spin" : ""}`}
-                        title="Refresh overlay settings from Gallery"
-                    >
-                        <RefreshCw className="h-5 w-5" />
-                    </button>
-
                     {/* Close Button */}
                     <button
                         onClick={onClose}
