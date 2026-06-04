@@ -3,7 +3,6 @@ import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { getCurrentUser, getAuthEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
-import { sendPush } from "@/lib/push";
 
 /**
  * POST /api/squads/request-join
@@ -110,12 +109,11 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "You're already in another squad for this tournament", status: 400 });
         }
 
+
         // Note: No balance check for joiners. The leader pays the full team entry fee.
 
-        const playerName = user.player.displayName;
-        const tournamentName = squad.poll.tournament?.name ?? "tournament";
-
-        // Create join request + remove individual vote + notify captain
+        // Create join request + remove individual vote
+        // (Captain sees pending requests in Squad Center — no notification spam)
         await prisma.$transaction(async (tx) => {
             if (existingInvite) {
                 // Re-request after a decline
@@ -137,25 +135,6 @@ export async function POST(request: NextRequest) {
             await tx.playerPollVote.deleteMany({
                 where: { playerId, pollId: squad.poll.id },
             });
-
-            // Notify captain
-            await tx.notification.create({
-                data: {
-                    title: "🛡 Join Request",
-                    message: `${playerName} wants to join "${squad.name}" for ${tournamentName}`,
-                    type: "squad_request",
-                    userId: squad.captain.user.id,
-                    playerId: squad.captain.id,
-                    link: "/vote",
-                },
-            });
-        });
-
-        // Push notification
-        sendPush(squad.captain.id, {
-            title: "🛡 Join Request",
-            body: `${playerName} wants to join "${squad.name}" for ${tournamentName}`,
-            url: "/notifications",
         });
 
         return SuccessResponse({

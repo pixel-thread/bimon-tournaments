@@ -8,6 +8,7 @@ import { Shield, Users, Clock, ChevronRight, CheckCircle2, AlertTriangle } from 
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad } from "@/hooks/use-squads";
 import { useAuthGate } from "@/components/common/auth-gate-provider";
+import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
 
 import { TeamDoneSection } from "@/components/squads/team-done-section";
 import { markWhatsAppPending, markWhatsAppJoined } from "@/components/common/whatsapp-squad-guard";
@@ -55,6 +56,7 @@ export default function JoinPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { requireAuth } = useAuthGate();
+    const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
 
     const [teamName, setTeamName] = useState(searchParams.get("team") ?? "");
     const [step, setStep] = useState<"form" | "creating" | "done">("form");
@@ -488,7 +490,7 @@ export default function JoinPage() {
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                window.location.href = `/api/discord/authorize?returnTo=join_${pollId}&pollId=${encodeURIComponent(pollId)}`;
+                                                openDiscordModal(`/api/discord/authorize?returnTo=join_${pollId}&pollId=${encodeURIComponent(pollId)}`);
                                             }}
                                             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 cursor-pointer active:scale-[0.98]"
                                         >
@@ -567,6 +569,7 @@ export default function JoinPage() {
                     </ModalFooter>
                 </ModalContent>
             </Modal>
+            <DiscordCompareModal />
         </>
     );
 }

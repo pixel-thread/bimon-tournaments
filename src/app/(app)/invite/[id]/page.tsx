@@ -8,6 +8,7 @@ import { Shield, Users, Clock, Check, X } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -48,6 +49,7 @@ export default function InvitePage() {
     const [joining, setJoining] = useState(false);
     const [joined, setJoined] = useState(false);
     const [conflictSquad, setConflictSquad] = useState<string | null>(null);
+    const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
     const [discordLinked, setDiscordLinked] = useState(() => {
         if (typeof window !== "undefined") return sessionStorage.getItem("discord_linked") === "true";
         return false;
@@ -272,7 +274,7 @@ export default function InvitePage() {
                         <button
                             type="button"
                             onClick={() => {
-                                window.location.href = `/api/discord/authorize?returnTo=profile&pollId=${encodeURIComponent(data.pollId)}`;
+                                openDiscordModal(`/api/discord/authorize?returnTo=profile&pollId=${encodeURIComponent(data.pollId)}`);
                             }}
                             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 cursor-pointer active:scale-[0.98]"
                         >
@@ -303,6 +305,7 @@ export default function InvitePage() {
                         </Button>
                     </motion.div>
                 )}
+                <DiscordCompareModal />
             </div>
         );
     }
