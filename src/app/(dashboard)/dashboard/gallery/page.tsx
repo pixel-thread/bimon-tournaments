@@ -2,8 +2,8 @@
 
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Chip, Skeleton } from "@heroui/react";
-import { ImageIcon, Upload, Trash2, Loader2, Plus, X, CheckCircle2 } from "lucide-react";
+import { Button, Input, Chip, Skeleton, Slider } from "@heroui/react";
+import { ImageIcon, Upload, Trash2, Loader2, Plus, X, CheckCircle2, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/compress-image";
 import { GAME } from "@/lib/game-config";
@@ -22,6 +22,8 @@ export default function GalleryPage() {
     const [uploading, setUploading] = useState(false);
     const [preview, setPreview] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [overlayOpacity, setOverlayOpacity] = useState(65);
+    const [slotOpacity, setSlotOpacity] = useState(50);
 
     // Fetch background images only (excludes character images)
     const { data: images, isLoading } = useQuery({
@@ -180,18 +182,89 @@ export default function GalleryPage() {
                     )}
                 </div>
                 {globalBg ? (
-                    <div className="relative w-full h-32 rounded-xl overflow-hidden border border-divider">
-                        <Image
-                            src={globalBg.publicUrl}
-                            alt={globalBg.name}
-                            fill
-                            className="object-cover"
-                            unoptimized
-                        />
-                        <div className="absolute bottom-2 left-2">
-                            <Chip size="sm" color="success" variant="flat" startContent={<CheckCircle2 className="h-3 w-3" />}>
-                                Active
-                            </Chip>
+                    <div className="relative w-full rounded-xl overflow-hidden border border-divider">
+                        {/* Full preview with overlays */}
+                        <div className="relative w-full h-56">
+                            <Image
+                                src={globalBg.publicUrl}
+                                alt={globalBg.name}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                            />
+                            {/* Overall gradient overlay */}
+                            <div
+                                className="absolute inset-0"
+                                style={{
+                                    background: `linear-gradient(to bottom, rgba(0,0,0,${overlayOpacity / 100}), rgba(0,0,0,${(overlayOpacity - 10) / 100}), rgba(0,0,0,${overlayOpacity / 100}))`,
+                                }}
+                            />
+                            {/* Slot preview card */}
+                            <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 z-10">
+                                <div
+                                    className="rounded-xl border border-white/10 p-3 backdrop-blur-sm shadow-2xl"
+                                    style={{ backgroundColor: `rgba(0,0,0,${slotOpacity / 100})` }}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-r from-yellow-600 to-yellow-400 text-black text-xs font-black">#1</div>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-semibold text-zinc-200">Sample Team Name</p>
+                                            <p className="text-[10px] text-zinc-400">24 kills · 156 pts</p>
+                                        </div>
+                                        <span className="text-orange-400 font-bold text-sm">180</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="absolute bottom-2 left-2 z-10">
+                                <Chip size="sm" color="success" variant="flat" startContent={<CheckCircle2 className="h-3 w-3" />}>
+                                    Active
+                                </Chip>
+                            </div>
+                        </div>
+
+                        {/* Opacity Controls */}
+                        <div className="bg-foreground/[0.03] border-t border-divider p-4 space-y-4">
+                            <div className="flex items-center gap-2 mb-1">
+                                <SlidersHorizontal className="h-3.5 w-3.5 text-foreground/40" />
+                                <span className="text-[11px] font-semibold text-foreground/50 uppercase tracking-wider">Overlay Preview</span>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs text-foreground/50">Overall Darkness</span>
+                                        <span className="text-xs font-mono text-foreground/40">{overlayOpacity}%</span>
+                                    </div>
+                                    <Slider
+                                        size="sm"
+                                        step={5}
+                                        minValue={0}
+                                        maxValue={100}
+                                        value={overlayOpacity}
+                                        onChange={(v) => setOverlayOpacity(v as number)}
+                                        className="max-w-full"
+                                        color="warning"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs text-foreground/50">Slot Card Darkness</span>
+                                        <span className="text-xs font-mono text-foreground/40">{slotOpacity}%</span>
+                                    </div>
+                                    <Slider
+                                        size="sm"
+                                        step={5}
+                                        minValue={0}
+                                        maxValue={100}
+                                        value={slotOpacity}
+                                        onChange={(v) => setSlotOpacity(v as number)}
+                                        className="max-w-full"
+                                        color="primary"
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-foreground/30">
+                                Adjust sliders to preview. Currently standings uses ~65% overall and ~50% slot.
+                            </p>
                         </div>
                     </div>
                 ) : (
