@@ -126,71 +126,133 @@ function buildTimeFromDigits(digits: string, ampm: "AM" | "PM"): string {
 }
 
 function TimeInput({ value, onChange }: { value: string; onChange: (time: string) => void }) {
-    const parsed = parseTimeString(value);
     const inputRef = useRef<HTMLInputElement>(null);
-    const [rawDigits, setRawDigits] = useState(parsed.digits);
-    const [ampm, setAmpm] = useState<"AM" | "PM">(parsed.ampm);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [isEditing, setIsEditing] = useState(!value);
+    const [rawDigits, setRawDigits] = useState("");
+    const [countdownKey, setCountdownKey] = useState(0); // bump to restart animation
 
-    // Sync from parent when value changes externally
-    useEffect(() => {
-        const p = parseTimeString(value);
-        if (p.digits && p.digits !== rawDigits) setRawDigits(p.digits);
-        if (p.ampm !== ampm) setAmpm(p.ampm);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [value]);
+    const formatAndCommit = useCallback((digits: string) => {
+        if (digits.length < 3) return;
 
-    const syncToParent = (digits: string, ap: "AM" | "PM") => {
-        if (digits.length >= 3) {
-            onChange(buildTimeFromDigits(digits, ap));
+        let h: number, m: number;
+        if (digits.length === 3) {
+            h = parseInt(digits[0]);
+            m = parseInt(digits.slice(1));
+        } else {
+            h = parseInt(digits.slice(0, 2));
+            m = parseInt(digits.slice(2, 4));
         }
-    };
+
+        if (h === 0) h = 12;
+        if (h > 12) h = 12;
+        if (m > 59) m = 59;
+
+        const ampm = "PM"; // Default PM for gaming hours
+        const formatted = `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
+        onChange(formatted);
+        setIsEditing(false);
+        setRawDigits("");
+        setCountdownKey(0);
+    }, [onChange]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let raw = e.target.value.replace(/[^\d]/g, "");
         if (raw.length > 4) raw = raw.slice(0, 4);
-
-        // Clamp hours (max 12) and minutes (max 59)
-        if (raw.length >= 2) {
-            const h = parseInt(raw.slice(0, 2));
-            if (h > 12) raw = "12" + raw.slice(2);
-        }
-        if (raw.length >= 4) {
-            const m = parseInt(raw.slice(2, 4));
-            if (m > 59) raw = raw.slice(0, 2) + "59";
-        }
-
         setRawDigits(raw);
-        syncToParent(raw, ampm);
 
-        // Keep cursor at the right position (account for auto-inserted colon)
-        setTimeout(() => {
-            if (inputRef.current) {
-                const pos = raw.length > 2 ? raw.length + 1 : raw.length;
-                inputRef.current.setSelectionRange(pos, pos);
-            }
-        }, 0);
+        if (timerRef.current) clearTimeout(timerRef.current);
+
+        if (raw.length >= 3) {
+            setCountdownKey(prev => prev + 1); // restart animation
+            timerRef.current = setTimeout(() => formatAndCommit(raw), 2000);
+        } else {
+            setCountdownKey(0);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" && rawDigits.length >= 3) {
+            if (timerRef.current) clearTimeout(timerRef.current);
+            formatAndCommit(rawDigits);
+        }
+    };
+
+    const handleClear = () => {
+        onChange("");
+        setIsEditing(true);
+        setRawDigits("");
+        setCountdownKey(0);
+        setTimeout(() => inputRef.current?.focus(), 50);
     };
 
     const toggleAmPm = () => {
-        const next = ampm === "AM" ? "PM" : "AM";
-        setAmpm(next);
-        syncToParent(rawDigits.length >= 3 ? rawDigits : "1200", next);
+        if (!value) return;
+        const match = value.match(/^(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+        if (match) {
+            const next = match[2].toUpperCase() === "AM" ? "PM" : "AM";
+            onChange(`${match[1]} ${next}`);
+        }
     };
+
+    // Editing mode
+    if (isEditing || !value) {
+        return (
+            <div className="flex items-center gap-1.5">
+                <div className="relative flex-1 min-w-0">
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        inputMode="numeric"
+                        value={rawDigits}
+                        onChange={handleChange}
+                        onKeyDown={handleKeyDown}
+                        onBlur={() => { if (rawDigits.length >= 3) formatAndCommit(rawDigits); }}
+                        placeholder="eg. 830"
+                        maxLength={4}
+                        autoFocus
+                        className="w-full px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary font-mono tracking-wider placeholder:text-foreground/25"
+                        autoComplete="off"
+                    />
+                    {/* Progress bar border */}
+                    {countdownKey > 0 && (
+                        <div
+                            key={countdownKey}
+                            className="absolute bottom-0 left-0 h-[2px] rounded-b-lg"
+                            style={{
+                                background: "linear-gradient(90deg, #8b5cf6, #6366f1)",
+                                animation: "time-progress 2s linear forwards",
+                            }}
+                        />
+                    )}
+                    <style>{`
+                        @keyframes time-progress {
+                            from { width: 0%; }
+                            to { width: 100%; }
+                        }
+                    `}</style>
+                </div>
+            </div>
+        );
+    }
+
+    // Display mode — formatted time chip
+    const match = value.match(/^(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+    const timeStr = match ? match[1] : value;
+    const ampm = match ? match[2].toUpperCase() : "PM";
 
     return (
         <div className="flex items-center gap-1.5">
-            <input
-                ref={inputRef}
-                type="text"
-                inputMode="numeric"
-                value={formatDigits(rawDigits)}
-                onChange={handleChange}
-                onFocus={(e) => e.target.select()}
-                placeholder="00:00"
-                maxLength={5}
-                className="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-default-100 border border-divider text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary font-mono tracking-wider placeholder:text-foreground/25"
-                autoComplete="off"
-            />
+            <div className="flex-1 flex items-center gap-1 px-2 py-1.5 rounded-lg bg-default-100 border border-divider">
+                <span className="flex-1 text-sm font-mono tracking-wider text-center font-semibold">{timeStr}</span>
+                <button
+                    type="button"
+                    onClick={handleClear}
+                    className="shrink-0 w-4 h-4 rounded-full bg-default-300 hover:bg-danger/60 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                    <X className="w-2.5 h-2.5 text-foreground/60" />
+                </button>
+            </div>
             <button
                 type="button"
                 onClick={toggleAmPm}
@@ -228,6 +290,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
     const [attachedImage, setAttachedImage] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const [matchPickerOpen, setMatchPickerOpen] = useState(false);
+    const [maxMatches, setMaxMatches] = useState(3);
 
     const generateMessage = useCallback((matchNum: number) => {
         const divider = "━━━━━━━━━━━━━━━";
@@ -278,16 +341,23 @@ function TournamentRow({ tournament, state, onChange, group }: {
     const handleSend = useCallback(async () => {
         if (state.roomId.length !== 7) return;
         setDiscordSending(true);
-        sendDiscord(matchNumber).then(() => {
+
+        // Copy message to clipboard for WhatsApp paste
+        const msg = generateMessage(matchNumber);
+        try { await navigator.clipboard.writeText(msg + "\n\n" + state.roomId); } catch {}
+
+        sendDiscord(matchNumber).then(async () => {
             setDiscordSent(true);
             setAttachedImage(null);
             setSentMatchNumbers(prev => new Set(prev).add(matchNumber));
+            const { toast } = await import("sonner");
+            toast.success("Sent to Discord + copied to clipboard 📋");
             setTimeout(() => setDiscordSent(false), 3000);
         }).catch(async (err) => {
             const { toast } = await import("sonner");
             toast.error(`Discord: ${err.message || "Failed to send"}`);
         }).finally(() => setDiscordSending(false));
-    }, [matchNumber, state.roomId, sendDiscord]);
+    }, [matchNumber, state.roomId, sendDiscord, generateMessage]);
 
     /** Edit the last sent message for this match */
     const handleUpdate = useCallback(async () => {
@@ -452,7 +522,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
                     </PopoverTrigger>
                     <PopoverContent className="p-1 min-w-[160px]">
                         <div className="flex flex-col max-h-[280px] overflow-y-auto">
-                            {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
+                            {Array.from({ length: maxMatches }, (_, i) => i + 1).map((num) => (
                                 <button
                                     key={num}
                                     type="button"
@@ -469,6 +539,13 @@ function TournamentRow({ tournament, state, onChange, group }: {
                                     Match {num}
                                 </button>
                             ))}
+                            <button
+                                type="button"
+                                onClick={() => setMaxMatches(prev => prev + 1)}
+                                className="px-3 py-1.5 text-sm text-left rounded-lg cursor-pointer transition-colors text-primary/60 hover:bg-primary/10 flex items-center gap-1"
+                            >
+                                <Plus className="w-3 h-3" /> Add match
+                            </button>
                         </div>
                     </PopoverContent>
                 </Popover>

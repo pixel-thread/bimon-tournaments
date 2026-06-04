@@ -3,8 +3,8 @@ import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 
 /**
  * GET /api/tournaments/unlinked-leaders?tournamentId=xxx
- * Returns team leaders (first player) who don't have Discord linked,
- * along with their phone number for WhatsApp fallback.
+ * Returns team leaders who don't have Discord linked,
+ * plus the WhatsApp group link from the poll.
  */
 export async function GET(request: Request) {
     try {
@@ -15,7 +15,36 @@ export async function GET(request: Request) {
             return ErrorResponse({ message: "tournamentId is required", status: 400 });
         }
 
-        // Get all teams for this tournament with their players
+        // Get the poll for this tournament
+        const tournament = await prisma.tournament.findUnique({
+            where: { id: tournamentId },
+            select: {
+                name: true,
+                poll: {
+                    select: {
+                        id: true,
+                        allowSquads: true,
+                        whatsappGroupLink: true,
+                    },
+                },
+            },
+        });
+
+        const whatsappGroupLink = tournament?.poll?.whatsappGroupLink || null;
+
+        // Build captain map for squad teams
+        const captainMap = new Map<string, boolean>();
+        if (tournament?.poll?.id && tournament.poll.allowSquads) {
+            const squads = await prisma.squad.findMany({
+                where: { pollId: tournament.poll.id, status: "REGISTERED" },
+                select: { captainId: true },
+            });
+            for (const s of squads) {
+                captainMap.set(s.captainId, true);
+            }
+        }
+
+        // Get all teams with their players
         const teams = await prisma.team.findMany({
             where: { tournamentId },
             select: {
@@ -28,18 +57,17 @@ export async function GET(request: Request) {
                         displayName: true,
                         phoneNumber: true,
                         discordId: true,
-                        discordUsername: true,
                     },
+                    orderBy: { createdAt: "asc" },
                 },
             },
             orderBy: { teamNumber: "asc" },
         });
 
-        // For each team, leader = first player. Filter to unlinked only.
         const unlinkedLeaders = teams
             .filter(t => t.players.length > 0)
             .map(t => {
-                const leader = t.players[0];
+                const leader = t.players.find(p => captainMap.has(p.id)) || t.players[0];
                 return {
                     teamName: t.name,
                     teamNumber: t.teamNumber,
@@ -50,7 +78,11 @@ export async function GET(request: Request) {
             })
             .filter(l => !l.hasDiscord);
 
-        return SuccessResponse({ data: unlinkedLeaders });
+        return SuccessResponse({
+            data: unlinkedLeaders,
+            whatsappGroupLink,
+            tournamentName: tournament?.name || "",
+        });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch unlinked leaders", error });
     }
