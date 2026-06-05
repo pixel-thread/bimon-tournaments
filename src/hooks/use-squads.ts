@@ -156,7 +156,6 @@ export function useCreateSquad() {
             return res.json();
         },
         onSuccess: (data, variables) => {
-            toast.success(data.message || "Squad created!");
 
             // Optimistic: immediately add the new squad to the cache
             queryClient.setQueryData(

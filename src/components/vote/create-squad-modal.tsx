@@ -66,14 +66,12 @@ export function CreateSquadModal({
     const [treasuryRequested, setTreasuryRequested] = useState(false);
     const [whatsappJoined, setWhatsappJoined] = useState(false);
     const [discordLinked, setDiscordLinked] = useState(() => {
-        // Instant check from cache — no network needed
         if (typeof window !== "undefined") {
             return sessionStorage.getItem("discord_linked") === "true";
         }
         return false;
     });
 
-    // Verify with API in background (fast DB-only check)
     useEffect(() => {
         if (!isOpen) return;
         fetch("/api/discord/link", { method: "GET" })
@@ -151,16 +149,13 @@ export function CreateSquadModal({
 
                     const { toast } = await import("sonner");
                     toast.success(`Team "${name}" created! 🎉`);
+                    handleClose();
 
-                    // If Discord not linked, show the modal as a nudge (skippable)
+                    // Show Discord stepper if not linked yet
                     if (!discordLinked) {
-                        setStep("done");
-                        // Small delay to let the toast show first
                         setTimeout(() => {
-                            openDiscordModal(`/api/discord/authorize?returnTo=&pollId=${encodeURIComponent(pollId)}`);
-                        }, 500);
-                    } else {
-                        setStep("done");
+                            openDiscordModal(`/api/discord/authorize?returnTo=vote`);
+                        }, 300);
                     }
 
                     // Persist WhatsApp pending state for global guard
@@ -385,7 +380,7 @@ export function CreateSquadModal({
                             className="w-full font-medium"
                             onPress={handleClose}
                         >
-                            Done
+                            Skip for now
                         </Button>
                     ) : null}
                 </ModalFooter>

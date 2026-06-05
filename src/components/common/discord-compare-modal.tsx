@@ -16,7 +16,7 @@ const APP_STORE = "https://apps.apple.com/app/discord-talk-chat-hang-out/id98574
 const LABELS = {
     // Header
     headerTitle: "Link your Discord",
-    headerSubtitle: "Follow these steps to connect — takes ~3 minutes",
+    headerSubtitle: "Link to get access to your tournament Discord channel for room info & more",
 
     // Steps titles & subtitles
     step1Title: "Download Discord",
@@ -66,7 +66,7 @@ const LABELS = {
     askTitle: "Do you have a Discord account?",
     askYes: "Yes, I have one",
     askNo: "No, I'm new to Discord",
-    switchToExisting: "I already have Discord →",
+    switchToExisting: "Link now →",
 
     // Collapsible image
     seeExample: "See example",
@@ -181,10 +181,10 @@ export function CompareModalUI({
     const { user, refetch } = useAuthUser();
     const queryClient = useQueryClient();
     const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
-    const [activeStep, setActiveStep] = useState(1);
+    const [activeStep, setActiveStep] = useState(-1); // All collapsed initially
     const [isPolling, setIsPolling] = useState(false);
     const [isLinked, setIsLinked] = useState(false);
-    const [hasAccount, setHasAccount] = useState<boolean | null>(null); // null = not answered yet
+    const [hasAccount, setHasAccount] = useState<boolean>(false); // Default to new-user path (all steps shown)
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Check if already linked on mount
@@ -282,17 +282,10 @@ export function CompareModalUI({
         }
     }, [isPwa, startPolling]);
 
-    // The highest step the player can reach (completed + the next one)
-    const nextAvailableStep = completedSteps.size > 0
-        ? Math.max(...Array.from(completedSteps)) + 1
-        : 1;
 
     const handleToggleStep = useCallback((step: number) => {
-        // Can expand completed steps or the next available step
-        if (completedSteps.has(step) || step <= nextAvailableStep) {
-            setActiveStep(prev => prev === step ? -1 : step);
-        }
-    }, [completedSteps, nextAvailableStep]);
+        setActiveStep(prev => prev === step ? -1 : step);
+    }, []);
 
     return (
         <Modal
@@ -332,45 +325,12 @@ export function CompareModalUI({
                         </div>
                     )}
 
-                    {/* Initial Question: Do you have Discord? */}
-                    {!isLinked && hasAccount === null && (
-                        <div className="space-y-3 animate-in fade-in duration-200">
-                            <p className="text-center text-[13px] font-semibold">{LABELS.askTitle}</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setHasAccount(true);
-                                        setCompletedSteps(new Set([1, 2]));
-                                        setActiveStep(3);
-                                    }}
-                                    className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border-2 border-[#5865F2]/30 bg-[#5865F2]/[0.04] hover:bg-[#5865F2]/[0.08] transition-colors"
-                                >
-                                    <Check className="w-5 h-5" style={{ color: DISCORD_BLURPLE }} />
-                                    <span className="text-[11px] font-semibold">{LABELS.askYes}</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setHasAccount(false);
-                                        setActiveStep(1);
-                                    }}
-                                    className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border-2 border-divider bg-default-50 hover:bg-default-100 transition-colors"
-                                >
-                                    <Download className="w-5 h-5 text-foreground/40" />
-                                    <span className="text-[11px] font-semibold">{LABELS.askNo}</span>
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Steps — only show after answering the question */}
-                    {!isLinked && hasAccount !== null && (
+                    {/* Steps — shown immediately (default: new-user path, all collapsed) */}
+                    {!isLinked && (
                         <div className="space-y-2">
                             {STEPS.map((step) => {
                                 const isCompleted = completedSteps.has(step.id);
                                 const isActive = activeStep === step.id;
-                                const isLocked = step.id > nextAvailableStep && !isCompleted;
 
                                 return (
                                     <div
@@ -380,8 +340,6 @@ export function CompareModalUI({
                                                 ? "border-emerald-500/30 bg-emerald-500/[0.04]"
                                                 : isActive
                                                 ? "border-[#5865F2]/40 bg-[#5865F2]/[0.04]"
-                                                : isLocked
-                                                ? "border-divider/50 bg-default-50/30 opacity-50"
                                                 : "border-divider bg-default-50/50"
                                         }`}
                                     >
@@ -389,7 +347,6 @@ export function CompareModalUI({
                                         <button
                                             type="button"
                                             onClick={() => handleToggleStep(step.id)}
-                                            disabled={isLocked}
                                             className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left"
                                         >
                                             {/* Step Number / Check */}
@@ -415,11 +372,9 @@ export function CompareModalUI({
                                             </div>
 
                                             {/* Chevron */}
-                                            {!isLocked && (
-                                                <ChevronDown
-                                                    className={`w-4 h-4 text-foreground/25 transition-transform duration-200 ${isActive ? "rotate-180" : ""}`}
-                                                />
-                                            )}
+                                            <ChevronDown
+                                                className={`w-4 h-4 text-foreground/25 transition-transform duration-200 ${isActive ? "rotate-180" : ""}`}
+                                            />
                                         </button>
 
                                         {/* Expanded Content */}
@@ -449,8 +404,7 @@ export function CompareModalUI({
 
                     {/* Switch path + Skip */}
                     {!isLinked && (
-                        <div className="flex flex-col items-center gap-1.5 pt-1">
-                            {/* Show "I already have Discord" when on the new-user path */}
+                        <div className="flex items-center justify-center gap-3 pt-1">
                             {hasAccount === false && (
                                 <button
                                     type="button"
@@ -464,15 +418,19 @@ export function CompareModalUI({
                                     {LABELS.switchToExisting}
                                 </button>
                             )}
-                            {onSkip && (
-                                <button
-                                    type="button"
-                                    onClick={onSkip}
-                                    className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors cursor-pointer px-4 py-1.5 rounded-lg border border-divider/50 hover:border-divider"
-                                >
-                                    {LABELS.skip}
-                                </button>
+                            {hasAccount === false && (
+                                <span className="text-foreground/20">·</span>
                             )}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onClose?.();
+                                    onSkip?.();
+                                }}
+                                className="text-[11px] text-foreground/40 hover:text-foreground/60 transition-colors cursor-pointer"
+                            >
+                                {LABELS.skip}
+                            </button>
                         </div>
                     )}
                 </ModalBody>

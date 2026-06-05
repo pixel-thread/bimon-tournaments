@@ -197,17 +197,7 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "pollId is required", status: 400 });
         }
 
-        // Discord linking is mandatory for squad creation
-        const captainPlayer = await prisma.player.findUnique({
-            where: { id: user.player.id },
-            select: { discordId: true },
-        });
-        if (!captainPlayer?.discordId) {
-            return ErrorResponse({
-                message: "🔗 Link your Discord account first to create a team",
-                status: 403,
-            });
-        }
+
 
         const playerId = user.player.id;
 
