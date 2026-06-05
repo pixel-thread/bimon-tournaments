@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Input, Button, Spinner, Avatar } from "@heroui/react";
-import { Search, X, Share2 } from "lucide-react";
+import { Search, X, Share2, Zap } from "lucide-react";
 import { motion } from "motion/react";
-import { useSearchPlayers, useInvitePlayer } from "@/hooks/use-squads";
+import { useSearchPlayers, useInvitePlayer, useRecentTeammates } from "@/hooks/use-squads";
 import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
 
 /* ─── WhatsApp Icon ─────────────────────────────────────────── */
@@ -65,6 +65,7 @@ export function TeamDoneSection({
         inviteSearch,
         pollId
     );
+    const { data: recentTeammates } = useRecentTeammates(pollId, !!createdSquadId);
 
     const mustJoinWhatsapp = !!whatsappGroupLink && !whatsappJoined;
     const mustJoinDiscord = isRanked && !discordLinked;
@@ -170,10 +171,53 @@ export function TeamDoneSection({
                         </a>
                     )}
 
+                    {/* Quick Add — players with auto-accept ON for this captain */}
+                    {recentTeammates && recentTeammates.length > 0 && (
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-1.5">
+                                <Zap className="w-3 h-3 text-amber-500" />
+                                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
+                                    Quick Add
+                                </p>
+                            </div>
+                            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                                {recentTeammates.map((teammate) => (
+                                    <div key={teammate.id} className="flex items-center gap-2 py-1.5">
+                                        <Avatar
+                                            src={teammate.imageUrl}
+                                            name={teammate.displayName}
+                                            size="sm"
+                                            className="w-7 h-7 shrink-0"
+                                        />
+                                        <span className="text-sm font-medium truncate flex-1">
+                                            {teammate.displayName}
+                                        </span>
+                                        <Button
+                                            size="sm"
+                                            color="success"
+                                            variant="flat"
+                                            className="min-w-0 px-3 h-7"
+                                            isLoading={inviteMutation.isPending && invitingPlayerId === teammate.id}
+                                            isDisabled={inviteMutation.isPending && invitingPlayerId !== teammate.id}
+                                            onPress={() => {
+                                                if (!createdSquadId) return;
+                                                setInvitingPlayerId(teammate.id);
+                                                inviteMutation.mutate({ squadId: createdSquadId, playerId: teammate.id });
+                                            }}
+                                        >
+                                            + Add
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-foreground/30">These players opted in to auto-join your invites</p>
+                        </div>
+                    )}
+
                     {/* Search & Invite players */}
                     <div className="space-y-2">
                         <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
-                            Or invite existing players
+                            {recentTeammates && recentTeammates.length > 0 ? "Or search players" : "Invite players"}
                         </p>
                         <Input
                             placeholder="Search player..."

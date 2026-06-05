@@ -110,6 +110,30 @@ export function useSearchPlayers(query: string, pollId: string | undefined) {
     });
 }
 
+export interface RecentTeammate {
+    id: string;
+    displayName: string;
+    imageUrl: string;
+}
+
+/**
+ * Fetch players who have auto-accept enabled for this captain (quick add).
+ */
+export function useRecentTeammates(pollId: string | undefined, enabled = true) {
+    return useQuery<RecentTeammate[]>({
+        queryKey: ["recent-teammates", pollId],
+        queryFn: async () => {
+            if (!pollId) return [];
+            const res = await fetch(`/api/squads/recent-teammates?pollId=${pollId}`);
+            if (!res.ok) return [];
+            const json = await res.json();
+            return json.data ?? [];
+        },
+        enabled: !!pollId && enabled,
+        staleTime: 30_000,
+    });
+}
+
 /* ─── Mutations ─────────────────────────────────────────────── */
 
 /**

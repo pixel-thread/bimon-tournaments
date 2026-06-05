@@ -279,6 +279,10 @@ model Player {
   couponsCreated        SponsorCoupon[]     @relation("CouponsCreated")
   couponsClaimed        SponsorCoupon[]     @relation("CouponsClaimed")
 
+  // Auto-accept squad invites (player-to-player trust)
+  autoAcceptsFrom       PlayerAutoAccept[]  @relation("AutoAcceptPlayer")
+  autoAcceptsFor        PlayerAutoAccept[]  @relation("AutoAcceptCaptain")
+
   @@index([userId])
   @@index([category])
   @@index([isBanned])
@@ -1621,4 +1625,24 @@ model StreamState {
   updatedAt DateTime @updatedAt
 
   @@map("stream_state")
+}
+
+// ─── Player Auto-Accept (Squad Invites) ─────────────────────
+
+/// Player-to-player trust for squad invites.
+/// When player B has an auto-accept row for captain A,
+/// invites from A to B skip PENDING and go straight to ACCEPTED.
+model PlayerAutoAccept {
+  id        String   @id @default(uuid())
+  playerId  String   // The invitee who trusts the captain
+  captainId String   // The captain they trust
+
+  createdAt DateTime @default(now())
+
+  player  Player @relation("AutoAcceptPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+  captain Player @relation("AutoAcceptCaptain", fields: [captainId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, captainId])
+  @@index([playerId])
+  @@index([captainId])
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Spinner, Avatar } from "@heroui/react";
+import { Button, Spinner, Avatar, Checkbox } from "@heroui/react";
 import { Shield, Users, Clock, Check, X } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -54,6 +54,8 @@ export default function InvitePage() {
         if (typeof window !== "undefined") return sessionStorage.getItem("discord_linked") === "true";
         return false;
     });
+    const [autoAccept, setAutoAccept] = useState(false);
+    const [autoAcceptSaving, setAutoAcceptSaving] = useState(false);
 
     // Check Discord link status
     useEffect(() => {
@@ -255,6 +257,52 @@ export default function InvitePage() {
                         Joined <strong>{data.squadName}</strong>
                     </p>
                 </div>
+
+                {/* Auto-accept checkbox */}
+                <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="w-full"
+                >
+                    <label
+                        className={`flex items-start gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${
+                            autoAccept
+                                ? "bg-primary/5 border-primary/20"
+                                : "bg-foreground/[0.02] border-divider hover:border-foreground/20"
+                        }`}
+                    >
+                        <Checkbox
+                            isSelected={autoAccept}
+                            isDisabled={autoAcceptSaving}
+                            onValueChange={async (checked) => {
+                                setAutoAccept(checked);
+                                setAutoAcceptSaving(true);
+                                try {
+                                    await fetch("/api/squads/auto-accept-player", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ captainId: data.captain.id, enabled: checked }),
+                                    });
+                                } catch {
+                                    setAutoAccept(!checked); // revert on failure
+                                } finally {
+                                    setAutoAcceptSaving(false);
+                                }
+                            }}
+                            size="sm"
+                            className="mt-0.5"
+                        />
+                        <div className="text-left min-w-0">
+                            <p className="text-sm font-medium">
+                                Auto-accept from {data.captain.displayName}
+                            </p>
+                            <p className="text-[11px] text-foreground/40 mt-0.5">
+                                Future invites from this player will be accepted automatically
+                            </p>
+                        </div>
+                    </label>
+                </motion.div>
 
                 {/* Skippable Discord prompt — only if not linked */}
                 {!discordLinked ? (

@@ -120,11 +120,19 @@ export async function POST(request: NextRequest) {
         const tournamentName = squad.poll.tournament?.name ?? "tournament";
 
         // ─── Auto-accept check ──────────────────────────────────────
-        // If the squad represents a clan AND the invited player is a member
-        // of that same clan with autoAcceptSquadInvites enabled, skip PENDING
-        // and immediately accept.
+        // Check 1: Player-level auto-accept (invitee trusts this captain)
         let shouldAutoAccept = false;
-        if (squad.clanId) {
+        const playerAutoAccept = await prisma.playerAutoAccept.findUnique({
+            where: { playerId_captainId: { playerId, captainId: currentPlayerId } },
+        });
+        if (playerAutoAccept) {
+            shouldAutoAccept = true;
+        }
+
+        // Check 2: Clan auto-accept — if the squad represents a clan AND the
+        // invited player is a member of that same clan with autoAcceptSquadInvites
+        // enabled, skip PENDING and immediately accept.
+        if (!shouldAutoAccept && squad.clanId) {
             const clanMembership = await prisma.clanMember.findUnique({
                 where: { playerId },
                 select: { clanId: true, autoAcceptSquadInvites: true, role: true },
