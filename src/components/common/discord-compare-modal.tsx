@@ -468,7 +468,7 @@ export function CompareModalUI({
                                 <button
                                     type="button"
                                     onClick={onSkip}
-                                    className="text-[11px] text-foreground/20 hover:text-foreground/40 transition-colors cursor-pointer"
+                                    className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors cursor-pointer px-4 py-1.5 rounded-lg border border-divider/50 hover:border-divider"
                                 >
                                     {LABELS.skip}
                                 </button>
