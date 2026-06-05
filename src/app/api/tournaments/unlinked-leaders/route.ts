@@ -79,9 +79,11 @@ export async function GET(request: Request) {
             .filter(l => !l.hasDiscord);
 
         return SuccessResponse({
-            data: unlinkedLeaders,
-            whatsappGroupLink,
-            tournamentName: tournament?.name || "",
+            data: {
+                leaders: unlinkedLeaders,
+                whatsappGroupLink,
+                tournamentName: tournament?.name || "",
+            },
         });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch unlinked leaders", error });

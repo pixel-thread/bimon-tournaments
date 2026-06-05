@@ -216,9 +216,11 @@ interface UnlinkedLeader {
 }
 
 interface UnlinkedResponse {
-    data: UnlinkedLeader[];
-    whatsappGroupLink: string | null;
-    tournamentName: string;
+    data: {
+        leaders: UnlinkedLeader[];
+        whatsappGroupLink: string | null;
+        tournamentName: string;
+    };
 }
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -271,9 +273,9 @@ function UnlinkedLeadersSection({ tournaments }: { tournaments: InPlayTournament
         staleTime: 30 * 1000,
     });
 
-    const leaders = response?.data ?? [];
-    const whatsappGroupLink = response?.whatsappGroupLink ?? null;
-    const tournamentName = response?.tournamentName ?? "";
+    const leaders = response?.data?.leaders ?? [];
+    const whatsappGroupLink = response?.data?.whatsappGroupLink ?? null;
+    const tournamentName = response?.data?.tournamentName ?? "";
 
     const openWhatsApp = (phone: string, name: string) => {
         const msg = buildWhatsAppMessage(name, tournamentName, whatsappGroupLink);
