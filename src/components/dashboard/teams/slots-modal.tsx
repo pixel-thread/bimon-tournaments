@@ -114,42 +114,66 @@ export function SlotsModal({
         const element = document.getElementById("teams-list-content");
         if (!element) return null;
 
-        // Temporarily remove viewport constraints so full content is captured
-        const prevMinH = element.style.minHeight;
-        const prevH = element.style.height;
-        const prevMinW = element.style.minWidth;
-        const prevW = element.style.width;
-        const prevOverflowEl = element.style.overflow;
-        element.style.minHeight = 'auto';
-        element.style.height = 'auto';
-        const captureWidth = 60 + (hasSquadTeams ? 140 : 0) + maxPlayers * 140 + 40;
-        element.style.minWidth = `${Math.max(600, captureWidth)}px`;
-        element.style.width = 'max-content';
-        element.style.overflow = 'visible';
+        // Calculate the full width needed for all columns
+        const captureWidth = 80 + (hasSquadTeams ? 160 : 0) + maxPlayers * 160 + 60;
+        const fullWidth = Math.max(600, captureWidth);
 
-        const scrollWrapper = element.querySelector('.overflow-x-auto') as HTMLElement | null;
-        const prevScrollOverflow = scrollWrapper?.style.overflow;
-        if (scrollWrapper) scrollWrapper.style.overflow = 'visible';
+        // Create an off-screen container outside the modal layout
+        const offscreen = document.createElement("div");
+        offscreen.style.position = "fixed";
+        offscreen.style.left = "0";
+        offscreen.style.top = "0";
+        offscreen.style.width = `${fullWidth}px`;
+        offscreen.style.height = "auto";
+        offscreen.style.overflow = "visible";
+        offscreen.style.zIndex = "-9999";
+        offscreen.style.opacity = "0";
+        offscreen.style.pointerEvents = "none";
+        document.body.appendChild(offscreen);
 
-        const tableContainer = scrollWrapper?.parentElement as HTMLElement | null;
-        const prevContainerOverflow = tableContainer?.style.overflow;
-        if (tableContainer) tableContainer.style.overflow = 'visible';
+        // Deep clone the element into the off-screen container
+        const clone = element.cloneNode(true) as HTMLElement;
+        clone.id = "teams-list-content-clone";
+        clone.style.width = `${fullWidth}px`;
+        clone.style.minWidth = `${fullWidth}px`;
+        clone.style.minHeight = "auto";
+        clone.style.height = "auto";
+        clone.style.overflow = "visible";
+
+        // Force overflow visible and remove max-width constraints on ALL descendants
+        clone.querySelectorAll("*").forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            if (htmlEl.style) {
+                htmlEl.style.overflow = "visible";
+                htmlEl.style.overflowX = "visible";
+                htmlEl.style.maxWidth = "none";
+            }
+        });
+
+        // Remove floating controls from clone
+        clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
+
+        offscreen.appendChild(clone);
+
+        // Force reflow so clientWidth reflects the actual width
+        void clone.offsetWidth;
+        const capturedHeight = clone.scrollHeight || clone.offsetHeight;
 
         try {
-            const dataUrl = await toJpeg(element, {
+            const dataUrl = await toJpeg(clone, {
                 pixelRatio: 3,
                 quality: 0.92,
-                filter: (node) => !node.classList?.contains("floating-controls"),
+                width: fullWidth,
+                height: capturedHeight,
+                style: {
+                    width: `${fullWidth}px`,
+                    minWidth: `${fullWidth}px`,
+                    overflow: "visible",
+                },
             });
             return dataUrl;
         } finally {
-            element.style.minHeight = prevMinH;
-            element.style.height = prevH;
-            element.style.minWidth = prevMinW;
-            element.style.width = prevW;
-            element.style.overflow = prevOverflowEl;
-            if (scrollWrapper && prevScrollOverflow !== undefined) scrollWrapper.style.overflow = prevScrollOverflow;
-            if (tableContainer && prevContainerOverflow !== undefined) tableContainer.style.overflow = prevContainerOverflow;
+            offscreen.remove();
         }
     }, [hasSquadTeams, maxPlayers]);
 
@@ -409,7 +433,7 @@ export function SlotsModal({
                             }}
                         >
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[500px]">
+                                <table className="w-full" style={{ minWidth: `${60 + (hasSquadTeams ? 150 : 0) + maxPlayers * 150}px` }}>
                                     <thead>
                                         <tr className="bg-white/[0.06] border-b border-white/10">
                                             <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-white whitespace-nowrap">
