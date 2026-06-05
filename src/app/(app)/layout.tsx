@@ -3,7 +3,6 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { OnboardingGuard } from "@/components/common/OnboardingGuard";
 import { AuthGateProvider } from "@/components/common/auth-gate-provider";
 
-import { ReferralPromoModal } from "@/components/common/referral-promo-modal";
 import { PwaInstallPrompt } from "@/components/common/pwa-install-prompt";
 import { LocationGuard } from "@/components/common/location-guard";
 import { PhoneGuard } from "@/components/common/phone-guard";
@@ -47,7 +46,6 @@ export default function AppLayout({
                     </footer>
                     <MobileNav />
 
-                    <ReferralPromoModal />
                     <PwaInstallPrompt />
                     <LocationGuard />
                     <PhoneGuard />
