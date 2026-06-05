@@ -11,7 +11,8 @@ import { getPollTheme, getLuckyWinnerTheme, type PollTheme } from "./pollTheme";
 import { getPrizeDistribution, getTeamSize, type OrgCutMode } from "@/lib/logic/prizeDistribution";
 import { GAME } from "@/lib/game-config";
 // Inline version of championship.getConfirmedSquadCap (can't import server module in client)
-function getConfirmedSquadCap(totalSquads: number): number {
+function getConfirmedSquadCap(totalSquads: number, isMangoScrim = false): number {
+    if (isMangoScrim) return 20;
     if (totalSquads <= 16) return 16;
     if (totalSquads < 20) return 16;
     return totalSquads - (totalSquads % 2);
@@ -837,7 +838,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     // Only confirmed squads contribute to prize pool (waitlisted ones don't)
     const squadCount = poll.squadCount ?? 0;
     const confirmedSquads = poll.allowSquads && GAME.squadSize > 1
-        ? Math.min(squadCount, getConfirmedSquadCap(squadCount))
+        ? Math.min(squadCount, getConfirmedSquadCap(squadCount, squadsResult?.isMangoScrim))
         : 0;
     const estimatedTeams = poll.allowSquads && GAME.squadSize > 1
         ? confirmedSquads + Math.floor(participantCount / GAME.squadSize)

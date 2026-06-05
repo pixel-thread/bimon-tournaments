@@ -40,6 +40,7 @@ export async function GET(
                         type: true,
                         isTDM: true,
                         isWoW: true,
+                        isMangoScrim: true,
                         season: { select: { name: true } },
                     },
                 },
@@ -91,7 +92,9 @@ export async function GET(
             // Not signed in — that's fine
         }
 
-        const maxSquads = (await import("@/lib/logic/championship")).getConfirmedSquadCap(poll._count.squads);
+        const isMangoScrim = poll.tournament.isMangoScrim ?? false;
+        const maxSquads = (await import("@/lib/logic/championship")).getConfirmedSquadCap(poll._count.squads, isMangoScrim);
+        const registrationCap = isMangoScrim ? 20 : 32;
 
         return SuccessResponse({
             data: {
@@ -105,13 +108,14 @@ export async function GET(
 
                 isTDM: poll.tournament.isTDM,
                 isWoW: poll.tournament.isWoW,
+                isMangoScrim,
                 scheduledDate: poll.scheduledDate,
                 scheduledTime: poll.scheduledTime,
                 matchSchedule: poll.matchSchedule ?? null,
                 days: poll.days,
                 squadCount: poll._count.squads,
                 maxSquads,
-                maxSquadWaitlist: 32,
+                maxSquadWaitlist: registrationCap,
                 teamSize: GAME.squadSize,
                 maxTeamSize: GAME.maxSquadSize,
                 hasSquad,

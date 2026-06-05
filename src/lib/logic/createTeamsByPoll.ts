@@ -109,7 +109,7 @@ export async function createTeamsByPoll({
     const [tournament, poll, tournamentCountInSeason, currentSeason] = await Promise.all([
         prisma.tournament.findUnique({
             where: { id: tournamentId },
-            select: { name: true },
+            select: { name: true, isMangoScrim: true },
         }),
         pollId ? prisma.poll.findUnique({
             where: { id: pollId },
@@ -123,6 +123,7 @@ export async function createTeamsByPoll({
     ]);
 
     const tournamentName = tournament?.name ?? "Tournament";
+    const isMangoScrim = tournament?.isMangoScrim ?? false;
     let luckyVoterId: string | null = poll?.luckyVoterId || null;
     const pollAllowSquads = poll?.allowSquads ?? false;
 
@@ -203,7 +204,7 @@ export async function createTeamsByPoll({
             orderBy: { createdAt: "asc" }, // Oldest first = confirmed
         });
 
-        const maxSquads = getConfirmedSquadCap(squads.length);
+        const maxSquads = getConfirmedSquadCap(squads.length, isMangoScrim);
 
         // Split into confirmed (first maxSquads) and waitlisted (rest)
         const confirmedSquads = squads.slice(0, maxSquads);

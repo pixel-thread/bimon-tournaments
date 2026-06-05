@@ -22,11 +22,18 @@ export async function GET(request: NextRequest) {
             return ErrorResponse({ message: "pollId is required", status: 400 });
         }
 
+        // Fetch isMangoScrim from tournament (Mango Scrim = 20 confirmed slots vs 16)
+        const pollForCap = await prisma.poll.findUnique({
+            where: { id: pollId },
+            select: { tournament: { select: { isMangoScrim: true } } },
+        });
+        const isMangoScrim = pollForCap?.tournament?.isMangoScrim ?? false;
+
         // Dynamic squad cap based on how many squads have registered
         const totalSquadCount = await prisma.squad.count({
             where: { pollId, status: { not: "CANCELLED" } },
         });
-        const maxSquads = getConfirmedSquadCap(totalSquadCount);
+        const maxSquads = getConfirmedSquadCap(totalSquadCount, isMangoScrim);
 
         const squads = await prisma.squad.findMany({
             where: {
@@ -165,7 +172,8 @@ export async function GET(request: NextRequest) {
             };
         });
 
-        return SuccessResponse({ data, meta: { defendingChampion, maxSquads, maxSquadWaitlist: 32, squadCount: data.length }, cache: CACHE.NONE });
+        const registrationCap = isMangoScrim ? 20 : 32;
+        return SuccessResponse({ data, meta: { defendingChampion, maxSquads, maxSquadWaitlist: registrationCap, squadCount: data.length, isMangoScrim }, cache: CACHE.NONE });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch squads", error });
     }
@@ -244,7 +252,7 @@ export async function POST(request: NextRequest) {
         const poll = await prisma.poll.findUnique({
             where: { id: pollId },
             include: {
-                tournament: { select: { id: true, fee: true, status: true } },
+                tournament: { select: { id: true, fee: true, status: true, isMangoScrim: true } },
             },
         });
 
@@ -257,6 +265,7 @@ export async function POST(request: NextRequest) {
         }
 
         const entryFee = poll.tournament?.fee ?? 0;
+        const isMangoScrim = poll.tournament?.isMangoScrim ?? false;
 
         // Clan treasury validation (must be a clan squad + have enough balance)
         const wantClanTreasury = !!(useClanTreasury && clanId && entryFee > 0);
@@ -290,15 +299,15 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Check: registration cap (always 32 — championship auto-detected at generation time)
-        const registrationCap = 32;
+        // Check: registration cap (Mango Scrim = 20 flat, regular = 32)
+        const registrationCap = isMangoScrim ? 20 : 32;
         const activeSquadCount = await prisma.squad.count({
             where: {
                 pollId,
                 status: { in: ["FORMING", "FULL"] },
             },
         });
-        const maxSquads = getConfirmedSquadCap(activeSquadCount + 1); // +1 for the squad being created
+        const maxSquads = getConfirmedSquadCap(activeSquadCount + 1, isMangoScrim); // +1 for the squad being created
 
         if (activeSquadCount >= registrationCap) {
             return ErrorResponse({

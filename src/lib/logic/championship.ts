@@ -23,11 +23,16 @@ export interface PhaseRanking {
 
 /**
  * Calculate how many squads are "confirmed" (not waitlisted) based on total count.
+ *
+ * Regular tournaments:
  * - ≤16: all confirmed (regular match)
  * - 17-19: 16 confirmed (waiting to reach 20 for championship)
  * - ≥20: floor to nearest even (championship groups must be equal)
+ *
+ * Mango Scrim: always 20 — flat cap, no championship.
  */
-export function getConfirmedSquadCap(totalSquads: number): number {
+export function getConfirmedSquadCap(totalSquads: number, isMangoScrim = false): number {
+    if (isMangoScrim) return 20;
     if (totalSquads <= 16) return 16;
     if (totalSquads < 20) return 16;
     return totalSquads - (totalSquads % 2);

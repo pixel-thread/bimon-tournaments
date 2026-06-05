@@ -63,10 +63,10 @@ export interface SearchPlayerResult {
  * Fetch all squads for a specific poll.
  */
 export function useSquads(pollId: string | undefined) {
-    return useQuery<{ squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean }>({
+    return useQuery<{ squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean; isMangoScrim: boolean }>({
         queryKey: ["squads", pollId],
         queryFn: async () => {
-            if (!pollId) return { squads: [], defendingChampion: null, maxSquads: 16, maxSquadWaitlist: 24, squadCount: 0, isChampionship: false };
+            if (!pollId) return { squads: [], defendingChampion: null, maxSquads: 16, maxSquadWaitlist: 24, squadCount: 0, isChampionship: false, isMangoScrim: false };
             const res = await fetch(`/api/squads?pollId=${pollId}&_t=${Date.now()}`);
             if (!res.ok) throw new Error("Failed to fetch squads");
             const json = await res.json();
@@ -77,6 +77,7 @@ export function useSquads(pollId: string | undefined) {
                 maxSquadWaitlist: json.meta?.maxSquadWaitlist ?? 24,
                 squadCount: json.meta?.squadCount ?? 0,
                 isChampionship: json.meta?.isChampionship ?? false,
+                isMangoScrim: json.meta?.isMangoScrim ?? false,
             };
         },
         enabled: !!pollId && GAME.features.hasSquads,
@@ -160,7 +161,7 @@ export function useCreateSquad() {
             // Optimistic: immediately add the new squad to the cache
             queryClient.setQueryData(
                 ["squads", variables.pollId],
-                (old: { squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean } | undefined) => {
+                (old: { squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean; isMangoScrim: boolean } | undefined) => {
                     if (!old) return old;
                     const newSquad: SquadDTO = {
                         id: data.data?.id ?? `temp-${Date.now()}`,
