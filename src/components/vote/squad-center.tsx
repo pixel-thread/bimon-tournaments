@@ -665,18 +665,25 @@ function SquadCard({
                                         <p className="text-[10px] text-foreground/40">Get room ID & match updates directly</p>
                                     </div>
                                 </div>
-                                <a
-                                    href={process.env.NEXT_PUBLIC_DISCORD_INVITE_LINK || "#"}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                <button
+                                    type="button"
                                     onClick={() => {
+                                        const returnTo = window.location.pathname.replace("/", "") || "vote";
+                                        const authUrl = `/api/discord/authorize?returnTo=${returnTo}`;
+                                        const isPwa = window.matchMedia("(display-mode: standalone)").matches ||
+                                            (window.navigator as any).standalone === true;
+                                        if (isPwa) {
+                                            window.location.href = authUrl;
+                                        } else {
+                                            window.open(authUrl, "_blank");
+                                        }
                                         setDiscordLinked(true);
                                         sessionStorage.setItem("discord_linked", "true");
                                     }}
-                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-xs transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-xs transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white cursor-pointer"
                                 >
-                                    Join Discord Server
-                                </a>
+                                    Link Discord Account
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => {
