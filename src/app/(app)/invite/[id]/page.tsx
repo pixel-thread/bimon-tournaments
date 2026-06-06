@@ -55,7 +55,6 @@ export default function InvitePage() {
         return false;
     });
     const [autoAccept, setAutoAccept] = useState(false);
-    const [autoAcceptSaving, setAutoAcceptSaving] = useState(false);
 
     // Check Discord link status
     useEffect(() => {
@@ -146,8 +145,15 @@ export default function InvitePage() {
                 return;
             }
             toast.success(json.message || "Joined!");
+            // Save auto-accept preference if toggled on
+            if (autoAccept && data) {
+                fetch("/api/squads/auto-accept-player", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ captainId: data.captain.id, enabled: true }),
+                }).catch(() => {}); // fire-and-forget
+            }
             setJoined(true);
-            setTimeout(() => router.push("/vote"), 1200);
         } catch {
             toast.error("Network error. Please try again.");
             setJoining(false);
@@ -258,54 +264,10 @@ export default function InvitePage() {
                     </p>
                 </div>
 
-                {/* Auto-accept checkbox */}
-                <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="w-full"
-                >
-                    <label
-                        className={`flex items-start gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${
-                            autoAccept
-                                ? "bg-primary/5 border-primary/20"
-                                : "bg-foreground/[0.02] border-divider hover:border-foreground/20"
-                        }`}
-                    >
-                        <Checkbox
-                            isSelected={autoAccept}
-                            isDisabled={autoAcceptSaving}
-                            onValueChange={async (checked) => {
-                                setAutoAccept(checked);
-                                setAutoAcceptSaving(true);
-                                try {
-                                    await fetch("/api/squads/auto-accept-player", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ captainId: data.captain.id, enabled: checked }),
-                                    });
-                                } catch {
-                                    setAutoAccept(!checked); // revert on failure
-                                } finally {
-                                    setAutoAcceptSaving(false);
-                                }
-                            }}
-                            size="sm"
-                            className="mt-0.5"
-                        />
-                        <div className="text-left min-w-0">
-                            <p className="text-sm font-medium">
-                                Auto-accept from {data.captain.displayName}
-                            </p>
-                            <p className="text-[11px] text-foreground/40 mt-0.5">
-                                Future invites from this player will be accepted automatically
-                            </p>
-                        </div>
-                    </label>
-                </motion.div>
+
 
                 {/* Skippable Discord prompt — only if not linked */}
-                {!discordLinked ? (
+                {!discordLinked && (
                     <motion.div
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -337,22 +299,23 @@ export default function InvitePage() {
                             Skip — I&apos;ll get the room ID from my leader
                         </button>
                     </motion.div>
-                ) : (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                    >
-                        <Button
-                            color="primary"
-                            size="lg"
-                            className="w-full font-semibold"
-                            onPress={() => router.push("/vote")}
-                        >
-                            Go to Tournament
-                        </Button>
-                    </motion.div>
                 )}
+
+                {/* Go to Tournament — always visible */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                >
+                    <Button
+                        color="primary"
+                        size="lg"
+                        className="w-full font-semibold"
+                        onPress={() => router.push("/vote")}
+                    >
+                        Go to Tournament
+                    </Button>
+                </motion.div>
                 <DiscordCompareModal />
             </div>
         );
@@ -391,6 +354,32 @@ export default function InvitePage() {
                             ⚠️ You&apos;re in <strong>&quot;{conflictSquad}&quot;</strong>. Joining will switch you.
                         </p>
                     </div>
+                )}
+
+                {/* Auto-accept toggle */}
+                {isSignedIn && (
+                    <label
+                        className={`flex items-start gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${
+                            autoAccept
+                                ? "bg-primary/5 border-primary/20"
+                                : "bg-foreground/[0.02] border-divider hover:border-foreground/20"
+                        }`}
+                    >
+                        <Checkbox
+                            isSelected={autoAccept}
+                            onValueChange={setAutoAccept}
+                            size="sm"
+                            className="mt-0.5"
+                        />
+                        <div className="text-left min-w-0">
+                            <p className="text-sm font-medium">
+                                Auto-accept from {data.captain.displayName}
+                            </p>
+                            <p className="text-[11px] text-foreground/40 mt-0.5">
+                                Future invites from this player will be accepted automatically
+                            </p>
+                        </div>
+                    </label>
                 )}
 
                 {/* Action buttons */}
