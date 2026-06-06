@@ -454,12 +454,12 @@ export default function JoinPage() {
                                     <Input
                                         ref={inputRef}
                                         label="Team Name"
-                                        placeholder="e.g. Never Give Up"
+                                        placeholder="e.g. ALPHA"
                                         value={teamName}
-                                        onValueChange={setTeamName}
-                                        maxLength={30}
+                                        onValueChange={(v) => setTeamName(v.slice(0, 5))}
+                                        maxLength={5}
                                         size="lg"
-                                        description={`${teamName.length}/30 characters`}
+                                        description={`${teamName.length}/5 characters`}
                                         classNames={{
                                             input: "text-base",
                                             inputWrapper: "shadow-sm",

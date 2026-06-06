@@ -263,12 +263,12 @@ export function CreateSquadModal({
                                 {myClan !== undefined && (!useClan || !hasClan) && (
                                     <Input
                                         label="Squad Name"
-                                        placeholder="e.g. Team Alpha"
+                                        placeholder="e.g. ALPHA"
                                         value={squadName}
-                                        onValueChange={setSquadName}
-                                        maxLength={30}
+                                        onValueChange={(v) => setSquadName(v.slice(0, 5))}
+                                        maxLength={5}
                                         autoFocus
-                                        description={`${squadName.length}/30 characters`}
+                                        description={`${squadName.length}/5 characters`}
                                         classNames={{ input: "text-base" }}
                                     />
                                 )}

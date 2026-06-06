@@ -231,21 +231,22 @@ export async function POST(request: NextRequest) {
                 return ErrorResponse({ message: "You are not in a clan", status: 400 });
             }
             clanId = clanInfo.id;
-            // Auto-name: "ClanName", "ClanName 2", "ClanName 3", etc.
+            // Auto-name: truncated clan name (max 5 chars)
+            const baseName = clanInfo.name.slice(0, 5);
             const existingClanSquads = await prisma.squad.count({
                 where: { pollId, clanId, status: { in: ["FORMING", "FULL"] } },
             });
             trimmedName = existingClanSquads === 0
-                ? clanInfo.name
-                : `${clanInfo.name} ${existingClanSquads + 1}`;
+                ? baseName
+                : `${baseName.slice(0, 4)}${existingClanSquads + 1}`;
         }
 
         if (!trimmedName) {
             return ErrorResponse({ message: "Squad name is required", status: 400 });
         }
 
-        if (trimmedName.length > 30) {
-            return ErrorResponse({ message: "Squad name must be 30 characters or less", status: 400 });
+        if (trimmedName.length > 5) {
+            return ErrorResponse({ message: "Squad name must be 5 characters or less", status: 400 });
         }
 
         // Fetch poll + tournament
