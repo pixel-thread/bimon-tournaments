@@ -178,8 +178,25 @@ export async function PATCH(
         const updated = await prisma.player.update({
             where: { id },
             data: updateData,
-            select: { id: true, category: true, isTrusted: true, isUCExempt: true },
+            select: { id: true, category: true, isTrusted: true, isUCExempt: true, discordId: true },
         });
+
+        // Auto-grant/revoke Discord UC Exempt role
+        if (typeof body.isUCExempt === "boolean" && updated.discordId) {
+            const ucExemptRoleId = process.env.DISCORD_UC_EXEMPT_ROLE_ID;
+            if (ucExemptRoleId) {
+                try {
+                    const { grantRole, revokeRole } = await import("@/lib/discord-service");
+                    if (body.isUCExempt) {
+                        await grantRole(updated.discordId, ucExemptRoleId);
+                    } else {
+                        await revokeRole(updated.discordId, ucExemptRoleId);
+                    }
+                } catch (err) {
+                    console.error("[UC Exempt] Discord role update failed:", err);
+                }
+            }
+        }
 
         return NextResponse.json({ data: updated });
     } catch (error) {

@@ -205,6 +205,15 @@ export async function createTournamentChannel(
             allow: "183296",
         });
     }
+    // UC Exempt role — VIEW_CHANNEL only (read-only, no sending)
+    const ucExemptRoleId = process.env.DISCORD_UC_EXEMPT_ROLE_ID;
+    if (ucExemptRoleId) {
+        permissionOverwrites.push({
+            id: ucExemptRoleId,
+            type: 0, // role
+            allow: "1024", // VIEW_CHANNEL only
+        });
+    }
 
     const res = await discordFetch(`/guilds/${guildId}/channels`, {
         method: "POST",

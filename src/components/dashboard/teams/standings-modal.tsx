@@ -315,12 +315,13 @@ export function StandingsModal({
         // Remove floating controls from clone
         clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
 
-        // 1:1 square — smaller logical size = bigger text in output
+        // Casual = wider layout for long player names, Squad = compact for 5-char names
         const rowsPerCol = Math.ceil(standings.length / 2);
-        const captureWidth = 620;
-        // Title ~90px, table header ~28px, each row ~34px, footer ~30px, padding ~40px
-        const tableHeight = 28 + rowsPerCol * 34;
+        const captureWidth = allowSquads ? 620 : 1080;
+        const rowHeight = allowSquads ? 34 : 42;
+        const tableHeight = 28 + rowsPerCol * rowHeight;
         const captureHeight = Math.max(captureWidth, 90 + 30 + tableHeight + 40);
+        const pixelRatio = allowSquads ? 3 : 2;
 
         // Style the clone for desktop capture
         clone.style.cssText = `
@@ -344,7 +345,7 @@ export function StandingsModal({
             const dataUrl = await toJpeg(clone, {
                 width: captureWidth,
                 height: captureHeight,
-                pixelRatio: 3,
+                pixelRatio,
                 quality: 0.92,
             });
 
@@ -422,11 +423,13 @@ export function StandingsModal({
 
         clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
 
-        // 1:1 square — smaller logical size = bigger text in output
+        // Casual = wider layout for long player names, Squad = compact for 5-char names
         const rowsPerCol = Math.ceil(standings.length / 2);
-        const captureWidth = 620;
-        const tableHeight = 28 + rowsPerCol * 34;
+        const captureWidth = allowSquads ? 620 : 1080;
+        const rowHeight = allowSquads ? 34 : 42;
+        const tableHeight = 28 + rowsPerCol * rowHeight;
         const captureHeight = Math.max(captureWidth, 90 + 30 + tableHeight + 40);
+        const pixelRatio = allowSquads ? 3 : 2;
 
         clone.style.cssText = `
             width: ${captureWidth}px; height: ${captureHeight}px;
@@ -448,7 +451,7 @@ export function StandingsModal({
             const dataUrl = await toJpeg(clone, {
                 width: captureWidth,
                 height: captureHeight,
-                pixelRatio: 3,
+                pixelRatio,
                 quality: 0.92,
             });
             return dataUrl;
@@ -886,8 +889,8 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                                 <span className={`${ 
                                                     row.isDisqualified ? "text-red-400/70 line-through" :
                                                     zone?.zone === "ELIMINATED" ? "text-zinc-400" : "text-white"
-                                                }`} style={{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                                    {hasSquadTeams ? (row.teamName.length > 5 ? row.teamName.slice(0, 5) : row.teamName) : row.playerNames.map(n => n.length > 5 ? n.slice(0, 5) : n).join(", ")}
+                                                }`} style={{ fontSize: hasSquadTeams ? '13px' : '10px', fontWeight: 700, whiteSpace: hasSquadTeams ? 'nowrap' : 'normal', wordBreak: hasSquadTeams ? undefined : 'break-word' as never }}>
+                                                    {hasSquadTeams ? (row.teamName.length > 5 ? row.teamName.slice(0, 5) : row.teamName) : row.playerNames.join(", ")}
                                                     {row.isDisqualified && <span style={{ marginLeft: '3px', fontSize: '8px', fontWeight: 700, color: '#f87171', backgroundColor: 'rgba(239,68,68,0.2)', padding: '1px 3px', borderRadius: '3px', display: 'inline-block' }}>DQ</span>}
                                                 </span>
                                                 {row.wins > 0 && <span style={{ fontSize: '8px', color: '#facc15', fontWeight: 600, lineHeight: 1 }}>🍗x{row.wins}</span>}
