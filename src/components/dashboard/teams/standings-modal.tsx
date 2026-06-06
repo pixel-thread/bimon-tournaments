@@ -315,21 +315,21 @@ export function StandingsModal({
         // Remove floating controls from clone
         clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
 
-        // Dynamic height: podium(~200px) + title/footer(~160px) + remaining teams in two-col
-        const restTeams = Math.max(0, standings.length - 3);
-        const rowsPerCol = Math.ceil(restTeams / 2);
-        const champHeaderExtra = detectedChampionship ? 40 : 0; // Extra space for group label
-        const captureHeight = Math.max(520, 200 + 160 + champHeaderExtra + rowsPerCol * 38 + 80);
-        const captureWidth = 1280;
+        // 1:1 square — smaller logical size = bigger text in output
+        const rowsPerCol = Math.ceil(standings.length / 2);
+        const captureWidth = 620;
+        // Title ~90px, table header ~28px, each row ~34px, footer ~30px, padding ~40px
+        const tableHeight = 28 + rowsPerCol * 34;
+        const captureHeight = Math.max(captureWidth, 90 + 30 + tableHeight + 40);
 
         // Style the clone for desktop capture
         clone.style.cssText = `
-            width: ${captureWidth}px; min-height: ${captureHeight}px;
-            display: flex; align-items: center; justify-content: center;
+            width: ${captureWidth}px; height: ${captureHeight}px;
+            display: flex; align-items: flex-start; justify-content: center;
             background-image: url(${backgroundImage});
             background-size: cover; background-position: center;
-            position: relative; overflow: visible;
-            font-size: 115%;
+            position: relative; overflow: hidden;
+            padding: 15px 8px 8px;
         `;
 
         // Create offscreen container
@@ -422,19 +422,19 @@ export function StandingsModal({
 
         clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
 
-        const restTeams = Math.max(0, standings.length - 3);
-        const rowsPerCol = Math.ceil(restTeams / 2);
-        const champHeaderExtra = detectedChampionship ? 40 : 0;
-        const captureHeight = Math.max(520, 200 + 160 + champHeaderExtra + rowsPerCol * 38 + 80);
-        const captureWidth = 1280;
+        // 1:1 square — smaller logical size = bigger text in output
+        const rowsPerCol = Math.ceil(standings.length / 2);
+        const captureWidth = 620;
+        const tableHeight = 28 + rowsPerCol * 34;
+        const captureHeight = Math.max(captureWidth, 90 + 30 + tableHeight + 40);
 
         clone.style.cssText = `
-            width: ${captureWidth}px; min-height: ${captureHeight}px;
-            display: flex; align-items: center; justify-content: center;
+            width: ${captureWidth}px; height: ${captureHeight}px;
+            display: flex; align-items: flex-start; justify-content: center;
             background-image: url(${backgroundImage});
             background-size: cover; background-position: center;
-            position: relative; overflow: visible;
-            font-size: 115%;
+            position: relative; overflow: hidden;
+            padding: 15px 8px 8px;
         `;
 
         const tempContainer = document.createElement("div");
@@ -814,61 +814,26 @@ function getChampionshipZone(rank: number, total: number): { zone: string; color
 
 function StandingsTable({ standings, allowSquads = false, isChampionship = false, champGroup = "ALL", showZones = false, rowTint = 5 }: { standings: StandingRow[]; allowSquads?: boolean; isChampionship?: boolean; champGroup?: string; showZones?: boolean; rowTint?: number }) {
     const hasSquadTeams = allowSquads;
-    const top3 = standings.slice(0, 3);
-    const rest = standings.slice(3);
-
-    // Podium order: #2, #1, #3 (center elevated)
-    const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
-    const podiumRanks = top3.length >= 3 ? [2, 1, 3] : top3.map((_, i) => i + 1);
-
-    const podiumStyles: Record<number, { ring: string; glow: string; size: string; badge: string; bg: string; elevated: boolean }> = {
-        1: {
-            ring: "ring-2 ring-yellow-400/70",
-            glow: "shadow-[0_0_20px_rgba(234,179,8,0.4)]",
-            size: "w-14 h-14",
-            badge: "bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-500 text-black font-black",
-            bg: "from-yellow-500/15 via-yellow-400/5 to-transparent border-yellow-500/30",
-            elevated: true,
-        },
-        2: {
-            ring: "ring-2 ring-gray-300/60",
-            glow: "shadow-[0_0_14px_rgba(156,163,175,0.3)]",
-            size: "w-11 h-11",
-            badge: "bg-gradient-to-r from-gray-400 via-gray-200 to-gray-300 text-black font-black",
-            bg: "from-gray-400/10 via-gray-300/5 to-transparent border-gray-400/30",
-            elevated: false,
-        },
-        3: {
-            ring: "ring-2 ring-orange-500/60",
-            glow: "shadow-[0_0_14px_rgba(234,88,12,0.3)]",
-            size: "w-11 h-11",
-            badge: "bg-gradient-to-r from-orange-700 via-orange-500 to-orange-600 text-white font-black",
-            bg: "from-orange-500/10 via-orange-400/5 to-transparent border-orange-500/30",
-            elevated: false,
-        },
-    };
 
     const renderTable = (slice: StandingRow[], startIndex: number) => {
         const totalTeams = standings.length;
-        // Zone boundary: divider after rank 8 (qualified cutoff) and before eliminated zone
         const eliminatedCutoff = totalTeams - 2;
         const zoneBoundaries = showZones ? [8, ...(eliminatedCutoff > 8 ? [eliminatedCutoff - 1] : [])] : [];
 
         return (
         <div
-            className="overflow-hidden rounded-xl border border-white/[0.12] backdrop-blur-lg"
-            style={{ backgroundColor: `rgba(255,255,255,${rowTint / 100})` }}
+            className="overflow-hidden rounded-xl"
+            style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)' }}
         >
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse" style={{ fontSize: '14px' }}>
                 <thead>
-                    <tr className="border-b border-white/[0.08] bg-gradient-to-r from-orange-500/[0.08] via-white/[0.02] to-orange-500/[0.08]">
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white">#</th>
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white" title="Position Change">+/-</th>
-                        <th className="px-1 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-white">Team</th>
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white">M</th>
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white">PTS</th>
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white">Kills</th>
-                        <th className="px-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-orange-400">Total</th>
+                    <tr style={{ backgroundColor: 'rgba(0,0,0,0.4)', borderBottom: '2px solid rgba(251,146,60,0.3)' }}>
+                        <th style={{ padding: '7px 4px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>#</th>
+                        <th style={{ padding: '7px 4px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'left', color: 'rgba(255,255,255,0.7)' }}>Team</th>
+                        <th style={{ padding: '7px 2px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>M</th>
+                        <th style={{ padding: '7px 2px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>P</th>
+                        <th style={{ padding: '7px 2px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>E</th>
+                        <th style={{ padding: '7px 4px', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', color: '#fb923c' }}>T</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -877,67 +842,65 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                         const styles = getRankStyles(rank);
                         const zone = showZones ? getChampionshipZone(rank, totalTeams) : null;
                         const isZoneBoundary = zoneBoundaries.includes(rank);
+                        const isEven = idx % 2 === 0;
 
                         return (
                             <>
                                 {isZoneBoundary && (
-                                    <tr key={`zone-sep-${rank}`} className="border-b border-white/5">
-                                        <td colSpan={7} className="py-0.5">
-                                            <div className={`h-px w-full ${
+                                    <tr key={`zone-sep-${rank}`}>
+                                        <td colSpan={6} style={{ padding: '1px 0' }}>
+                                            <div className={`w-full ${
                                                 rank === 4 ? "bg-gradient-to-r from-emerald-500/40 via-amber-500/30 to-transparent" :
                                                 "bg-gradient-to-r from-amber-500/40 via-red-500/30 to-transparent"
-                                            }`} />
+                                            }`} style={{ height: '1px' }} />
                                         </td>
                                     </tr>
                                 )}
                                 <tr
                                     key={row.teamId}
-                                    className={`border-b border-white/5 last:border-b-0 transition-all duration-200 ${
-                                        row.isDisqualified ? "opacity-40 bg-red-500/5 border-l-2 border-l-red-500/50" :
-                                        zone ? `border-l-2 ${zone.border}` : styles.row
-                                    }`}
-                                    style={{ backgroundColor: row.isDisqualified ? undefined : `rgba(255,255,255,${rowTint / 200})` }}
+                                    style={{
+                                        backgroundColor: row.isDisqualified ? 'rgba(239,68,68,0.05)' : isEven ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)',
+                                        borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                        ...(zone ? { borderLeft: `2px solid ${zone.zone === 'QUALIFIED' ? '#10b981' : zone.zone === 'WILDCARD' ? '#f59e0b' : '#ef4444'}` } : {}),
+                                    }}
+                                    className={row.isDisqualified ? "opacity-40" : ""}
                                 >
-                                    <td className="px-1 py-1.5 text-center align-middle">
-                                        <span className={`inline-flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold ${
+                                    <td style={{ padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle', width: '32px' }}>
+                                        <span className={`inline-flex items-center justify-center rounded-md font-black ${
                                             zone
                                                 ? zone.zone === "QUALIFIED" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                                                 : zone.zone === "WILDCARD" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                                                 : "bg-red-500/15 text-red-400/60 border border-red-500/20"
                                                 : styles.badge
-                                        }`}>
+                                        }`} style={{ width: '24px', height: '24px', fontSize: '12px', fontWeight: 900, lineHeight: 1 }}>
                                             {rank}
                                         </span>
                                     </td>
-                                    <td className="px-0 py-1.5 text-center align-middle">
-                                        <PositionChangeIndicator change={row.positionChange} />
-                                    </td>
-                                    <td className="px-1 py-1 text-left align-middle">
-                                        <div className="flex items-center gap-1.5 min-h-[28px]">
+
+                                    <td style={{ padding: '6px 4px', textAlign: 'left', verticalAlign: 'middle' }}>
+                                        <div className="flex items-center" style={{ gap: '5px' }}>
                                             {hasSquadTeams && (
-                                                <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                                <img src={row.clanLogo || GAME.iconUrl} alt="" style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                                             )}
-                                            <div className="flex flex-col">
-                                                <span className={`text-[11px] leading-tight font-semibold ${
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span className={`${ 
                                                     row.isDisqualified ? "text-red-400/70 line-through" :
                                                     zone?.zone === "ELIMINATED" ? "text-zinc-400" : "text-white"
-                                                } ${hasSquadTeams ? "whitespace-nowrap" : ""}`} style={hasSquadTeams ? undefined : { wordBreak: "break-word" }}>
-                                                    {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
-                                                    {row.isDisqualified && <span className="ml-1 text-[8px] font-bold text-red-400 bg-red-500/20 px-1 py-0.5 rounded no-underline inline-block" style={{ textDecoration: "none" }}>DQ</span>}
+                                                }`} style={{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                    {hasSquadTeams ? (row.teamName.length > 5 ? row.teamName.slice(0, 5) : row.teamName) : row.playerNames.map(n => n.length > 5 ? n.slice(0, 5) : n).join(", ")}
+                                                    {row.isDisqualified && <span style={{ marginLeft: '3px', fontSize: '8px', fontWeight: 700, color: '#f87171', backgroundColor: 'rgba(239,68,68,0.2)', padding: '1px 3px', borderRadius: '3px', display: 'inline-block' }}>DQ</span>}
                                                 </span>
-                                                {row.wins > 0 && (
-                                                    <span className="text-[9px] text-yellow-400 font-semibold">🍗 {row.wins} win{row.wins > 1 ? "s" : ""}</span>
-                                                )}
+                                                {row.wins > 0 && <span style={{ fontSize: '8px', color: '#facc15', fontWeight: 600, lineHeight: 1 }}>🍗x{row.wins}</span>}
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-1 py-1.5 text-center align-middle text-white tabular-nums font-mono text-xs">{row.matchCount}</td>
-                                    <td className="px-1 py-1.5 text-center align-middle text-white font-medium tabular-nums font-mono text-xs">{row.placementPts}</td>
-                                    <td className="px-1 py-1.5 text-center align-middle text-white tabular-nums font-mono text-xs">{row.totalKills}</td>
-                                    <td className="px-1 py-1.5 text-center align-middle">
-                                        <span className="text-orange-400 font-bold tabular-nums font-mono text-xs">{row.totalPoints}</span>
+                                    <td style={{ padding: '6px 2px', textAlign: 'center', verticalAlign: 'middle', color: 'rgba(255,255,255,0.85)', fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{row.matchCount}</td>
+                                    <td style={{ padding: '6px 2px', textAlign: 'center', verticalAlign: 'middle', color: 'white', fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{row.placementPts}</td>
+                                    <td style={{ padding: '6px 2px', textAlign: 'center', verticalAlign: 'middle', color: 'white', fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{row.totalKills}</td>
+                                    <td style={{ padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                        <span style={{ color: '#fb923c', fontSize: '15px', fontWeight: 900, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{row.totalPoints}</span>
                                         {(row.pointDeduction ?? 0) > 0 && (
-                                            <span className="ml-0.5 text-[8px] font-bold text-amber-400 bg-amber-500/20 px-1 py-0.5 rounded no-underline inline-block" style={{ textDecoration: "none" }}>-{row.pointDeduction}</span>
+                                            <span style={{ marginLeft: '2px', fontSize: '8px', fontWeight: 700, color: '#fbbf24', backgroundColor: 'rgba(245,158,11,0.2)', padding: '1px 3px', borderRadius: '3px', display: 'inline-block' }}>-{row.pointDeduction}</span>
                                         )}
                                     </td>
                                 </tr>
@@ -950,69 +913,15 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
         );
     };
 
-    const restHalf = Math.ceil(rest.length / 2);
+    const half = Math.ceil(standings.length / 2);
 
     return (
         <div className="w-full">
-            {/* ── Podium: Top 3 ─────────────────────────── */}
-            {top3.length > 0 && (
-                <div className="podium-section mb-5">
-                    <div className="flex items-end justify-center gap-3 sm:gap-5">
-                        {podiumOrder.map((row, i) => {
-                            if (!row) return null;
-                            const rank = podiumRanks[i];
-                            const ps = podiumStyles[rank];
-                            return (
-                                <div
-                                    key={row.teamId}
-                                    className={`flex flex-col items-center text-center ${ps.elevated ? "mb-2" : "mb-0"}`}
-                                    style={{ width: ps.elevated ? (hasSquadTeams ? "140px" : "200px") : (hasSquadTeams ? "120px" : "180px") }}
-                                >
-                                    {/* Logo */}
-                                    <div className={`rounded-full ${ps.ring} ${ps.glow} ${ps.size} overflow-hidden bg-zinc-900/80`}>
-                                        <img
-                                            src={row.clanLogo || GAME.iconUrl}
-                                            alt=""
-                                            className="w-full h-full object-cover"
-                                        />
-                                    </div>
-                                    {/* Rank badge below logo */}
-                                    <div className={`-mt-2.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${ps.badge} shadow-lg z-10`}>
-                                        {rank}
-                                    </div>
-
-                                    {/* Team Name */}
-                                    <p className={`text-xs font-bold mt-1 w-full ${hasSquadTeams ? "truncate" : "leading-tight"} text-white`}>
-                                        {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
-                                    </p>
-
-                                    {/* Stats */}
-                                    <div className={`mt-1.5 w-full rounded-lg border bg-gradient-to-b ${ps.bg} backdrop-blur-md px-2 py-1.5 ${showZones ? "!border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.15)]" : ""}`}>
-                                        <div className="flex items-center justify-center gap-1 whitespace-nowrap">
-                                            <span className="text-orange-400 font-bold text-sm tabular-nums">{row.totalPoints}</span>
-                                            {(row.pointDeduction ?? 0) > 0 && (
-                                                <span className="text-[8px] font-bold text-amber-400 bg-amber-500/20 px-1 py-0.5 rounded">-{row.pointDeduction}</span>
-                                            )}
-                                            {row.wins > 0 && <span className="text-xs text-yellow-400 font-semibold">🍗 {row.wins}</span>}
-                                        </div>
-                                        <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] text-white/70">
-                                            <span>{row.totalKills} kills</span>
-                                            <span className="text-white/30">|</span>
-                                            <span>{row.placementPts} pts</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-
-            {/* ── Mobile: single column (rank 4+) ──────── */}
-            {rest.length > 0 && (
-                <div className="mobile-standings sm:hidden space-y-2 max-h-[50vh] overflow-y-auto pr-1">
-                    {rest.map((row, index) => {
-                        const rank = index + 4;
+            {/* ── Mobile: single column (all teams) ──────── */}
+            {standings.length > 0 && (
+                <div className="mobile-standings sm:hidden space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                    {standings.map((row, index) => {
+                        const rank = index + 1;
                         const styles = getRankStyles(rank);
                         const zone = showZones ? getChampionshipZone(rank, standings.length) : null;
                         return (
@@ -1078,14 +987,17 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                 </div>
             )}
 
-            {/* ── Desktop: two-column table (rank 4+) ─── */}
-            {rest.length > 0 && (
+            {/* ── Desktop: two-column table (all teams) ─── */}
+            {standings.length > 0 && (
                 <div className="desktop-standings hidden sm:block">
-                    <div className="desktop-two-col hidden lg:flex lg:gap-4 lg:justify-center">
-                        <div className="flex-1 max-w-[520px]">{renderTable(rest.slice(0, restHalf), 3)}</div>
-                        <div className="flex-1 max-w-[520px]">{renderTable(rest.slice(restHalf), 3 + restHalf)}</div>
+                    <div className="desktop-two-col hidden lg:flex lg:gap-3 lg:justify-center">
+                        <div className="flex-1">{renderTable(standings.slice(0, half), 0)}</div>
+                        <div className="flex-1">{renderTable(standings.slice(half), half)}</div>
                     </div>
-                    <div className="desktop-single-col block lg:hidden">{renderTable(rest, 3)}</div>
+                    <div className="desktop-single-col block lg:hidden">{renderTable(standings, 0)}</div>
+                    <div className="column-legend" style={{ textAlign: 'center', marginTop: '6px', fontSize: '9px', color: 'rgba(255,255,255,0.45)', fontWeight: 500, letterSpacing: '0.02em' }}>
+                        M = Matches · P = Placement Points · E = Eliminations · T = P + E
+                    </div>
                 </div>
             )}
         </div>
