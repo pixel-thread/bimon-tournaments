@@ -559,7 +559,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
                                             : "hover:bg-default-100 text-foreground"
                                     }`}
                                 >
-                                    Match {num} — {getDefaultMapForMatch(num)}
+                                    Match {num}
                                 </button>
                             ))}
                             <button
