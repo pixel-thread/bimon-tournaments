@@ -96,6 +96,37 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* JSON-LD Structured Data — helps Google classify the site */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Bimon Tournament",
+              url: "https://bgmi.pixel-thread.in",
+              description: `Community-driven ${GAME.gameName} esports platform with fair team balancing, UC prize pools, and competitive leaderboards.`,
+              foundingDate: "2024",
+              sameAs: [],
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Bimon Tournament",
+              url: "https://bgmi.pixel-thread.in",
+              description: `Join ${GAME.gameName} tournaments, win ${GAME.currencyPlural}, and compete with the best players.`,
+              publisher: {
+                "@type": "Organization",
+                name: "Pixel Thread",
+              },
+            }),
+          }}
+        />
         {/* Google AdSense — native script tag so it's SSR'd for Google's crawler verification */}
         <script
           async

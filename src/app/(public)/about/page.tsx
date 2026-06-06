@@ -1,9 +1,12 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import { Shield, Users, Trophy, Swords, Coins, Heart, Target, Zap } from "lucide-react";
 import Link from "next/link";
 import { GAME } from "@/lib/game-config";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: `About Bimon Tournament — Our Story, Mission & Platform`,
+    description: `Learn about Bimon Tournament, a community-driven ${GAME.gameName} esports platform. Fair team balancing, transparent prizes, and grassroots competitive gaming for everyone.`,
+};
 
 interface PlatformStats {
     totalPlayers: number;
@@ -13,15 +16,22 @@ interface PlatformStats {
     totalPrizeDistributed: number;
 }
 
-export default function AboutPage() {
-    const [stats, setStats] = useState<PlatformStats | null>(null);
+async function getStats(): Promise<PlatformStats | null> {
+    try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://bgmi.pixel-thread.in";
+        const res = await fetch(`${baseUrl}/api/public/stats`, {
+            next: { revalidate: 3600 }, // cache for 1 hour
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        return json.data ?? null;
+    } catch {
+        return null;
+    }
+}
 
-    useEffect(() => {
-        fetch("/api/public/stats")
-            .then((r) => r.json())
-            .then((json) => setStats(json.data ?? null))
-            .catch(() => {});
-    }, []);
+export default async function AboutPage() {
+    const stats = await getStats();
 
     return (
         <div className="min-h-dvh bg-background text-foreground">

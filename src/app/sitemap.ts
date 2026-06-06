@@ -9,11 +9,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
     const now = new Date();
 
     const blogSlugs = [
+        "what-is-bimon",
+        "bgmi-best-landing-spots",
+        "how-to-create-clan",
+        "ranked-vs-casual-tournaments",
+        "bgmi-weapon-tier-list",
         "how-scoring-works",
+        "how-wallets-work",
         "team-balancing-algorithm",
+        "championship-format-guide",
         "prize-pool-distribution",
+        "improve-kd-ratio",
         "tips-to-climb-leaderboard",
+        "season-system-explained",
         "tournament-formats-explained",
+        "community-guidelines",
     ];
 
     return [
@@ -63,6 +73,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
             url: `${baseUrl}/blog`,
             lastModified: now,
             changeFrequency: "weekly",
+            priority: 0.8,
+        },
+        {
+            url: `${baseUrl}/faq`,
+            lastModified: now,
+            changeFrequency: "monthly",
             priority: 0.8,
         },
         ...blogSlugs.map((slug) => ({
