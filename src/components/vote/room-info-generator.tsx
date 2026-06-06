@@ -39,10 +39,27 @@ const BGMI_MAPS = [
     "Nusa",
 ];
 
-/* ─── Alternating map for each match ─── */
-function getDefaultMapForMatch(matchNumber: number): string {
-    // Odd matches: Erangel, Even matches: Miramar
-    return matchNumber % 2 === 1 ? "Erangel" : "Miramar";
+/* ─── Default map rotation (saved to localStorage) ─── */
+
+const DEFAULT_MAP_ROTATION = ["Erangel", "Miramar", "Rondo"];
+const MAP_ROTATION_LS_KEY = "room-info-map-rotation";
+
+function getSavedMapRotation(): string[] {
+    if (typeof window === "undefined") return DEFAULT_MAP_ROTATION;
+    try {
+        const saved = JSON.parse(localStorage.getItem(MAP_ROTATION_LS_KEY) || "null");
+        if (Array.isArray(saved) && saved.length > 0) return saved;
+    } catch {}
+    return DEFAULT_MAP_ROTATION;
+}
+
+function saveMapRotation(rotation: string[]) {
+    try { localStorage.setItem(MAP_ROTATION_LS_KEY, JSON.stringify(rotation)); } catch {}
+}
+
+function getDefaultMapForMatch(matchNumber: number, rotation?: string[]): string {
+    const maps = rotation ?? getSavedMapRotation();
+    return maps[(matchNumber - 1) % maps.length];
 }
 
 /* ─── Time helpers (12h format) ─── */
@@ -287,10 +304,11 @@ function TournamentRow({ tournament, state, onChange, group }: {
     const [rulesSending, setRulesSending] = useState(false);
     const [rulesSent, setRulesSent] = useState(false);
     const [sentMatchNumbers, setSentMatchNumbers] = useState<Set<number>>(new Set());
+    const [lastSentMatch, setLastSentMatch] = useState<number | null>(null);
     const [attachedImage, setAttachedImage] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const [matchPickerOpen, setMatchPickerOpen] = useState(false);
-    const [maxMatches, setMaxMatches] = useState(3);
+    const [maxMatches, setMaxMatches] = useState(6);
 
     const generateMessage = useCallback((matchNum: number) => {
         const divider = "━━━━━━━━━━━━━━━";
@@ -350,20 +368,25 @@ function TournamentRow({ tournament, state, onChange, group }: {
             setDiscordSent(true);
             setAttachedImage(null);
             setSentMatchNumbers(prev => new Set(prev).add(matchNumber));
+            setLastSentMatch(matchNumber);
             const { toast } = await import("sonner");
             toast.success("Sent to Discord + copied to clipboard 📋");
             setTimeout(() => setDiscordSent(false), 3000);
+            // Auto-increment match & update map for next match
+            const nextMatch = matchNumber + 1;
+            onChange({ copyCount: matchNumber, map: getDefaultMapForMatch(nextMatch) });
+            if (nextMatch > maxMatches) setMaxMatches(nextMatch);
         }).catch(async (err) => {
             const { toast } = await import("sonner");
             toast.error(`Discord: ${err.message || "Failed to send"}`);
         }).finally(() => setDiscordSending(false));
     }, [matchNumber, state.roomId, sendDiscord, generateMessage]);
 
-    /** Edit the last sent message for this match */
-    const handleUpdate = useCallback(async () => {
+    /** Edit the last sent message for a match */
+    const handleUpdate = useCallback(async (matchToUpdate: number) => {
         if (state.roomId.length !== 7) return;
         setDiscordEditing(true);
-        sendDiscord(matchNumber, true).then(() => {
+        sendDiscord(matchToUpdate, true).then(() => {
             setDiscordEdited(true);
             setAttachedImage(null);
             setTimeout(() => setDiscordEdited(false), 3000);
@@ -371,7 +394,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
             const { toast } = await import("sonner");
             toast.error(`Update: ${err.message || "Failed to update"}`);
         }).finally(() => setDiscordEditing(false));
-    }, [matchNumber, state.roomId, sendDiscord]);
+    }, [state.roomId, sendDiscord]);
 
     const handleSendRules = useCallback(async () => {
         if (rulesSending) return;
@@ -527,7 +550,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
                                     key={num}
                                     type="button"
                                     onClick={() => {
-                                        onChange({ copyCount: num - 1 });
+                                        onChange({ copyCount: num - 1, map: getDefaultMapForMatch(num) });
                                         setMatchPickerOpen(false);
                                     }}
                                     className={`px-3 py-1.5 text-sm text-left rounded-lg cursor-pointer transition-colors ${
@@ -536,7 +559,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
                                             : "hover:bg-default-100 text-foreground"
                                     }`}
                                 >
-                                    Match {num}
+                                    Match {num} — {getDefaultMapForMatch(num)}
                                 </button>
                             ))}
                             <button
@@ -587,11 +610,11 @@ function TournamentRow({ tournament, state, onChange, group }: {
                 )}
             </button>
 
-            {/* Update last sent message for this match */}
-            {sentMatchNumbers.has(matchNumber) && (
+            {/* Update last sent message */}
+            {lastSentMatch !== null && (
                 <button
                     type="button"
-                    onClick={handleUpdate}
+                    onClick={() => handleUpdate(lastSentMatch)}
                     disabled={state.roomId.length !== 7 || discordEditing}
                     className={`
                         w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium
@@ -617,7 +640,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
                     ) : (
                         <>
                             <Pencil className="w-3.5 h-3.5" />
-                            Update Match {matchNumber}
+                            Update Match {lastSentMatch}
                         </>
                     )}
                 </button>

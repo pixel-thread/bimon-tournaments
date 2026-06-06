@@ -420,29 +420,35 @@ export async function sendRoomInfo(payload: RoomInfoPayload): Promise<{ edited: 
     if (payload.editExisting && existing?.embedId) {
         // Try to edit the existing embed message
         // Note: editing with attachments (images) via multipart is complex,
-        // so for image messages we fall through to posting a new one
-        if (!payload.image) {
-            const editRes = await discordFetch(`/channels/${channelId}/messages/${existing.embedId}`, {
-                method: "PATCH",
-                body: JSON.stringify({ embeds: [embed] }),
-            });
-
-            if (editRes.ok) {
-                edited = true;
-                embedMsgId = existing.embedId;
-
-                // Also edit the plain-text room ID message if it exists
-                if (existing.roomIdMsgId && payload.roomId?.trim()) {
-                    await discordFetch(`/channels/${channelId}/messages/${existing.roomIdMsgId}`, {
-                        method: "PATCH",
-                        body: JSON.stringify({ content: payload.roomId.trim() }),
-                    });
-                    roomIdMsgId = existing.roomIdMsgId;
-                }
-            } else {
-                console.warn(`Discord room info edit failed [${editRes.status}], falling back to new message`);
-            }
+        // so for image messages we throw instead of silently posting a duplicate
+        if (payload.image) {
+            throw new Error("Cannot edit a message with a new image — delete and resend instead");
         }
+
+        const editRes = await discordFetch(`/channels/${channelId}/messages/${existing.embedId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ embeds: [embed] }),
+        });
+
+        if (editRes.ok) {
+            edited = true;
+            embedMsgId = existing.embedId;
+
+            // Also edit the plain-text room ID message if it exists
+            if (existing.roomIdMsgId && payload.roomId?.trim()) {
+                await discordFetch(`/channels/${channelId}/messages/${existing.roomIdMsgId}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ content: payload.roomId.trim() }),
+                });
+                roomIdMsgId = existing.roomIdMsgId;
+            }
+        } else {
+            const errorBody = await editRes.text().catch(() => "unknown");
+            console.error(`Discord room info edit failed [${editRes.status}]:`, errorBody);
+            throw new Error(`Failed to edit Discord message (${editRes.status}). The original message may have been deleted.`);
+        }
+    } else if (payload.editExisting && !existing?.embedId) {
+        throw new Error("No existing message found to edit for this match");
     }
 
     // 3. Post new message if not edited
