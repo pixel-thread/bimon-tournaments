@@ -21,7 +21,7 @@ import {
     type SoloTaxResult,
 } from "@/lib/logic/soloTax";
 import { getSettings } from "@/lib/settings";
-import { revokeRoleFromAll, deleteTournamentChannel } from "@/lib/discord-service";
+import { revokeRoleFromAll, deleteTournamentChannel, cleanOldChannelMessages } from "@/lib/discord-service";
 
 // BGMI placement points — must match rankings API
 const PLACEMENT_PTS: Record<number, number> = {
@@ -726,6 +726,14 @@ export async function POST(
                 .catch((err) => console.error("Discord group channel deletion error:", err));
         }
 
+        // ── 6e. Clean old messages from standings channel (keeps Discord lightweight) ──
+        const standingsChannelId = process.env.DISCORD_STANDINGS_CHANNEL_ID;
+        if (standingsChannelId) {
+            cleanOldChannelMessages(standingsChannelId, 14)
+                .then((n) => n > 0 && console.log(`[discord] Cleaned ${n} old standings messages`))
+                .catch((err) => console.error("Discord standings cleanup error:", err));
+        }
+
         // ── 6. Post-transaction: Solo tax distribution ────────
         // (Outside transaction — needs winners committed first for loser calc)
 
@@ -1098,6 +1106,14 @@ async function declareBracketWinners({
     for (const chId of Object.values(groupChs)) {
         deleteTournamentChannel(chId)
             .catch((err) => console.error("Discord group channel deletion error:", err));
+    }
+
+    // Clean old standings messages (keeps Discord lightweight)
+    const standingsChId = process.env.DISCORD_STANDINGS_CHANNEL_ID;
+    if (standingsChId) {
+        cleanOldChannelMessages(standingsChId, 14)
+            .then((n) => n > 0 && console.log(`[discord] Cleaned ${n} old standings messages`))
+            .catch((err) => console.error("Discord standings cleanup error:", err));
     }
 
     return NextResponse.json({ success: true, message: "Bracket winners declared and rewards created" });

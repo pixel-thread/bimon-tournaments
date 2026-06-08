@@ -777,3 +777,101 @@ export async function postTicketPanel(channelId: string): Promise<void> {
         throw new Error(`Failed to post ticket panel: ${err}`);
     }
 }
+
+// ─── Channel Message Cleanup ────────────────────────────────
+
+/**
+ * Delete all messages older than `maxAgeDays` from a Discord channel.
+ * Uses bulk-delete for messages < 14 days old (Discord API requirement),
+ * falls back to individual deletes for older messages.
+ *
+ * Fire-and-forget — safe to call without awaiting.
+ * Returns the number of messages deleted.
+ */
+export async function cleanOldChannelMessages(
+    channelId: string,
+    maxAgeDays = 14,
+): Promise<number> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return 0;
+
+    const headers = {
+        Authorization: `Bot ${token}`,
+        "Content-Type": "application/json",
+    };
+
+    const cutoffMs = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+    const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+
+    // Discord snowflake → timestamp: (snowflake / 2^22) + 1420070400000
+    const snowflakeToTimestamp = (id: string) =>
+        Math.floor(Number(id) / 4194304) + 1420070400000;
+
+    let totalDeleted = 0;
+    let beforeId: string | undefined;
+
+    for (let page = 0; page < 50; page++) { // safety cap: 50 pages = 5000 msgs max
+        const url = new URL(`https://discord.com/api/v10/channels/${channelId}/messages`);
+        url.searchParams.set("limit", "100");
+        if (beforeId) url.searchParams.set("before", beforeId);
+
+        const res = await fetch(url.toString(), { headers });
+        if (!res.ok) break;
+
+        const messages: { id: string }[] = await res.json();
+        if (messages.length === 0) break;
+
+        beforeId = messages[messages.length - 1].id;
+
+        // Filter messages older than cutoff
+        const oldMessages = messages.filter(
+            m => snowflakeToTimestamp(m.id) < cutoffMs
+        );
+
+        if (oldMessages.length === 0) {
+            // If the oldest message in this batch is newer than cutoff, keep paginating
+            const oldestInBatch = snowflakeToTimestamp(messages[messages.length - 1].id);
+            if (oldestInBatch >= cutoffMs) continue;
+            break; // Past the cutoff window with no matches
+        }
+
+        const now = Date.now();
+        const bulkDeletable = oldMessages.filter(
+            m => now - snowflakeToTimestamp(m.id) < FOURTEEN_DAYS_MS
+        );
+        const tooOld = oldMessages.filter(
+            m => now - snowflakeToTimestamp(m.id) >= FOURTEEN_DAYS_MS
+        );
+
+        // Bulk delete (2-100 messages at a time)
+        if (bulkDeletable.length >= 2) {
+            const bulkRes = await fetch(
+                `https://discord.com/api/v10/channels/${channelId}/messages/bulk-delete`,
+                {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({ messages: bulkDeletable.map(m => m.id) }),
+                }
+            );
+            if (bulkRes.ok) totalDeleted += bulkDeletable.length;
+            await new Promise(r => setTimeout(r, 1100));
+        } else if (bulkDeletable.length === 1) {
+            tooOld.push(bulkDeletable[0]);
+        }
+
+        // Individual delete for messages > 14 days old (rate limited)
+        for (const msg of tooOld) {
+            const delRes = await fetch(
+                `https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}`,
+                { method: "DELETE", headers }
+            );
+            if (delRes.ok) totalDeleted++;
+            await new Promise(r => setTimeout(r, 1200));
+        }
+
+        if (messages.length < 100) break;
+    }
+
+    return totalDeleted;
+}
+
