@@ -132,7 +132,8 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { tournamentId, phase } = body as { tournamentId: string; phase?: string };
+        const { tournamentId, phase, count: rawCount } = body as { tournamentId: string; phase?: string; count?: number };
+        const count = Math.min(Math.max(rawCount || 1, 1), 10); // Clamp 1–10
 
         if (!tournamentId) {
             return ErrorResponse({ message: "tournamentId is required", status: 400 });
@@ -149,108 +150,110 @@ export async function POST(request: NextRequest) {
 
         const seasonId = tournament.seasonId;
 
-        // Find the latest match to clone from
-        // If phase is provided (championship), only clone from matches of the same phase
-        const prevMatch = await prisma.match.findFirst({
-            where: {
-                tournamentId,
-                ...(phase ? { phase } : {}),
-            },
-            orderBy: { matchNumber: "desc" },
-            select: {
-                id: true,
-                matchNumber: true,
-                phase: true,
-                teamStats: {
-                    select: {
-                        teamId: true,
-                        teamPlayerStats: {
-                            select: { playerId: true },
+        const createdMatches: { id: string; matchNumber: number }[] = [];
+
+        for (let i = 0; i < count; i++) {
+            // Find the latest match to clone from (re-query each iteration for sequential cloning)
+            const prevMatch = await prisma.match.findFirst({
+                where: {
+                    tournamentId,
+                    ...(phase ? { phase } : {}),
+                },
+                orderBy: { matchNumber: "desc" },
+                select: {
+                    id: true,
+                    matchNumber: true,
+                    phase: true,
+                    teamStats: {
+                        select: {
+                            teamId: true,
+                            teamPlayerStats: {
+                                select: { playerId: true },
+                            },
                         },
                     },
                 },
-            },
-        });
-
-        // Global match number (across all phases)
-        const globalMaxMatch = await prisma.match.findFirst({
-            where: { tournamentId },
-            orderBy: { matchNumber: "desc" },
-            select: { matchNumber: true },
-        });
-        const nextMatchNumber = (globalMaxMatch?.matchNumber ?? 0) + 1;
-
-        // Create the new match — unique constraint on [tournamentId, matchNumber]
-        // will reject if another admin already created this matchNumber.
-        let match;
-        try {
-            match = await prisma.match.create({
-                data: {
-                    matchNumber: nextMatchNumber,
-                    tournamentId,
-                    ...(seasonId ? { seasonId } : {}),
-                    ...(phase ? { phase } : {}),
-                },
-            });
-        } catch (err: unknown) {
-            const isPrismaUnique = err instanceof Error && "code" in err && (err as { code: string }).code === "P2002";
-            if (isPrismaUnique) {
-                return ErrorResponse({
-                    message: "Another admin is already creating a match for this tournament. Please wait and refresh.",
-                    status: 409,
-                });
-            }
-            throw err;
-        }
-
-        // Clone teams from previous match if it exists
-        let teamCount = 0;
-        if (prevMatch && prevMatch.teamStats.length > 0) {
-            // Connect teams to this match
-            const teamIds = prevMatch.teamStats.map((ts) => ts.teamId);
-            await prisma.match.update({
-                where: { id: match.id },
-                data: { teams: { connect: teamIds.map((id) => ({ id })) } },
             });
 
-            // Create TeamStats + TeamPlayerStats for each team
-            for (const ts of prevMatch.teamStats) {
-                const newTeamStats = await prisma.teamStats.create({
+            // Global match number (across all phases)
+            const globalMaxMatch = await prisma.match.findFirst({
+                where: { tournamentId },
+                orderBy: { matchNumber: "desc" },
+                select: { matchNumber: true },
+            });
+            const nextMatchNumber = (globalMaxMatch?.matchNumber ?? 0) + 1;
+
+            let match;
+            try {
+                match = await prisma.match.create({
                     data: {
-                        teamId: ts.teamId,
-                        matchId: match.id,
-                        position: 0,
+                        matchNumber: nextMatchNumber,
                         tournamentId,
                         ...(seasonId ? { seasonId } : {}),
+                        ...(phase ? { phase } : {}),
                     },
                 });
-
-                const playerIds = ts.teamPlayerStats.map((tps) => tps.playerId);
-                if (playerIds.length > 0) {
-                    await prisma.teamPlayerStats.createMany({
-                        data: playerIds.map((playerId) => ({
-                            playerId,
-                            teamId: ts.teamId,
-                            matchId: match.id,
-                            teamStatsId: newTeamStats.id,
-                            kills: 0,
-                            present: false,
-                            ...(seasonId ? { seasonId } : {}),
-                        })),
+            } catch (err: unknown) {
+                const isPrismaUnique = err instanceof Error && "code" in err && (err as { code: string }).code === "P2002";
+                if (isPrismaUnique) {
+                    if (createdMatches.length > 0) break; // Some already created, stop gracefully
+                    return ErrorResponse({
+                        message: "Another admin is already creating a match for this tournament. Please wait and refresh.",
+                        status: 409,
                     });
                 }
-                teamCount++;
+                throw err;
             }
+
+            // Clone teams from previous match if it exists
+            let teamCount = 0;
+            if (prevMatch && prevMatch.teamStats.length > 0) {
+                const teamIds = prevMatch.teamStats.map((ts) => ts.teamId);
+                await prisma.match.update({
+                    where: { id: match.id },
+                    data: { teams: { connect: teamIds.map((id) => ({ id })) } },
+                });
+
+                for (const ts of prevMatch.teamStats) {
+                    const newTeamStats = await prisma.teamStats.create({
+                        data: {
+                            teamId: ts.teamId,
+                            matchId: match.id,
+                            position: 0,
+                            tournamentId,
+                            ...(seasonId ? { seasonId } : {}),
+                        },
+                    });
+
+                    const playerIds = ts.teamPlayerStats.map((tps) => tps.playerId);
+                    if (playerIds.length > 0) {
+                        await prisma.teamPlayerStats.createMany({
+                            data: playerIds.map((playerId) => ({
+                                playerId,
+                                teamId: ts.teamId,
+                                matchId: match.id,
+                                teamStatsId: newTeamStats.id,
+                                kills: 0,
+                                present: false,
+                                ...(seasonId ? { seasonId } : {}),
+                            })),
+                        });
+                    }
+                    teamCount++;
+                }
+            }
+
+            createdMatches.push({ id: match.id, matchNumber: match.matchNumber });
         }
 
+        const last = createdMatches[createdMatches.length - 1];
+        const msg = createdMatches.length === 1
+            ? `Match #${last.matchNumber} created`
+            : `${createdMatches.length} matches created (#${createdMatches[0].matchNumber}–#${last.matchNumber})`;
+
         return SuccessResponse({
-            data: {
-                id: match.id,
-                matchNumber: match.matchNumber,
-            },
-            message: teamCount > 0
-                ? `Match #${match.matchNumber} created with ${teamCount} teams from Match #${prevMatch!.matchNumber}`
-                : `Match #${match.matchNumber} created`,
+            data: last, // Return last created match for auto-selection
+            message: msg,
         });
     } catch (error) {
         return ErrorResponse({ message: "Failed to create match", error });

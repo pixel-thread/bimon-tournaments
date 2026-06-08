@@ -358,7 +358,7 @@ export default function TeamsPage() {
     // ── Create match mutation ─────────────────────────────────
 
     const { mutate: createMatch, isPending: isCreating } = useMutation({
-        mutationFn: async () => {
+        mutationFn: async (count: number = 1) => {
             // For championship, pass the current phase so the new match
             // inherits the same phase and only clones that phase's teams
             const currentPhase = isChamp && champPhase
@@ -367,7 +367,7 @@ export default function TeamsPage() {
             const res = await fetch("/api/matches", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ tournamentId, phase: currentPhase }),
+                body: JSON.stringify({ tournamentId, phase: currentPhase, count }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || "Failed");
@@ -424,8 +424,9 @@ export default function TeamsPage() {
 
     function handleMatchChange(keys: "all" | Set<string | number>) {
         const val = Array.from(keys as Set<string>)[0] as string;
-        if (val === "create-new") {
-            createMatch();
+        if (val?.startsWith("create-new")) {
+            const count = parseInt(val.replace("create-new-", "")) || 1;
+            createMatch(count);
             return;
         }
         setMatchId(val || "");
@@ -542,13 +543,33 @@ export default function TeamsPage() {
                                     );
                                 }),
                                 <SelectItem
-                                    key="create-new"
-                                    textValue="+ New"
+                                    key="create-new-1"
+                                    textValue="+ 1 Match"
                                     className="text-success data-[hover=true]:text-success"
                                 >
                                     <span className="flex items-center gap-1 whitespace-nowrap">
                                         <Plus className="h-3 w-3" />
-                                        New
+                                        1 Match
+                                    </span>
+                                </SelectItem>,
+                                <SelectItem
+                                    key="create-new-2"
+                                    textValue="+ 2 Matches"
+                                    className="text-success data-[hover=true]:text-success"
+                                >
+                                    <span className="flex items-center gap-1 whitespace-nowrap">
+                                        <Plus className="h-3 w-3" />
+                                        2 Matches
+                                    </span>
+                                </SelectItem>,
+                                <SelectItem
+                                    key="create-new-3"
+                                    textValue="+ 3 Matches"
+                                    className="text-success data-[hover=true]:text-success"
+                                >
+                                    <span className="flex items-center gap-1 whitespace-nowrap">
+                                        <Plus className="h-3 w-3" />
+                                        3 Matches
                                     </span>
                                 </SelectItem>,
                             ]}
