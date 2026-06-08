@@ -15,6 +15,7 @@ import {
     Trophy,
     Send,
     RefreshCw,
+    Sparkles,
 } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
@@ -107,6 +108,7 @@ export function StandingsModal({
     const [compareMatches, setCompareMatches] = useState(1);
     const [champGroup, setChampGroup] = useState<"ALL" | "A" | "B" | "FINALS">(initialGroup ?? (championshipPhase === "FINALS" ? "FINALS" : "ALL"));
     const [showZones, setShowZones] = useState(false);
+    const [promptCopied, setPromptCopied] = useState(false);
 
     // Fetch saved overlay settings from gallery
     const { data: overlaySettings, refetch: refetchOverlay, isFetching: isFetchingOverlay } = useQuery<{ overlayOpacity: number; cardTint: number; cardBlur: number; rowTint: number }>({
@@ -515,6 +517,54 @@ export function StandingsModal({
         }
     }, [isSendingDiscord, captureScreenshot, champGroup, tournamentTitle, standings, isFinalStandings]);
 
+    // ── Copy AI Prompt ────────────────────────────────────
+
+    const copyAIPrompt = useCallback(async () => {
+        if (standings.length === 0) {
+            toast.error("No standings data to generate prompt");
+            return;
+        }
+
+        const matchCount = standings[0]?.matchCount ?? 0;
+        const teamCount = standings.length;
+
+        // Truncate team name to 5 chars
+        const shortName = (name: string) => {
+            const cleaned = name.replace(/[^\w\p{L}\p{N}]/gu, "").slice(0, 5).toUpperCase();
+            return cleaned || name.slice(0, 5).toUpperCase();
+        };
+
+        const lines = standings.map((row, i) => {
+            const rank = `#${i + 1}`;
+            const name = shortName(row.teamName);
+            return `${rank} ${name} — M: ${matchCount}, P: ${row.placementPts}, E: ${row.totalKills}, T: ${row.totalPoints}`;
+        });
+
+        const title = tournamentTitle || "Tournament";
+        const season = seasonName || "";
+
+        const prompt = `Create a visually stunning "Overall Standings" image for a BGMI (Battlegrounds Mobile India) esports tournament. This is for a website called Bimon Tournament (BT). You may include BGMI characters in the design. The image must be 1:1 ratio (square). Team names are max 5 characters. Do not add a podium.
+
+Tournament: ${title}${season ? `\nSeason: ${season}` : ""}
+Total Teams: ${teamCount}
+
+Show columns: Rank, Team, M (Matches), P (Placement Points), E (Eliminations), T (Total = P + E)
+Include a legend at the bottom: M = Matches · P = Placement Points · E = Eliminations · T = P + E
+
+${lines.join("\n")}
+
+Make it look premium and professional — suitable for posting on a tournament website. Clearly show all ${teamCount} teams in a table format with all columns visible. Include Bimon Tournament branding.`;
+
+        try {
+            await navigator.clipboard.writeText(prompt);
+            setPromptCopied(true);
+            toast.success("AI prompt copied — paste into Gemini!");
+            setTimeout(() => setPromptCopied(false), 2000);
+        } catch {
+            toast.error("Failed to copy prompt");
+        }
+    }, [standings, tournamentTitle, seasonName]);
+
     if (!isOpen) return null;
 
     const maxMatches = matchData?.length ?? 0;
@@ -584,6 +634,19 @@ export function StandingsModal({
                             <Check className="h-5 w-5 text-[#5865F2]" />
                         ) : (
                             <Send className="h-5 w-5" />
+                        )}
+                    </button>
+
+                    {/* Copy AI Prompt Button */}
+                    <button
+                        onClick={copyAIPrompt}
+                        className={`text-white hover:text-fuchsia-400 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-fuchsia-500/50 p-2.5 rounded-xl transition-all duration-300 ${promptCopied ? "bg-fuchsia-500/20 border-fuchsia-500/50" : ""}`}
+                        title="Copy AI image prompt for Gemini"
+                    >
+                        {promptCopied ? (
+                            <Check className="h-5 w-5 text-fuchsia-400" />
+                        ) : (
+                            <Sparkles className="h-5 w-5" />
                         )}
                     </button>
 
