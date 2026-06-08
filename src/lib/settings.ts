@@ -89,7 +89,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     enableElitePass: true,
     elitePassPrice: 5,
     elitePassOrigPrice: 20,
-    streakMilestone: 8,
+    streakMilestone: 12,
     streakRewardAmount: 30,
 
     enableReferrals: true,
