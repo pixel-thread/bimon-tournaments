@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
+import { logSquadEvent, logSquadEventTx } from "@/lib/squad-audit";
 
 /**
  * POST /api/squads/invite
@@ -180,17 +181,25 @@ export async function POST(request: NextRequest) {
                 });
 
                 // Auto-decline other pending invites/requests for the same poll
-                await tx.squadInvite.updateMany({
+                const otherPending = await tx.squadInvite.findMany({
                     where: {
                         playerId,
                         status: "PENDING",
-                        squad: {
-                            pollId: squad.pollId,
-                            status: { in: ["FORMING", "FULL"] },
-                        },
+                        squad: { pollId: squad.pollId, status: { in: ["FORMING", "FULL"] } },
                     },
-                    data: { status: "DECLINED", respondedAt: new Date() },
+                    select: { id: true, squadId: true },
                 });
+                if (otherPending.length > 0) {
+                    await tx.squadInvite.updateMany({
+                        where: { id: { in: otherPending.map(p => p.id) } },
+                        data: { status: "DECLINED", respondedAt: new Date() },
+                    });
+                    for (const op of otherPending) {
+                        await logSquadEventTx(tx, { squadId: op.squadId, playerId, action: "AUTO_DECLINED_OTHER", details: `Auto-accepted into ${squad.name}` });
+                    }
+                }
+
+                await logSquadEventTx(tx, { squadId, playerId, action: "INVITE_ACCEPTED", actorId: currentPlayerId, details: "Auto-accept" });
 
                 // Notify captain
                 await tx.notification.create({
@@ -237,6 +246,8 @@ export async function POST(request: NextRequest) {
                 initiatedBy: "CAPTAIN",
             },
         });
+
+        logSquadEvent({ squadId, playerId, action: "INVITE_SENT", actorId: currentPlayerId });
 
         // Push notification
         sendPush(invitedPlayer.id, {

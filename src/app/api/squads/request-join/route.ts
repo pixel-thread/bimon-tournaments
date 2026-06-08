@@ -3,6 +3,7 @@ import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { getCurrentUser, getAuthEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
+import { logSquadEventTx } from "@/lib/squad-audit";
 
 /**
  * POST /api/squads/request-join
@@ -135,6 +136,8 @@ export async function POST(request: NextRequest) {
             await tx.playerPollVote.deleteMany({
                 where: { playerId, pollId: squad.poll.id },
             });
+
+            await logSquadEventTx(tx, { squadId, playerId, action: "REQUEST_SENT", actorId: playerId });
         });
 
         return SuccessResponse({

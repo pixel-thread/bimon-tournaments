@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
+import { logSquadEventTx } from "@/lib/squad-audit";
 
 /**
  * POST /api/squads/respond
@@ -116,18 +117,26 @@ export async function POST(request: NextRequest) {
                 });
 
                 // Auto-decline all other PENDING requests/invites from this player for the same poll
-                await tx.squadInvite.updateMany({
+                const otherPending = await tx.squadInvite.findMany({
                     where: {
                         playerId,
                         status: "PENDING",
                         id: { not: inviteId },
-                        squad: {
-                            pollId: invite.squad.poll.id,
-                            status: { in: ["FORMING", "FULL"] },
-                        },
+                        squad: { pollId: invite.squad.poll.id, status: { in: ["FORMING", "FULL"] } },
                     },
-                    data: { status: "DECLINED", respondedAt: new Date() },
+                    select: { id: true, squadId: true },
                 });
+                if (otherPending.length > 0) {
+                    await tx.squadInvite.updateMany({
+                        where: { id: { in: otherPending.map(p => p.id) } },
+                        data: { status: "DECLINED", respondedAt: new Date() },
+                    });
+                    for (const op of otherPending) {
+                        await logSquadEventTx(tx, { squadId: op.squadId, playerId, action: "AUTO_DECLINED_OTHER", details: `Accepted invite to ${squadName}` });
+                    }
+                }
+
+                await logSquadEventTx(tx, { squadId: invite.squadId, playerId, action: "INVITE_ACCEPTED", actorId: playerId });
 
                 // Notify captain
                 await tx.notification.create({
@@ -162,6 +171,8 @@ export async function POST(request: NextRequest) {
                 where: { id: inviteId },
                 data: { status: "DECLINED", respondedAt: new Date() },
             });
+
+            await logSquadEventTx(tx, { squadId: invite.squadId, playerId, action: "INVITE_DECLINED", actorId: playerId });
 
             // Notify captain
             await tx.notification.create({

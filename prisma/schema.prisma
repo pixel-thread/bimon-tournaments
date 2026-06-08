@@ -1334,6 +1334,25 @@ model SquadInvite {
   @@index([playerId, status])
 }
 
+/// Audit trail for squad membership changes.
+/// No FKs — records survive squad/player deletion for historical tracking.
+model SquadAuditLog {
+  id        String   @id @default(uuid())
+  squadId   String
+  playerId  String
+  action    String   // INVITE_SENT, INVITE_ACCEPTED, INVITE_DECLINED,
+                     // MEMBER_REMOVED, MEMBER_LEFT, REQUEST_SENT,
+                     // REQUEST_ACCEPTED, REQUEST_DECLINED, LINK_JOINED,
+                     // SQUAD_CANCELLED, AUTO_DECLINED_OTHER
+  actorId   String?  // Who performed the action (null = system)
+  details   String?  // Extra context
+  createdAt DateTime @default(now())
+
+  @@index([squadId])
+  @@index([playerId])
+  @@index([createdAt])
+}
+
 // ─── Championship ────────────────────────────────────────────
 
 /// Tracks team progression through championship phases (Heats → Wildcard → Finals).

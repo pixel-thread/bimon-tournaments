@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
+import { logSquadEventTx } from "@/lib/squad-audit";
 
 /**
  * POST /api/squads/leave
@@ -82,6 +83,8 @@ export async function POST(request: NextRequest) {
                 where: { id: myInvite.id },
                 data: { status: "DECLINED", respondedAt: new Date() },
             });
+
+            await logSquadEventTx(tx, { squadId, playerId, action: "MEMBER_LEFT", actorId: playerId });
 
             // If squad was FULL, revert to FORMING
             if (squad.status === "FULL") {

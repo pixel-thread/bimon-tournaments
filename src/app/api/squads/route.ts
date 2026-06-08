@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
         const currentPlayerId = user?.player?.id ?? null;
 
         const pollId = request.nextUrl.searchParams.get("pollId");
+        const includeAll = request.nextUrl.searchParams.get("includeAll") === "true";
         if (!pollId) {
             return ErrorResponse({ message: "pollId is required", status: 400 });
         }
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
         const isMangoScrim = pollForCap?.tournament?.isMangoScrim ?? false;
 
         // Dynamic squad cap based on how many squads have registered
+        const statusFilter = includeAll ? {} : { not: "CANCELLED" as const };
         const totalSquadCount = await prisma.squad.count({
             where: { pollId, status: { not: "CANCELLED" } },
         });
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
         const squads = await prisma.squad.findMany({
             where: {
                 pollId,
-                status: { not: "CANCELLED" },
+                status: statusFilter,
             },
             include: {
                 captain: {

@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
+import { logSquadEventTx } from "@/lib/squad-audit";
 
 /**
  * POST /api/squads/remove-member
@@ -74,6 +75,9 @@ export async function POST(request: NextRequest) {
         const captainName = user.player.displayName;
 
         await prisma.$transaction(async (tx) => {
+            // Log BEFORE delete so the event is captured
+            await logSquadEventTx(tx, { squadId: invite.squadId, playerId: invite.playerId, action: "MEMBER_REMOVED", actorId: currentPlayerId, details: `Kicked by captain` });
+
             // Remove the invite (delete it so the player can be re-invited or re-request)
             await tx.squadInvite.delete({
                 where: { id: inviteId },

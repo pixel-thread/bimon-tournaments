@@ -539,6 +539,11 @@ export default function OperationsPage() {
                 />
             )}
 
+            {/* Squad Audit Log — admin only, for squad polls */}
+            {selected && selected.poll?.allowSquads && selected.poll?.id && (
+                <SquadAuditSection pollId={selected.poll.id} />
+            )}
+
             {/* Donation Modal */}
             {selected && (
                 <DonationModal
@@ -1695,3 +1700,155 @@ function BracketManagement({
     );
 }
 
+
+// ─── Squad Audit Log Section ─────────────────────────────────
+
+interface AuditEntry {
+    id: string;
+    action: string;
+    playerName: string;
+    actorName: string | null;
+    squadName: string;
+    details: string | null;
+    createdAt: string;
+}
+
+const ACTION_LABELS: Record<string, { label: string; color: string }> = {
+    INVITE_SENT: { label: "Invited", color: "text-blue-500" },
+    INVITE_ACCEPTED: { label: "Accepted", color: "text-emerald-500" },
+    INVITE_DECLINED: { label: "Declined", color: "text-orange-500" },
+    MEMBER_REMOVED: { label: "Kicked", color: "text-red-500" },
+    MEMBER_LEFT: { label: "Left", color: "text-orange-500" },
+    REQUEST_SENT: { label: "Requested", color: "text-blue-400" },
+    REQUEST_ACCEPTED: { label: "Request OK", color: "text-emerald-500" },
+    REQUEST_DECLINED: { label: "Request No", color: "text-red-400" },
+    LINK_JOINED: { label: "Link Join", color: "text-cyan-500" },
+    SQUAD_CANCELLED: { label: "Cancelled", color: "text-red-500" },
+    AUTO_DECLINED_OTHER: { label: "Auto-Decline", color: "text-yellow-500" },
+};
+
+function SquadAuditSection({ pollId }: { pollId: string }) {
+    const [selectedSquadId, setSelectedSquadId] = useState("");
+    const [isOpen, setIsOpen] = useState(false);
+
+    // Fetch squads for this poll
+    const { data: squads = [] } = useQuery<{ id: string; name: string; status: string; acceptedCount: number }[]>({
+        queryKey: ["audit-squads", pollId],
+        queryFn: async () => {
+            const res = await fetch(`/api/squads?pollId=${pollId}&includeAll=true`);
+            if (!res.ok) return [];
+            const json = await res.json();
+            return (json.data?.squads ?? []).map((s: any) => ({
+                id: s.id,
+                name: s.name,
+                status: s.status,
+                acceptedCount: s.acceptedCount ?? 0,
+            }));
+        },
+        enabled: isOpen,
+    });
+
+    // Fetch audit logs when a squad is selected
+    const { data: logs = [], isLoading: logsLoading } = useQuery<AuditEntry[]>({
+        queryKey: ["squad-audit", selectedSquadId],
+        queryFn: async () => {
+            const res = await fetch(`/api/squads/audit?squadId=${selectedSquadId}`);
+            if (!res.ok) return [];
+            const json = await res.json();
+            return json.data ?? [];
+        },
+        enabled: !!selectedSquadId,
+    });
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="border border-divider">
+                <CardBody className="p-0">
+                    {/* Header — click to toggle */}
+                    <button
+                        onClick={() => setIsOpen(!isOpen)}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-default-100/50 transition-colors"
+                    >
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-warning" />
+                            <span className="text-sm font-semibold">Squad Audit Log</span>
+                        </div>
+                        <span className="text-xs text-foreground/40">{isOpen ? "▲" : "▼"}</span>
+                    </button>
+
+                    {isOpen && (
+                        <div className="px-4 pb-4 space-y-3">
+                            {/* Squad Selector */}
+                            <Select
+                                label="Select Squad"
+                                placeholder="Choose a squad..."
+                                size="sm"
+                                selectedKeys={selectedSquadId ? [selectedSquadId] : []}
+                                onSelectionChange={(keys) => {
+                                    const id = Array.from(keys)[0] as string;
+                                    if (id) setSelectedSquadId(id);
+                                }}
+                            >
+                                {squads.map((s) => (
+                                    <SelectItem key={s.id} textValue={s.name}>
+                                        <div className="flex items-center gap-2">
+                                            <span>{s.name}</span>
+                                            <Chip size="sm" variant="dot" color={
+                                                s.status === "FULL" ? "success" :
+                                                s.status === "FORMING" ? "warning" :
+                                                s.status === "CANCELLED" ? "danger" : "default"
+                                            }>
+                                                {s.status}
+                                            </Chip>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </Select>
+
+                            {/* Audit Timeline */}
+                            {selectedSquadId && (
+                                <div className="space-y-1 max-h-80 overflow-y-auto">
+                                    {logsLoading ? (
+                                        <div className="flex justify-center py-4">
+                                            <Loader2 className="h-4 w-4 animate-spin text-foreground/30" />
+                                        </div>
+                                    ) : logs.length === 0 ? (
+                                        <p className="text-xs text-foreground/30 text-center py-4">
+                                            No audit events yet — events will appear after deployment.
+                                        </p>
+                                    ) : (
+                                        logs.map((log) => {
+                                            const actionInfo = ACTION_LABELS[log.action] ?? { label: log.action, color: "text-foreground/60" };
+                                            const time = new Date(log.createdAt);
+                                            const timeStr = `${time.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} ${time.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+
+                                            return (
+                                                <div key={log.id} className="flex items-start gap-2 py-1.5 border-b border-divider/50 last:border-0">
+                                                    <span className={`text-[10px] font-bold uppercase shrink-0 w-20 pt-0.5 ${actionInfo.color}`}>
+                                                        {actionInfo.label}
+                                                    </span>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-xs">
+                                                            <span className="font-semibold">{log.playerName}</span>
+                                                            {log.actorName && log.actorName !== log.playerName && (
+                                                                <span className="text-foreground/40"> by {log.actorName}</span>
+                                                            )}
+                                                        </p>
+                                                        {log.details && (
+                                                            <p className="text-[10px] text-foreground/30 truncate">{log.details}</p>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[10px] text-foreground/30 shrink-0 pt-0.5">{timeStr}</span>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </CardBody>
+            </Card>
+        </motion.div>
+    );
+}

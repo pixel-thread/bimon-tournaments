@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest, NextResponse } from "next/server";
 import { sendPush } from "@/lib/push";
+import { logSquadEventTx } from "@/lib/squad-audit";
 
 /**
  * GET /api/squads/[squadId]/link-join
@@ -218,6 +219,7 @@ export async function POST(
             });
             if (oldInvite) {
                 await prisma.$transaction(async (tx) => {
+                    await logSquadEventTx(tx, { squadId: existingSquad.id, playerId, action: "MEMBER_LEFT", actorId: playerId, details: `Force-left to join ${squad.name} via link` });
                     await tx.squadInvite.update({
                         where: { id: oldInvite.id },
                         data: { status: "DECLINED", respondedAt: new Date() },
@@ -282,17 +284,25 @@ export async function POST(
             });
 
             // Auto-decline all other PENDING requests/invites for this poll
-            await tx.squadInvite.updateMany({
+            const otherPending = await tx.squadInvite.findMany({
                 where: {
                     playerId,
                     status: "PENDING",
-                    squad: {
-                        pollId: squad.poll.id,
-                        status: { in: ["FORMING", "FULL"] },
-                    },
+                    squad: { pollId: squad.poll.id, status: { in: ["FORMING", "FULL"] } },
                 },
-                data: { status: "DECLINED", respondedAt: new Date() },
+                select: { id: true, squadId: true },
             });
+            if (otherPending.length > 0) {
+                await tx.squadInvite.updateMany({
+                    where: { id: { in: otherPending.map(p => p.id) } },
+                    data: { status: "DECLINED", respondedAt: new Date() },
+                });
+                for (const op of otherPending) {
+                    await logSquadEventTx(tx, { squadId: op.squadId, playerId, action: "AUTO_DECLINED_OTHER", details: `Joined ${squad.name} via link` });
+                }
+            }
+
+            await logSquadEventTx(tx, { squadId, playerId, action: "LINK_JOINED", actorId: playerId });
 
             // Notify captain
             await tx.notification.create({

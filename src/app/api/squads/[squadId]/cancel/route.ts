@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { sendPush } from "@/lib/push";
 import { debitWallet, getEmailByPlayerId } from "@/lib/wallet-service";
+import { logSquadEventTx } from "@/lib/squad-audit";
 
 /**
  * POST /api/squads/[squadId]/cancel
@@ -97,6 +98,11 @@ export async function POST(
                         link: "/vote",
                     },
                 });
+            }
+
+            // Audit log for all members
+            for (const inv of squad.invites) {
+                await logSquadEventTx(tx, { squadId, playerId: inv.playerId, action: "SQUAD_CANCELLED", actorId: user.player!.id, details: `Captain cancelled squad` });
             }
         });
 
