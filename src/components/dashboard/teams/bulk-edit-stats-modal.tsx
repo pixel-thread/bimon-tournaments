@@ -315,7 +315,7 @@ ${Array.from(allTeams.entries()).map(([name, players]) => `• ${name}: ${player
 I'll upload images now. Wait for my "Analyze" command.`;
 
         navigator.clipboard.writeText(prompt);
-        toast.success("Setup prompt copied! Paste in Gemini, then upload images.");
+        toast.success("Setup prompt copied! Paste in Gemini, then upload images.", { duration: 1500 });
     }, [matchDataList]);
 
     // ── Copy Analyze Prompt (Step 2: rules + output format) ──
@@ -440,7 +440,7 @@ ${isSingle
 Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`}`;
 
         navigator.clipboard.writeText(prompt);
-        toast.success("Analyze prompt copied! Paste in Gemini after uploading all images.");
+        toast.success("Analyze prompt copied! Paste in Gemini after uploading all images.", { duration: 1500 });
     }, [matchDataList]);
 
     // ── Process AI JSON (single array or multi-match {matches:[...]}) ──
@@ -467,8 +467,9 @@ Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`}`;
 
             if (matchGroups.length === 0) throw new Error("No match data found");
 
+            let mismatchNote = "";
             if (matchGroups.length !== matchDataList.length && matchGroups.length > 1) {
-                toast.warning(`Found ${matchGroups.length} match groups, expected ${matchDataList.length}. Proceeding with available data.`);
+                mismatchNote = ` (expected ${matchDataList.length}, got ${matchGroups.length})`;
             }
 
             const newUnknownPlayers: Array<{ name: string; kills: number; matchIdx: number }> = [];
@@ -539,7 +540,7 @@ Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`}`;
             setChangeNotes(computeChangeNotes(newMatchDataList));
             setMatchDataList(newMatchDataList);
             setUnknownPlayers(newUnknownPlayers);
-            toast.success(`Applied data for ${Math.min(matchGroups.length, matchDataList.length)} match(es)!`);
+            toast.success(`Applied ${Math.min(matchGroups.length, matchDataList.length)} match(es)${mismatchNote}`, { duration: 2000 });
         } catch (err: unknown) {
             toast.error((err as Error).message || "Invalid JSON");
         }

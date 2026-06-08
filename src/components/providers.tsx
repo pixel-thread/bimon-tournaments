@@ -51,6 +51,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                             richColors
                             closeButton
                             theme="dark"
+                            duration={2500}
                             toastOptions={{
                                 style: { zIndex: 9999 },
                             }}
