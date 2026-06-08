@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
                         displayName: true,
                         customProfileImageUrl: true,
                         hasRoyalPass: true,
+                        discordId: true,
                         user: { select: { username: true, imageUrl: true } },
                     },
                 },
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
                                 displayName: true,
                                 customProfileImageUrl: true,
                                 hasRoyalPass: true,
+                                discordId: true,
                                 user: { select: { username: true, imageUrl: true } },
                             },
                         },
@@ -160,6 +162,7 @@ export async function GET(request: NextRequest) {
                     displayName: inv.player.displayName ?? inv.player.user.username,
                     imageUrl: inv.player.customProfileImageUrl ?? inv.player.user.imageUrl ?? "",
                     hasRoyalPass: inv.player.hasRoyalPass,
+                    hasDiscord: !!inv.player.discordId,
                     status: inv.status,
                     initiatedBy: inv.initiatedBy ?? "CAPTAIN",
                     // Only reveal sub status to the squad's own members

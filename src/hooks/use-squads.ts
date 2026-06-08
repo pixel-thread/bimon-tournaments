@@ -13,6 +13,7 @@ export interface SquadMember {
     displayName: string;
     imageUrl: string;
     hasRoyalPass: boolean;
+    hasDiscord: boolean;
     status: "PENDING" | "ACCEPTED" | "DECLINED";
     initiatedBy: "CAPTAIN" | "PLAYER";
     isSub: boolean;
