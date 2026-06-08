@@ -83,12 +83,12 @@ export default function InvitePage() {
         staleTime: 15_000,
     });
 
-    // If already accepted → redirect to vote page
+    // If already accepted (and didn't just join on this page) → redirect to vote page
     useEffect(() => {
-        if (data?.myStatus === "accepted") {
+        if (data?.myStatus === "accepted" && !joined) {
             router.replace(`/vote`);
         }
-    }, [data?.myStatus, router]);
+    }, [data?.myStatus, joined, router]);
 
     // If pending request → auto-accept via invite link (captain shared link = implicit approval)
     useEffect(() => {
