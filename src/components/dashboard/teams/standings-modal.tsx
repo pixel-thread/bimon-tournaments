@@ -806,9 +806,7 @@ Make it look premium and professional — suitable for posting on a tournament w
                             <div
                                 className="rounded-2xl border border-white/[0.15] shadow-2xl shadow-black/40 p-4 sm:p-6"
                                 style={{
-                                    backgroundColor: `rgba(0,0,0,${cardTint / 100})`,
-                                    backdropFilter: `blur(${cardBlur}px)`,
-                                    WebkitBackdropFilter: `blur(${cardBlur}px)`,
+                                    backgroundColor: `rgba(15,15,15,${Math.max(cardTint, 70) / 100})`,
                                 }}
                             >
                                 <StandingsTable standings={standings} allowSquads={allowSquads} isChampionship={detectedChampionship} champGroup={champGroup} showZones={showZones} rowTint={rowTint} />
