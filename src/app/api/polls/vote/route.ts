@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Auto-leave squad if voting individually on a squad poll
+        // Block individual vote if player is in a squad for this poll
         if (poll.allowSquads && (vote === "IN" || vote === "SOLO")) {
             const inSquad = await prisma.squadInvite.findFirst({
                 where: {
@@ -107,17 +107,12 @@ export async function POST(request: NextRequest) {
                 include: { squad: { select: { captainId: true, name: true } } },
             });
             if (inSquad) {
-                // Captains cannot vote individually — they must cancel the squad first
-                if (inSquad.squad.captainId === user.player.id) {
-                    return ErrorResponse({
-                        message: `⚠️ You're the leader of "${inSquad.squad.name}". Cancel your squad first to vote individually.`,
-                        status: 400,
-                    });
-                }
-                // Auto-decline/leave the squad for regular members
-                await prisma.squadInvite.update({
-                    where: { id: inSquad.id },
-                    data: { status: "DECLINED", respondedAt: new Date() },
+                const isCaptain = inSquad.squad.captainId === user.player.id;
+                return ErrorResponse({
+                    message: isCaptain
+                        ? `⚠️ You're the leader of "${inSquad.squad.name}". Cancel your squad first to vote individually.`
+                        : `⚠️ You're in squad "${inSquad.squad.name}". Leave the squad first to vote individually.`,
+                    status: 400,
                 });
             }
         }
