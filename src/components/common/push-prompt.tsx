@@ -33,15 +33,27 @@ export function usePushStatus() {
 
     const subscribe = useCallback(async () => {
         try {
-            const registration = await navigator.serviceWorker.ready;
+            console.log("[Push] Step 1: Waiting for service worker...");
+            
+            // Timeout after 10 seconds to prevent infinite hang
+            const registration = await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error("Service worker not ready after 10s")), 10000)
+                ),
+            ]);
+            
+            console.log("[Push] Step 2: SW ready, checking existing subscription...");
 
             // Always unsubscribe any existing subscription first.
             // This prevents Chrome from hanging when VAPID keys change.
             const existing = await registration.pushManager.getSubscription();
             if (existing) {
+                console.log("[Push] Step 2b: Unsubscribing old subscription...");
                 await existing.unsubscribe();
             }
 
+            console.log("[Push] Step 3: Creating new subscription...");
             // Fresh subscribe with current VAPID key
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
@@ -50,6 +62,7 @@ export function usePushStatus() {
                 ),
             });
 
+            console.log("[Push] Step 4: Saving to server...");
             const sub = subscription.toJSON();
             await fetch("/api/push/subscribe", {
                 method: "POST",
@@ -60,6 +73,7 @@ export function usePushStatus() {
                 }),
             });
 
+            console.log("[Push] Step 5: Done! ✅");
             localStorage.setItem(SUBSCRIBED_KEY, "true");
         } catch (err) {
             console.warn("[Push] Subscribe failed:", err);
@@ -78,6 +92,7 @@ export function usePushStatus() {
             }
         } catch (err) {
             console.error("[Push] Subscribe error:", err);
+            alert(`Push failed: ${err instanceof Error ? err.message : "Unknown error"}`);
         } finally {
             setSubscribing(false);
         }
