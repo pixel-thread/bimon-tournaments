@@ -1738,7 +1738,7 @@ function SquadAuditSection({ pollId }: { pollId: string }) {
             const res = await fetch(`/api/squads?pollId=${pollId}&includeAll=true`);
             if (!res.ok) return [];
             const json = await res.json();
-            return (json.data?.squads ?? []).map((s: any) => ({
+            return (json.data ?? []).map((s: any) => ({
                 id: s.id,
                 name: s.name,
                 status: s.status,
