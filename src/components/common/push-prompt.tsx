@@ -35,36 +35,14 @@ export function usePushStatus() {
         try {
             const registration = await navigator.serviceWorker.ready;
 
-            // If there's an existing subscription with a different VAPID key,
-            // unsubscribe it first so we can re-subscribe with the current key.
+            // Always unsubscribe any existing subscription first.
+            // This prevents Chrome from hanging when VAPID keys change.
             const existing = await registration.pushManager.getSubscription();
             if (existing) {
-                try {
-                    // Try subscribing — if keys match, this returns the existing sub
-                    const subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(
-                            process.env.NEXT_PUBLIC_VAPID_TOKEN!
-                        ),
-                    });
-                    const sub = subscription.toJSON();
-                    await fetch("/api/push/subscribe", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            endpoint: sub.endpoint,
-                            keys: sub.keys,
-                        }),
-                    });
-                    localStorage.setItem(SUBSCRIBED_KEY, "true");
-                    return;
-                } catch {
-                    // Key mismatch — unsubscribe old, then re-subscribe below
-                    console.warn("[Push] Key mismatch, re-subscribing...");
-                    await existing.unsubscribe();
-                }
+                await existing.unsubscribe();
             }
 
+            // Fresh subscribe with current VAPID key
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(
