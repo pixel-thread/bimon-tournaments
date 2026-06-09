@@ -12,10 +12,13 @@ export default function PushTestPage() {
     const [matchNumber, setMatchNumber] = useState(1);
     const [sending, setSending] = useState<Mode | null>(null);
     const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [diagnostics, setDiagnostics] = useState<any>(null);
 
     async function sendTest(mode: Mode) {
         setSending(mode);
         setResult(null);
+        setDiagnostics(null);
         try {
             const res = await fetch("/api/push/test", {
                 method: "POST",
@@ -23,11 +26,12 @@ export default function PushTestPage() {
                 body: JSON.stringify({ mode, roomId, password, map, matchNumber }),
             });
             const data = await res.json();
+            setDiagnostics(data.data);
             setResult({
                 ok: data.success,
-                message: data.success
-                    ? `✅ Sent! (${mode}) — Check your phone`
-                    : `❌ ${data.message}`,
+                message: data.message || (data.success
+                    ? `✅ Sent! (${mode})`
+                    : `❌ ${data.message}`),
             });
         } catch {
             setResult({ ok: false, message: "❌ Network error" });
@@ -281,6 +285,55 @@ export default function PushTestPage() {
                             : <AlertTriangle style={{ width: 16, height: 16, flexShrink: 0 }} />
                         }
                         {result.message}
+                    </div>
+                )}
+
+                {/* Diagnostics */}
+                {diagnostics && (
+                    <div style={{
+                        marginTop: 16,
+                        padding: "16px",
+                        background: "rgba(255,255,255,0.03)",
+                        borderRadius: 12,
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        fontSize: 13,
+                        lineHeight: 1.7,
+                    }}>
+                        <h3 style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            margin: "0 0 10px",
+                            color: "#818cf8",
+                        }}>📊 Diagnostics</h3>
+                        <div style={{ color: "#a0a0b8" }}>
+                            <div><strong>Player ID:</strong> <code style={{ color: "#888", fontSize: 11 }}>{diagnostics.playerId}</code></div>
+                            <div><strong>Subscriptions found:</strong> {diagnostics.subscriptionCount ?? "N/A"}</div>
+                            {diagnostics.staleRemoved > 0 && (
+                                <div style={{ color: "#f59e0b" }}>⚠️ Removed {diagnostics.staleRemoved} stale subscription(s)</div>
+                            )}
+                            {diagnostics.hint && (
+                                <div style={{ color: "#f59e0b", marginTop: 8 }}>💡 {diagnostics.hint}</div>
+                            )}
+                        </div>
+                        {diagnostics.results && diagnostics.results.length > 0 && (
+                            <div style={{ marginTop: 12 }}>
+                                <strong style={{ color: "#a0a0b8" }}>Per-device results:</strong>
+                                {diagnostics.results.map((r: { endpoint: string; status: string; error?: string }, i: number) => (
+                                    <div key={i} style={{
+                                        marginTop: 6,
+                                        padding: "8px 10px",
+                                        background: "rgba(255,255,255,0.03)",
+                                        borderRadius: 8,
+                                        fontSize: 12,
+                                        color: r.status.includes("✅") ? "#34d399" : "#ef4444",
+                                    }}>
+                                        <div>{r.status}</div>
+                                        <div style={{ color: "#666", fontSize: 11 }}>{r.endpoint}</div>
+                                        {r.error && <div style={{ color: "#ef4444", fontSize: 11 }}>{r.error}</div>}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
