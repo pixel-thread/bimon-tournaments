@@ -91,6 +91,31 @@ export default function PushTestPage() {
                     </ol>
                 </div>
 
+                {/* Clear old subscriptions */}
+                <button
+                    onClick={async () => {
+                        const res = await fetch("/api/push/test", { method: "DELETE" });
+                        const data = await res.json();
+                        alert(data.message);
+                        setDiagnostics(null);
+                        setResult(null);
+                    }}
+                    style={{
+                        width: "100%",
+                        padding: "12px",
+                        marginBottom: 24,
+                        borderRadius: 10,
+                        border: "1px solid rgba(239, 68, 68, 0.3)",
+                        background: "rgba(239, 68, 68, 0.08)",
+                        color: "#ef4444",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                    }}
+                >
+                    🗑️ Clear ALL old subscriptions from DB (do this first!)
+                </button>
+
                 {/* Form fields */}
                 <div style={{
                     display: "grid",

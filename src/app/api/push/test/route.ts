@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
                 } catch (error: unknown) {
                     const statusCode = (error as { statusCode?: number })?.statusCode;
                     const errorBody = (error as { body?: string })?.body;
-                    if (statusCode === 404 || statusCode === 410) {
+                    if (statusCode === 403 || statusCode === 404 || statusCode === 410) {
                         staleIds.push(sub.id);
                         results.push({
                             endpoint: `...${sub.endpoint.slice(-30)}`,
@@ -140,5 +140,35 @@ export async function POST(req: NextRequest) {
             message: "Failed to send test notification",
             error,
         });
+    }
+}
+
+/**
+ * DELETE /api/push/test
+ * Super admin only — clears ALL push subscriptions for your player.
+ * Use this to wipe stale subscriptions before re-subscribing.
+ */
+export async function DELETE() {
+    try {
+        const user = await getCurrentUser();
+        if (!user || user.role !== "SUPER_ADMIN") {
+            return ErrorResponse({ message: "Super admin only", status: 403 });
+        }
+
+        if (!user.player) {
+            return ErrorResponse({ message: "No player profile", status: 400 });
+        }
+
+        const result = await prisma.pushSubscription.deleteMany({
+            where: { playerId: user.player.id },
+        });
+
+        return SuccessResponse({
+            message: `Cleared ${result.count} subscription(s)`,
+            data: { cleared: result.count },
+            cache: CACHE.NONE,
+        });
+    } catch (error) {
+        return ErrorResponse({ message: "Failed to clear subscriptions", error });
     }
 }
