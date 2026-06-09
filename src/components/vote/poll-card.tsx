@@ -1100,7 +1100,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                     </div>
                                 </div>
                                 {/* Prize breakdown ? button — only for BR games (BGMI tier system) */}
-                                {GAME.features.hasBR && <PrizeBreakdownTooltip
+                                {GAME.features.hasBR && !poll.allowSquads && <PrizeBreakdownTooltip
                                     prizePool={prizePool}
                                     entryFee={entryFee}
                                     teamSize={poll.allowSquads ? 1 : effectiveTeamType === "SOLO" ? 1 : effectiveTeamType === "DUO" ? 2 : effectiveTeamType === "TRIO" ? 3 : 4}
