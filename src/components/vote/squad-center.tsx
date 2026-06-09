@@ -394,7 +394,7 @@ function SquadCard({
                     ) : (
                         <Shield className={`w-4 h-4 shrink-0 ${squad.isDefendingChampion ? 'text-amber-700 dark:text-amber-400' : 'text-primary'}`} />
                     )}
-                    <h4 className={`font-semibold text-sm truncate ${squad.isDefendingChampion ? 'text-amber-900 dark:text-amber-100' : ''}`}>{squad.name}</h4>
+                    <h4 className={`font-semibold text-sm truncate ${squad.isDefendingChampion ? 'text-amber-900 dark:text-amber-100' : ''}`}>{squad.fullName || squad.name}</h4>
                     {isCaptain && (
                         <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     )}
@@ -765,7 +765,7 @@ function SquadCard({
                         <UserPlus className="w-4 h-4 text-primary" />
                         <div className="flex-1 min-w-0">
                             <span className="truncate block">Invite Players</span>
-                            <span className="text-xs font-normal text-foreground/50">{squad.name}</span>
+                            <span className="text-xs font-normal text-foreground/50">{squad.fullName || squad.name}</span>
                         </div>
                     </ModalHeader>
                     <ModalBody>

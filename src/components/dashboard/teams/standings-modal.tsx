@@ -543,7 +543,7 @@ export function StandingsModal({
         const title = tournamentTitle || "Tournament";
         const season = seasonName || "";
 
-        const prompt = `Create a visually stunning "Overall Standings" image for a BGMI (Battlegrounds Mobile India) esports tournament. This is for a website called Bimon Tournament (BT). You may include BGMI characters in the design. The image must be 1:1 ratio (square). Team names are max 5 characters. Do not add a podium.
+        const prompt = `Create a visually stunning "Overall Standings" image for a BGMI (Battlegrounds Mobile India) esports tournament. This is for a website called Bimon Tournament (BT). You may include BGMI characters in the design. The image must be 1:1 ratio (square). Team names are max 6 characters. Do not add a podium.
 
 Tournament: ${title}${season ? `\nSeason: ${season}` : ""}
 Total Teams: ${teamCount}

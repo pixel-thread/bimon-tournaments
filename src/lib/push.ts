@@ -31,6 +31,10 @@ interface PushPayload {
     badge?: string;
     tag?: string;
     url?: string;
+    /** Keep notification visible until user dismisses (Android) */
+    requireInteraction?: boolean;
+    /** Vibrate/sound when updating an existing tagged notification */
+    renotify?: boolean;
 }
 
 /**
@@ -57,6 +61,8 @@ export async function sendPush(playerId: string, payload: PushPayload) {
             badge: payload.badge || "/icons/icon-72x72.png",
             tag: payload.tag || "bimon-notification",
             data: { url: payload.url || "/notifications" },
+            requireInteraction: payload.requireInteraction ?? false,
+            renotify: payload.renotify ?? false,
         });
 
         const staleIds: string[] = [];

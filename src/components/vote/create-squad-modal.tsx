@@ -59,6 +59,7 @@ export function CreateSquadModal({
 }: CreateSquadModalProps) {
     const [step, setStep] = useState<"name" | "done">("name");
     const [squadName, setSquadName] = useState("");
+    const [squadFullName, setSquadFullName] = useState("");
     const [createdSquadId, setCreatedSquadId] = useState<string | null>(null);
     const [createdSquadName, setCreatedSquadName] = useState<string>("");
     const [useClan, setUseClan] = useState(false);
@@ -122,6 +123,7 @@ export function CreateSquadModal({
     const handleClose = useCallback(() => {
         setStep("name");
         setSquadName("");
+        setSquadFullName("");
         setCreatedSquadId(null);
         setCreatedSquadName("");
         setWhatsappJoined(false);
@@ -140,6 +142,7 @@ export function CreateSquadModal({
                 name: effectiveUseClan ? "" : squadName.trim(),
                 useClan: effectiveUseClan,
                 useClanTreasury: effectiveUseClan && useClanTreasury && isLeaderOrCoLeader,
+                fullName: squadFullName.trim() || undefined,
             },
             {
                 onSuccess: async (data) => {
@@ -170,7 +173,7 @@ export function CreateSquadModal({
                 },
             }
         );
-    }, [pollId, squadName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName, discordLinked, handleClose, openDiscordModal]);
+    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName, discordLinked, handleClose, openDiscordModal]);
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
@@ -262,13 +265,26 @@ export function CreateSquadModal({
                                 {/* Squad Name Input — show when NOT using clan identity AND clan data loaded */}
                                 {myClan !== undefined && (!useClan || !hasClan) && (
                                     <Input
-                                        label="Squad Name"
+                                        label="Team Tag"
                                         placeholder="e.g. ALPHA"
                                         value={squadName}
-                                        onValueChange={(v) => setSquadName(v.slice(0, 5))}
-                                        maxLength={5}
+                                        onValueChange={(v) => setSquadName(v.slice(0, 6))}
+                                        maxLength={6}
                                         autoFocus
-                                        description={`${squadName.length}/5 characters`}
+                                        description={`${squadName.length}/6 characters • shown in standings`}
+                                        classNames={{ input: "text-base" }}
+                                    />
+                                )}
+
+                                {/* Optional Full Name — shown when not using clan AND short name is entered */}
+                                {myClan !== undefined && (!useClan || !hasClan) && squadName.trim().length > 0 && (
+                                    <Input
+                                        label="Full Team Name (optional)"
+                                        placeholder="e.g. Alpha Warriors"
+                                        value={squadFullName}
+                                        onValueChange={(v) => setSquadFullName(v.slice(0, 30))}
+                                        maxLength={30}
+                                        description="Shown in slot views • leave blank to use tag only"
                                         classNames={{ input: "text-base" }}
                                     />
                                 )}

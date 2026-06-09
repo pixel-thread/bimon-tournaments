@@ -37,7 +37,7 @@ self.addEventListener("push", (event) => {
 
     try {
         const data = event.data.json();
-        const { title, body, icon, badge, tag, data: notifData } = data;
+        const { title, body, icon, badge, tag, data: notifData, requireInteraction, renotify } = data;
 
         event.waitUntil(
             self.registration.showNotification(title || "Bimon", {
@@ -46,8 +46,10 @@ self.addEventListener("push", (event) => {
                 badge: badge || "/icons/icon-72x72.png",
                 tag: tag || "bimon-notification",
                 data: notifData || { url: "/notifications" },
-                requireInteraction: false,
-            })
+                requireInteraction: requireInteraction ?? false,
+                // renotify is valid in browsers but missing from TS NotificationOptions
+                ...(renotify ? { renotify: true } : {}),
+            } as NotificationOptions)
         );
     } catch {
         // Fallback for non-JSON push

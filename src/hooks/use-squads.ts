@@ -22,6 +22,7 @@ export interface SquadMember {
 export interface SquadDTO {
     id: string;
     name: string;
+    fullName: string | null;
     status: "FORMING" | "FULL" | "CANCELLED" | "REGISTERED";
     entryFee: number;
     createdAt: string;
@@ -145,11 +146,11 @@ export function useCreateSquad() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ pollId, name, useClan, useClanTreasury }: { pollId: string; name: string; useClan?: boolean; useClanTreasury?: boolean }) => {
+        mutationFn: async ({ pollId, name, useClan, useClanTreasury, fullName }: { pollId: string; name: string; useClan?: boolean; useClanTreasury?: boolean; fullName?: string }) => {
             const res = await fetch("/api/squads", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pollId, name, useClan, useClanTreasury }),
+                body: JSON.stringify({ pollId, name, useClan, useClanTreasury, fullName }),
             });
             if (!res.ok) {
                 const json = await res.json().catch(() => ({}));
@@ -167,6 +168,7 @@ export function useCreateSquad() {
                     const newSquad: SquadDTO = {
                         id: data.data?.id ?? `temp-${Date.now()}`,
                         name: data.data?.name ?? variables.name,
+                        fullName: variables.fullName ?? null,
                         status: "FORMING",
                         entryFee: data.data?.entryFee ?? 0,
                         createdAt: new Date().toISOString(),

@@ -1291,6 +1291,7 @@ model BracketResult {
 model Squad {
   id        String      @id @default(uuid())
   name      String      @db.VarChar(30)
+  fullName  String?     @db.VarChar(30)  // Optional longer display name (shown in slot views)
   pollId    String
   captainId String
   clanId    String?                         // Set when captain chose to represent their clan

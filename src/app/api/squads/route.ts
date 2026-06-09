@@ -130,6 +130,7 @@ export async function GET(request: NextRequest) {
             return {
                 id: squad.id,
                 name: squad.name,
+                fullName: squad.fullName ?? null,
                 status: squad.status,
                 entryFee: squad.entryFee,
                 createdAt: squad.createdAt,
@@ -202,9 +203,10 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { pollId, name, useClan, useClanTreasury } = body as {
-            pollId: string; name: string; useClan?: boolean; useClanTreasury?: boolean;
+        const { pollId, name, useClan, useClanTreasury, fullName: rawFullName } = body as {
+            pollId: string; name: string; useClan?: boolean; useClanTreasury?: boolean; fullName?: string;
         };
+        const fullName = rawFullName?.trim() || null;
 
         if (!pollId) {
             return ErrorResponse({ message: "pollId is required", status: 400 });
@@ -237,21 +239,21 @@ export async function POST(request: NextRequest) {
             }
             clanId = clanInfo.id;
             // Auto-name: truncated clan name (max 5 chars)
-            const baseName = clanInfo.name.slice(0, 5);
+            const baseName = clanInfo.name.slice(0, 6);
             const existingClanSquads = await prisma.squad.count({
                 where: { pollId, clanId, status: { in: ["FORMING", "FULL"] } },
             });
             trimmedName = existingClanSquads === 0
                 ? baseName
-                : `${baseName.slice(0, 4)}${existingClanSquads + 1}`;
+                : `${baseName.slice(0, 5)}${existingClanSquads + 1}`;
         }
 
         if (!trimmedName) {
             return ErrorResponse({ message: "Squad name is required", status: 400 });
         }
 
-        if (trimmedName.length > 5) {
-            return ErrorResponse({ message: "Squad name must be 5 characters or less", status: 400 });
+        if (trimmedName.length > 6) {
+            return ErrorResponse({ message: "Squad name must be 6 characters or less", status: 400 });
         }
 
         // Fetch poll + tournament
@@ -357,6 +359,7 @@ export async function POST(request: NextRequest) {
                     where: { id: cancelledSquad.id },
                     data: {
                         name: trimmedName,
+                        fullName,
                         clanId,
                         status: "FORMING",
                         entryFee,
@@ -384,6 +387,7 @@ export async function POST(request: NextRequest) {
             const created = await tx.squad.create({
                 data: {
                     name: trimmedName,
+                    fullName,
                     pollId,
                     captainId: playerId,
                     clanId,

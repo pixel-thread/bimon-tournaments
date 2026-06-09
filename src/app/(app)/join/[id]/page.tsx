@@ -59,6 +59,7 @@ export default function JoinPage() {
     const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
 
     const [teamName, setTeamName] = useState(searchParams.get("team") ?? "");
+    const [teamFullName, setTeamFullName] = useState("");
     const [step, setStep] = useState<"form" | "creating" | "done">("form");
     const [createdSquadId, setCreatedSquadId] = useState<string | null>(null);
     const [useClan, setUseClan] = useState(false);
@@ -196,7 +197,7 @@ export default function JoinPage() {
 
         setStep("creating");
         createMutation.mutate(
-            { pollId, name, useClan: effectiveUseClan },
+            { pollId, name, useClan: effectiveUseClan, fullName: teamFullName.trim() || undefined },
             {
                 onSuccess: (result) => {
                     setCreatedSquadId(result?.data?.id ?? null);
@@ -216,7 +217,7 @@ export default function JoinPage() {
                 },
             }
         );
-    }, [teamName, pollId, useClan, hasClan, createMutation, data?.whatsappGroupLink, data?.tournamentName]);
+    }, [teamName, teamFullName, pollId, useClan, hasClan, createMutation, data?.whatsappGroupLink, data?.tournamentName]);
 
     const handleSubmit = useCallback(() => {
         const effectiveUseClan = useClan && hasClan;
@@ -453,19 +454,36 @@ export default function JoinPage() {
                                 {myClan !== undefined && (!useClan || !hasClan) && (
                                     <Input
                                         ref={inputRef}
-                                        label="Team Name"
+                                        label="Team Tag"
                                         placeholder="e.g. ALPHA"
                                         value={teamName}
-                                        onValueChange={(v) => setTeamName(v.slice(0, 5))}
-                                        maxLength={5}
+                                        onValueChange={(v) => setTeamName(v.slice(0, 6))}
+                                        maxLength={6}
                                         size="lg"
-                                        description={`${teamName.length}/5 characters`}
+                                        description={`${teamName.length}/6 characters • shown in standings`}
                                         classNames={{
                                             input: "text-base",
                                             inputWrapper: "shadow-sm",
                                         }}
                                         onKeyDown={(e) => {
                                             if (e.key === "Enter" && canSubmit) handleSubmit();
+                                        }}
+                                    />
+                                )}
+
+                                {/* Optional Full Name */}
+                                {myClan !== undefined && (!useClan || !hasClan) && teamName.trim().length > 0 && (
+                                    <Input
+                                        label="Full Team Name (optional)"
+                                        placeholder="e.g. Alpha Warriors"
+                                        value={teamFullName}
+                                        onValueChange={(v) => setTeamFullName(v.slice(0, 30))}
+                                        maxLength={30}
+                                        size="lg"
+                                        description="Shown in slot views • leave blank to use tag only"
+                                        classNames={{
+                                            input: "text-base",
+                                            inputWrapper: "shadow-sm",
                                         }}
                                     />
                                 )}
