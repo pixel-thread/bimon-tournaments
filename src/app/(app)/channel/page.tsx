@@ -508,16 +508,24 @@ export default function ChannelPage() {
     const [uploading, setUploading] = useState(false);
     const [initialLoad, setInitialLoad] = useState(true);
 
-    // Clear cached data on fresh mount so skeletons always show
+    // Cached tournament tabs — show instantly from localStorage
+    const [cachedTournaments, setCachedTournaments] = useState<ActiveTournament[]>(() => {
+        if (typeof window === "undefined") return [];
+        try {
+            const cached = localStorage.getItem("channel-tournaments");
+            return cached ? JSON.parse(cached) : [];
+        } catch { return []; }
+    });
+
+    // Clear cached announcements on fresh mount so message skeletons show
     useEffect(() => {
         queryClient.removeQueries({ queryKey: ["announcements"] });
-        queryClient.removeQueries({ queryKey: ["channel-role"] });
         setInitialLoad(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Fetch role + active tournaments
-    const { data: roleData, isLoading: isLoadingRole } = useQuery<RoleData>({
+    const { data: roleData } = useQuery<RoleData>({
         queryKey: ["channel-role", user?.player?.id],
         queryFn: async () => {
             const res = await fetch("/api/announcements?check=role");
@@ -529,7 +537,20 @@ export default function ChannelPage() {
         staleTime: 60 * 1000,
     });
 
-    const activeTournaments = roleData?.activeTournaments || [];
+    // When fresh data arrives, update cache
+    useEffect(() => {
+        if (roleData?.activeTournaments?.length) {
+            setCachedTournaments(roleData.activeTournaments);
+            try {
+                localStorage.setItem("channel-tournaments", JSON.stringify(roleData.activeTournaments));
+            } catch { /* ignore */ }
+        }
+    }, [roleData]);
+
+    // Use cached tournaments immediately, update when API responds
+    const activeTournaments = roleData?.activeTournaments?.length
+        ? roleData.activeTournaments
+        : cachedTournaments;
     const captainOfTournaments = roleData?.captainOfTournaments || [];
 
     // Can post in current tab?
@@ -679,38 +700,20 @@ export default function ChannelPage() {
                         <Users className="w-3.5 h-3.5" />
                         General
                     </button>
-                    {isLoadingRole && activeTab !== "general" ? (
-                        /* Show active tab placeholder while loading */
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg text-warning border-b-2 border-warning bg-warning/5 whitespace-nowrap">
+                    {activeTournaments.map((t) => (
+                        <button
+                            key={t.id}
+                            onClick={() => setActiveTab(t.id)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap ${
+                                activeTab === t.id
+                                    ? "text-warning border-b-2 border-warning bg-warning/5"
+                                    : "text-foreground/40 hover:text-foreground/60"
+                            }`}
+                        >
                             <Swords className="w-3.5 h-3.5" />
-                            <div className="w-16 h-3 bg-warning/20 rounded animate-pulse" />
-                        </div>
-                    ) : isLoadingRole ? (
-                        /* Loading tabs skeleton */
-                        <>
-                            {[1, 2].map((i) => (
-                                <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg">
-                                    <div className="w-3.5 h-3.5 bg-foreground/[0.06] rounded animate-pulse" />
-                                    <div className="w-14 h-3 bg-foreground/[0.06] rounded animate-pulse" />
-                                </div>
-                            ))}
-                        </>
-                    ) : (
-                        activeTournaments.map((t) => (
-                            <button
-                                key={t.id}
-                                onClick={() => setActiveTab(t.id)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap ${
-                                    activeTab === t.id
-                                        ? "text-warning border-b-2 border-warning bg-warning/5"
-                                        : "text-foreground/40 hover:text-foreground/60"
-                                }`}
-                            >
-                                <Swords className="w-3.5 h-3.5" />
-                                {t.name}
-                            </button>
-                        ))
-                    )}
+                            {t.name}
+                        </button>
+                    ))}
                 </div>
             </div>
 
