@@ -11,6 +11,29 @@ import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
+
+        // Lightweight role check for the channel UI
+        if (searchParams.get("check") === "role") {
+            const user = await getCurrentUser();
+            if (!user?.player) {
+                return SuccessResponse({ message: "Role", data: { role: "viewer" }, cache: CACHE.NONE });
+            }
+            if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
+                return SuccessResponse({ message: "Role", data: { role: "admin" }, cache: CACHE.NONE });
+            }
+            const captainCount = await prisma.squad.count({
+                where: {
+                    captainId: user.player.id,
+                    poll: { tournament: { status: "ACTIVE" } },
+                },
+            });
+            return SuccessResponse({
+                message: "Role",
+                data: { role: captainCount > 0 ? "captain" : "viewer" },
+                cache: CACHE.NONE,
+            });
+        }
+
         const cursor = searchParams.get("cursor");
         const limit = 30;
 
@@ -62,9 +85,14 @@ export async function POST(req: NextRequest) {
 
         const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
 
-        // Check if captain (has any squad as captain)
+        // Check if captain of a squad in an ACTIVE tournament
         const isCaptain = !isAdmin && (await prisma.squad.count({
-            where: { captainId: user.player.id },
+            where: {
+                captainId: user.player.id,
+                poll: {
+                    tournament: { status: "ACTIVE" },
+                },
+            },
         })) > 0;
 
         if (!isAdmin && !isCaptain) {

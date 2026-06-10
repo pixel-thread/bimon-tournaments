@@ -357,20 +357,20 @@ export default function ChannelPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
 
-    // Check if current user is a captain
-    const { data: isCaptain = false } = useQuery<boolean>({
-        queryKey: ["is-captain", user?.player?.id],
+    // Check user's channel role (admin/captain/viewer)
+    const { data: channelRole = "viewer" } = useQuery<string>({
+        queryKey: ["channel-role", user?.player?.id],
         queryFn: async () => {
-            const res = await fetch("/api/squads?mine=true");
-            if (!res.ok) return false;
+            const res = await fetch("/api/announcements?check=role");
+            if (!res.ok) return "viewer";
             const json = await res.json();
-            const squads = json.data || [];
-            return squads.some((s: { captainId: string }) => s.captainId === user?.player?.id);
+            return json.data?.role || "viewer";
         },
         enabled: !!user?.player?.id && !isAdmin,
         staleTime: 5 * 60 * 1000,
     });
 
+    const isCaptain = channelRole === "captain";
     const canPost = isAdmin || isCaptain;
 
     // Fetch announcements
