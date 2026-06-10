@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * GET /api/push/track?tag=xxx
+ * GET /api/push/track?tournamentId=xxx  — recent deliveries for a tournament
  * Admin only — view delivery stats for a notification tag.
  */
 export async function GET(req: NextRequest) {
@@ -50,6 +51,154 @@ export async function GET(req: NextRequest) {
 
         const { searchParams } = new URL(req.url);
         const tag = searchParams.get("tag");
+        const tournamentId = searchParams.get("tournamentId");
+
+        // ── Tournament delivery view: recent notifications with per-team breakdown ──
+        if (tournamentId) {
+            // Get announcements for this tournament channel (last 20)
+            const announcements = await prisma.announcement.findMany({
+                where: { channel: tournamentId },
+                orderBy: { createdAt: "desc" },
+                take: 20,
+                select: {
+                    id: true,
+                    content: true,
+                    type: true,
+                    imageUrl: true,
+                    createdAt: true,
+                    author: { select: { displayName: true } },
+                },
+            });
+
+            // Build tag→announcement map
+            const announceTags = announcements.map((a) => ({
+                tag: `announce-${a.id}`,
+                content: a.content.slice(0, 100),
+                type: a.type,
+                author: a.author.displayName || "Admin",
+                createdAt: a.createdAt.toISOString(),
+                hasImage: !!a.imageUrl,
+            }));
+
+            // Also include room-info tag
+            const allTags = ["live-room-info", ...announceTags.map((a) => a.tag)];
+
+            // Get delivery records for these tags
+            const deliveries = await prisma.pushDelivery.findMany({
+                where: { tag: { in: allTags } },
+                select: { tag: true, playerId: true, status: true, createdAt: true },
+            });
+
+            // Get teams with players for this tournament
+            const teams = await prisma.team.findMany({
+                where: { tournamentId, disqualified: false },
+                orderBy: { teamNumber: "asc" },
+                select: {
+                    id: true,
+                    name: true,
+                    teamNumber: true,
+                    players: {
+                        select: {
+                            id: true,
+                            displayName: true,
+                            customProfileImageUrl: true,
+                            user: { select: { imageUrl: true } },
+                        },
+                    },
+                },
+            });
+
+            // Get push subscriptions for all players
+            const allPlayerIds = teams.flatMap((t) => t.players.map((p) => p.id));
+            const pushSubs = await prisma.pushSubscription.groupBy({
+                by: ["playerId"],
+                where: { playerId: { in: allPlayerIds } },
+                _count: { id: true },
+            });
+            const pushMap = new Map(pushSubs.map((s) => [s.playerId, s._count.id]));
+
+            // Build per-tag delivery summary
+            const deliveryByTag = new Map<string, Map<string, string>>();
+            for (const d of deliveries) {
+                if (!deliveryByTag.has(d.tag)) deliveryByTag.set(d.tag, new Map());
+                const playerMap = deliveryByTag.get(d.tag)!;
+                // Keep the best status (clicked > delivered)
+                const current = playerMap.get(d.playerId);
+                if (!current || (d.status === "clicked" && current === "delivered")) {
+                    playerMap.set(d.playerId, d.status);
+                }
+            }
+
+            // Build notification list with delivery per team
+            const notifications = [];
+
+            // Room info entry
+            const roomDeliveries = deliveryByTag.get("live-room-info");
+            if (roomDeliveries && roomDeliveries.size > 0) {
+                notifications.push({
+                    tag: "live-room-info",
+                    label: "🔐 Room Info",
+                    type: "room-info",
+                    createdAt: null,
+                    delivered: roomDeliveries.size,
+                    totalWithPush: pushMap.size,
+                });
+            }
+
+            // Announcement entries
+            for (const a of announceTags) {
+                const tagDeliveries = deliveryByTag.get(a.tag);
+                const deliveredCount = tagDeliveries?.size || 0;
+                const label = a.type === "room-info"
+                    ? `🔐 ${a.content.slice(0, 50)}`
+                    : a.hasImage
+                        ? `📋 ${a.content.slice(0, 50)}`
+                        : `📢 ${a.content.slice(0, 50)}`;
+                notifications.push({
+                    tag: a.tag,
+                    label,
+                    type: a.type || "message",
+                    author: a.author,
+                    createdAt: a.createdAt,
+                    delivered: deliveredCount,
+                    totalWithPush: pushMap.size,
+                });
+            }
+
+            // Build team data with per-notification delivery
+            const teamData = teams.map((team) => ({
+                id: team.id,
+                name: team.name,
+                teamNumber: team.teamNumber,
+                players: team.players.map((p) => ({
+                    id: p.id,
+                    displayName: p.displayName,
+                    avatar: p.customProfileImageUrl || p.user?.imageUrl || null,
+                    hasPush: pushMap.has(p.id),
+                    deviceCount: pushMap.get(p.id) || 0,
+                })),
+            }));
+
+            // Build per-tag per-player delivery lookup
+            const deliveryMatrix: Record<string, Record<string, string>> = {};
+            for (const [tagKey, playerMap] of deliveryByTag) {
+                deliveryMatrix[tagKey] = Object.fromEntries(playerMap);
+            }
+
+            return SuccessResponse({
+                message: "Tournament delivery stats",
+                data: {
+                    notifications,
+                    teams: teamData,
+                    deliveryMatrix,
+                    summary: {
+                        totalPlayers: allPlayerIds.length,
+                        totalWithPush: pushMap.size,
+                    },
+                },
+                cache: CACHE.NONE,
+            });
+        }
 
         if (!tag) {
             // Return recent tags with counts
@@ -128,3 +277,4 @@ export async function GET(req: NextRequest) {
         return ErrorResponse({ message: "Failed to fetch delivery stats", error });
     }
 }
+

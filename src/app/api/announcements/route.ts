@@ -228,23 +228,26 @@ export async function POST(req: NextRequest) {
                     const replierName = announcement.author.displayName || "Someone";
                     const preview = content.trim().slice(0, 60);
                     const tabParam = parent.channel !== "general" ? `?tab=${parent.channel}` : "";
-                    await sendPushToPlayers([parent.authorId], {
+                    const result = await sendPushToPlayers([parent.authorId], {
                         title: `💬 ${replierName} replied`,
                         body: preview,
                         url: `/channel${tabParam}`,
                         tag: `reply-${parentId}`,
                     });
+                    console.log(`[Channel Push] Reply: ${result.sent} sent, ${result.failed} failed`);
                 }
             } else if (isAdmin) {
                 // Admin new post → notify subscribers
                 const preview = content.trim().slice(0, 80);
                 if (channel === "general") {
-                    await sendPushToAll({
+                    const result = await sendPushToAll({
                         title: "📢 Announcement",
                         body: preview,
                         url: "/channel",
                         tag: `announce-${announcement.id}`,
+                        requireInteraction: true,
                     });
+                    console.log(`[Channel Push] General: ${result.sent} sent, ${result.failed} failed, ${result.staleRemoved} stale`);
                 } else {
                     // Tournament channel → notify confirmed players
                     const tournament = await prisma.tournament.findUnique({
@@ -252,12 +255,14 @@ export async function POST(req: NextRequest) {
                         select: { name: true },
                     });
                     const tName = tournament?.name || "Tournament";
-                    await sendPushToTournament(channel, {
+                    const result = await sendPushToTournament(channel, {
                         title: `📢 ${tName}`,
                         body: preview,
                         url: `/channel?tab=${channel}`,
                         tag: `announce-${announcement.id}`,
+                        requireInteraction: true,
                     });
+                    console.log(`[Channel Push] ${tName}: ${result.sent} sent, ${result.failed} failed, ${result.staleRemoved} stale`);
                 }
             }
             // Captain/player new posts → no push

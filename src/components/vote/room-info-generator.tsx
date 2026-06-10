@@ -756,7 +756,8 @@ interface TeamPlayer {
     id: string;
     displayName: string;
     avatar: string | null;
-    pushEnabled: boolean;
+    pushEnabled?: boolean;
+    hasPush?: boolean;
     deviceCount: number;
 }
 
@@ -769,10 +770,36 @@ interface TeamPushData {
     totalPlayers: number;
 }
 
+interface DeliveryNotification {
+    tag: string;
+    label: string;
+    type: string;
+    author?: string;
+    createdAt: string | null;
+    delivered: number;
+    totalWithPush: number;
+}
+
+interface DeliveryTeam {
+    id: string;
+    name: string;
+    teamNumber: number;
+    players: { id: string; displayName: string; avatar: string | null; hasPush: boolean; deviceCount: number }[];
+}
+
+interface DeliveryData {
+    notifications: DeliveryNotification[];
+    teams: DeliveryTeam[];
+    deliveryMatrix: Record<string, Record<string, string>>;
+    summary: { totalPlayers: number; totalWithPush: number };
+}
+
 function TeamPushStatus({ tournamentId }: { tournamentId: string }) {
     const [expanded, setExpanded] = useState(false);
+    const [subTab, setSubTab] = useState<"subs" | "delivery">("delivery");
 
-    const { data, isLoading } = useQuery<{
+    // Subscription data
+    const { data: subsData, isLoading: subsLoading } = useQuery<{
         teams: TeamPushData[];
         summary: { totalPlayers: number; totalWithPush: number; percentage: number };
     }>({
@@ -784,11 +811,33 @@ function TeamPushStatus({ tournamentId }: { tournamentId: string }) {
             return json.data;
         },
         staleTime: 60 * 1000,
-        enabled: expanded, // Only fetch when expanded
+        enabled: expanded && subTab === "subs",
     });
 
-    const summary = data?.summary;
-    const teams = data?.teams || [];
+    // Delivery data
+    const { data: deliveryData, isLoading: deliveryLoading } = useQuery<DeliveryData>({
+        queryKey: ["push-delivery", tournamentId],
+        queryFn: async () => {
+            const res = await fetch(`/api/push/track?tournamentId=${tournamentId}`);
+            if (!res.ok) return { notifications: [], teams: [], deliveryMatrix: {}, summary: { totalPlayers: 0, totalWithPush: 0 } };
+            const json = await res.json();
+            return json.data;
+        },
+        staleTime: 30 * 1000,
+        enabled: expanded && subTab === "delivery",
+    });
+
+    const [selectedTag, setSelectedTag] = useState<string>("");
+    const notifications = deliveryData?.notifications || [];
+    const deliveryTeams = deliveryData?.teams || [];
+    const matrix = deliveryData?.deliveryMatrix || {};
+
+    // Auto-select latest notification
+    const activeTag = selectedTag || notifications[0]?.tag || "";
+    const activeNotif = notifications.find((n) => n.tag === activeTag);
+    const tagDeliveries = matrix[activeTag] || {};
+
+    const summary = subsData?.summary;
 
     return (
         <div className="rounded-xl border border-divider overflow-hidden">
@@ -826,69 +875,228 @@ function TeamPushStatus({ tournamentId }: { tournamentId: string }) {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                     >
-                        <div className="border-t border-divider px-3 py-2 space-y-2 max-h-64 overflow-y-auto">
-                            {isLoading ? (
-                                <div className="flex items-center justify-center py-4 gap-2 text-xs text-foreground/30">
-                                    <Bell className="w-3.5 h-3.5 animate-pulse" />
-                                    Loading...
-                                </div>
-                            ) : teams.length === 0 ? (
-                                <p className="text-xs text-foreground/30 text-center py-3">No teams found</p>
-                            ) : (
-                                teams.map((team) => (
-                                    <div key={team.id} className="flex items-start gap-2">
-                                        {/* Team label */}
-                                        <div className="flex items-center gap-1 min-w-[60px] shrink-0 pt-0.5">
-                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                                team.pushCount === team.totalPlayers
-                                                    ? "bg-emerald-500/15 text-emerald-500"
-                                                    : team.pushCount > 0
-                                                        ? "bg-amber-500/15 text-amber-500"
-                                                        : "bg-red-500/15 text-red-500"
-                                            }`}>
-                                                T{team.teamNumber}
-                                            </span>
-                                            <span className="text-[10px] text-foreground/30">
-                                                {team.pushCount}/{team.totalPlayers}
-                                            </span>
-                                        </div>
+                        <div className="border-t border-divider">
+                            {/* Sub-tabs */}
+                            <div className="flex border-b border-divider">
+                                {(["delivery", "subs"] as const).map((tab) => (
+                                    <button
+                                        key={tab}
+                                        type="button"
+                                        onClick={() => setSubTab(tab)}
+                                        className={`flex-1 text-[10px] font-semibold py-1.5 transition-colors cursor-pointer ${
+                                            subTab === tab
+                                                ? "text-primary border-b-2 border-primary"
+                                                : "text-foreground/30 hover:text-foreground/50"
+                                        }`}
+                                    >
+                                        {tab === "delivery" ? "📊 Delivery" : "🔔 Subscribed"}
+                                    </button>
+                                ))}
+                            </div>
 
-                                        {/* Players */}
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {team.players.map((player) => (
-                                                <div
-                                                    key={player.id}
-                                                    className="flex items-center gap-1 group"
-                                                    title={`${player.displayName} — ${player.pushEnabled ? `${player.deviceCount} device(s)` : "No push"}`}
-                                                >
-                                                    <div className="relative">
-                                                        {player.avatar ? (
-                                                            // eslint-disable-next-line @next/next/no-img-element
-                                                            <img
-                                                                src={player.avatar}
-                                                                alt=""
-                                                                className="w-5 h-5 rounded-full object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-5 h-5 rounded-full bg-default-200 flex items-center justify-center text-[8px] font-bold text-foreground/40">
-                                                                {player.displayName.charAt(0).toUpperCase()}
-                                                            </div>
-                                                        )}
-                                                        {/* Status dot */}
-                                                        <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-background ${
-                                                            player.pushEnabled ? "bg-emerald-500" : "bg-red-500"
-                                                        }`} />
+                            {/* ── Delivery Tab ── */}
+                            {subTab === "delivery" && (
+                                <div className="px-3 py-2 space-y-2">
+                                    {deliveryLoading ? (
+                                        <div className="flex items-center justify-center py-4 gap-2 text-xs text-foreground/30">
+                                            <Bell className="w-3.5 h-3.5 animate-pulse" />
+                                            Loading...
+                                        </div>
+                                    ) : notifications.length === 0 ? (
+                                        <p className="text-xs text-foreground/30 text-center py-3">No delivery data yet</p>
+                                    ) : (
+                                        <>
+                                            {/* Message selector */}
+                                            <select
+                                                value={activeTag}
+                                                onChange={(e) => setSelectedTag(e.target.value)}
+                                                className="w-full text-[11px] bg-default-100 border border-divider rounded-lg px-2 py-1.5 text-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                            >
+                                                {notifications.map((n) => (
+                                                    <option key={n.tag} value={n.tag}>
+                                                        {n.label} — {n.delivered}/{n.totalWithPush} delivered
+                                                        {n.createdAt ? ` • ${new Date(n.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}` : ""}
+                                                    </option>
+                                                ))}
+                                            </select>
+
+                                            {/* Delivery summary bar */}
+                                            {activeNotif && (
+                                                <div className="flex items-center gap-2 text-[10px]">
+                                                    <span className="text-foreground/40">Delivered:</span>
+                                                    <div className="flex-1 h-1.5 bg-default-200 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-emerald-500 rounded-full transition-all"
+                                                            style={{ width: `${activeNotif.totalWithPush > 0 ? (activeNotif.delivered / activeNotif.totalWithPush) * 100 : 0}%` }}
+                                                        />
                                                     </div>
-                                                    <span className={`text-[10px] truncate max-w-[60px] ${
-                                                        player.pushEnabled ? "text-foreground/60" : "text-foreground/25"
+                                                    <span className={`font-bold ${
+                                                        activeNotif.delivered >= activeNotif.totalWithPush
+                                                            ? "text-emerald-500"
+                                                            : activeNotif.delivered > 0
+                                                                ? "text-amber-500"
+                                                                : "text-red-500"
                                                     }`}>
-                                                        {player.displayName}
+                                                        {activeNotif.delivered}/{activeNotif.totalWithPush}
                                                     </span>
                                                 </div>
-                                            ))}
+                                            )}
+
+                                            {/* Per-team delivery */}
+                                            <div className="max-h-64 overflow-y-auto space-y-2">
+                                                {deliveryTeams.map((team) => {
+                                                    const deliveredInTeam = team.players.filter((p) => tagDeliveries[p.id]).length;
+                                                    const withPushInTeam = team.players.filter((p) => p.hasPush).length;
+                                                    return (
+                                                        <div key={team.id} className="flex items-start gap-2">
+                                                            <div className="flex items-center gap-1 min-w-[60px] shrink-0 pt-0.5">
+                                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                                                    deliveredInTeam === withPushInTeam && withPushInTeam > 0
+                                                                        ? "bg-emerald-500/15 text-emerald-500"
+                                                                        : deliveredInTeam > 0
+                                                                            ? "bg-amber-500/15 text-amber-500"
+                                                                            : "bg-red-500/15 text-red-500"
+                                                                }`}>
+                                                                    T{team.teamNumber}
+                                                                </span>
+                                                                <span className="text-[10px] text-foreground/30">
+                                                                    {deliveredInTeam}/{withPushInTeam}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {team.players.map((player) => {
+                                                                    const status = tagDeliveries[player.id]; // "delivered" | "clicked" | undefined
+                                                                    const dotColor = status === "clicked"
+                                                                        ? "bg-blue-500"
+                                                                        : status === "delivered"
+                                                                            ? "bg-emerald-500"
+                                                                            : player.hasPush
+                                                                                ? "bg-amber-500"
+                                                                                : "bg-red-500";
+                                                                    const dotTitle = status === "clicked"
+                                                                        ? "Clicked"
+                                                                        : status === "delivered"
+                                                                            ? "Delivered"
+                                                                            : player.hasPush
+                                                                                ? "Sent but not delivered"
+                                                                                : "No push subscription";
+                                                                    return (
+                                                                        <div
+                                                                            key={player.id}
+                                                                            className="flex items-center gap-1 group"
+                                                                            title={`${player.displayName} — ${dotTitle}`}
+                                                                        >
+                                                                            <div className="relative">
+                                                                                {player.avatar ? (
+                                                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                                                    <img
+                                                                                        src={player.avatar}
+                                                                                        alt=""
+                                                                                        className="w-5 h-5 rounded-full object-cover"
+                                                                                    />
+                                                                                ) : (
+                                                                                    <div className="w-5 h-5 rounded-full bg-default-200 flex items-center justify-center text-[8px] font-bold text-foreground/40">
+                                                                                        {player.displayName.charAt(0).toUpperCase()}
+                                                                                    </div>
+                                                                                )}
+                                                                                <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-background ${dotColor}`} />
+                                                                            </div>
+                                                                            <span className={`text-[10px] truncate max-w-[60px] ${
+                                                                                status ? "text-foreground/60" : "text-foreground/25"
+                                                                            }`}>
+                                                                                {player.displayName}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Legend */}
+                                            <div className="flex flex-wrap gap-3 pt-1 border-t border-divider">
+                                                {[
+                                                    { color: "bg-blue-500", label: "Clicked" },
+                                                    { color: "bg-emerald-500", label: "Delivered" },
+                                                    { color: "bg-amber-500", label: "Sent (pending)" },
+                                                    { color: "bg-red-500", label: "No push" },
+                                                ].map((item) => (
+                                                    <div key={item.label} className="flex items-center gap-1">
+                                                        <span className={`w-2 h-2 rounded-full ${item.color}`} />
+                                                        <span className="text-[9px] text-foreground/30">{item.label}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ── Subscriptions Tab ── */}
+                            {subTab === "subs" && (
+                                <div className="px-3 py-2 space-y-2 max-h-64 overflow-y-auto">
+                                    {subsLoading ? (
+                                        <div className="flex items-center justify-center py-4 gap-2 text-xs text-foreground/30">
+                                            <Bell className="w-3.5 h-3.5 animate-pulse" />
+                                            Loading...
                                         </div>
-                                    </div>
-                                ))
+                                    ) : (subsData?.teams || []).length === 0 ? (
+                                        <p className="text-xs text-foreground/30 text-center py-3">No teams found</p>
+                                    ) : (
+                                        (subsData?.teams || []).map((team) => (
+                                            <div key={team.id} className="flex items-start gap-2">
+                                                <div className="flex items-center gap-1 min-w-[60px] shrink-0 pt-0.5">
+                                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                                        team.pushCount === team.totalPlayers
+                                                            ? "bg-emerald-500/15 text-emerald-500"
+                                                            : team.pushCount > 0
+                                                                ? "bg-amber-500/15 text-amber-500"
+                                                                : "bg-red-500/15 text-red-500"
+                                                    }`}>
+                                                        T{team.teamNumber}
+                                                    </span>
+                                                    <span className="text-[10px] text-foreground/30">
+                                                        {team.pushCount}/{team.totalPlayers}
+                                                    </span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {team.players.map((player) => (
+                                                        <div
+                                                            key={player.id}
+                                                            className="flex items-center gap-1 group"
+                                                            title={`${player.displayName} — ${player.pushEnabled ? `${player.deviceCount} device(s)` : "No push"}`}
+                                                        >
+                                                            <div className="relative">
+                                                                {player.avatar ? (
+                                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                                    <img
+                                                                        src={player.avatar}
+                                                                        alt=""
+                                                                        className="w-5 h-5 rounded-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-5 h-5 rounded-full bg-default-200 flex items-center justify-center text-[8px] font-bold text-foreground/40">
+                                                                        {player.displayName.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                )}
+                                                                <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-background ${
+                                                                    player.pushEnabled ? "bg-emerald-500" : "bg-red-500"
+                                                                }`} />
+                                                            </div>
+                                                            <span className={`text-[10px] truncate max-w-[60px] ${
+                                                                player.pushEnabled ? "text-foreground/60" : "text-foreground/25"
+                                                            }`}>
+                                                                {player.displayName}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             )}
                         </div>
                     </motion.div>
