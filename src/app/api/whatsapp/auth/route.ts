@@ -3,6 +3,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { linkWhatsApp, isLinked, unlinkWhatsApp } from "@/lib/whatsapp";
 import QRCode from "qrcode";
 
+// QR scan needs the function alive for up to 55s
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/whatsapp/auth
  * Returns WhatsApp link status.
