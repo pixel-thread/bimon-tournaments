@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createGroup, deleteGroup } from "@/lib/whatsapp";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 /**
  * POST /api/whatsapp/test-group
