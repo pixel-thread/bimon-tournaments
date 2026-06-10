@@ -38,6 +38,11 @@ function isStandalone(): boolean {
         (navigator as any).standalone === true;
 }
 
+function isMobileDevice(): boolean {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 type GuardState = "loading" | "ok" | "prompt" | "denied" | "brave" | "ios-safari" | "ios-pwa";
 
 /**
@@ -335,6 +340,11 @@ export function PushGuard() {
                                 <p className="text-xs text-foreground/30">
                                     Or use Chrome for the best experience with push notifications
                                 </p>
+                                {error && (
+                                    <p className="text-xs text-danger/80 bg-danger/5 rounded-lg px-3 py-2">
+                                        {error} — Make sure you enabled the setting and try again.
+                                    </p>
+                                )}
                                 <Button
                                     color="primary"
                                     size="lg"
@@ -342,12 +352,30 @@ export function PushGuard() {
                                     isLoading={subscribing}
                                     startContent={!subscribing ? <Bell className="w-4 h-4" /> : undefined}
                                     onPress={async () => {
-                                        // Try enabling — might work if they already flipped the setting
-                                        await handleEnable();
+                                        setError("");
+                                        setSubscribing(true);
+                                        try {
+                                            const ok = await silentResubscribe();
+                                            if (ok) {
+                                                setState("ok");
+                                            } else {
+                                                setError("Push still not working");
+                                            }
+                                        } catch {
+                                            setError("Push still not working");
+                                        } finally {
+                                            setSubscribing(false);
+                                        }
                                     }}
                                 >
                                     {subscribing ? "Enabling..." : "I've enabled it — Continue"}
                                 </Button>
+                                <button
+                                    onClick={() => setState("ok")}
+                                    className="text-xs text-foreground/30 hover:text-foreground/50 transition-colors"
+                                >
+                                    Skip for now
+                                </button>
                             </>
                         )}
 
@@ -430,6 +458,14 @@ export function PushGuard() {
                                 >
                                     {subscribing ? "Enabling..." : "Enable Notifications"}
                                 </Button>
+                                {!isMobileDevice() && (
+                                    <button
+                                        onClick={() => setState("ok")}
+                                        className="text-xs text-foreground/30 hover:text-foreground/50 transition-colors"
+                                    >
+                                        Maybe later
+                                    </button>
+                                )}
                             </>
                         )}
                     </motion.div>

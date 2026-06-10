@@ -98,7 +98,7 @@ function getAndroidInstructions(browser: AndroidBrowser): { steps: string[]; not
     }
 }
 
-type PwaState = "loading" | "ok" | "android" | "ios";
+type PwaState = "loading" | "ok" | "android" | "ios" | "browser-nudge";
 
 /**
  * PwaInstallPrompt — Mandatory PWA install gate.
@@ -152,7 +152,13 @@ export function PwaInstallPrompt() {
                 return;
             }
 
-            // Already marked as installed — trust it (user may be browsing via browser)
+            // Installed but browsing via browser — nudge to open PWA
+            if (localStorage.getItem(INSTALLED_KEY) === "true" && isMobile()) {
+                setState("browser-nudge");
+                return;
+            }
+
+            // Already marked as installed on desktop — skip
             if (localStorage.getItem(INSTALLED_KEY) === "true") {
                 setState("ok");
                 return;
@@ -196,6 +202,47 @@ export function PwaInstallPrompt() {
     };
 
     if (state === "loading" || state === "ok") return null;
+
+    // Gentle nudge — not blocking, just a banner
+    if (state === "browser-nudge") {
+        return (
+            <motion.div
+                initial={{ y: -60, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -60, opacity: 0 }}
+                className="fixed top-0 left-0 right-0 z-50 safe-top"
+            >
+                <div className="mx-3 mt-3 rounded-xl bg-content1 border border-primary/20 shadow-lg p-3 flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={PWA_ICON} alt="" className="w-10 h-10 rounded-xl shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">{GAME.name}</p>
+                        <p className="text-xs text-foreground/50">Open in app for better experience</p>
+                    </div>
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                        <Button
+                            size="sm"
+                            color="primary"
+                            className="text-xs font-semibold h-7 px-3"
+                            onPress={() => {
+                                // Try to open the PWA — same URL in standalone mode
+                                window.location.href = window.location.href;
+                            }}
+                        >
+                            <Smartphone className="w-3 h-3" />
+                            Open App
+                        </Button>
+                        <button
+                            onClick={() => setState("ok")}
+                            className="text-[10px] text-foreground/30 hover:text-foreground/50 transition-colors"
+                        >
+                            Stay here
+                        </button>
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
 
     const instructions = getAndroidInstructions(androidBrowser);
     const browserLabel = androidBrowser === "chrome" ? "Chrome"
