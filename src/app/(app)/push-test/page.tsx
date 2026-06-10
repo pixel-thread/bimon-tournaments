@@ -449,6 +449,9 @@ export default function PushTestPage() {
                         )}
                     </div>
                 )}
+
+                {/* ═══════════ SUBSCRIBER LIST ═══════════ */}
+                <SubscriberList />
             </div>
 
             <style>{`
@@ -457,6 +460,143 @@ export default function PushTestPage() {
                     to { transform: rotate(360deg); }
                 }
             `}</style>
+        </div>
+    );
+}
+
+/* ═══════════ SUBSCRIBER LIST COMPONENT ═══════════ */
+
+interface Subscriber {
+    playerId: string;
+    displayName: string;
+    avatar: string | null;
+    devices: number;
+    lastSubscribed: string;
+}
+
+function SubscriberList() {
+    const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [loaded, setLoaded] = useState(false);
+    const [stats, setStats] = useState({ total: 0, unique: 0 });
+
+    async function loadSubscribers() {
+        setLoading(true);
+        try {
+            const res = await fetch("/api/push/test");
+            const json = await res.json();
+            if (json.success && json.data) {
+                setSubscribers(json.data.players || []);
+                setStats({
+                    total: json.data.totalSubscriptions || 0,
+                    unique: json.data.uniquePlayers || 0,
+                });
+            }
+            setLoaded(true);
+        } catch {
+            // ignore
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div style={{
+            marginTop: 24,
+            background: "rgba(52, 211, 153, 0.04)",
+            border: "1px solid rgba(52, 211, 153, 0.15)",
+            borderRadius: 16,
+            padding: "20px",
+        }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Bell style={{ width: 18, height: 18, color: "#34d399" }} />
+                    <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#34d399" }}>
+                        Subscribers
+                    </h2>
+                    {loaded && (
+                        <span style={{
+                            fontSize: 11, background: "rgba(52, 211, 153, 0.15)",
+                            color: "#34d399", padding: "2px 8px", borderRadius: 10, fontWeight: 600,
+                        }}>
+                            {stats.unique} players · {stats.total} devices
+                        </span>
+                    )}
+                </div>
+                <button
+                    onClick={loadSubscribers}
+                    disabled={loading}
+                    style={{
+                        padding: "6px 14px", borderRadius: 8,
+                        border: "1px solid rgba(52, 211, 153, 0.3)",
+                        background: "rgba(52, 211, 153, 0.1)",
+                        color: "#34d399", fontSize: 12, fontWeight: 600,
+                        cursor: loading ? "not-allowed" : "pointer",
+                        display: "flex", alignItems: "center", gap: 6,
+                    }}
+                >
+                    {loading
+                        ? <Loader2 style={{ width: 12, height: 12, animation: "spin 1s linear infinite" }} />
+                        : "🔄"
+                    }
+                    {loaded ? "Refresh" : "Load"}
+                </button>
+            </div>
+
+            {loaded && subscribers.length === 0 && (
+                <p style={{ fontSize: 13, color: "#666", textAlign: "center", padding: "20px 0" }}>
+                    No subscribers yet
+                </p>
+            )}
+
+            {loaded && subscribers.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {subscribers.map((sub) => (
+                        <div
+                            key={sub.playerId}
+                            style={{
+                                display: "flex", alignItems: "center", gap: 10,
+                                padding: "8px 12px", borderRadius: 10,
+                                background: "rgba(255,255,255,0.03)",
+                                border: "1px solid rgba(255,255,255,0.06)",
+                            }}
+                        >
+                            {sub.avatar ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={sub.avatar}
+                                    alt=""
+                                    style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }}
+                                />
+                            ) : (
+                                <div style={{
+                                    width: 28, height: 28, borderRadius: "50%",
+                                    background: "rgba(52, 211, 153, 0.15)",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    fontSize: 12, fontWeight: 700, color: "#34d399",
+                                }}>
+                                    {sub.displayName[0]?.toUpperCase() || "?"}
+                                </div>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: "#e0e0e0" }}>
+                                    {sub.displayName}
+                                </div>
+                                <div style={{ fontSize: 11, color: "#666" }}>
+                                    {sub.devices} device{sub.devices !== 1 ? "s" : ""} · {new Date(sub.lastSubscribed).toLocaleDateString()}
+                                </div>
+                            </div>
+                            <div style={{
+                                fontSize: 10, padding: "2px 8px", borderRadius: 8,
+                                background: "rgba(52, 211, 153, 0.1)", color: "#34d399",
+                                fontWeight: 600,
+                            }}>
+                                ✅ Active
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

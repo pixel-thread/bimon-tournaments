@@ -55,35 +55,37 @@ export async function POST(req: NextRequest) {
         const rawBody = await req.json();
         const { mode, roomId, password, map, matchNumber, title, body: msgBody, target, tournamentId } = testSchema.parse(rawBody);
 
-        // Build the notification payload
-        let payload: string;
+        // Build the notification payload (as object — we'll add playerId per subscription)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let basePayload: Record<string, any>;
+        const trackTag = `push-${Date.now()}`;
 
         if (mode === "broadcast") {
             if (!title || !msgBody) {
                 return ErrorResponse({ message: "Title and body are required for broadcast", status: 400 });
             }
-            payload = JSON.stringify({
+            basePayload = {
                 title,
                 body: msgBody,
                 icon: "/icons/icon-192x192.png",
                 badge: "/icons/icon-72x72.png",
                 tag: `broadcast-${Date.now()}`,
-                data: { url: "/channel" },
+                data: { url: "/channel", trackTag },
                 requireInteraction: true,
                 renotify: false,
-            });
+            };
         } else {
             const isSticky = mode === "sticky" || mode === "update";
-            payload = JSON.stringify({
+            basePayload = {
                 title: `🔐 Match ${matchNumber} — ${map}`,
                 body: `Room ID: ${roomId}\nPassword: ${password}\n\nJoin now! Lobby closing soon.`,
                 icon: "/icons/icon-192x192.png",
                 badge: "/icons/icon-72x72.png",
                 tag: isSticky ? "live-room-info" : `test-${Date.now()}`,
-                data: { url: "/channel" },
+                data: { url: "/channel", trackTag },
                 requireInteraction: isSticky,
                 renotify: mode === "update",
-            });
+            };
         }
 
         // Determine which subscriptions to send to
@@ -117,13 +119,19 @@ export async function POST(req: NextRequest) {
 
         await Promise.allSettled(
             subscriptions.map(async (sub) => {
+                // Inject playerId into the payload for this subscription
+                const perSubPayload = JSON.stringify({
+                    ...basePayload,
+                    data: { ...basePayload.data, playerId: sub.playerId },
+                });
+
                 try {
                     await webpush.sendNotification(
                         {
                             endpoint: sub.endpoint,
                             keys: { p256dh: sub.p256dh, auth: sub.auth },
                         },
-                        payload,
+                        perSubPayload,
                         { TTL: 60 * 60 }
                     );
                     results.push({
@@ -239,5 +247,67 @@ export async function DELETE() {
         });
     } catch (error) {
         return ErrorResponse({ message: "Failed to clear subscriptions", error });
+    }
+}
+
+/**
+ * GET /api/push/test
+ * Super admin only — list all push subscribers with player display names.
+ */
+export async function GET() {
+    try {
+        const user = await getCurrentUser();
+        if (!user || user.role !== "SUPER_ADMIN") {
+            return ErrorResponse({ message: "Super admin only", status: 403 });
+        }
+
+        const subscriptions = await prisma.pushSubscription.findMany({
+            include: {
+                player: {
+                    select: {
+                        id: true,
+                        displayName: true,
+                        customProfileImageUrl: true,
+                        user: { select: { imageUrl: true } },
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        // Group by player
+        const playerMap = new Map<string, {
+            playerId: string;
+            displayName: string;
+            avatar: string | null;
+            devices: number;
+            lastSubscribed: string;
+        }>();
+
+        for (const sub of subscriptions) {
+            if (!playerMap.has(sub.playerId)) {
+                playerMap.set(sub.playerId, {
+                    playerId: sub.playerId,
+                    displayName: sub.player.displayName || "Unknown",
+                    avatar: sub.player.customProfileImageUrl || sub.player.user?.imageUrl || null,
+                    devices: 0,
+                    lastSubscribed: sub.createdAt.toISOString(),
+                });
+            }
+            const entry = playerMap.get(sub.playerId)!;
+            entry.devices++;
+        }
+
+        return SuccessResponse({
+            message: "Subscribers",
+            data: {
+                totalSubscriptions: subscriptions.length,
+                uniquePlayers: playerMap.size,
+                players: Array.from(playerMap.values()),
+            },
+            cache: CACHE.NONE,
+        });
+    } catch (error) {
+        return ErrorResponse({ message: "Failed to fetch subscribers", error });
     }
 }

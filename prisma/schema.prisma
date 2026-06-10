@@ -1695,3 +1695,14 @@ model Announcement {
   @@index([authorId])
   @@index([channel])
 }
+
+model PushDelivery {
+  id        String   @id @default(uuid())
+  tag       String   // notification tag (e.g. "broadcast-1719553200000")
+  playerId  String
+  status    String   // "delivered" | "clicked"
+  createdAt DateTime @default(now())
+
+  @@index([tag])
+  @@index([playerId])
+}

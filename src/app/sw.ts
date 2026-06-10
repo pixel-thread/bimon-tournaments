@@ -32,6 +32,17 @@ serwist.addEventListeners();
 
 // ── Web Push Notifications ──────────────────────────────
 
+// Helper: report delivery/click to the server
+function trackDelivery(playerId: string, trackTag: string, status: "delivered" | "clicked") {
+    return fetch("/api/push/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag: trackTag, playerId, status }),
+    }).catch(() => {
+        // Silent fail — tracking is non-critical
+    });
+}
+
 self.addEventListener("push", (event) => {
     if (!event.data) return;
 
@@ -49,7 +60,12 @@ self.addEventListener("push", (event) => {
                 requireInteraction: requireInteraction ?? false,
                 // renotify is valid in browsers but missing from TS NotificationOptions
                 ...(renotify ? { renotify: true } : {}),
-            } as NotificationOptions)
+            } as NotificationOptions).then(() => {
+                // Track delivery after notification is shown
+                if (notifData?.playerId && notifData?.trackTag) {
+                    return trackDelivery(notifData.playerId, notifData.trackTag, "delivered");
+                }
+            })
         );
     } catch {
         // Fallback for non-JSON push
@@ -65,21 +81,37 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
     event.notification.close();
 
-    const url = event.notification.data?.url || "/notifications";
+    const notifData = event.notification.data;
+    const url = notifData?.url || "/notifications";
 
-    event.waitUntil(
-        self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-            // Focus existing tab if open
-            for (const client of clientList) {
-                if (client.url.includes(self.location.origin) && "focus" in client) {
-                    client.focus();
-                    client.navigate(url);
-                    return;
+    // Track click
+    if (notifData?.playerId && notifData?.trackTag) {
+        event.waitUntil(
+            trackDelivery(notifData.playerId, notifData.trackTag, "clicked").then(() =>
+                self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+                    for (const client of clientList) {
+                        if (client.url.includes(self.location.origin) && "focus" in client) {
+                            client.focus();
+                            client.navigate(url);
+                            return;
+                        }
+                    }
+                    return self.clients.openWindow(url);
+                })
+            )
+        );
+    } else {
+        event.waitUntil(
+            self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+                for (const client of clientList) {
+                    if (client.url.includes(self.location.origin) && "focus" in client) {
+                        client.focus();
+                        client.navigate(url);
+                        return;
+                    }
                 }
-            }
-            // Otherwise open new tab
-            return self.clients.openWindow(url);
-        })
-    );
+                return self.clients.openWindow(url);
+            })
+        );
+    }
 });
-
