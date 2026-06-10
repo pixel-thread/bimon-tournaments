@@ -506,7 +506,7 @@ export default function ChannelPage() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
-    const [initialLoad, setInitialLoad] = useState(true);
+    const [showSkeleton, setShowSkeleton] = useState(true);
 
     // Cached tournament tabs — show instantly from localStorage
     const [cachedTournaments, setCachedTournaments] = useState<ActiveTournament[]>(() => {
@@ -517,12 +517,19 @@ export default function ChannelPage() {
         } catch { return []; }
     });
 
-    // Clear cached announcements on fresh mount so message skeletons show
+    // Clear ALL cached announcements on fresh mount
     useEffect(() => {
         queryClient.removeQueries({ queryKey: ["announcements"] });
-        setInitialLoad(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Show skeleton on every tab switch
+    const handleTabSwitch = useCallback((tab: string) => {
+        if (tab === activeTab) return;
+        setShowSkeleton(true);
+        queryClient.removeQueries({ queryKey: ["announcements", tab] });
+        setActiveTab(tab);
+    }, [activeTab, queryClient]);
 
     // Fetch role + active tournaments
     const { data: roleData } = useQuery<RoleData>({
@@ -559,7 +566,7 @@ export default function ChannelPage() {
         : isAdmin || captainOfTournaments.includes(activeTab);
 
     // Fetch announcements for current tab
-    const { data, isLoading } = useQuery<{ items: Announcement[]; nextCursor: string | null }>({
+    const { data, isLoading, isFetching } = useQuery<{ items: Announcement[]; nextCursor: string | null }>({
         queryKey: ["announcements", activeTab],
         queryFn: async () => {
             const res = await fetch(`/api/announcements?channel=${activeTab}`);
@@ -570,14 +577,13 @@ export default function ChannelPage() {
         refetchInterval: 15_000,
     });
 
-    // Clear initialLoad once data arrives
+    // Hide skeleton once fresh data arrives (not on background refetch)
     useEffect(() => {
-        if (data && !isLoading) {
-            setInitialLoad(false);
+        if (data && !isLoading && !isFetching) {
+            setShowSkeleton(false);
         }
-    }, [data, isLoading]);
+    }, [data, isLoading, isFetching]);
 
-    const showSkeleton = initialLoad || isLoading;
     const announcements = data?.items || [];
 
     // Post message
@@ -690,7 +696,7 @@ export default function ChannelPage() {
                 {/* Tabs */}
                 <div className="flex px-4 gap-1 overflow-x-auto scrollbar-hide">
                     <button
-                        onClick={() => setActiveTab("general")}
+                        onClick={() => handleTabSwitch("general")}
                         className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap ${
                             activeTab === "general"
                                 ? "text-primary border-b-2 border-primary bg-primary/5"
@@ -703,7 +709,7 @@ export default function ChannelPage() {
                     {activeTournaments.map((t) => (
                         <button
                             key={t.id}
-                            onClick={() => setActiveTab(t.id)}
+                            onClick={() => handleTabSwitch(t.id)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap ${
                                 activeTab === t.id
                                     ? "text-warning border-b-2 border-warning bg-warning/5"
@@ -720,19 +726,54 @@ export default function ChannelPage() {
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto">
                 {showSkeleton ? (
-                    <div className="py-2 space-y-1">
-                        {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="flex items-start gap-3 px-4 py-3" style={{ opacity: 1 - i * 0.2 }}>
+                    <div className="py-2 space-y-1 animate-in fade-in duration-150">
+                        {[
+                            { type: "msg", w1: "w-24", w2: "w-full", w3: "w-2/3" },
+                            { type: "msg", w1: "w-16", w2: "w-4/5", w3: "w-1/2" },
+                            { type: "card" },
+                            { type: "msg", w1: "w-20", w2: "w-3/4", w3: "w-1/3" },
+                            { type: "msg", w1: "w-14", w2: "w-full", w3: "w-2/5" },
+                        ].map((row, i) => (
+                            <div key={i} className="flex items-start gap-3 px-4 py-3" style={{ opacity: 1 - i * 0.15 }}>
                                 <div className="w-8 h-8 rounded-full bg-foreground/[0.06] animate-pulse shrink-0" />
                                 <div className="flex-1 space-y-2">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-20 h-3 bg-foreground/[0.08] rounded animate-pulse" />
+                                        <div className={`${row.type === "card" ? "w-16" : row.w1} h-3 bg-foreground/[0.08] rounded animate-pulse`} />
                                         <div className="w-8 h-2.5 bg-foreground/[0.04] rounded animate-pulse" />
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <div className="w-full h-3 bg-foreground/[0.06] rounded animate-pulse" />
-                                        <div className="w-3/4 h-3 bg-foreground/[0.04] rounded animate-pulse" />
-                                    </div>
+                                    {row.type === "card" ? (
+                                        /* Room info card skeleton */
+                                        <div className="rounded-xl border border-foreground/[0.06] bg-foreground/[0.02] overflow-hidden">
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-foreground/[0.03] border-b border-foreground/[0.04]">
+                                                <div className="w-5 h-5 rounded bg-foreground/[0.06] animate-pulse" />
+                                                <div className="w-16 h-3 bg-foreground/[0.06] rounded animate-pulse" />
+                                                <div className="flex-1" />
+                                                <div className="w-12 h-3.5 bg-foreground/[0.04] rounded-md animate-pulse" />
+                                            </div>
+                                            <div className="p-3 space-y-2.5">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="space-y-1">
+                                                        <div className="w-12 h-2 bg-foreground/[0.04] rounded animate-pulse" />
+                                                        <div className="w-28 h-5 bg-foreground/[0.08] rounded animate-pulse" />
+                                                    </div>
+                                                    <div className="w-14 h-7 bg-foreground/[0.04] rounded-lg animate-pulse" />
+                                                </div>
+                                                <div className="h-px bg-foreground/[0.04]" />
+                                                <div className="flex items-center justify-between">
+                                                    <div className="space-y-1">
+                                                        <div className="w-14 h-2 bg-foreground/[0.04] rounded animate-pulse" />
+                                                        <div className="w-20 h-5 bg-foreground/[0.06] rounded animate-pulse" />
+                                                    </div>
+                                                    <div className="w-14 h-7 bg-foreground/[0.04] rounded-lg animate-pulse" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-1.5">
+                                            <div className={`${row.w2} h-3 bg-foreground/[0.06] rounded animate-pulse`} />
+                                            <div className={`${row.w3} h-3 bg-foreground/[0.04] rounded animate-pulse`} />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
