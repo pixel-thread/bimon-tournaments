@@ -131,50 +131,25 @@ export function PushGuard() {
             }
         }
 
-        // Brave browser — check if push service works
-        if (isBrave()) {
-            if (
-                Notification.permission === "granted" &&
-                localStorage.getItem(PUSH_SUBSCRIBED_KEY) === "true"
-            ) {
-                // Verify the subscription actually exists
-                hasActiveSubscription().then((active) => {
-                    if (active) {
-                        silentResubscribe(); // refresh in background
-                        setState("ok");
-                    } else {
-                        // Subscription lost — clear flag and re-prompt
-                        localStorage.removeItem(PUSH_SUBSCRIBED_KEY);
-                        setState("brave");
-                    }
-                });
-                return;
-            }
-            setState("brave");
-            return;
-        }
-
         // Already denied at browser level
         if (Notification.permission === "denied") {
             setState("denied");
             return;
         }
 
-        // localStorage says subscribed — but verify the actual subscription
-        if (localStorage.getItem(PUSH_SUBSCRIBED_KEY) === "true") {
+        // Already subscribed — verify
+        if (
+            Notification.permission === "granted" &&
+            localStorage.getItem(PUSH_SUBSCRIBED_KEY) === "true"
+        ) {
             hasActiveSubscription().then((active) => {
                 if (active) {
                     silentResubscribe(); // refresh in background
                     setState("ok");
                 } else {
-                    // Subscription was lost — clear flag, re-prompt
+                    // Subscription lost — clear flag, try auto-subscribe
                     localStorage.removeItem(PUSH_SUBSCRIBED_KEY);
-                    if (Notification.permission === "granted") {
-                        // Permission still granted — try to auto-subscribe
-                        silentResubscribe().then((ok) => setState(ok ? "ok" : "prompt"));
-                    } else {
-                        setState("prompt");
-                    }
+                    silentResubscribe().then((ok) => setState(ok ? "ok" : "prompt"));
                 }
             });
             return;
@@ -188,11 +163,12 @@ export function PushGuard() {
             return;
         }
 
-        // Permission is "default" — show modal
+        // Permission is "default" — show simple one-click modal
         setState("prompt");
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ready, isSignedIn]);
 
+    // Resubscribe logic
     const silentResubscribe = useCallback(async () => {
         try {
             // Ensure SW is registered before waiting for ready
@@ -251,10 +227,21 @@ export function PushGuard() {
             if (ok) {
                 setState("ok");
             } else {
-                setError("Subscription failed. Please refresh and try again.");
+                // Subscribe failed after permission granted
+                // On Brave this means Google push messaging is disabled
+                if (isBrave()) {
+                    setState("brave");
+                } else {
+                    setError("Subscription failed. Please refresh and try again.");
+                }
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to enable push");
+            // On Brave, subscribe throws if Google push is off
+            if (isBrave()) {
+                setState("brave");
+            } else {
+                setError(err instanceof Error ? err.message : "Failed to enable push");
+            }
         } finally {
             setSubscribing(false);
         }

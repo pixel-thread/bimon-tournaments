@@ -35,16 +35,80 @@ function isMobile(): boolean {
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
+type AndroidBrowser = "brave" | "samsung" | "firefox" | "opera" | "chrome";
+
+function detectAndroidBrowser(): AndroidBrowser {
+    const ua = navigator.userAgent;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((navigator as any).brave) return "brave";
+    if (/SamsungBrowser/i.test(ua)) return "samsung";
+    if (/Firefox/i.test(ua) && !/Seamonkey/i.test(ua)) return "firefox";
+    if (/OPR|Opera/i.test(ua)) return "opera";
+    return "chrome"; // Chrome, Edge, Chromium-based
+}
+
+/** Browser-specific install instructions for Android */
+function getAndroidInstructions(browser: AndroidBrowser): { steps: string[]; note?: string } {
+    switch (browser) {
+        case "brave":
+            return {
+                steps: [
+                    "Tap the ⋮ menu (3 dots) at the bottom right",
+                    'Tap "Add to Home screen"',
+                    "Tap Add to confirm",
+                    "Open the app from your home screen",
+                ],
+            };
+        case "samsung":
+            return {
+                steps: [
+                    "Tap the ≡ menu (3 lines) at the bottom right",
+                    'Tap "Add page to" → "Home screen"',
+                    "Tap Add to confirm",
+                    "Open the app from your home screen",
+                ],
+            };
+        case "firefox":
+            return {
+                steps: [
+                    "Tap the ⋮ menu (3 dots) at the top right",
+                    'Tap "Install"',
+                    "Tap Add to Home screen",
+                    "Open the app from your home screen",
+                ],
+            };
+        case "opera":
+            return {
+                steps: [
+                    "Tap the ⋮ menu (3 dots)",
+                    'Tap "Add to Home screen"',
+                    "Tap Add to confirm",
+                    "Open the app from your home screen",
+                ],
+            };
+        default: // chrome
+            return {
+                steps: [
+                    "Tap the ⋮ menu (3 dots) at the top right",
+                    'Tap "Add to Home screen" or "Install app"',
+                    "Tap Install to confirm",
+                    "Open the app from your home screen",
+                ],
+            };
+    }
+}
+
 type PwaState = "loading" | "ok" | "android" | "ios";
 
 /**
  * PwaInstallPrompt — Mandatory PWA install gate.
  *
  * If a signed-in player is on mobile and hasn't installed the app,
- * shows an un-closable modal with install instructions.
+ * shows an un-closable modal with browser-specific install instructions.
  *
  * - Android Chrome: Native install prompt via beforeinstallprompt
- * - iOS Safari: Step-by-step instructions (Share → Add to Home Screen)
+ * - Android Brave/Samsung/Firefox: Browser-specific manual steps
+ * - iOS Safari: Share → Add to Home Screen guide
  * - Desktop: Skipped (not mandatory)
  * - Already installed: Skipped
  */
@@ -53,6 +117,7 @@ export function PwaInstallPrompt() {
     const [state, setState] = useState<PwaState>("loading");
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [installing, setInstalling] = useState(false);
+    const [androidBrowser, setAndroidBrowser] = useState<AndroidBrowser>("chrome");
 
     useEffect(() => {
         // Delay check to let page render first
@@ -84,14 +149,15 @@ export function PwaInstallPrompt() {
                 return;
             }
 
-            // Android — wait for beforeinstallprompt
+            // Android — detect browser and wait for beforeinstallprompt
+            setAndroidBrowser(detectAndroidBrowser());
             setState("android");
         }, 3000);
 
         return () => clearTimeout(timer);
     }, [isSignedIn]);
 
-    // Listen for beforeinstallprompt (Android Chrome/Edge)
+    // Listen for beforeinstallprompt (Android Chrome/Edge/Brave)
     useEffect(() => {
         if (state !== "android") return;
 
@@ -134,6 +200,13 @@ export function PwaInstallPrompt() {
 
     if (state === "loading" || state === "ok") return null;
 
+    const instructions = getAndroidInstructions(androidBrowser);
+    const browserLabel = androidBrowser === "chrome" ? "Chrome"
+        : androidBrowser === "brave" ? "Brave"
+        : androidBrowser === "samsung" ? "Samsung Internet"
+        : androidBrowser === "firefox" ? "Firefox"
+        : "Opera";
+
     return (
         <Modal
             isOpen={true}
@@ -150,7 +223,7 @@ export function PwaInstallPrompt() {
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-5 text-center"
                     >
-                        {/* ── Android: Native install ── */}
+                        {/* ── Android ── */}
                         {state === "android" && (
                             <>
                                 <div className="flex justify-center">
@@ -189,21 +262,18 @@ export function PwaInstallPrompt() {
                                         {installing ? "Installing..." : "Install App"}
                                     </Button>
                                 ) : (
-                                    /* Prompt not fired yet — show manual instructions */
+                                    /* Browser-specific manual instructions */
                                     <>
                                         <div className="text-left space-y-3 bg-foreground/[0.03] rounded-lg p-4">
-                                            <div className="flex items-start gap-3 text-sm text-foreground/70">
-                                                <span className="text-lg shrink-0">1.</span>
-                                                <span>Tap the <strong>⋮ menu</strong> (3 dots) at the top right</span>
-                                            </div>
-                                            <div className="flex items-start gap-3 text-sm text-foreground/70">
-                                                <span className="text-lg shrink-0">2.</span>
-                                                <span>Tap <strong>&quot;Add to Home screen&quot;</strong> or <strong>&quot;Install app&quot;</strong></span>
-                                            </div>
-                                            <div className="flex items-start gap-3 text-sm text-foreground/70">
-                                                <span className="text-lg shrink-0">3.</span>
-                                                <span>Open the app from your home screen</span>
-                                            </div>
+                                            <p className="text-[10px] font-medium text-foreground/40 uppercase tracking-wider mb-2">
+                                                Steps for {browserLabel}
+                                            </p>
+                                            {instructions.steps.map((step, i) => (
+                                                <div key={i} className="flex items-start gap-3 text-sm text-foreground/70">
+                                                    <span className="text-lg shrink-0 font-semibold text-primary/60">{i + 1}.</span>
+                                                    <span dangerouslySetInnerHTML={{ __html: step.replace(/"([^"]+)"/g, '<strong>"$1"</strong>') }} />
+                                                </div>
+                                            ))}
                                         </div>
                                         <Button
                                             color="default"
@@ -234,24 +304,27 @@ export function PwaInstallPrompt() {
                                     </p>
                                 </div>
                                 <div className="text-left space-y-3 bg-foreground/[0.03] rounded-lg p-4">
+                                    <p className="text-[10px] font-medium text-foreground/40 uppercase tracking-wider mb-2">
+                                        Steps for Safari
+                                    </p>
                                     <div className="flex items-center gap-3 text-sm text-foreground/70">
-                                        <span className="text-lg shrink-0">1.</span>
+                                        <span className="text-lg shrink-0 font-semibold text-primary/60">1.</span>
                                         <span>
-                                            Tap the <Share className="w-4 h-4 inline text-primary" /> <strong>Share</strong> button at the bottom of Safari
+                                            Tap the <Share className="w-4 h-4 inline text-primary" /> <strong>Share</strong> button at the bottom
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-foreground/70">
-                                        <span className="text-lg shrink-0">2.</span>
+                                        <span className="text-lg shrink-0 font-semibold text-primary/60">2.</span>
                                         <span>
                                             Scroll down and tap <Plus className="w-4 h-4 inline text-primary" /> <strong>&quot;Add to Home Screen&quot;</strong>
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-foreground/70">
-                                        <span className="text-lg shrink-0">3.</span>
+                                        <span className="text-lg shrink-0 font-semibold text-primary/60">3.</span>
                                         <span>Tap <strong>Add</strong> in the top right</span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-foreground/70">
-                                        <span className="text-lg shrink-0">4.</span>
+                                        <span className="text-lg shrink-0 font-semibold text-primary/60">4.</span>
                                         <span>Open the app from your home screen</span>
                                     </div>
                                 </div>
