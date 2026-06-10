@@ -1,21 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { Send, Bell, RefreshCw, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
+import { Send, Bell, Loader2, CheckCircle, AlertTriangle, Megaphone } from "lucide-react";
 
-type Mode = "normal" | "sticky" | "update";
+type SendingState = string | null;
 
 export default function PushTestPage() {
     const [roomId, setRoomId] = useState("ABCD1234");
     const [password, setPassword] = useState("9876");
     const [map, setMap] = useState("Erangel");
     const [matchNumber, setMatchNumber] = useState(1);
-    const [sending, setSending] = useState<Mode | null>(null);
+    const [sending, setSending] = useState<SendingState>(null);
     const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [diagnostics, setDiagnostics] = useState<any>(null);
 
-    async function sendTest(mode: Mode) {
+    // Broadcast fields
+    const [broadcastTitle, setBroadcastTitle] = useState("");
+    const [broadcastBody, setBroadcastBody] = useState("");
+
+    async function sendTest(mode: string) {
         setSending(mode);
         setResult(null);
         setDiagnostics(null);
@@ -29,8 +33,41 @@ export default function PushTestPage() {
             setDiagnostics(data.data);
             setResult({
                 ok: data.success,
+                message: data.message || (data.success ? `✅ Sent! (${mode})` : `❌ ${data.message}`),
+            });
+        } catch {
+            setResult({ ok: false, message: "❌ Network error" });
+        } finally {
+            setSending(null);
+        }
+    }
+
+    async function sendBroadcast(target: "self" | "all") {
+        if (!broadcastTitle.trim() || !broadcastBody.trim()) {
+            setResult({ ok: false, message: "❌ Title and message are required" });
+            return;
+        }
+        const key = `broadcast-${target}`;
+        setSending(key);
+        setResult(null);
+        setDiagnostics(null);
+        try {
+            const res = await fetch("/api/push/test", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    mode: "broadcast",
+                    target,
+                    title: broadcastTitle.trim(),
+                    body: broadcastBody.trim(),
+                }),
+            });
+            const data = await res.json();
+            setDiagnostics(data.data);
+            setResult({
+                ok: data.success,
                 message: data.message || (data.success
-                    ? `✅ Sent! (${mode})`
+                    ? `✅ Broadcast sent to ${data.data?.delivered || 0} device(s)!`
                     : `❌ ${data.message}`),
             });
         } catch {
@@ -40,6 +77,28 @@ export default function PushTestPage() {
         }
     }
 
+    const inputStyle: React.CSSProperties = {
+        width: "100%",
+        padding: "10px 12px",
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 8,
+        color: "#fff",
+        fontSize: 14,
+        outline: "none",
+        boxSizing: "border-box",
+    };
+
+    const labelStyle: React.CSSProperties = {
+        fontSize: 11,
+        fontWeight: 600,
+        color: "#888",
+        textTransform: "uppercase",
+        letterSpacing: "0.05em",
+        display: "block",
+        marginBottom: 6,
+    };
+
     return (
         <div style={{
             minHeight: "100dvh",
@@ -48,22 +107,12 @@ export default function PushTestPage() {
             padding: "24px 16px",
             fontFamily: "system-ui, -apple-system, sans-serif",
         }}>
-            <div style={{
-                maxWidth: 480,
-                margin: "0 auto",
-            }}>
+            <div style={{ maxWidth: 480, margin: "0 auto" }}>
                 {/* Header */}
-                <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    marginBottom: 32,
-                }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32 }}>
                     <Bell style={{ width: 24, height: 24, color: "#818cf8" }} />
                     <h1 style={{
-                        fontSize: 22,
-                        fontWeight: 700,
-                        margin: 0,
+                        fontSize: 22, fontWeight: 700, margin: 0,
                         background: "linear-gradient(90deg, #818cf8, #a78bfa)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
@@ -72,312 +121,228 @@ export default function PushTestPage() {
                     </h1>
                 </div>
 
-                {/* Info box */}
+                {/* ═══════════ BROADCAST MESSAGE ═══════════ */}
                 <div style={{
-                    background: "rgba(129, 140, 248, 0.08)",
-                    border: "1px solid rgba(129, 140, 248, 0.2)",
-                    borderRadius: 12,
-                    padding: "14px 16px",
-                    marginBottom: 24,
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                    color: "#a0a0b8",
+                    background: "linear-gradient(135deg, rgba(251, 146, 60, 0.08), rgba(249, 115, 22, 0.04))",
+                    border: "1px solid rgba(251, 146, 60, 0.25)",
+                    borderRadius: 16,
+                    padding: "20px",
+                    marginBottom: 32,
                 }}>
-                    <strong style={{ color: "#818cf8" }}>How to test:</strong>
-                    <ol style={{ margin: "8px 0 0", paddingLeft: 18 }}>
-                        <li>Open this page on your <strong>PC</strong></li>
-                        <li>Make sure push is enabled on your <strong>Android phone</strong> (visit the site → enable notifications)</li>
-                        <li>Click the buttons below to send test notifications to your phone</li>
-                    </ol>
-                </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                        <Megaphone style={{ width: 20, height: 20, color: "#fb923c" }} />
+                        <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "#fb923c" }}>
+                            Broadcast Message
+                        </h2>
+                    </div>
 
-                {/* Subscribe this browser + Clear old */}
-                <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-                    <button
-                        onClick={async () => {
-                            try {
-                                // Step 1: Check support
-                                if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-                                    alert("❌ Push not supported in this browser");
-                                    return;
-                                }
-
-                                // Step 2: Request permission
-                                const permission = await Notification.requestPermission();
-                                if (permission !== "granted") {
-                                    alert(`❌ Permission ${permission}`);
-                                    return;
-                                }
-
-                                // Step 3: Get SW registration
-                                const reg = await Promise.race([
-                                    navigator.serviceWorker.ready,
-                                    new Promise<never>((_, rej) => setTimeout(() => rej(new Error("SW timeout 10s")), 10000)),
-                                ]);
-
-                                // Step 4: Unsubscribe old
-                                const old = await reg.pushManager.getSubscription();
-                                if (old) await old.unsubscribe();
-
-                                // Step 5: Subscribe
-                                const vapidKey = process.env.NEXT_PUBLIC_VAPID_TOKEN;
-                                if (!vapidKey) { alert("❌ VAPID key missing"); return; }
-
-                                const padding = "=".repeat((4 - (vapidKey.length % 4)) % 4);
-                                const b64 = (vapidKey + padding).replace(/-/g, "+").replace(/_/g, "/");
-                                const raw = atob(b64);
-                                const arr = new Uint8Array(raw.length);
-                                for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-
-                                const sub = await reg.pushManager.subscribe({
-                                    userVisibleOnly: true,
-                                    applicationServerKey: arr,
-                                });
-
-                                // Step 6: Save to server
-                                const json = sub.toJSON();
-                                const res = await fetch("/api/push/subscribe", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-                                });
-                                const data = await res.json();
-
-                                if (data.success) {
-                                    alert("✅ Subscribed! Now click a test button.");
-                                } else {
-                                    alert(`❌ Save failed: ${data.message}`);
-                                }
-                            } catch (err) {
-                                alert(`❌ Error: ${err instanceof Error ? err.message : String(err)}`);
-                            }
-                        }}
-                        style={{
-                            flex: 1,
-                            padding: "12px",
-                            borderRadius: 10,
-                            border: "1px solid rgba(52, 211, 153, 0.3)",
-                            background: "rgba(52, 211, 153, 0.08)",
-                            color: "#34d399",
-                            fontSize: 13,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                        }}
-                    >
-                        🔔 Subscribe THIS browser
-                    </button>
-
-                    <button
-                        onClick={async () => {
-                            const res = await fetch("/api/push/test", { method: "DELETE" });
-                            const data = await res.json();
-                            alert(data.message);
-                            setDiagnostics(null);
-                            setResult(null);
-                        }}
-                        style={{
-                            flex: 1,
-                            padding: "12px",
-                            borderRadius: 10,
-                            border: "1px solid rgba(239, 68, 68, 0.3)",
-                            background: "rgba(239, 68, 68, 0.08)",
-                            color: "#ef4444",
-                            fontSize: 13,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                        }}
-                    >
-                        🗑️ Clear old subs
-                    </button>
-                </div>
-
-                {/* Form fields */}
-                <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 12,
-                    marginBottom: 24,
-                }}>
-                    {[
-                        { label: "Room ID", value: roomId, set: setRoomId },
-                        { label: "Password", value: password, set: setPassword },
-                        { label: "Map", value: map, set: setMap },
-                    ].map(({ label, value, set }) => (
-                        <div key={label}>
-                            <label style={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                color: "#888",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.05em",
-                                display: "block",
-                                marginBottom: 6,
-                            }}>{label}</label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+                        <div>
+                            <label style={labelStyle}>Title</label>
                             <input
-                                value={value}
-                                onChange={(e) => set(e.target.value)}
+                                value={broadcastTitle}
+                                onChange={(e) => setBroadcastTitle(e.target.value)}
+                                placeholder="e.g. Tournament Update"
+                                style={inputStyle}
+                            />
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Message</label>
+                            <textarea
+                                value={broadcastBody}
+                                onChange={(e) => setBroadcastBody(e.target.value)}
+                                placeholder="Type your message here..."
+                                rows={3}
                                 style={{
-                                    width: "100%",
-                                    padding: "10px 12px",
-                                    background: "rgba(255,255,255,0.06)",
-                                    border: "1px solid rgba(255,255,255,0.1)",
-                                    borderRadius: 8,
-                                    color: "#fff",
-                                    fontSize: 14,
-                                    outline: "none",
-                                    boxSizing: "border-box",
+                                    ...inputStyle,
+                                    resize: "vertical",
+                                    minHeight: 60,
                                 }}
                             />
                         </div>
-                    ))}
-                    <div>
-                        <label style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: "#888",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                            display: "block",
-                            marginBottom: 6,
-                        }}>Match #</label>
-                        <input
-                            type="number"
-                            value={matchNumber}
-                            onChange={(e) => setMatchNumber(Number(e.target.value))}
-                            min={1}
+                    </div>
+
+                    <div style={{ display: "flex", gap: 10 }}>
+                        <button
+                            onClick={() => sendBroadcast("self")}
+                            disabled={!!sending}
                             style={{
-                                width: "100%",
-                                padding: "10px 12px",
-                                background: "rgba(255,255,255,0.06)",
-                                border: "1px solid rgba(255,255,255,0.1)",
-                                borderRadius: 8,
-                                color: "#fff",
-                                fontSize: 14,
-                                outline: "none",
-                                boxSizing: "border-box",
+                                flex: 1, padding: "12px", borderRadius: 10,
+                                border: "1px solid rgba(129, 140, 248, 0.3)",
+                                background: "rgba(129, 140, 248, 0.1)",
+                                color: "#818cf8", fontSize: 13, fontWeight: 600,
+                                cursor: sending ? "not-allowed" : "pointer",
+                                opacity: sending && sending !== "broadcast-self" ? 0.4 : 1,
+                                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                             }}
-                        />
+                        >
+                            {sending === "broadcast-self"
+                                ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+                                : <Send style={{ width: 14, height: 14 }} />
+                            }
+                            Send to Me
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (confirm(`🚨 This will send a push notification to ALL subscribed players.\n\nTitle: ${broadcastTitle}\nMessage: ${broadcastBody}\n\nContinue?`)) {
+                                    sendBroadcast("all");
+                                }
+                            }}
+                            disabled={!!sending}
+                            style={{
+                                flex: 1, padding: "12px", borderRadius: 10,
+                                border: "1px solid rgba(251, 146, 60, 0.3)",
+                                background: "linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(249, 115, 22, 0.1))",
+                                color: "#fb923c", fontSize: 13, fontWeight: 600,
+                                cursor: sending ? "not-allowed" : "pointer",
+                                opacity: sending && sending !== "broadcast-all" ? 0.4 : 1,
+                                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                            }}
+                        >
+                            {sending === "broadcast-all"
+                                ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+                                : <Megaphone style={{ width: 14, height: 14 }} />
+                            }
+                            Broadcast ALL
+                        </button>
                     </div>
                 </div>
 
-                {/* Test buttons */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {/* Normal notification */}
-                    <button
-                        onClick={() => sendTest("normal")}
-                        disabled={!!sending}
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            padding: "14px 18px",
-                            borderRadius: 12,
-                            border: "1px solid rgba(255,255,255,0.1)",
-                            background: "rgba(255,255,255,0.04)",
-                            color: "#e0e0e0",
-                            fontSize: 14,
-                            fontWeight: 600,
-                            cursor: sending ? "not-allowed" : "pointer",
-                            opacity: sending && sending !== "normal" ? 0.4 : 1,
-                            transition: "all 0.2s",
-                        }}
-                    >
-                        {sending === "normal"
-                            ? <Loader2 style={{ width: 18, height: 18, animation: "spin 1s linear infinite" }} />
-                            : <Send style={{ width: 18, height: 18, color: "#60a5fa" }} />
-                        }
-                        <div style={{ textAlign: "left" }}>
-                            <div>Normal Notification</div>
-                            <div style={{ fontSize: 11, color: "#888", fontWeight: 400 }}>
-                                Auto-dismisses after a few seconds (default behavior)
-                            </div>
-                        </div>
-                    </button>
+                {/* ═══════════ ROOM INFO TEST ═══════════ */}
+                <div style={{
+                    background: "rgba(129, 140, 248, 0.04)",
+                    border: "1px solid rgba(129, 140, 248, 0.15)",
+                    borderRadius: 16,
+                    padding: "20px",
+                    marginBottom: 24,
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                        <Bell style={{ width: 18, height: 18, color: "#818cf8" }} />
+                        <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#818cf8" }}>
+                            Room Info Test (self only)
+                        </h2>
+                    </div>
 
-                    {/* Sticky notification */}
-                    <button
-                        onClick={() => sendTest("sticky")}
-                        disabled={!!sending}
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            padding: "14px 18px",
-                            borderRadius: 12,
-                            border: "1px solid rgba(129, 140, 248, 0.3)",
-                            background: "linear-gradient(135deg, rgba(129, 140, 248, 0.12), rgba(167, 139, 250, 0.08))",
-                            color: "#e0e0e0",
-                            fontSize: 14,
-                            fontWeight: 600,
-                            cursor: sending ? "not-allowed" : "pointer",
-                            opacity: sending && sending !== "sticky" ? 0.4 : 1,
-                            transition: "all 0.2s",
-                        }}
-                    >
-                        {sending === "sticky"
-                            ? <Loader2 style={{ width: 18, height: 18, animation: "spin 1s linear infinite" }} />
-                            : <Bell style={{ width: 18, height: 18, color: "#818cf8" }} />
-                        }
-                        <div style={{ textAlign: "left" }}>
-                            <div>🔒 Sticky Notification</div>
-                            <div style={{ fontSize: 11, color: "#888", fontWeight: 400 }}>
-                                Stays pinned until you swipe it away (Android only)
-                            </div>
-                        </div>
-                    </button>
+                    {/* Subscribe + Clear */}
+                    <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                        <button
+                            onClick={async () => {
+                                try {
+                                    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+                                        alert("❌ Push not supported"); return;
+                                    }
+                                    const permission = await Notification.requestPermission();
+                                    if (permission !== "granted") { alert(`❌ Permission ${permission}`); return; }
+                                    const registrations = await navigator.serviceWorker.getRegistrations();
+                                    if (registrations.length === 0) {
+                                        await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+                                    }
+                                    const reg = await Promise.race([
+                                        navigator.serviceWorker.ready,
+                                        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("SW timeout")), 10000)),
+                                    ]);
+                                    const old = await reg.pushManager.getSubscription();
+                                    if (old) await old.unsubscribe();
+                                    const vapidKey = process.env.NEXT_PUBLIC_VAPID_TOKEN;
+                                    if (!vapidKey) { alert("❌ VAPID key missing"); return; }
+                                    const padding = "=".repeat((4 - (vapidKey.length % 4)) % 4);
+                                    const b64 = (vapidKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+                                    const raw = atob(b64);
+                                    const arr = new Uint8Array(raw.length);
+                                    for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+                                    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: arr });
+                                    const json = sub.toJSON();
+                                    const res = await fetch("/api/push/subscribe", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+                                    });
+                                    const data = await res.json();
+                                    alert(data.success ? "✅ Subscribed!" : `❌ ${data.message}`);
+                                } catch (err) {
+                                    alert(`❌ ${err instanceof Error ? err.message : String(err)}`);
+                                }
+                            }}
+                            style={{
+                                flex: 1, padding: "10px", borderRadius: 8,
+                                border: "1px solid rgba(52, 211, 153, 0.3)",
+                                background: "rgba(52, 211, 153, 0.08)",
+                                color: "#34d399", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                            }}
+                        >
+                            🔔 Subscribe
+                        </button>
+                        <button
+                            onClick={async () => {
+                                const res = await fetch("/api/push/test", { method: "DELETE" });
+                                const data = await res.json();
+                                alert(data.message);
+                                setDiagnostics(null); setResult(null);
+                            }}
+                            style={{
+                                flex: 1, padding: "10px", borderRadius: 8,
+                                border: "1px solid rgba(239, 68, 68, 0.3)",
+                                background: "rgba(239, 68, 68, 0.08)",
+                                color: "#ef4444", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                            }}
+                        >
+                            🗑️ Clear subs
+                        </button>
+                    </div>
 
-                    {/* Update existing */}
-                    <button
-                        onClick={() => {
-                            setMatchNumber((n) => n + 1);
-                            sendTest("update");
-                        }}
-                        disabled={!!sending}
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            padding: "14px 18px",
-                            borderRadius: 12,
-                            border: "1px solid rgba(52, 211, 153, 0.3)",
-                            background: "linear-gradient(135deg, rgba(52, 211, 153, 0.12), rgba(16, 185, 129, 0.08))",
-                            color: "#e0e0e0",
-                            fontSize: 14,
-                            fontWeight: 600,
-                            cursor: sending ? "not-allowed" : "pointer",
-                            opacity: sending && sending !== "update" ? 0.4 : 1,
-                            transition: "all 0.2s",
-                        }}
-                    >
-                        {sending === "update"
-                            ? <Loader2 style={{ width: 18, height: 18, animation: "spin 1s linear infinite" }} />
-                            : <RefreshCw style={{ width: 18, height: 18, color: "#34d399" }} />
-                        }
-                        <div style={{ textAlign: "left" }}>
-                            <div>🔄 Update Existing Notification</div>
-                            <div style={{ fontSize: 11, color: "#888", fontWeight: 400 }}>
-                                Replaces the sticky notification in-place with new match info + vibrates
+                    {/* Form fields */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                        {[
+                            { label: "Room ID", value: roomId, set: setRoomId },
+                            { label: "Password", value: password, set: setPassword },
+                            { label: "Map", value: map, set: setMap },
+                        ].map(({ label, value, set }) => (
+                            <div key={label}>
+                                <label style={labelStyle}>{label}</label>
+                                <input value={value} onChange={(e) => set(e.target.value)} style={inputStyle} />
                             </div>
+                        ))}
+                        <div>
+                            <label style={labelStyle}>Match #</label>
+                            <input type="number" value={matchNumber} onChange={(e) => setMatchNumber(Number(e.target.value))} min={1} style={inputStyle} />
                         </div>
-                    </button>
+                    </div>
+
+                    {/* Test buttons */}
+                    <div style={{ display: "flex", gap: 8 }}>
+                        {[
+                            { mode: "normal", label: "📨 Normal", color: "#e0e0e0", border: "rgba(255,255,255,0.1)", bg: "rgba(255,255,255,0.04)" },
+                            { mode: "sticky", label: "🔒 Sticky", color: "#818cf8", border: "rgba(129,140,248,0.3)", bg: "rgba(129,140,248,0.08)" },
+                            { mode: "update", label: "🔄 Update", color: "#34d399", border: "rgba(52,211,153,0.3)", bg: "rgba(52,211,153,0.08)" },
+                        ].map(({ mode, label, color, border, bg }) => (
+                            <button
+                                key={mode}
+                                onClick={() => {
+                                    if (mode === "update") setMatchNumber((n) => n + 1);
+                                    sendTest(mode);
+                                }}
+                                disabled={!!sending}
+                                style={{
+                                    flex: 1, padding: "10px", borderRadius: 8,
+                                    border: `1px solid ${border}`, background: bg,
+                                    color, fontSize: 12, fontWeight: 600,
+                                    cursor: sending ? "not-allowed" : "pointer",
+                                    opacity: sending && sending !== mode ? 0.4 : 1,
+                                }}
+                            >
+                                {sending === mode ? "..." : label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Result */}
                 {result && (
                     <div style={{
-                        marginTop: 20,
-                        padding: "12px 16px",
-                        borderRadius: 10,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        fontSize: 14,
-                        background: result.ok
-                            ? "rgba(52, 211, 153, 0.1)"
-                            : "rgba(239, 68, 68, 0.1)",
-                        border: `1px solid ${result.ok
-                            ? "rgba(52, 211, 153, 0.3)"
-                            : "rgba(239, 68, 68, 0.3)"}`,
+                        marginTop: 20, padding: "12px 16px", borderRadius: 10,
+                        display: "flex", alignItems: "center", gap: 8, fontSize: 14,
+                        background: result.ok ? "rgba(52,211,153,0.1)" : "rgba(239,68,68,0.1)",
+                        border: `1px solid ${result.ok ? "rgba(52,211,153,0.3)" : "rgba(239,68,68,0.3)"}`,
                         color: result.ok ? "#34d399" : "#ef4444",
                     }}>
                         {result.ok
@@ -391,40 +356,32 @@ export default function PushTestPage() {
                 {/* Diagnostics */}
                 {diagnostics && (
                     <div style={{
-                        marginTop: 16,
-                        padding: "16px",
-                        background: "rgba(255,255,255,0.03)",
-                        borderRadius: 12,
+                        marginTop: 16, padding: "16px",
+                        background: "rgba(255,255,255,0.03)", borderRadius: 12,
                         border: "1px solid rgba(255,255,255,0.08)",
-                        fontSize: 13,
-                        lineHeight: 1.7,
+                        fontSize: 13, lineHeight: 1.7,
                     }}>
-                        <h3 style={{
-                            fontSize: 13,
-                            fontWeight: 700,
-                            margin: "0 0 10px",
-                            color: "#818cf8",
-                        }}>📊 Diagnostics</h3>
+                        <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 10px", color: "#818cf8" }}>
+                            📊 Diagnostics
+                        </h3>
                         <div style={{ color: "#a0a0b8" }}>
-                            <div><strong>Player ID:</strong> <code style={{ color: "#888", fontSize: 11 }}>{diagnostics.playerId}</code></div>
-                            <div><strong>Subscriptions found:</strong> {diagnostics.subscriptionCount ?? "N/A"}</div>
+                            <div><strong>Target:</strong> {diagnostics.target || "self"}</div>
+                            <div><strong>Subscriptions:</strong> {diagnostics.subscriptionCount ?? "N/A"}</div>
+                            <div><strong>Delivered:</strong> {diagnostics.delivered ?? "N/A"}</div>
                             {diagnostics.staleRemoved > 0 && (
-                                <div style={{ color: "#f59e0b" }}>⚠️ Removed {diagnostics.staleRemoved} stale subscription(s)</div>
+                                <div style={{ color: "#f59e0b" }}>⚠️ Removed {diagnostics.staleRemoved} stale sub(s)</div>
                             )}
                             {diagnostics.hint && (
                                 <div style={{ color: "#f59e0b", marginTop: 8 }}>💡 {diagnostics.hint}</div>
                             )}
                         </div>
-                        {diagnostics.results && diagnostics.results.length > 0 && (
+                        {diagnostics.results?.length > 0 && (
                             <div style={{ marginTop: 12 }}>
-                                <strong style={{ color: "#a0a0b8" }}>Per-device results:</strong>
+                                <strong style={{ color: "#a0a0b8" }}>Per-device:</strong>
                                 {diagnostics.results.map((r: { endpoint: string; status: string; error?: string }, i: number) => (
                                     <div key={i} style={{
-                                        marginTop: 6,
-                                        padding: "8px 10px",
-                                        background: "rgba(255,255,255,0.03)",
-                                        borderRadius: 8,
-                                        fontSize: 12,
+                                        marginTop: 6, padding: "8px 10px",
+                                        background: "rgba(255,255,255,0.03)", borderRadius: 8, fontSize: 12,
                                         color: r.status.includes("✅") ? "#34d399" : "#ef4444",
                                     }}>
                                         <div>{r.status}</div>
@@ -436,34 +393,6 @@ export default function PushTestPage() {
                         )}
                     </div>
                 )}
-
-                {/* What to check */}
-                <div style={{
-                    marginTop: 32,
-                    padding: "16px",
-                    background: "rgba(255,255,255,0.03)",
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.06)",
-                }}>
-                    <h3 style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        margin: "0 0 12px",
-                        color: "#a0a0b8",
-                    }}>🧪 What to verify on your phone:</h3>
-                    <ul style={{
-                        margin: 0,
-                        paddingLeft: 18,
-                        fontSize: 13,
-                        lineHeight: 1.8,
-                        color: "#888",
-                    }}>
-                        <li><strong>Normal:</strong> Shows briefly, goes to notification tray</li>
-                        <li><strong>Sticky:</strong> Stays on screen / in tray until you swipe it</li>
-                        <li><strong>Update:</strong> Replaces the sticky one with new match info, vibrates again</li>
-                        <li>Can you read Room ID + Password from the notification without opening the app?</li>
-                    </ul>
-                </div>
             </div>
 
             <style>{`

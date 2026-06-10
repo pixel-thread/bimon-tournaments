@@ -18,17 +18,23 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
 }
 
 const testSchema = z.object({
-    mode: z.enum(["normal", "sticky", "update"]).default("sticky"),
+    mode: z.enum(["normal", "sticky", "update", "broadcast"]).default("sticky"),
     roomId: z.string().default("ABCD1234"),
     password: z.string().default("9876"),
     map: z.string().default("Erangel"),
     matchNumber: z.number().default(1),
+    // Custom message fields (used when mode = "broadcast" or "self")
+    title: z.string().optional(),
+    body: z.string().optional(),
+    target: z.enum(["self", "all"]).default("self"),
 });
 
 /**
  * POST /api/push/test
- * Super admin only — sends a mock room-info notification to yourself.
- * Returns detailed diagnostic info for debugging.
+ * Super admin only.
+ * - mode=broadcast + target=all: custom message to ALL subscribers
+ * - mode=broadcast + target=self: custom message to yourself
+ * - mode=sticky/normal/update: mock room-info to yourself
  */
 export async function POST(req: NextRequest) {
     try {
@@ -44,40 +50,66 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        const body = await req.json();
-        const { mode, roomId, password, map, matchNumber } = testSchema.parse(body);
+        const rawBody = await req.json();
+        const { mode, roomId, password, map, matchNumber, title, body: msgBody, target } = testSchema.parse(rawBody);
 
-        const isSticky = mode === "sticky" || mode === "update";
+        // Build the notification payload
+        let payload: string;
 
-        // Find all subscriptions for this player
-        const subscriptions = await prisma.pushSubscription.findMany({
-            where: { playerId: user.player.id },
-        });
+        if (mode === "broadcast") {
+            if (!title || !msgBody) {
+                return ErrorResponse({ message: "Title and body are required for broadcast", status: 400 });
+            }
+            payload = JSON.stringify({
+                title,
+                body: msgBody,
+                icon: "/icons/icon-192x192.png",
+                badge: "/icons/icon-72x72.png",
+                tag: `broadcast-${Date.now()}`,
+                data: { url: "/channel" },
+                requireInteraction: true,
+                renotify: false,
+            });
+        } else {
+            const isSticky = mode === "sticky" || mode === "update";
+            payload = JSON.stringify({
+                title: `🔐 Match ${matchNumber} — ${map}`,
+                body: `Room ID: ${roomId}\nPassword: ${password}\n\nJoin now! Lobby closing soon.`,
+                icon: "/icons/icon-192x192.png",
+                badge: "/icons/icon-72x72.png",
+                tag: isSticky ? "live-room-info" : `test-${Date.now()}`,
+                data: { url: "/channel" },
+                requireInteraction: isSticky,
+                renotify: mode === "update",
+            });
+        }
+
+        // Determine which subscriptions to send to
+        let subscriptions;
+        if (mode === "broadcast" && target === "all") {
+            subscriptions = await prisma.pushSubscription.findMany();
+        } else {
+            subscriptions = await prisma.pushSubscription.findMany({
+                where: { playerId: user.player.id },
+            });
+        }
 
         if (subscriptions.length === 0) {
             return SuccessResponse({
-                message: "⚠️ No push subscriptions found for your player account!",
+                message: "⚠️ No push subscriptions found!",
                 data: {
                     playerId: user.player.id,
+                    target,
                     subscriptionCount: 0,
-                    hint: "Open the site on your phone, enable notifications, then try again.",
+                    hint: target === "all"
+                        ? "No players have subscribed to push notifications yet."
+                        : "Open the site on your phone, enable notifications, then try again.",
                 },
                 cache: CACHE.NONE,
             });
         }
 
         // Send to each subscription and collect results
-        const message = JSON.stringify({
-            title: `🔐 Match ${matchNumber} — ${map}`,
-            body: `Room ID: ${roomId}\nPassword: ${password}\n\nJoin now! Lobby closing soon.`,
-            icon: "/icons/icon-192x192.png",
-            badge: "/icons/icon-72x72.png",
-            tag: isSticky ? "live-room-info" : `test-${Date.now()}`,
-            data: { url: "/vote" },
-            requireInteraction: isSticky,
-            renotify: mode === "update",
-        });
-
         const results: { endpoint: string; status: string; error?: string }[] = [];
         const staleIds: string[] = [];
 
@@ -89,7 +121,7 @@ export async function POST(req: NextRequest) {
                             endpoint: sub.endpoint,
                             keys: { p256dh: sub.p256dh, auth: sub.auth },
                         },
-                        message,
+                        payload,
                         { TTL: 60 * 60 }
                     );
                     results.push({
@@ -125,11 +157,13 @@ export async function POST(req: NextRequest) {
         }
 
         return SuccessResponse({
-            message: `Push test complete`,
+            message: `Push ${mode === "broadcast" ? "broadcast" : "test"} complete`,
             data: {
                 playerId: user.player.id,
                 mode,
+                target,
                 subscriptionCount: subscriptions.length,
+                delivered: results.filter((r) => r.status.includes("✅")).length,
                 staleRemoved: staleIds.length,
                 results,
             },
@@ -137,7 +171,7 @@ export async function POST(req: NextRequest) {
         });
     } catch (error) {
         return ErrorResponse({
-            message: "Failed to send test notification",
+            message: "Failed to send notification",
             error,
         });
     }
