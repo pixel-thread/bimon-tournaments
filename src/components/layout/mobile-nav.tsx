@@ -153,9 +153,11 @@ export function MobileNav() {
                             onClick={() => {
                                 if (!isActive) setNavigatingTo(tab.href);
                             }}
-                            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors ${isActive
+                            className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors ${isActive
                                 ? "game-nav-active"
-                                : "text-foreground/50 active:text-foreground"
+                                : tab.label === "Channel"
+                                    ? "text-primary active:text-primary"
+                                    : "text-foreground/50 active:text-foreground"
                                 }`}
                         >
                             {isLoading ? (
@@ -178,10 +180,15 @@ export function MobileNav() {
                                     </div>
                                 )
                             ) : tab.icon ? (
-                                <tab.icon
-                                    className={`h-5 w-5 transition-transform ${isActive ? "scale-110" : ""}`}
-                                    strokeWidth={isActive ? 2.5 : 1.5}
-                                />
+                                <div className="relative">
+                                    <tab.icon
+                                        className={`h-5 w-5 transition-transform ${isActive ? "scale-110" : ""} ${tab.label === "Channel" && !isActive ? "text-primary" : ""}`}
+                                        strokeWidth={isActive ? 2.5 : 1.5}
+                                    />
+                                    {tab.label === "Channel" && !isActive && (
+                                        <span className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                                    )}
+                                </div>
                             ) : null}
                             {tab.label === "Vote" && pendingInviteCount > 0 && !isActive && (
                                 <span className="absolute top-1.5 right-1/2 translate-x-4 h-2 w-2 rounded-full bg-danger animate-pulse" />
@@ -189,7 +196,7 @@ export function MobileNav() {
                             {isProfile && pendingClanInviteCount > 0 && !isActive && (
                                 <span className="absolute top-1.5 right-1/2 translate-x-4 h-2 w-2 rounded-full bg-danger animate-pulse" />
                             )}
-                            <span className={`max-w-[64px] truncate ${isActive ? "font-semibold" : "font-normal"}`}>
+                            <span className={`max-w-[64px] truncate ${isActive ? "font-semibold" : tab.label === "Channel" ? "font-medium" : "font-normal"}`}>
                                 {isProfile ? profileLabel : tab.label}
                             </span>
                             {isActive && (
