@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toPng, toJpeg } from "html-to-image";
 import { toast } from "sonner";
-import { X, Copy, Check, Send, Loader2 } from "lucide-react";
+import { X, Copy, Check, Send, Loader2, Smartphone } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -50,6 +50,8 @@ export function SlotsModal({
     const [shareSuccess, setShareSuccess] = useState(false);
     const [discordSending, setDiscordSending] = useState(false);
     const [discordSent, setDiscordSent] = useState(false);
+    const [appSending, setAppSending] = useState(false);
+    const [appSent, setAppSent] = useState(false);
 
     // Fetch saved overlay settings from gallery
     const { data: overlaySettings } = useQuery<{ overlayOpacity: number; cardTint: number; cardBlur: number; rowTint: number }>({
@@ -283,6 +285,63 @@ export function SlotsModal({
         }
     }, [tournamentId, tournamentTitle, captureImage, selectedGroup]);
 
+    // ── Send to App Channel ──────────────────────────────────
+
+    const sendToChannel = useCallback(async () => {
+        if (!tournamentId) {
+            toast.error("No tournament selected");
+            return;
+        }
+
+        setAppSending(true);
+        setAppSent(false);
+
+        try {
+            const dataUrl = await captureImage();
+            if (!dataUrl) {
+                toast.error("Failed to capture image");
+                setAppSending(false);
+                return;
+            }
+
+            // Upload to ImgBB — extract base64 from data URL
+            const base64 = dataUrl.split(",")[1];
+            const imgbbForm = new FormData();
+            imgbbForm.append("key", process.env.NEXT_PUBLIC_IMGBB_API_KEY || "");
+            imgbbForm.append("image", base64);
+            imgbbForm.append("name", `slots_${tournamentId}_${Date.now()}`);
+
+            const imgRes = await fetch("https://api.imgbb.com/1/upload", {
+                method: "POST",
+                body: imgbbForm,
+            });
+            if (!imgRes.ok) throw new Error("Image upload failed");
+            const imgData = await imgRes.json();
+            const imageUrl = imgData.data.url;
+
+            // Post to tournament channel
+            const res = await fetch("/api/announcements", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    content: `📋 ${tournamentTitle} — Team Slots`,
+                    imageUrl,
+                    channel: tournamentId,
+                }),
+            });
+            if (!res.ok) throw new Error("Failed to post");
+
+            setAppSent(true);
+            toast.success("Slot image sent to App!");
+            setTimeout(() => setAppSent(false), 3000);
+        } catch (error) {
+            console.error("App send error:", error);
+            toast.error(`App: ${(error as Error).message || "Failed to send"}`);
+        } finally {
+            setAppSending(false);
+        }
+    }, [tournamentId, tournamentTitle, captureImage]);
+
     if (!isOpen) return null;
 
     // Helper to render team rows (reused for grouped/ungrouped)
@@ -359,6 +418,28 @@ export function SlotsModal({
                                 <Check className="h-5 w-5 text-indigo-400" />
                             ) : (
                                 <Send className="h-5 w-5" />
+                            )}
+                        </button>
+                    )}
+
+                    {/* Send to App Channel */}
+                    {tournamentId && (
+                        <button
+                            onClick={sendToChannel}
+                            disabled={appSending}
+                            title="Send to App Channel"
+                            className={`relative overflow-hidden text-white bg-black/60 backdrop-blur-md border p-2.5 rounded-xl transition-all duration-300 ${
+                                appSent
+                                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
+                                    : "hover:text-emerald-400 border-white/20 hover:border-emerald-500/50 hover:bg-black/80"
+                            }`}
+                        >
+                            {appSending ? (
+                                <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
+                            ) : appSent ? (
+                                <Check className="h-5 w-5 text-emerald-400" />
+                            ) : (
+                                <Smartphone className="h-5 w-5" />
                             )}
                         </button>
                     )}
