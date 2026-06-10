@@ -49,21 +49,23 @@ self.addEventListener("push", (event) => {
     try {
         const data = event.data.json();
         const { title, body, icon, badge, tag, data: notifData, requireInteraction, renotify } = data;
+        const notifTag = tag || "bimon-notification";
 
         event.waitUntil(
             self.registration.showNotification(title || "Bimon", {
                 body: body || "",
                 icon: icon || "/icons/icon-192x192.png",
                 badge: badge || "/icons/icon-72x72.png",
-                tag: tag || "bimon-notification",
-                data: notifData || { url: "/notifications" },
+                tag: notifTag,
+                data: { ...(notifData || { url: "/notifications" }), notifTag },
                 requireInteraction: requireInteraction ?? false,
                 // renotify is valid in browsers but missing from TS NotificationOptions
                 ...(renotify ? { renotify: true } : {}),
             } as NotificationOptions).then(() => {
                 // Track delivery after notification is shown
-                if (notifData?.playerId && notifData?.trackTag) {
-                    return trackDelivery(notifData.playerId, notifData.trackTag, "delivered");
+                // Use the notification tag (e.g. "announce-xxx") for consistency with delivery queries
+                if (notifData?.playerId) {
+                    return trackDelivery(notifData.playerId, notifTag, "delivered");
                 }
             })
         );
@@ -84,10 +86,11 @@ self.addEventListener("notificationclick", (event) => {
     const notifData = event.notification.data;
     const url = notifData?.url || "/notifications";
 
-    // Track click
-    if (notifData?.playerId && notifData?.trackTag) {
+    // Track click — use the notification tag for consistency
+    const clickTag = notifData?.notifTag || notifData?.trackTag;
+    if (notifData?.playerId && clickTag) {
         event.waitUntil(
-            trackDelivery(notifData.playerId, notifData.trackTag, "clicked").then(() =>
+            trackDelivery(notifData.playerId, clickTag, "clicked").then(() =>
                 self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
                     for (const client of clientList) {
                         if (client.url.includes(self.location.origin) && "focus" in client) {
