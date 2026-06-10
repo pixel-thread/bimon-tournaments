@@ -304,20 +304,14 @@ export function SlotsModal({
                 return;
             }
 
-            // Upload to ImgBB — extract base64 from data URL
-            const base64 = dataUrl.split(",")[1];
-            const imgbbForm = new FormData();
-            imgbbForm.append("key", process.env.NEXT_PUBLIC_IMGBB_API_KEY || "");
-            imgbbForm.append("image", base64);
-            imgbbForm.append("name", `slots_${tournamentId}_${Date.now()}`);
-
-            const imgRes = await fetch("https://api.imgbb.com/1/upload", {
+            // Upload image via server (server has ImgBB API key)
+            const uploadRes = await fetch("/api/upload-image", {
                 method: "POST",
-                body: imgbbForm,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: dataUrl }),
             });
-            if (!imgRes.ok) throw new Error("Image upload failed");
-            const imgData = await imgRes.json();
-            const imageUrl = imgData.data.url;
+            if (!uploadRes.ok) throw new Error("Image upload failed");
+            const { url: imageUrl } = await uploadRes.json();
 
             // Post to tournament channel
             const res = await fetch("/api/announcements", {
