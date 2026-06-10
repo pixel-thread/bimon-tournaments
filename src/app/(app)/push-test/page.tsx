@@ -425,12 +425,7 @@ export default function PushTestPage() {
                         {/* Send to tournament players */}
                         {selectedTournament && (
                             <button
-                                onClick={() => {
-                                    const t = tournaments.find((x) => x.id === selectedTournament);
-                                    if (confirm(`🚨 Send room info to ALL confirmed players in "${t?.name || "this tournament"}"?\n\nRoom: ${roomId} / ${password}\nMap: ${map} · Match ${matchNumber}`)) {
-                                        sendTest("sticky", "all");
-                                    }
-                                }}
+                            onClick={() => sendTest("sticky", "all")}
                                 disabled={!!sending}
                                 style={{
                                     width: "100%", padding: "12px", borderRadius: 10,
