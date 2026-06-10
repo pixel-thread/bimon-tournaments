@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/database";
 import { getCurrentUser } from "@/lib/auth";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
+import { sendPushToAll, sendPushToTournament, sendPushToPlayers } from "@/lib/send-push";
 
 /**
  * GET /api/announcements
@@ -208,6 +209,63 @@ export async function POST(req: NextRequest) {
                 _count: { select: { replies: true } },
             },
         });
+
+        // ── Push Notifications (fire-and-forget) ──────────────────
+        // Don't await — let the response return immediately
+        (async () => {
+            try {
+                if (parentId) {
+                    // Thread reply → notify thread owner only
+                    const parent = await prisma.announcement.findUnique({
+                        where: { id: parentId },
+                        select: {
+                            authorId: true,
+                            channel: true,
+                            content: true,
+                            author: { select: { displayName: true } },
+                        },
+                    });
+                    if (parent && parent.authorId !== user.player!.id) {
+                        const replierName = announcement.author.displayName || "Someone";
+                        const preview = content.trim().slice(0, 60);
+                        const tabParam = parent.channel !== "general" ? `?tab=${parent.channel}` : "";
+                        await sendPushToPlayers([parent.authorId], {
+                            title: `💬 ${replierName} replied`,
+                            body: preview,
+                            url: `/channel${tabParam}`,
+                            tag: `reply-${parentId}`,
+                        });
+                    }
+                } else if (isAdmin) {
+                    // Admin new post → notify subscribers
+                    const preview = content.trim().slice(0, 80);
+                    if (channel === "general") {
+                        await sendPushToAll({
+                            title: "📢 Announcement",
+                            body: preview,
+                            url: "/channel",
+                            tag: `announce-${announcement.id}`,
+                        });
+                    } else {
+                        // Tournament channel → notify confirmed players
+                        const tournament = await prisma.tournament.findUnique({
+                            where: { id: channel },
+                            select: { name: true },
+                        });
+                        const tName = tournament?.name || "Tournament";
+                        await sendPushToTournament(channel, {
+                            title: `📢 ${tName}`,
+                            body: preview,
+                            url: `/channel?tab=${channel}`,
+                            tag: `announce-${announcement.id}`,
+                        });
+                    }
+                }
+                // Captain/player new posts → no push
+            } catch (err) {
+                console.error("[Channel Push] Error:", err);
+            }
+        })();
 
         return SuccessResponse({
             message: "Posted",

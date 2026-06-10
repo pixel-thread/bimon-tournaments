@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/database";
 import { getCurrentUser } from "@/lib/auth";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
-import { sendPushToAll } from "@/lib/push";
+import { sendPushToTournament } from "@/lib/send-push";
 
 const ACTIVE_ROOM_KEY = "active-room-info";
 
@@ -61,7 +61,7 @@ export async function GET() {
 
 /**
  * POST /api/room-info/active
- * Sets the active room info + broadcasts push notification to all players.
+ * Sets the active room info + posts to tournament channel + push notification.
  * Admin/UC-exempt only.
  */
 export async function POST(req: NextRequest) {
@@ -101,26 +101,26 @@ export async function POST(req: NextRequest) {
             update: { value: JSON.stringify(roomInfo) },
         });
 
-        // Auto-post to channel as room-info card
+        // Auto-post to tournament channel as room-info card
         await prisma.announcement.create({
             data: {
                 type: "room-info",
+                channel: tournamentId,
                 content: `Match ${matchNumber} — ${map}\nRoom ID: ${roomId}\nPassword: ${password}\nMap: ${map}`,
                 pinned: true,
                 authorId: user.player!.id,
             },
         }).catch((err) => console.error("[RoomInfo] Channel post failed:", err));
 
-        // Broadcast push to only players in this tournament's teams
-        sendPushToAll({
+        // Push to confirmed players in this tournament
+        sendPushToTournament(tournamentId, {
             title: `🔐 Match ${matchNumber} — ${map}`,
             body: `Room ID: ${roomId}\nPassword: ${password}\n\nJoin now! Lobby closing soon.`,
             tag: "live-room-info",
-            url: "/channel",
+            url: `/channel?tab=${tournamentId}`,
             requireInteraction: true,
-            renotify: true,
-        }, { tournamentId }).then((sent) => {
-            console.log(`[RoomInfo] Push broadcast: ${sent} delivered for tournament ${tournamentId}`);
+        }).then((result) => {
+            console.log(`[RoomInfo] Push: ${result.sent} sent, ${result.failed} failed for ${tournamentId}`);
         });
 
         return SuccessResponse({

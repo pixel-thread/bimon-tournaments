@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardBody, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save, Camera, X } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save, Camera, X, Smartphone } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
@@ -301,6 +301,8 @@ function TournamentRow({ tournament, state, onChange, group }: {
     const [discordSent, setDiscordSent] = useState(false);
     const [discordEditing, setDiscordEditing] = useState(false);
     const [discordEdited, setDiscordEdited] = useState(false);
+    const [appSending, setAppSending] = useState(false);
+    const [appSent, setAppSent] = useState(false);
     const [rulesSending, setRulesSending] = useState(false);
     const [rulesSent, setRulesSent] = useState(false);
     const [sentMatchNumbers, setSentMatchNumbers] = useState<Set<number>>(new Set());
@@ -355,7 +357,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
         }
     }, [tournament.id, tournamentName, state.map, state.time, state.roomId, state.password, attachedImage, group]);
 
-    /** Send room info to Discord (new message) + broadcast push */
+    /** Send room info to Discord only */
     const handleSend = useCallback(async () => {
         if (state.roomId.length !== 7) return;
         setDiscordSending(true);
@@ -364,9 +366,28 @@ function TournamentRow({ tournament, state, onChange, group }: {
         const msg = generateMessage(matchNumber);
         try { await navigator.clipboard.writeText(msg + "\n\n" + state.roomId); } catch {}
 
-        // Send to Discord + broadcast push notification + save banner (in parallel)
-        const discordPromise = sendDiscord(matchNumber);
-        const pushPromise = fetch("/api/room-info/active", {
+        sendDiscord(matchNumber).then(async () => {
+            setDiscordSent(true);
+            setAttachedImage(null);
+            setSentMatchNumbers(prev => new Set(prev).add(matchNumber));
+            setLastSentMatch(matchNumber);
+            toast.success("Sent to Discord 📋");
+            setTimeout(() => setDiscordSent(false), 3000);
+            // Auto-increment match & update map for next match
+            const nextMatch = matchNumber + 1;
+            onChange({ copyCount: matchNumber, map: getDefaultMapForMatch(nextMatch) });
+            if (nextMatch > maxMatches) setMaxMatches(nextMatch);
+        }).catch((err) => {
+            toast.error(`Discord: ${err.message || "Failed to send"}`);
+        }).finally(() => setDiscordSending(false));
+    }, [matchNumber, state.roomId, sendDiscord, generateMessage, onChange, maxMatches]);
+
+    /** Send room info to App (push + channel post) */
+    const handleSendApp = useCallback(async () => {
+        if (state.roomId.length !== 7) return;
+        setAppSending(true);
+
+        fetch("/api/room-info/active", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -378,25 +399,15 @@ function TournamentRow({ tournament, state, onChange, group }: {
                 tournamentName,
                 time: state.time.trim() || "Now",
             }),
-        }).catch(() => {}); // Never block on push failure
-
-        Promise.all([discordPromise, pushPromise]).then(async () => {
-            setDiscordSent(true);
-            setAttachedImage(null);
-            setSentMatchNumbers(prev => new Set(prev).add(matchNumber));
-            setLastSentMatch(matchNumber);
-            const { toast } = await import("sonner");
-            toast.success("Sent to Discord + Push 📋🔔");
-            setTimeout(() => setDiscordSent(false), 3000);
-            // Auto-increment match & update map for next match
-            const nextMatch = matchNumber + 1;
-            onChange({ copyCount: matchNumber, map: getDefaultMapForMatch(nextMatch) });
-            if (nextMatch > maxMatches) setMaxMatches(nextMatch);
-        }).catch(async (err) => {
-            const { toast } = await import("sonner");
-            toast.error(`Discord: ${err.message || "Failed to send"}`);
-        }).finally(() => setDiscordSending(false));
-    }, [matchNumber, state.roomId, state.password, state.map, state.time, tournamentName, sendDiscord, generateMessage]);
+        }).then(async (res) => {
+            if (!res.ok) throw new Error("Failed");
+            setAppSent(true);
+            toast.success("Sent to App 🔔");
+            setTimeout(() => setAppSent(false), 3000);
+        }).catch((err) => {
+            toast.error(`App: ${err.message || "Failed to send"}`);
+        }).finally(() => setAppSending(false));
+    }, [matchNumber, state.roomId, state.password, state.map, state.time, tournament.id, tournamentName]);
 
     /** Edit the last sent message for a match */
     const handleUpdate = useCallback(async (matchToUpdate: number) => {
@@ -590,41 +601,78 @@ function TournamentRow({ tournament, state, onChange, group }: {
                 </Popover>
             </div>
 
-            {/* Send to Discord */}
-            <button
-                type="button"
-                onClick={handleSend}
-                disabled={state.roomId.length !== 7 || discordSending}
-                className={`
-                    w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold
-                    transition-all duration-200 active:scale-[0.98]
-                    ${state.roomId.length !== 7 || discordSending
-                        ? "bg-default-200 text-foreground/30 cursor-not-allowed"
-                        : discordSent
-                            ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 cursor-pointer"
-                            : isRanked
-                                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 cursor-pointer"
-                                : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 cursor-pointer"
-                    }
-                `}
-            >
-                {discordSending ? (
-                    <>
-                        <Send className="w-4 h-4 animate-pulse" />
-                        Sending...
-                    </>
-                ) : discordSent ? (
-                    <>
-                        <Check className="w-4 h-4" />
-                        Sent!
-                    </>
-                ) : (
-                    <>
-                        <Send className="w-4 h-4" />
-                        Send Match {matchNumber}
-                    </>
-                )}
-            </button>
+            {/* Send buttons row */}
+            <div className="flex gap-2">
+                {/* Send to Discord */}
+                <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={state.roomId.length !== 7 || discordSending}
+                    className={`
+                        flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold
+                        transition-all duration-200 active:scale-[0.98]
+                        ${state.roomId.length !== 7 || discordSending
+                            ? "bg-default-200 text-foreground/30 cursor-not-allowed"
+                            : discordSent
+                                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 cursor-pointer"
+                                : "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 cursor-pointer"
+                        }
+                    `}
+                >
+                    {discordSending ? (
+                        <>
+                            <Send className="w-4 h-4 animate-pulse" />
+                            Sending...
+                        </>
+                    ) : discordSent ? (
+                        <>
+                            <Check className="w-4 h-4" />
+                            Discord ✓
+                        </>
+                    ) : (
+                        <>
+                            <Send className="w-4 h-4" />
+                            Discord
+                        </>
+                    )}
+                </button>
+
+                {/* Send to App */}
+                <button
+                    type="button"
+                    onClick={handleSendApp}
+                    disabled={state.roomId.length !== 7 || appSending}
+                    className={`
+                        flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold
+                        transition-all duration-200 active:scale-[0.98]
+                        ${state.roomId.length !== 7 || appSending
+                            ? "bg-default-200 text-foreground/30 cursor-not-allowed"
+                            : appSent
+                                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 cursor-pointer"
+                                : isRanked
+                                    ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 cursor-pointer"
+                                    : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 cursor-pointer"
+                        }
+                    `}
+                >
+                    {appSending ? (
+                        <>
+                            <Smartphone className="w-4 h-4 animate-pulse" />
+                            Sending...
+                        </>
+                    ) : appSent ? (
+                        <>
+                            <Check className="w-4 h-4" />
+                            App ✓
+                        </>
+                    ) : (
+                        <>
+                            <Smartphone className="w-4 h-4" />
+                            App
+                        </>
+                    )}
+                </button>
+            </div>
 
             {/* Update last sent message */}
             {lastSentMatch !== null && (
