@@ -92,8 +92,24 @@ export async function POST(req: NextRequest) {
         // Determine which subscriptions to send to
         let subscriptions;
         if (mode === "broadcast" && target === "all") {
+            // Broadcast → all subscribers
             subscriptions = await prisma.pushSubscription.findMany();
+        } else if (mode !== "broadcast" && tournamentId && target === "all") {
+            // Room info + tournament → only confirmed players (on teams in that tournament)
+            const teams = await prisma.team.findMany({
+                where: { tournamentId, disqualified: false },
+                select: { players: { select: { id: true } } },
+            });
+            const playerIds = teams.flatMap((t) => t.players.map((p) => p.id));
+            // Always include admin
+            if (!playerIds.includes(user.player.id)) {
+                playerIds.push(user.player.id);
+            }
+            subscriptions = await prisma.pushSubscription.findMany({
+                where: { playerId: { in: playerIds } },
+            });
         } else {
+            // Self-only test
             subscriptions = await prisma.pushSubscription.findMany({
                 where: { playerId: user.player.id },
             });

@@ -78,13 +78,13 @@ export function PushGuard() {
     useEffect(() => {
         if (!ready || !isSignedIn) return;
 
-        // If PWA install prompt is still showing, don't show this yet
+        // If PWA install prompt is still showing, don't show push guard yet
         const pwaInstalled = localStorage.getItem("pwa-installed") === "true" || isStandalone();
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
             (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
         if (isMobile && !pwaInstalled) {
-            // PWA prompt is likely still showing — wait
-            setState("ok"); // Skip for now, PwaInstallPrompt handles it
+            // PWA not installed yet — PwaInstallPrompt handles it, skip push guard
+            setState("ok");
             return;
         }
 
@@ -138,7 +138,19 @@ export function PushGuard() {
 
         // Already denied at browser level
         if (Notification.permission === "denied") {
+            localStorage.removeItem(PUSH_SUBSCRIBED_KEY); // Clear stale flag
             setState("denied");
+            return;
+        }
+
+        // Permission was reset to "default" but localStorage still says subscribed
+        // → User manually reset notifications, clear stale flag and re-prompt
+        if (
+            Notification.permission === "default" &&
+            localStorage.getItem(PUSH_SUBSCRIBED_KEY) === "true"
+        ) {
+            localStorage.removeItem(PUSH_SUBSCRIBED_KEY);
+            setState("prompt");
             return;
         }
 
@@ -407,15 +419,47 @@ export function PushGuard() {
                                         <span>Change <strong>Notifications</strong> to <strong>Allow</strong></span>
                                     </div>
                                 </div>
+                                {error && (
+                                    <p className="text-xs text-danger/80 bg-danger/5 rounded-lg px-3 py-2">
+                                        {error}
+                                    </p>
+                                )}
                                 <Button
-                                    color="default"
-                                    variant="flat"
+                                    color="primary"
                                     size="lg"
                                     className="w-full font-semibold"
-                                    onPress={() => window.location.reload()}
+                                    isLoading={subscribing}
+                                    startContent={!subscribing ? <Bell className="w-4 h-4" /> : undefined}
+                                    onPress={async () => {
+                                        setError("");
+                                        setSubscribing(true);
+                                        try {
+                                            const perm = await Notification.requestPermission();
+                                            if (perm === "granted") {
+                                                const ok = await silentResubscribe();
+                                                if (ok) {
+                                                    setState("ok");
+                                                } else {
+                                                    setError("Permission granted but subscription failed. Try refreshing.");
+                                                }
+                                            } else {
+                                                setError("Still blocked. Open site settings → change Notifications to Allow, then try again.");
+                                            }
+                                        } catch {
+                                            setError("Failed. Please try refreshing the page.");
+                                        } finally {
+                                            setSubscribing(false);
+                                        }
+                                    }}
                                 >
-                                    I&apos;ve enabled it — Refresh
+                                    {subscribing ? "Checking..." : "I've enabled it — Try Again"}
                                 </Button>
+                                <button
+                                    onClick={() => setState("ok")}
+                                    className="text-xs text-foreground/30 hover:text-foreground/50 transition-colors"
+                                >
+                                    Skip for now
+                                </button>
                             </>
                         )}
 

@@ -41,8 +41,8 @@ export default function PushTestPage() {
             .catch(() => {});
     }, []);
 
-    async function sendTest(mode: string) {
-        setSending(mode);
+    async function sendTest(mode: string, target: "self" | "all" = "self") {
+        setSending(target === "all" ? `${mode}-all` : mode);
         setResult(null);
         setDiagnostics(null);
         try {
@@ -50,7 +50,7 @@ export default function PushTestPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    mode, roomId, password, map, matchNumber,
+                    mode, roomId, password, map, matchNumber, target,
                     tournamentId: selectedTournament || undefined,
                 }),
             });
@@ -394,31 +394,61 @@ export default function PushTestPage() {
                         </div>
                     </div>
 
-                    {/* Test buttons */}
-                    <div style={{ display: "flex", gap: 8 }}>
-                        {[
-                            { mode: "normal", label: "📨 Normal", color: "#e0e0e0", border: "rgba(255,255,255,0.1)", bg: "rgba(255,255,255,0.04)" },
-                            { mode: "sticky", label: "🔒 Sticky", color: "#818cf8", border: "rgba(129,140,248,0.3)", bg: "rgba(129,140,248,0.08)" },
-                            { mode: "update", label: "🔄 Update", color: "#34d399", border: "rgba(52,211,153,0.3)", bg: "rgba(52,211,153,0.08)" },
-                        ].map(({ mode, label, color, border, bg }) => (
+                    {/* Send buttons */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {/* Test (self only) */}
+                        <div style={{ display: "flex", gap: 8 }}>
+                            {[
+                                { mode: "sticky", label: "🔒 Test (me)", color: "#818cf8", border: "rgba(129,140,248,0.3)", bg: "rgba(129,140,248,0.08)" },
+                                { mode: "update", label: "🔄 Update", color: "#34d399", border: "rgba(52,211,153,0.3)", bg: "rgba(52,211,153,0.08)" },
+                            ].map(({ mode, label, color, border, bg }) => (
+                                <button
+                                    key={mode}
+                                    onClick={() => {
+                                        if (mode === "update") setMatchNumber((n) => n + 1);
+                                        sendTest(mode, "self");
+                                    }}
+                                    disabled={!!sending}
+                                    style={{
+                                        flex: 1, padding: "10px", borderRadius: 8,
+                                        border: `1px solid ${border}`, background: bg,
+                                        color, fontSize: 12, fontWeight: 600,
+                                        cursor: sending ? "not-allowed" : "pointer",
+                                        opacity: sending && sending !== mode ? 0.4 : 1,
+                                    }}
+                                >
+                                    {sending === mode ? "..." : label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Send to tournament players */}
+                        {selectedTournament && (
                             <button
-                                key={mode}
                                 onClick={() => {
-                                    if (mode === "update") setMatchNumber((n) => n + 1);
-                                    sendTest(mode);
+                                    const t = tournaments.find((x) => x.id === selectedTournament);
+                                    if (confirm(`🚨 Send room info to ALL confirmed players in "${t?.name || "this tournament"}"?\n\nRoom: ${roomId} / ${password}\nMap: ${map} · Match ${matchNumber}`)) {
+                                        sendTest("sticky", "all");
+                                    }
                                 }}
                                 disabled={!!sending}
                                 style={{
-                                    flex: 1, padding: "10px", borderRadius: 8,
-                                    border: `1px solid ${border}`, background: bg,
-                                    color, fontSize: 12, fontWeight: 600,
+                                    width: "100%", padding: "12px", borderRadius: 10,
+                                    border: "1px solid rgba(251, 146, 60, 0.3)",
+                                    background: "linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(249, 115, 22, 0.1))",
+                                    color: "#fb923c", fontSize: 13, fontWeight: 700,
                                     cursor: sending ? "not-allowed" : "pointer",
-                                    opacity: sending && sending !== mode ? 0.4 : 1,
+                                    opacity: sending && !sending.includes("all") ? 0.4 : 1,
+                                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                                 }}
                             >
-                                {sending === mode ? "..." : label}
+                                {sending?.includes("all")
+                                    ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+                                    : <Send style={{ width: 14, height: 14 }} />
+                                }
+                                Send to {tournaments.find((x) => x.id === selectedTournament)?.name || "Tournament"}
                             </button>
-                        ))}
+                        )}
                     </div>
                 </div>
 
