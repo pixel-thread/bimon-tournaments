@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
         return SuccessResponse({
             message: "Announcements",
             data: { items, nextCursor },
-            cache: CACHE.NONE,
+            cache: CACHE.SHORT, // 60s fresh, stale-while-revalidate 5min
         });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch announcements", error });

@@ -506,7 +506,6 @@ export default function ChannelPage() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
-    const [showSkeleton, setShowSkeleton] = useState(true);
 
     // Cached tournament tabs — show instantly from localStorage
     const [cachedTournaments, setCachedTournaments] = useState<ActiveTournament[]>(() => {
@@ -517,19 +516,11 @@ export default function ChannelPage() {
         } catch { return []; }
     });
 
-    // Clear ALL cached announcements on fresh mount
-    useEffect(() => {
-        queryClient.removeQueries({ queryKey: ["announcements"] });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Show skeleton on every tab switch
+    // Tab switch — just switch, let React Query handle cache
     const handleTabSwitch = useCallback((tab: string) => {
         if (tab === activeTab) return;
-        setShowSkeleton(true);
-        queryClient.removeQueries({ queryKey: ["announcements", tab] });
         setActiveTab(tab);
-    }, [activeTab, queryClient]);
+    }, [activeTab]);
 
     // Fetch role + active tournaments
     const { data: roleData } = useQuery<RoleData>({
@@ -541,7 +532,7 @@ export default function ChannelPage() {
             return json.data || { role: "viewer", activeTournaments: [], captainOfTournaments: [] };
         },
         enabled: !!user,
-        staleTime: 60 * 1000,
+        staleTime: 2 * 60 * 1000, // 2 min — tabs rarely change
     });
 
     // When fresh data arrives, update cache
@@ -566,7 +557,9 @@ export default function ChannelPage() {
         : isAdmin || captainOfTournaments.includes(activeTab);
 
     // Fetch announcements for current tab
-    const { data, isLoading, isFetching } = useQuery<{ items: Announcement[]; nextCursor: string | null }>({
+    // staleTime: show cached data instantly, refetch in background after 30s
+    // gcTime: keep cache for 10 min so tab switches are instant
+    const { data, isLoading } = useQuery<{ items: Announcement[]; nextCursor: string | null }>({
         queryKey: ["announcements", activeTab],
         queryFn: async () => {
             const res = await fetch(`/api/announcements?channel=${activeTab}`);
@@ -574,16 +567,13 @@ export default function ChannelPage() {
             const json = await res.json();
             return json.data || { items: [], nextCursor: null };
         },
-        refetchInterval: 15_000,
+        staleTime: 30 * 1000,       // Serve cached for 30s before refetching
+        gcTime: 10 * 60 * 1000,     // Keep in memory 10 min (tab switches instant)
+        refetchInterval: 15_000,     // Background poll every 15s
     });
 
-    // Hide skeleton once fresh data arrives (not on background refetch)
-    useEffect(() => {
-        if (data && !isLoading && !isFetching) {
-            setShowSkeleton(false);
-        }
-    }, [data, isLoading, isFetching]);
-
+    // Show skeleton only when there's truly no cached data
+    const showSkeleton = isLoading && !data;
     const announcements = data?.items || [];
 
     // Post message
