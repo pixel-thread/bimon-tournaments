@@ -14,6 +14,7 @@ import {
     Minus,
     Trophy,
     Send,
+    Bell,
     RefreshCw,
     Sparkles,
 } from "lucide-react";
@@ -103,6 +104,8 @@ export function StandingsModal({
     const [shareSuccess, setShareSuccess] = useState(false);
     const [isSendingDiscord, setIsSendingDiscord] = useState(false);
     const [discordSent, setDiscordSent] = useState(false);
+    const [isSendingApp, setIsSendingApp] = useState(false);
+    const [appSent, setAppSent] = useState(false);
     const [isFinalStandings, setIsFinalStandings] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [compareMatches, setCompareMatches] = useState(1);
@@ -517,6 +520,74 @@ export function StandingsModal({
         }
     }, [isSendingDiscord, captureScreenshot, champGroup, tournamentTitle, standings, isFinalStandings]);
 
+    // ── Send to App (channel + push) ─────────────────────
+
+    const sendToApp = useCallback(async () => {
+        if (isSendingApp) return;
+        setIsSendingApp(true);
+        setAppSent(false);
+
+        try {
+            const dataUrl = await captureScreenshot();
+            if (!dataUrl) {
+                toast.error("Failed to capture screenshot");
+                return;
+            }
+
+            // Convert data URL to blob, then upload via /api/upload-image
+            const blobRes = await fetch(dataUrl);
+            const blob = await blobRes.blob();
+            const formData = new FormData();
+            formData.append("image", blob, `standings-${Date.now()}.jpg`);
+
+            const uploadRes = await fetch("/api/upload-image", {
+                method: "POST",
+                body: formData,
+            });
+            if (!uploadRes.ok) throw new Error("Image upload failed");
+            const { data: uploadData } = await uploadRes.json();
+            const imageUrl = uploadData?.url;
+            if (!imageUrl) throw new Error("No image URL returned");
+
+            // Build caption
+            const maxMatches = standings.length > 0
+                ? Math.max(...standings.map(s => s.matchCount))
+                : 0;
+            const phaseLabel = champGroup === "A" ? "Heats · Group A"
+                : champGroup === "B" ? "Heats · Group B"
+                : champGroup === "FINALS" ? "Finals"
+                : "";
+            const matchInfo = maxMatches ? ` (After ${maxMatches} Match${maxMatches !== 1 ? "es" : ""})` : "";
+            const caption = isFinalStandings
+                ? `🏆 ${tournamentTitle} — ${phaseLabel ? phaseLabel + " " : ""}FINAL STANDINGS`
+                : `🏆 ${tournamentTitle} — ${phaseLabel ? phaseLabel : "Overall Standings"}${matchInfo}`;
+
+            // Post as announcement to tournament channel
+            const postRes = await fetch("/api/announcements", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    content: caption,
+                    imageUrl,
+                    channel: tournamentId,
+                    type: "image",
+                }),
+            });
+            if (!postRes.ok) {
+                const json = await postRes.json().catch(() => ({}));
+                throw new Error(json.message || "Failed to post");
+            }
+
+            setAppSent(true);
+            toast.success("Standings sent to App channel! 🔔");
+            setTimeout(() => setAppSent(false), 3000);
+        } catch (err) {
+            toast.error((err as Error).message || "Failed to send to App");
+        } finally {
+            setIsSendingApp(false);
+        }
+    }, [isSendingApp, captureScreenshot, champGroup, tournamentTitle, tournamentId, standings, isFinalStandings]);
+
     // ── Copy AI Prompt ────────────────────────────────────
 
     const copyAIPrompt = useCallback(async () => {
@@ -634,6 +705,22 @@ Make it look premium and professional — suitable for posting on a tournament w
                             <Check className="h-5 w-5 text-[#5865F2]" />
                         ) : (
                             <Send className="h-5 w-5" />
+                        )}
+                    </button>
+
+                    {/* Send to App Button */}
+                    <button
+                        onClick={sendToApp}
+                        disabled={isSendingApp}
+                        className={`relative overflow-hidden text-white hover:text-orange-400 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-orange-500/50 p-2.5 rounded-xl transition-all duration-300 ${appSent ? "bg-orange-500/20 border-orange-500/50" : ""}`}
+                        title="Send to App channel with push notification"
+                    >
+                        {isSendingApp ? (
+                            <div className="h-5 w-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                        ) : appSent ? (
+                            <Check className="h-5 w-5 text-orange-400" />
+                        ) : (
+                            <Bell className="h-5 w-5" />
                         )}
                     </button>
 
