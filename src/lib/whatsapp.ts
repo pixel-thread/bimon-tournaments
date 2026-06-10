@@ -199,24 +199,32 @@ export async function linkWhatsApp(
     onQR: (qrString: string) => void
 ): Promise<{ connected: boolean }> {
     const { version } = await fetchLatestBaileysVersion();
-    let attempt = 0;
-    const maxAttempts = 3;
 
-    const tryConnect = (): Promise<{ connected: boolean }> => {
-        return new Promise(async (resolve, reject) => {
+    // Load auth state ONCE — reuse across reconnections so in-memory
+    // creds from QR scan survive the 515 "restart required" disconnect
+    const { state, saveCreds } = await useDBAuthState();
+    const cachedKeys = makeCacheableSignalKeyStore(state.keys as any, silentLogger);
+    let attempt = 0;
+    const maxAttempts = 4;
+
+    return new Promise((resolve, reject) => {
+        let settled = false;
+
+        // Global timeout for the entire linking process
+        const timeout = setTimeout(() => {
+            if (!settled) {
+                settled = true;
+                reject(new Error("QR scan timed out (55s) — click Link WhatsApp to try again"));
+            }
+        }, 55_000);
+
+        const startSocket = () => {
             attempt++;
             console.log(`[WhatsApp] Link attempt ${attempt}/${maxAttempts}`);
 
-            // Re-load auth state on each attempt (might have partial creds from prior attempt)
-            const { state, saveCreds } = await useDBAuthState();
-            let settled = false;
-
             const sock = makeWASocket({
                 version,
-                auth: {
-                    creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys as any, silentLogger),
-                },
+                auth: { creds: state.creds, keys: cachedKeys },
                 browser: Browsers.macOS("Chrome"),
                 printQRInTerminal: false,
                 logger: silentLogger,
@@ -224,86 +232,66 @@ export async function linkWhatsApp(
                 connectTimeoutMs: 20_000,
             });
 
-            sock.ev.on("creds.update", saveCreds);
-
-            // Timeout after 55 seconds total
-            const timeout = setTimeout(() => {
-                if (!settled) {
-                    settled = true;
-                    try { sock.end(undefined); } catch {}
-                    reject(new Error("QR scan timed out (55s) — click Link WhatsApp to try again"));
-                }
-            }, 55_000);
+            sock.ev.on("creds.update", async (creds) => {
+                // Update in-memory creds AND persist to DB
+                Object.assign(state.creds, creds);
+                await saveCreds(creds);
+            });
 
             sock.ev.on("connection.update", async (update: Partial<ConnectionState>) => {
                 const { connection, qr, lastDisconnect } = update;
+                const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
 
                 console.log(`[WhatsApp] Connection update:`, {
-                    connection,
-                    hasQR: !!qr,
-                    disconnectStatus: (lastDisconnect?.error as any)?.output?.statusCode,
+                    connection, hasQR: !!qr, statusCode, attempt,
                 });
 
-                // QR code generated — send to caller but DON'T disconnect
+                // QR code generated — send to client
                 if (qr) {
                     onQR(qr);
                 }
 
-                // User scanned and connected!
+                // Successfully connected!
                 if (connection === "open" && !settled) {
                     settled = true;
                     clearTimeout(timeout);
-                    console.log("[WhatsApp] Connected successfully!");
+                    console.log("[WhatsApp] ✅ Connected successfully!");
                     try { sock.end(undefined); } catch {}
                     resolve({ connected: true });
                 }
 
                 if (connection === "close" && !settled) {
-                    const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
                     console.log(`[WhatsApp] Connection closed, status: ${statusCode}`);
+                    try { sock.end(undefined); } catch {}
 
-                    // Fatal: logged out — clear creds
+                    // Fatal: logged out
                     if (statusCode === DisconnectReason.loggedOut) {
                         settled = true;
                         clearTimeout(timeout);
                         await prisma.whatsAppAuth.deleteMany({});
-                        try { sock.end(undefined); } catch {}
                         reject(new Error("WhatsApp session logged out. Please try again."));
                         return;
                     }
 
-                    // Non-fatal close — Baileys does this during init
-                    // Don't reject yet, let it retry by creating a new socket
-                    try { sock.end(undefined); } catch {}
-
+                    // 515 = "restart required" — this is NORMAL after scanning
+                    // Reconnect with the SAME in-memory auth state
                     if (attempt < maxAttempts) {
-                        console.log(`[WhatsApp] Retrying (attempt ${attempt + 1})...`);
-                        // Small delay before retry
-                        await new Promise(r => setTimeout(r, 1000));
-                        try {
-                            const result = await tryConnect();
-                            settled = true;
-                            clearTimeout(timeout);
-                            resolve(result);
-                        } catch (err) {
-                            settled = true;
-                            clearTimeout(timeout);
-                            reject(err);
-                        }
+                        const delay = statusCode === 515 ? 500 : 1500;
+                        console.log(`[WhatsApp] Reconnecting in ${delay}ms (status: ${statusCode})...`);
+                        setTimeout(startSocket, delay);
                     } else {
                         settled = true;
                         clearTimeout(timeout);
                         reject(new Error(
-                            `WhatsApp connection failed after ${maxAttempts} attempts (status: ${statusCode}). ` +
-                            `This may be a network issue on the server. Please try again.`
+                            `WhatsApp connection failed after ${maxAttempts} attempts (last status: ${statusCode}). Try again.`
                         ));
                     }
                 }
             });
-        });
-    };
+        };
 
-    return tryConnect();
+        startSocket();
+    });
 }
 
 // ── Group operations ──────────────────────────────────────────
