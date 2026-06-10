@@ -27,6 +27,8 @@ const testSchema = z.object({
     title: z.string().optional(),
     body: z.string().optional(),
     target: z.enum(["self", "all"]).default("self"),
+    // Optional: post room info to a tournament channel
+    tournamentId: z.string().optional(),
 });
 
 /**
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
         }
 
         const rawBody = await req.json();
-        const { mode, roomId, password, map, matchNumber, title, body: msgBody, target } = testSchema.parse(rawBody);
+        const { mode, roomId, password, map, matchNumber, title, body: msgBody, target, tournamentId } = testSchema.parse(rawBody);
 
         // Build the notification payload
         let payload: string;
@@ -156,18 +158,36 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // Auto-post broadcast messages to the channel
+        // Auto-post broadcast messages to the general channel
         if (mode === "broadcast" && target === "all" && title && msgBody) {
             try {
                 await prisma.announcement.create({
                     data: {
                         type: "broadcast",
+                        channel: "general",
                         content: `**${title}**\n${msgBody}`,
                         authorId: user.player.id,
                     },
                 });
             } catch {
                 // Non-critical — don't fail the push if channel post fails
+            }
+        }
+
+        // Auto-post room info to tournament channel
+        if (mode !== "broadcast" && tournamentId) {
+            try {
+                const roomContent = `Match ${matchNumber} — ${map}\nRoom ID: ${roomId}\nPassword: ${password}`;
+                await prisma.announcement.create({
+                    data: {
+                        type: "room-info",
+                        channel: tournamentId,
+                        content: roomContent,
+                        authorId: user.player.id,
+                    },
+                });
+            } catch {
+                // Non-critical
             }
         }
 

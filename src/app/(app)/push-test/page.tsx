@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Send, Bell, Loader2, CheckCircle, AlertTriangle, Megaphone } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Send, Bell, Loader2, CheckCircle, AlertTriangle, Megaphone, Swords } from "lucide-react";
 
 type SendingState = string | null;
+
+interface ActiveTournament {
+    id: string;
+    name: string;
+}
 
 export default function PushTestPage() {
     const [roomId, setRoomId] = useState("ABCD1234");
@@ -19,6 +24,21 @@ export default function PushTestPage() {
     const [broadcastTitle, setBroadcastTitle] = useState("");
     const [broadcastBody, setBroadcastBody] = useState("");
 
+    // Tournament selector
+    const [tournaments, setTournaments] = useState<ActiveTournament[]>([]);
+    const [selectedTournament, setSelectedTournament] = useState("");
+
+    useEffect(() => {
+        fetch("/api/tournaments?status=ACTIVE&limit=10")
+            .then((r) => r.json())
+            .then((json) => {
+                const list = json.data || [];
+                setTournaments(list);
+                if (list.length > 0) setSelectedTournament(list[0].id);
+            })
+            .catch(() => {});
+    }, []);
+
     async function sendTest(mode: string) {
         setSending(mode);
         setResult(null);
@@ -27,7 +47,10 @@ export default function PushTestPage() {
             const res = await fetch("/api/push/test", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ mode, roomId, password, map, matchNumber }),
+                body: JSON.stringify({
+                    mode, roomId, password, map, matchNumber,
+                    tournamentId: selectedTournament || undefined,
+                }),
             });
             const data = await res.json();
             setDiagnostics(data.data);
@@ -216,14 +239,47 @@ export default function PushTestPage() {
                     padding: "20px",
                     marginBottom: 24,
                 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                         <Bell style={{ width: 18, height: 18, color: "#818cf8" }} />
                         <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#818cf8" }}>
                             Room Info Test (self only)
                         </h2>
                     </div>
 
-                    {/* Subscribe + Clear */}
+                    {/* Tournament selector */}
+                    {tournaments.length > 0 && (
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={labelStyle}>
+                                <Swords style={{ width: 12, height: 12, display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+                                Post to Tournament Channel
+                            </label>
+                            <select
+                                value={selectedTournament}
+                                onChange={(e) => setSelectedTournament(e.target.value)}
+                                style={{
+                                    ...inputStyle,
+                                    cursor: "pointer",
+                                    appearance: "none",
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                                    backgroundRepeat: "no-repeat",
+                                    backgroundPosition: "right 12px center",
+                                    paddingRight: 32,
+                                }}
+                            >
+                                <option value="" style={{ background: "#1a1a2e" }}>None (push only)</option>
+                                {tournaments.map((t) => (
+                                    <option key={t.id} value={t.id} style={{ background: "#1a1a2e" }}>
+                                        ⚔️ {t.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedTournament && (
+                                <p style={{ fontSize: 11, color: "#818cf8", marginTop: 4, opacity: 0.7 }}>
+                                    Room info will also be posted to the tournament channel
+                                </p>
+                            )}
+                        </div>
+                    )}
                     <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
                         <button
                             onClick={async () => {
