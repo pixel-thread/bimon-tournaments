@@ -152,17 +152,10 @@ export function PwaInstallPrompt() {
                 return;
             }
 
-            // Previously marked as installed but now in browser (uninstalled?)
-            // On mobile: clear flag and re-prompt. On desktop: skip.
+            // Already marked as installed — trust it (user may be browsing via browser)
             if (localStorage.getItem(INSTALLED_KEY) === "true") {
-                if (isMobile()) {
-                    // They're on mobile but NOT in standalone — likely uninstalled
-                    localStorage.removeItem(INSTALLED_KEY);
-                    // Fall through to show install prompt again
-                } else {
-                    setState("ok");
-                    return;
-                }
+                setState("ok");
+                return;
             }
 
             // Desktop — not mandatory
