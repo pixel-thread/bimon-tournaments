@@ -508,7 +508,7 @@ export default function ChannelPage() {
     const [uploading, setUploading] = useState(false);
 
     // Fetch role + active tournaments
-    const { data: roleData } = useQuery<RoleData>({
+    const { data: roleData, isLoading: isLoadingRole } = useQuery<RoleData>({
         queryKey: ["channel-role", user?.player?.id],
         queryFn: async () => {
             const res = await fetch("/api/announcements?check=role");
@@ -662,28 +662,60 @@ export default function ChannelPage() {
                         <Users className="w-3.5 h-3.5" />
                         General
                     </button>
-                    {activeTournaments.map((t) => (
-                        <button
-                            key={t.id}
-                            onClick={() => setActiveTab(t.id)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap ${
-                                activeTab === t.id
-                                    ? "text-warning border-b-2 border-warning bg-warning/5"
-                                    : "text-foreground/40 hover:text-foreground/60"
-                            }`}
-                        >
+                    {isLoadingRole && activeTab !== "general" ? (
+                        /* Show active tab placeholder while loading */
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg text-warning border-b-2 border-warning bg-warning/5 whitespace-nowrap">
                             <Swords className="w-3.5 h-3.5" />
-                            {t.name}
-                        </button>
-                    ))}
+                            <div className="w-16 h-3 bg-warning/20 rounded animate-pulse" />
+                        </div>
+                    ) : isLoadingRole ? (
+                        /* Loading tabs skeleton */
+                        <>
+                            {[1, 2].map((i) => (
+                                <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg">
+                                    <div className="w-3.5 h-3.5 bg-foreground/[0.06] rounded animate-pulse" />
+                                    <div className="w-14 h-3 bg-foreground/[0.06] rounded animate-pulse" />
+                                </div>
+                            ))}
+                        </>
+                    ) : (
+                        activeTournaments.map((t) => (
+                            <button
+                                key={t.id}
+                                onClick={() => setActiveTab(t.id)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap ${
+                                    activeTab === t.id
+                                        ? "text-warning border-b-2 border-warning bg-warning/5"
+                                        : "text-foreground/40 hover:text-foreground/60"
+                                }`}
+                            >
+                                <Swords className="w-3.5 h-3.5" />
+                                {t.name}
+                            </button>
+                        ))
+                    )}
                 </div>
             </div>
 
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto">
                 {isLoading ? (
-                    <div className="flex justify-center py-12">
-                        <Loader2 className="w-6 h-6 animate-spin text-foreground/20" />
+                    <div className="py-2 space-y-1">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="flex items-start gap-3 px-4 py-3" style={{ opacity: 1 - i * 0.2 }}>
+                                <div className="w-8 h-8 rounded-full bg-foreground/[0.06] animate-pulse shrink-0" />
+                                <div className="flex-1 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-20 h-3 bg-foreground/[0.08] rounded animate-pulse" />
+                                        <div className="w-8 h-2.5 bg-foreground/[0.04] rounded animate-pulse" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <div className="w-full h-3 bg-foreground/[0.06] rounded animate-pulse" />
+                                        <div className="w-3/4 h-3 bg-foreground/[0.04] rounded animate-pulse" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : announcements.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 gap-3">
