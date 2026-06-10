@@ -119,6 +119,27 @@ export function PwaInstallPrompt() {
     const [installing, setInstalling] = useState(false);
     const [androidBrowser, setAndroidBrowser] = useState<AndroidBrowser>("chrome");
 
+    // Capture beforeinstallprompt IMMEDIATELY on mount (before any delay)
+    // The event can fire at any time, so we must listen from the start.
+    useEffect(() => {
+        const handler = (e: Event) => {
+            e.preventDefault();
+            setDeferredPrompt(e as BeforeInstallPromptEvent);
+        };
+        const installed = () => {
+            localStorage.setItem(INSTALLED_KEY, "true");
+            setState("ok");
+        };
+
+        window.addEventListener("beforeinstallprompt", handler);
+        window.addEventListener("appinstalled", installed);
+
+        return () => {
+            window.removeEventListener("beforeinstallprompt", handler);
+            window.removeEventListener("appinstalled", installed);
+        };
+    }, []);
+
     useEffect(() => {
         // Delay check to let page render first
         const timer = setTimeout(() => {
@@ -149,37 +170,13 @@ export function PwaInstallPrompt() {
                 return;
             }
 
-            // Android — detect browser and wait for beforeinstallprompt
+            // Android — detect browser
             setAndroidBrowser(detectAndroidBrowser());
             setState("android");
         }, 3000);
 
         return () => clearTimeout(timer);
     }, [isSignedIn]);
-
-    // Listen for beforeinstallprompt (Android Chrome/Edge/Brave)
-    useEffect(() => {
-        if (state !== "android") return;
-
-        const handler = (e: Event) => {
-            e.preventDefault();
-            setDeferredPrompt(e as BeforeInstallPromptEvent);
-        };
-
-        window.addEventListener("beforeinstallprompt", handler);
-
-        // If already installed
-        const installed = () => {
-            localStorage.setItem(INSTALLED_KEY, "true");
-            setState("ok");
-        };
-        window.addEventListener("appinstalled", installed);
-
-        return () => {
-            window.removeEventListener("beforeinstallprompt", handler);
-            window.removeEventListener("appinstalled", installed);
-        };
-    }, [state]);
 
     const handleInstall = async () => {
         if (!deferredPrompt) return;
@@ -215,6 +212,7 @@ export function PwaInstallPrompt() {
             placement="center"
             size="sm"
             backdrop="blur"
+            classNames={{ wrapper: "z-[60]", backdrop: "z-[59]" }}
         >
             <ModalContent>
                 <ModalBody className="px-6 py-8">
@@ -280,7 +278,10 @@ export function PwaInstallPrompt() {
                                             variant="flat"
                                             size="lg"
                                             className="w-full font-semibold"
-                                            onPress={() => window.location.reload()}
+                                            onPress={() => {
+                                                localStorage.setItem(INSTALLED_KEY, "true");
+                                                window.location.reload();
+                                            }}
                                         >
                                             I&apos;ve installed it — Refresh
                                         </Button>
@@ -336,7 +337,10 @@ export function PwaInstallPrompt() {
                                     variant="flat"
                                     size="lg"
                                     className="w-full font-semibold"
-                                    onPress={() => window.location.reload()}
+                                    onPress={() => {
+                                        localStorage.setItem(INSTALLED_KEY, "true");
+                                        window.location.reload();
+                                    }}
                                 >
                                     I&apos;ve added it — Refresh
                                 </Button>
