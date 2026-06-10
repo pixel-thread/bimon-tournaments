@@ -145,17 +145,24 @@ export function PwaInstallPrompt() {
         const timer = setTimeout(() => {
             if (!isSignedIn) return;
 
-            // Already installed as PWA
+            // Already installed as PWA (currently in standalone mode)
             if (isStandalone()) {
                 localStorage.setItem(INSTALLED_KEY, "true");
                 setState("ok");
                 return;
             }
 
-            // Already marked as installed
+            // Previously marked as installed but now in browser (uninstalled?)
+            // On mobile: clear flag and re-prompt. On desktop: skip.
             if (localStorage.getItem(INSTALLED_KEY) === "true") {
-                setState("ok");
-                return;
+                if (isMobile()) {
+                    // They're on mobile but NOT in standalone — likely uninstalled
+                    localStorage.removeItem(INSTALLED_KEY);
+                    // Fall through to show install prompt again
+                } else {
+                    setState("ok");
+                    return;
+                }
             }
 
             // Desktop — not mandatory
