@@ -16,7 +16,8 @@ export default function PushTestPage() {
     const [map, setMap] = useState("Erangel");
     const [matchNumber, setMatchNumber] = useState(1);
     const [sending, setSending] = useState<SendingState>(null);
-    const [activeTab, setActiveTab] = useState<"tools" | "subscribers">("tools");
+    const [activeTab, setActiveTab] = useState<"tools" | "subscribers" | "delivery">("tools");
+    const [lastTrackTag, setLastTrackTag] = useState("");
     const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [diagnostics, setDiagnostics] = useState<any>(null);
@@ -55,6 +56,10 @@ export default function PushTestPage() {
             });
             const data = await res.json();
             setDiagnostics(data.data);
+            if (data.data?.trackTag) {
+                setLastTrackTag(data.data.trackTag);
+                setActiveTab("delivery");
+            }
             setResult({
                 ok: data.success,
                 message: data.message || (data.success ? `✅ Sent! (${mode})` : `❌ ${data.message}`),
@@ -88,6 +93,10 @@ export default function PushTestPage() {
             });
             const data = await res.json();
             setDiagnostics(data.data);
+            if (data.data?.trackTag) {
+                setLastTrackTag(data.data.trackTag);
+                setActiveTab("delivery");
+            }
             setResult({
                 ok: data.success,
                 message: data.message || (data.success
@@ -147,7 +156,7 @@ export default function PushTestPage() {
 
                 {/* Tabs */}
                 <div style={{ display: "flex", gap: 4, marginBottom: 24, background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 4 }}>
-                    {(["tools", "subscribers"] as const).map((tab) => (
+                    {(["tools", "subscribers", "delivery"] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -159,7 +168,7 @@ export default function PushTestPage() {
                                 color: activeTab === tab ? "#818cf8" : "#666",
                             }}
                         >
-                            {tab === "tools" ? "🔧 Push Tools" : "👥 Subscribers"}
+                            {tab === "tools" ? "🔧 Push Tools" : tab === "subscribers" ? "👥 Subscribers" : "📊 Delivery"}
                         </button>
                     ))}
                 </div>
@@ -475,6 +484,9 @@ export default function PushTestPage() {
 
                 {/* ═══════════ SUBSCRIBER TAB ═══════════ */}
                 {activeTab === "subscribers" && <SubscriberList />}
+
+                {/* ═══════════ DELIVERY TAB ═══════════ */}
+                {activeTab === "delivery" && <DeliveryStats trackTag={lastTrackTag} />}
             </div>
 
             <style>{`
@@ -624,6 +636,316 @@ function SubscriberList() {
                     ))}
                 </div>
             )}
+        </div>
+    );
+}
+
+/* ═══════════ DELIVERY STATS COMPONENT ═══════════ */
+
+interface DeliveryPlayer {
+    name: string;
+    delivered: boolean;
+    clicked: boolean;
+    deliveredAt?: string;
+    clickedAt?: string;
+}
+
+interface DeliveryData {
+    tag: string;
+    totalDelivered: number;
+    totalClicked: number;
+    players: DeliveryPlayer[];
+}
+
+interface RecentTag {
+    tag: string;
+    delivered: number;
+    clicked: number;
+}
+
+function DeliveryStats({ trackTag }: { trackTag: string }) {
+    const [data, setData] = useState<DeliveryData | null>(null);
+    const [recentTags, setRecentTags] = useState<RecentTag[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [pollCount, setPollCount] = useState(0);
+    const [selectedTag, setSelectedTag] = useState(trackTag);
+
+    // Update selectedTag when trackTag changes (new push sent)
+    useEffect(() => {
+        if (trackTag) setSelectedTag(trackTag);
+    }, [trackTag]);
+
+    async function loadStats(tag: string) {
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/push/track?tag=${encodeURIComponent(tag)}`);
+            const json = await res.json();
+            if (json.success && json.data) {
+                setData(json.data);
+            }
+        } catch {
+            // ignore
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function loadRecentTags() {
+        try {
+            const res = await fetch("/api/push/track");
+            const json = await res.json();
+            if (json.success && json.data) {
+                setRecentTags(json.data);
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    // Auto-poll when we have a trackTag (every 5s for 60s)
+    useEffect(() => {
+        if (!selectedTag) {
+            loadRecentTags();
+            return;
+        }
+
+        loadStats(selectedTag);
+        setPollCount(0);
+
+        const interval = setInterval(() => {
+            setPollCount((c) => {
+                if (c >= 12) {
+                    clearInterval(interval);
+                    return c;
+                }
+                loadStats(selectedTag);
+                return c + 1;
+            });
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [selectedTag]);
+
+    function formatTime(iso?: string) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    return (
+        <div style={{
+            background: "rgba(129, 140, 248, 0.04)",
+            border: "1px solid rgba(129, 140, 248, 0.15)",
+            borderRadius: 16,
+            padding: "20px",
+        }}>
+            {/* No tag selected — show recent push history */}
+            {!selectedTag && (
+                <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                        <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#818cf8" }}>
+                            📊 Recent Push History
+                        </h2>
+                    </div>
+                    {recentTags.length === 0 ? (
+                        <p style={{ fontSize: 13, color: "#666", textAlign: "center", padding: "20px 0" }}>
+                            No push sent yet. Send a push from the Push Tools tab.
+                        </p>
+                    ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {recentTags.map((t) => (
+                                <button
+                                    key={t.tag}
+                                    onClick={() => setSelectedTag(t.tag)}
+                                    style={{
+                                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                                        padding: "10px 14px", borderRadius: 10,
+                                        background: "rgba(255,255,255,0.03)",
+                                        border: "1px solid rgba(255,255,255,0.06)",
+                                        color: "#e0e0e0", fontSize: 13, cursor: "pointer",
+                                        textAlign: "left", width: "100%",
+                                    }}
+                                >
+                                    <span style={{ fontFamily: "monospace", fontSize: 11, color: "#818cf8" }}>
+                                        {t.tag}
+                                    </span>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        <span style={{ fontSize: 11, color: "#34d399" }}>📨 {t.delivered}</span>
+                                        <span style={{ fontSize: 11, color: "#60a5fa" }}>🖱️ {t.clicked}</span>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Tag selected — show per-player stats */}
+            {selectedTag && (
+                <>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                        <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#818cf8" }}>
+                                    📊 Delivery Stats
+                                </h2>
+                                {pollCount < 12 && (
+                                    <span style={{
+                                        fontSize: 10, background: "rgba(52, 211, 153, 0.15)",
+                                        color: "#34d399", padding: "2px 8px", borderRadius: 10,
+                                        fontWeight: 600, animation: "pulse 2s ease-in-out infinite",
+                                    }}>
+                                        LIVE
+                                    </span>
+                                )}
+                            </div>
+                            <p style={{ fontSize: 11, color: "#666", margin: "4px 0 0" }}>
+                                <code style={{ fontSize: 10, color: "#818cf8" }}>{selectedTag}</code>
+                            </p>
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                            <button
+                                onClick={() => loadStats(selectedTag)}
+                                disabled={loading}
+                                style={{
+                                    padding: "4px 10px", borderRadius: 6,
+                                    border: "1px solid rgba(129, 140, 248, 0.3)",
+                                    background: "rgba(129, 140, 248, 0.1)",
+                                    color: "#818cf8", fontSize: 11, fontWeight: 600,
+                                    cursor: loading ? "not-allowed" : "pointer",
+                                }}
+                            >
+                                {loading ? "..." : "🔄"}
+                            </button>
+                            <button
+                                onClick={() => { setSelectedTag(""); setData(null); loadRecentTags(); }}
+                                style={{
+                                    padding: "4px 10px", borderRadius: 6,
+                                    border: "1px solid rgba(255,255,255,0.1)",
+                                    background: "rgba(255,255,255,0.04)",
+                                    color: "#888", fontSize: 11, fontWeight: 600,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                ← Back
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Summary */}
+                    {data && (
+                        <div style={{
+                            display: "flex", gap: 12, marginBottom: 16,
+                        }}>
+                            <div style={{
+                                flex: 1, padding: "12px", borderRadius: 10,
+                                background: "rgba(52, 211, 153, 0.06)",
+                                border: "1px solid rgba(52, 211, 153, 0.15)",
+                                textAlign: "center",
+                            }}>
+                                <div style={{ fontSize: 24, fontWeight: 700, color: "#34d399" }}>
+                                    {data.totalDelivered}
+                                </div>
+                                <div style={{ fontSize: 11, color: "#34d399", opacity: 0.7 }}>
+                                    📨 Delivered
+                                </div>
+                            </div>
+                            <div style={{
+                                flex: 1, padding: "12px", borderRadius: 10,
+                                background: "rgba(96, 165, 250, 0.06)",
+                                border: "1px solid rgba(96, 165, 250, 0.15)",
+                                textAlign: "center",
+                            }}>
+                                <div style={{ fontSize: 24, fontWeight: 700, color: "#60a5fa" }}>
+                                    {data.totalClicked}
+                                </div>
+                                <div style={{ fontSize: 11, color: "#60a5fa", opacity: 0.7 }}>
+                                    🖱️ Clicked
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Per player list */}
+                    {data && data.players.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {data.players.map((p, i) => (
+                                <div
+                                    key={i}
+                                    style={{
+                                        display: "flex", alignItems: "center", gap: 10,
+                                        padding: "8px 12px", borderRadius: 10,
+                                        background: "rgba(255,255,255,0.03)",
+                                        border: "1px solid rgba(255,255,255,0.06)",
+                                    }}
+                                >
+                                    <div style={{
+                                        width: 28, height: 28, borderRadius: "50%",
+                                        background: p.delivered
+                                            ? "rgba(52, 211, 153, 0.15)"
+                                            : "rgba(239, 68, 68, 0.15)",
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                        fontSize: 12,
+                                    }}>
+                                        {p.delivered ? "✅" : "⏳"}
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: "#e0e0e0" }}>
+                                            {p.name}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: "#666", display: "flex", gap: 8 }}>
+                                            {p.delivered && (
+                                                <span style={{ color: "#34d399" }}>
+                                                    📨 {formatTime(p.deliveredAt)}
+                                                </span>
+                                            )}
+                                            {p.clicked && (
+                                                <span style={{ color: "#60a5fa" }}>
+                                                    🖱️ {formatTime(p.clickedAt)}
+                                                </span>
+                                            )}
+                                            {!p.delivered && <span>Pending...</span>}
+                                        </div>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 4 }}>
+                                        {p.delivered && (
+                                            <span style={{
+                                                fontSize: 10, padding: "2px 8px", borderRadius: 8,
+                                                background: "rgba(52, 211, 153, 0.1)", color: "#34d399",
+                                                fontWeight: 600,
+                                            }}>
+                                                Delivered
+                                            </span>
+                                        )}
+                                        {p.clicked && (
+                                            <span style={{
+                                                fontSize: 10, padding: "2px 8px", borderRadius: 8,
+                                                background: "rgba(96, 165, 250, 0.1)", color: "#60a5fa",
+                                                fontWeight: 600,
+                                            }}>
+                                                Clicked
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : data ? (
+                        <p style={{ fontSize: 13, color: "#666", textAlign: "center", padding: "20px 0" }}>
+                            Waiting for delivery reports...
+                            <br />
+                            <span style={{ fontSize: 11 }}>Reports arrive when devices display the notification</span>
+                        </p>
+                    ) : null}
+                </>
+            )}
+
+            <style>{`
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                }
+            `}</style>
         </div>
     );
 }

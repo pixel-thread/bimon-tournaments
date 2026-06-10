@@ -76,13 +76,14 @@ export async function POST(req: NextRequest) {
             };
         } else {
             const isSticky = mode === "sticky" || mode === "update";
+            const channelUrl = tournamentId ? `/channel?tab=${tournamentId}` : "/channel";
             basePayload = {
                 title: `🔐 Match ${matchNumber} — ${map}`,
                 body: `Room ID: ${roomId}\nPassword: ${password}\n\nJoin now! Lobby closing soon.`,
                 icon: "/icons/icon-192x192.png",
                 badge: "/icons/icon-72x72.png",
                 tag: isSticky ? "live-room-info" : `test-${Date.now()}`,
-                data: { url: "/channel", trackTag },
+                data: { url: channelUrl, trackTag },
                 requireInteraction: isSticky,
                 renotify: mode === "update",
             };
@@ -205,6 +206,7 @@ export async function POST(req: NextRequest) {
                 playerId: user.player.id,
                 mode,
                 target,
+                trackTag,
                 subscriptionCount: subscriptions.length,
                 delivered: results.filter((r) => r.status.includes("✅")).length,
                 staleRemoved: staleIds.length,

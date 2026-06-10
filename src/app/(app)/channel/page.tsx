@@ -448,7 +448,13 @@ export default function ChannelPage() {
     const queryClient = useQueryClient();
     const [message, setMessage] = useState("");
     const [threadParent, setThreadParent] = useState<Announcement | null>(null);
-    const [activeTab, setActiveTab] = useState("general");
+    const [activeTab, setActiveTab] = useState(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            return params.get("tab") || "general";
+        }
+        return "general";
+    });
     const [editMsg, setEditMsg] = useState<Announcement | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
