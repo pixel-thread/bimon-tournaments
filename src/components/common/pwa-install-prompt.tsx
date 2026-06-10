@@ -240,6 +240,24 @@ export function PwaInstallPrompt() {
                         </button>
                     </div>
                 </div>
+                {/* Reinstall option for users who uninstalled */}
+                <div className="mx-3 mt-1.5 text-center">
+                    <button
+                        onClick={() => {
+                            localStorage.removeItem(INSTALLED_KEY);
+                            // Re-detect platform and show install flow
+                            if (isIOS()) {
+                                setState("ios");
+                            } else {
+                                setAndroidBrowser(detectAndroidBrowser());
+                                setState("android");
+                            }
+                        }}
+                        className="text-[11px] text-foreground/30 hover:text-foreground/50 transition-colors underline underline-offset-2"
+                    >
+                        Uninstalled? Tap to reinstall
+                    </button>
+                </div>
             </motion.div>
         );
     }
