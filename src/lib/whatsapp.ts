@@ -101,88 +101,100 @@ const silentLogger = {
     fatal: (...args: any[]) => console.error("[Baileys FATAL]", ...args),
 } as any;
 
-// ── Connection helper ─────────────────────────────────────────
-
 /**
  * Connect to WhatsApp, execute an action, then disconnect.
- * Returns the result of the action.
+ * Handles 515 "restart required" with auto-reconnect.
  */
 export async function connectAndExecute<T>(
     action: (sock: WASocket) => Promise<T>
 ): Promise<T> {
-    // Check if WhatsApp has been linked (creds row exists in DB from a successful QR scan)
+    // Check if WhatsApp has been linked
     const credsRow = await prisma.whatsAppAuth.findUnique({ where: { key: "creds" } });
     if (!credsRow) {
         throw new Error("WhatsApp not linked. Please scan QR code first at /dashboard/whatsapp");
     }
 
+    // Load auth state ONCE — reuse across reconnections
     const { state, saveCreds } = await useDBAuthState();
+    const cachedKeys = makeCacheableSignalKeyStore(state.keys as any, silentLogger);
     const { version } = await fetchLatestBaileysVersion();
+    let attempt = 0;
+    const maxAttempts = 3;
 
     return new Promise<T>((resolve, reject) => {
         let settled = false;
-        let timeoutId: NodeJS.Timeout;
 
-        const sock = makeWASocket({
-            version,
-            auth: {
-                creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys as any, silentLogger),
-            },
-            browser: Browsers.macOS("Chrome"),
-            printQRInTerminal: false,
-            logger: silentLogger,
-            syncFullHistory: false,
-        });
-
-        // Save creds whenever they update
-        sock.ev.on("creds.update", saveCreds);
-
-        // Set a timeout to prevent hanging
-        timeoutId = setTimeout(() => {
+        const timeout = setTimeout(() => {
             if (!settled) {
                 settled = true;
-                try { sock.end(undefined); } catch {}
                 reject(new Error("WhatsApp connection timed out (30s)"));
             }
         }, 30_000);
 
-        sock.ev.on("connection.update", async (update: Partial<ConnectionState>) => {
-            const { connection, lastDisconnect } = update;
+        const startSocket = () => {
+            attempt++;
+            console.log(`[WhatsApp] Connect attempt ${attempt}/${maxAttempts}`);
 
-            if (connection === "open") {
-                try {
-                    const result = await action(sock);
-                    settled = true;
-                    clearTimeout(timeoutId);
-                    // Disconnect cleanly
-                    try { sock.end(undefined); } catch {}
-                    resolve(result);
-                } catch (err) {
-                    settled = true;
-                    clearTimeout(timeoutId);
-                    try { sock.end(undefined); } catch {}
-                    reject(err);
-                }
-            }
+            const sock = makeWASocket({
+                version,
+                auth: { creds: state.creds, keys: cachedKeys },
+                browser: Browsers.macOS("Chrome"),
+                printQRInTerminal: false,
+                logger: silentLogger,
+                syncFullHistory: false,
+            });
 
-            if (connection === "close") {
+            sock.ev.on("creds.update", async (creds) => {
+                Object.assign(state.creds, creds);
+                await saveCreds(creds);
+            });
+
+            sock.ev.on("connection.update", async (update: Partial<ConnectionState>) => {
+                const { connection, lastDisconnect } = update;
                 const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-                if (statusCode === DisconnectReason.loggedOut) {
-                    // Session invalidated — clear all auth data
-                    await prisma.whatsAppAuth.deleteMany({});
-                    if (!settled) {
+
+                if (connection === "open") {
+                    try {
+                        const result = await action(sock);
                         settled = true;
-                        clearTimeout(timeoutId);
-                        reject(new Error("WhatsApp session logged out. Please re-scan QR code."));
+                        clearTimeout(timeout);
+                        try { sock.end(undefined); } catch {}
+                        resolve(result);
+                    } catch (err) {
+                        settled = true;
+                        clearTimeout(timeout);
+                        try { sock.end(undefined); } catch {}
+                        reject(err);
                     }
-                } else if (!settled) {
-                    settled = true;
-                    clearTimeout(timeoutId);
-                    reject(new Error(`WhatsApp connection closed (code: ${statusCode})`));
                 }
-            }
-        });
+
+                if (connection === "close" && !settled) {
+                    console.log(`[WhatsApp] Connection closed, status: ${statusCode}`);
+                    try { sock.end(undefined); } catch {}
+
+                    if (statusCode === DisconnectReason.loggedOut) {
+                        settled = true;
+                        clearTimeout(timeout);
+                        await prisma.whatsAppAuth.deleteMany({});
+                        reject(new Error("WhatsApp session logged out. Please re-scan QR code."));
+                        return;
+                    }
+
+                    // 515 or other non-fatal — retry with same auth state
+                    if (attempt < maxAttempts) {
+                        const delay = statusCode === 515 ? 500 : 1500;
+                        console.log(`[WhatsApp] Reconnecting in ${delay}ms...`);
+                        setTimeout(startSocket, delay);
+                    } else {
+                        settled = true;
+                        clearTimeout(timeout);
+                        reject(new Error(`WhatsApp connection failed after ${maxAttempts} attempts (status: ${statusCode})`));
+                    }
+                }
+            });
+        };
+
+        startSocket();
     });
 }
 
