@@ -144,9 +144,10 @@ export async function connectAndExecute<T>(
                 syncFullHistory: false,
             });
 
-            sock.ev.on("creds.update", async (creds) => {
-                Object.assign(state.creds, creds);
-                await saveCreds(creds);
+            sock.ev.on("creds.update", async (update) => {
+                // Merge partial update into full creds, then save the FULL object
+                Object.assign(state.creds, update);
+                await saveCreds(state.creds);
             });
 
             sock.ev.on("connection.update", async (update: Partial<ConnectionState>) => {
@@ -244,10 +245,10 @@ export async function linkWhatsApp(
                 connectTimeoutMs: 20_000,
             });
 
-            sock.ev.on("creds.update", async (creds) => {
-                // Update in-memory creds AND persist to DB
-                Object.assign(state.creds, creds);
-                await saveCreds(creds);
+            sock.ev.on("creds.update", async (update) => {
+                // Merge partial update into full creds, then save the FULL object
+                Object.assign(state.creds, update);
+                await saveCreds(state.creds);
             });
 
             sock.ev.on("connection.update", async (update: Partial<ConnectionState>) => {
