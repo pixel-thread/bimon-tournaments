@@ -306,12 +306,13 @@ export async function createGroup(
         const group = await sock.groupCreate(name, []);
         const groupId = group.id;
 
-        // Add admin if provided
+        // Add admin if provided (with delay to appear natural)
         if (adminPhone) {
+            await humanDelay(1000);
             const adminJid = formatPhoneToJid(adminPhone);
             try {
                 await sock.groupParticipantsUpdate(groupId, [adminJid], "add");
-                // Make admin a group admin
+                await humanDelay(500);
                 await sock.groupParticipantsUpdate(groupId, [adminJid], "promote");
             } catch (err) {
                 console.error(`[WhatsApp] Failed to add admin ${adminPhone}:`, err);
@@ -322,7 +323,12 @@ export async function createGroup(
     });
 }
 
-/** Add members to a WhatsApp group. Returns success/fail lists. */
+/**
+ * Add members to a WhatsApp group. Returns success/fail lists.
+ *
+ * Anti-ban: small batches of 5 with 3s delays between batches.
+ * WhatsApp flags accounts that add too many people too quickly.
+ */
 export async function addMembers(
     groupId: string,
     phones: { phone: string; name: string }[]
@@ -331,30 +337,35 @@ export async function addMembers(
         const added: string[] = [];
         const failed: { name: string; phone: string; reason: string }[] = [];
 
-        // WhatsApp limits batch additions — add in batches of 20
-        const batchSize = 20;
+        // Small batches + delays to avoid ban
+        const batchSize = 5;
         for (let i = 0; i < phones.length; i += batchSize) {
             const batch = phones.slice(i, i + batchSize);
             const jids = batch.map((p) => formatPhoneToJid(p.phone));
 
+            // Delay between batches (not on first batch)
+            if (i > 0) {
+                await humanDelay(3000);
+            }
+
             try {
                 const result = await sock.groupParticipantsUpdate(groupId, jids, "add");
-                // Process results
                 for (let j = 0; j < result.length; j++) {
                     const r = result[j];
                     const player = batch[j];
-                    if (r.status === "200" || r.status?.toString() === "200") {
+                    const status = r.status?.toString();
+                    if (status === "200" || status === "409") {
+                        // 200 = added, 409 = already in group
                         added.push(player.name);
                     } else {
                         failed.push({
                             name: player.name,
                             phone: player.phone,
-                            reason: `Status: ${r.status}`,
+                            reason: `Status: ${status}`,
                         });
                     }
                 }
             } catch (err) {
-                // If batch fails, mark all as failed
                 for (const player of batch) {
                     failed.push({
                         name: player.name,
@@ -381,25 +392,24 @@ export async function removeMember(groupId: string, phone: string): Promise<void
 export async function deleteGroup(groupId: string): Promise<void> {
     return connectAndExecute(async (sock) => {
         try {
-            // Get all participants
             const metadata = await sock.groupMetadata(groupId);
             const botJid = sock.user?.id;
             const memberJids = metadata.participants
                 .filter((p) => p.id !== botJid)
                 .map((p) => p.id);
 
-            // Remove all members in batches
-            const batchSize = 20;
+            // Small batches with delays to avoid ban
+            const batchSize = 5;
             for (let i = 0; i < memberJids.length; i += batchSize) {
+                if (i > 0) await humanDelay(2000);
                 const batch = memberJids.slice(i, i + batchSize);
                 await sock.groupParticipantsUpdate(groupId, batch, "remove");
             }
 
-            // Leave the group
+            await humanDelay(1000);
             await sock.groupLeave(groupId);
         } catch (err) {
             console.error("[WhatsApp] Failed to delete group:", err);
-            // Try to at least leave
             try { await sock.groupLeave(groupId); } catch {}
         }
     });
@@ -410,6 +420,8 @@ export async function deleteGroup(groupId: string): Promise<void> {
 /** Send a text message to a WhatsApp group */
 export async function sendMessage(groupId: string, text: string): Promise<void> {
     return connectAndExecute(async (sock) => {
+        // Small delay before sending to appear natural
+        await humanDelay(500);
         await sock.sendMessage(groupId, { text });
     });
 }
@@ -421,6 +433,7 @@ export async function sendImage(
     caption?: string
 ): Promise<void> {
     return connectAndExecute(async (sock) => {
+        await humanDelay(500);
         await sock.sendMessage(groupId, {
             image: imageBuffer,
             caption: caption || undefined,
@@ -445,9 +458,13 @@ export async function unlinkWhatsApp(): Promise<void> {
 
 /** Convert a 10-digit Indian phone number to WhatsApp JID */
 function formatPhoneToJid(phone: string): string {
-    // Strip non-digits
     const digits = phone.replace(/\D/g, "");
-    // If already has country code (91...), use as-is; otherwise prepend 91
     const fullNumber = digits.length === 10 ? `91${digits}` : digits;
     return `${fullNumber}@s.whatsapp.net`;
+}
+
+/** Human-like delay with small jitter to avoid detection */
+function humanDelay(baseMs: number): Promise<void> {
+    const jitter = Math.floor(Math.random() * 500);
+    return new Promise((r) => setTimeout(r, baseMs + jitter));
 }
