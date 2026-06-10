@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardBody, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save, Camera, X, Smartphone } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save, Camera, X, Smartphone, Bell, BellOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
@@ -743,6 +743,157 @@ function TournamentRow({ tournament, state, onChange, group }: {
                     </>
                 )}
             </button>
+
+            {/* Notification Status per Team */}
+            <TeamPushStatus tournamentId={tournament.id} />
+        </div>
+    );
+}
+
+/* ─── Team Push Notification Status ─────────────────────────── */
+
+interface TeamPlayer {
+    id: string;
+    displayName: string;
+    avatar: string | null;
+    pushEnabled: boolean;
+    deviceCount: number;
+}
+
+interface TeamPushData {
+    id: string;
+    name: string;
+    teamNumber: number;
+    players: TeamPlayer[];
+    pushCount: number;
+    totalPlayers: number;
+}
+
+function TeamPushStatus({ tournamentId }: { tournamentId: string }) {
+    const [expanded, setExpanded] = useState(false);
+
+    const { data, isLoading } = useQuery<{
+        teams: TeamPushData[];
+        summary: { totalPlayers: number; totalWithPush: number; percentage: number };
+    }>({
+        queryKey: ["team-push-status", tournamentId],
+        queryFn: async () => {
+            const res = await fetch(`/api/push/team-status?tournamentId=${tournamentId}`);
+            if (!res.ok) return { teams: [], summary: { totalPlayers: 0, totalWithPush: 0, percentage: 0 } };
+            const json = await res.json();
+            return json.data;
+        },
+        staleTime: 60 * 1000,
+        enabled: expanded, // Only fetch when expanded
+    });
+
+    const summary = data?.summary;
+    const teams = data?.teams || [];
+
+    return (
+        <div className="rounded-xl border border-divider overflow-hidden">
+            <button
+                type="button"
+                onClick={() => setExpanded(!expanded)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground/50 hover:text-foreground/70 hover:bg-default-50 transition-colors cursor-pointer"
+            >
+                <Bell className="w-3.5 h-3.5" />
+                <span>Notifications</span>
+                {summary && (
+                    <span className={`ml-auto px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                        summary.percentage >= 80
+                            ? "bg-emerald-500/15 text-emerald-500"
+                            : summary.percentage >= 50
+                                ? "bg-amber-500/15 text-amber-500"
+                                : "bg-red-500/15 text-red-500"
+                    }`}>
+                        {summary.totalWithPush}/{summary.totalPlayers} ({summary.percentage}%)
+                    </span>
+                )}
+                {expanded ? (
+                    <ChevronUp className={`w-3.5 h-3.5 ${summary ? "" : "ml-auto"}`} />
+                ) : (
+                    <ChevronDown className={`w-3.5 h-3.5 ${summary ? "" : "ml-auto"}`} />
+                )}
+            </button>
+
+            <AnimatePresence>
+                {expanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="border-t border-divider px-3 py-2 space-y-2 max-h-64 overflow-y-auto">
+                            {isLoading ? (
+                                <div className="flex items-center justify-center py-4 gap-2 text-xs text-foreground/30">
+                                    <Bell className="w-3.5 h-3.5 animate-pulse" />
+                                    Loading...
+                                </div>
+                            ) : teams.length === 0 ? (
+                                <p className="text-xs text-foreground/30 text-center py-3">No teams found</p>
+                            ) : (
+                                teams.map((team) => (
+                                    <div key={team.id} className="flex items-start gap-2">
+                                        {/* Team label */}
+                                        <div className="flex items-center gap-1 min-w-[60px] shrink-0 pt-0.5">
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                                team.pushCount === team.totalPlayers
+                                                    ? "bg-emerald-500/15 text-emerald-500"
+                                                    : team.pushCount > 0
+                                                        ? "bg-amber-500/15 text-amber-500"
+                                                        : "bg-red-500/15 text-red-500"
+                                            }`}>
+                                                T{team.teamNumber}
+                                            </span>
+                                            <span className="text-[10px] text-foreground/30">
+                                                {team.pushCount}/{team.totalPlayers}
+                                            </span>
+                                        </div>
+
+                                        {/* Players */}
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {team.players.map((player) => (
+                                                <div
+                                                    key={player.id}
+                                                    className="flex items-center gap-1 group"
+                                                    title={`${player.displayName} — ${player.pushEnabled ? `${player.deviceCount} device(s)` : "No push"}`}
+                                                >
+                                                    <div className="relative">
+                                                        {player.avatar ? (
+                                                            // eslint-disable-next-line @next/next/no-img-element
+                                                            <img
+                                                                src={player.avatar}
+                                                                alt=""
+                                                                className="w-5 h-5 rounded-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-5 h-5 rounded-full bg-default-200 flex items-center justify-center text-[8px] font-bold text-foreground/40">
+                                                                {player.displayName.charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        {/* Status dot */}
+                                                        <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-background ${
+                                                            player.pushEnabled ? "bg-emerald-500" : "bg-red-500"
+                                                        }`} />
+                                                    </div>
+                                                    <span className={`text-[10px] truncate max-w-[60px] ${
+                                                        player.pushEnabled ? "text-foreground/60" : "text-foreground/25"
+                                                    }`}>
+                                                        {player.displayName}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
