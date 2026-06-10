@@ -112,16 +112,19 @@ export async function POST(req: NextRequest) {
             },
         }).catch((err) => console.error("[RoomInfo] Channel post failed:", err));
 
-        // Push to confirmed players in this tournament
-        sendPushToTournament(tournamentId, {
-            title: `🔐 Match ${matchNumber} — ${map}`,
-            body: `Room ID: ${roomId}\nPassword: ${password}\n\nJoin now! Lobby closing soon.`,
-            tag: "live-room-info",
-            url: `/channel?tab=${tournamentId}`,
-            requireInteraction: true,
-        }).then((result) => {
+        // Push to confirmed players in this tournament — MUST await on Vercel
+        try {
+            const result = await sendPushToTournament(tournamentId, {
+                title: `🔐 Match ${matchNumber} — ${map}`,
+                body: `Room ID: ${roomId}\nPassword: ${password}\n\nJoin now! Lobby closing soon.`,
+                tag: "live-room-info",
+                url: `/channel?tab=${tournamentId}`,
+                requireInteraction: true,
+            });
             console.log(`[RoomInfo] Push: ${result.sent} sent, ${result.failed} failed for ${tournamentId}`);
-        });
+        } catch (err) {
+            console.error("[RoomInfo] Push error:", err);
+        }
 
         return SuccessResponse({
             message: "Room info published",
