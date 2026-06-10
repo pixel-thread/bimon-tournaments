@@ -16,6 +16,7 @@ export default function PushTestPage() {
     const [map, setMap] = useState("Erangel");
     const [matchNumber, setMatchNumber] = useState(1);
     const [sending, setSending] = useState<SendingState>(null);
+    const [activeTab, setActiveTab] = useState<"tools" | "subscribers">("tools");
     const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [diagnostics, setDiagnostics] = useState<any>(null);
@@ -144,6 +145,26 @@ export default function PushTestPage() {
                     </h1>
                 </div>
 
+                {/* Tabs */}
+                <div style={{ display: "flex", gap: 4, marginBottom: 24, background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 4 }}>
+                    {(["tools", "subscribers"] as const).map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            style={{
+                                flex: 1, padding: "8px 16px", borderRadius: 8,
+                                border: "none", fontSize: 13, fontWeight: 600,
+                                cursor: "pointer", transition: "all 0.2s",
+                                background: activeTab === tab ? "rgba(129, 140, 248, 0.15)" : "transparent",
+                                color: activeTab === tab ? "#818cf8" : "#666",
+                            }}
+                        >
+                            {tab === "tools" ? "🔧 Push Tools" : "👥 Subscribers"}
+                        </button>
+                    ))}
+                </div>
+
+                {activeTab === "tools" && (<>
                 {/* ═══════════ BROADCAST MESSAGE ═══════════ */}
                 <div style={{
                     background: "linear-gradient(135deg, rgba(251, 146, 60, 0.08), rgba(249, 115, 22, 0.04))",
@@ -450,8 +471,10 @@ export default function PushTestPage() {
                     </div>
                 )}
 
-                {/* ═══════════ SUBSCRIBER LIST ═══════════ */}
-                <SubscriberList />
+                </>)}
+
+                {/* ═══════════ SUBSCRIBER TAB ═══════════ */}
+                {activeTab === "subscribers" && <SubscriberList />}
             </div>
 
             <style>{`
@@ -500,9 +523,13 @@ function SubscriberList() {
         }
     }
 
+    // Auto-load when component mounts (tab switch)
+    useEffect(() => {
+        loadSubscribers();
+    }, []);
+
     return (
         <div style={{
-            marginTop: 24,
             background: "rgba(52, 211, 153, 0.04)",
             border: "1px solid rgba(52, 211, 153, 0.15)",
             borderRadius: 16,
