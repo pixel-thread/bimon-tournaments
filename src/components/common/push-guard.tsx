@@ -63,6 +63,7 @@ export function PushGuard() {
     const [state, setState] = useState<GuardState>("loading");
     const [subscribing, setSubscribing] = useState(false);
     const [error, setError] = useState("");
+    const [dismissed, setDismissed] = useState(false);
 
     // Delay showing modal so page content renders first + wait for PWA install
     useEffect(() => {
@@ -236,7 +237,9 @@ export function PushGuard() {
                 return;
             }
             if (permission !== "granted") {
-                setError("Permission not granted. Please try again.");
+                // User dismissed the prompt — show skip option
+                setDismissed(true);
+                setError("Tap again to enable, or skip for now.");
                 return;
             }
 
@@ -250,6 +253,7 @@ export function PushGuard() {
                     setState("brave");
                 } else {
                     setError("Subscription failed. Please refresh and try again.");
+                    setDismissed(true);
                 }
             }
         } catch (err) {
@@ -258,6 +262,7 @@ export function PushGuard() {
                 setState("brave");
             } else {
                 setError(err instanceof Error ? err.message : "Failed to enable push");
+                setDismissed(true);
             }
         } finally {
             setSubscribing(false);
@@ -502,12 +507,12 @@ export function PushGuard() {
                                 >
                                     {subscribing ? "Enabling..." : "Enable Notifications"}
                                 </Button>
-                                {!isMobileDevice() && (
+                                {(!isMobileDevice() || dismissed) && (
                                     <button
                                         onClick={() => setState("ok")}
                                         className="text-xs text-foreground/30 hover:text-foreground/50 transition-colors"
                                     >
-                                        Maybe later
+                                        {dismissed ? "Skip for now" : "Maybe later"}
                                     </button>
                                 )}
                             </>
