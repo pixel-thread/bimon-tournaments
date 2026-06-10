@@ -283,6 +283,9 @@ model Player {
   autoAcceptsFrom       PlayerAutoAccept[]  @relation("AutoAcceptPlayer")
   autoAcceptsFor        PlayerAutoAccept[]  @relation("AutoAcceptCaptain")
 
+  // Channel announcements
+  announcements         Announcement[]
+
   @@index([userId])
   @@index([category])
   @@index([isBanned])
@@ -1665,4 +1668,28 @@ model PlayerAutoAccept {
   @@unique([playerId, captainId])
   @@index([playerId])
   @@index([captainId])
+}
+
+// ── Tournament Channel ─────────────────────────────────────
+
+model Announcement {
+  id        String   @id @default(uuid())
+  type      String   @default("message") // "message" | "room-info" | "image"
+  content   String   @db.Text
+  imageUrl  String?
+  pinned    Boolean  @default(false)
+
+  // Threading — replies reference a parent
+  parentId  String?
+  parent    Announcement?  @relation("AnnouncementThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Announcement[] @relation("AnnouncementThread")
+
+  authorId  String
+  author    Player   @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([parentId])
+  @@index([authorId])
 }

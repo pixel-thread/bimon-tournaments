@@ -355,7 +355,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
         }
     }, [tournament.id, tournamentName, state.map, state.time, state.roomId, state.password, attachedImage, group]);
 
-    /** Send room info to Discord (new message) */
+    /** Send room info to Discord (new message) + broadcast push */
     const handleSend = useCallback(async () => {
         if (state.roomId.length !== 7) return;
         setDiscordSending(true);
@@ -364,13 +364,29 @@ function TournamentRow({ tournament, state, onChange, group }: {
         const msg = generateMessage(matchNumber);
         try { await navigator.clipboard.writeText(msg + "\n\n" + state.roomId); } catch {}
 
-        sendDiscord(matchNumber).then(async () => {
+        // Send to Discord + broadcast push notification + save banner (in parallel)
+        const discordPromise = sendDiscord(matchNumber);
+        const pushPromise = fetch("/api/room-info/active", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                roomId: state.roomId.trim(),
+                password: state.password,
+                map: state.map,
+                matchNumber,
+                tournamentId: tournament.id,
+                tournamentName,
+                time: state.time.trim() || "Now",
+            }),
+        }).catch(() => {}); // Never block on push failure
+
+        Promise.all([discordPromise, pushPromise]).then(async () => {
             setDiscordSent(true);
             setAttachedImage(null);
             setSentMatchNumbers(prev => new Set(prev).add(matchNumber));
             setLastSentMatch(matchNumber);
             const { toast } = await import("sonner");
-            toast.success("Sent to Discord + copied to clipboard 📋");
+            toast.success("Sent to Discord + Push 📋🔔");
             setTimeout(() => setDiscordSent(false), 3000);
             // Auto-increment match & update map for next match
             const nextMatch = matchNumber + 1;
@@ -380,7 +396,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
             const { toast } = await import("sonner");
             toast.error(`Discord: ${err.message || "Failed to send"}`);
         }).finally(() => setDiscordSending(false));
-    }, [matchNumber, state.roomId, sendDiscord, generateMessage]);
+    }, [matchNumber, state.roomId, state.password, state.map, state.time, tournamentName, sendDiscord, generateMessage]);
 
     /** Edit the last sent message for a match */
     const handleUpdate = useCallback(async (matchToUpdate: number) => {

@@ -9,6 +9,8 @@ import { PhoneGuard } from "@/components/common/phone-guard";
 import { AdSenseScript } from "@/components/common/adsense-script";
 import { WhatsAppSquadGuard } from "@/components/common/whatsapp-squad-guard";
 import { WhatsAppMainGroupGuard } from "@/components/common/WhatsAppMainGroupGuard";
+import { PushGuard } from "@/components/common/push-guard";
+import { RoomInfoBanner } from "@/components/common/room-info-banner";
 
 
 /**
@@ -28,6 +30,7 @@ export default function AppLayout({
             <AuthGateProvider>
                 <div className="flex min-h-dvh flex-col">
                     <Header />
+                    <RoomInfoBanner />
                     <main className="flex-1 pt-16 pb-16 lg:pb-0">{children}</main>
 
                     {/* Compact footer — visible on all app pages (AdSense compliance) */}
@@ -45,6 +48,7 @@ export default function AppLayout({
                     <MobileNav />
 
                     <PwaInstallPrompt />
+                    <PushGuard />
                     <LocationGuard />
                     <PhoneGuard />
                     <AdSenseScript />

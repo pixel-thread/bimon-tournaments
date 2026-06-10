@@ -33,9 +33,16 @@ export function usePushStatus() {
 
     const subscribe = useCallback(async () => {
         try {
-            console.log("[Push] Step 1: Waiting for service worker...");
-            
-            // Timeout after 10 seconds to prevent infinite hang
+            console.log("[Push] Step 1: Checking service worker registration...");
+
+            // If no SW is registered yet, register it explicitly
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            if (registrations.length === 0) {
+                console.log("[Push] No SW registered — registering /sw.js...");
+                await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+            }
+
+            // Wait for SW to be ready (with timeout)
             const registration = await Promise.race([
                 navigator.serviceWorker.ready,
                 new Promise<never>((_, reject) =>

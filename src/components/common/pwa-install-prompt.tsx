@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { Modal, ModalContent, ModalBody, Button } from "@heroui/react";
+import { Download, Share, Plus, Smartphone } from "lucide-react";
+import { motion } from "motion/react";
 import { GAME, GAME_MODE } from "@/lib/game-config";
+import { useAuthUser } from "@/hooks/use-auth-user";
 
 const ICON_DIRS: Record<string, string> = { freefire: "freefire", pes: "pes", mlbb: "mlbb" };
 const PWA_ICON = `/icons/${ICON_DIRS[GAME_MODE] ?? "bgmi"}/icon-192x192.png`;
@@ -12,102 +15,263 @@ interface BeforeInstallPromptEvent extends Event {
     userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-const DISMISS_KEY = "pwa-install-dismissed-at";
-const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const INSTALLED_KEY = "pwa-installed";
+
+/* ── Detection helpers ────────────────────────────── */
+
+function isStandalone(): boolean {
+    return window.matchMedia("(display-mode: standalone)").matches ||
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (navigator as any).standalone === true;
+}
+
+function isIOS(): boolean {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function isMobile(): boolean {
+    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+type PwaState = "loading" | "ok" | "android" | "ios";
 
 /**
- * PWA install banner — mobile-only.
- * Shows the app icon + game name (e.g. "Install PUBGMI").
- * Dismissed for 1 week, then re-appears.
- * Hides if already installed as PWA or on desktop.
+ * PwaInstallPrompt — Mandatory PWA install gate.
+ *
+ * If a signed-in player is on mobile and hasn't installed the app,
+ * shows an un-closable modal with install instructions.
+ *
+ * - Android Chrome: Native install prompt via beforeinstallprompt
+ * - iOS Safari: Step-by-step instructions (Share → Add to Home Screen)
+ * - Desktop: Skipped (not mandatory)
+ * - Already installed: Skipped
  */
 export function PwaInstallPrompt() {
-    const [deferredPrompt, setDeferredPrompt] =
-        useState<BeforeInstallPromptEvent | null>(null);
-    const [visible, setVisible] = useState(false);
+    const { isSignedIn } = useAuthUser();
+    const [state, setState] = useState<PwaState>("loading");
+    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [installing, setInstalling] = useState(false);
 
     useEffect(() => {
-        // Banner only appears if the browser fires beforeinstallprompt.
-        // That means: Android Chrome, desktop Chrome/Edge.
-        // iOS Safari does NOT fire this event, so the banner never shows there.
+        // Delay check to let page render first
+        const timer = setTimeout(() => {
+            if (!isSignedIn) return;
 
-        // Already installed as PWA (standalone mode)
-        if (window.matchMedia("(display-mode: standalone)").matches) return;
-        // iOS standalone check
-        if ("standalone" in window.navigator && (window.navigator as unknown as { standalone: boolean }).standalone) return;
+            // Already installed as PWA
+            if (isStandalone()) {
+                localStorage.setItem(INSTALLED_KEY, "true");
+                setState("ok");
+                return;
+            }
 
-        // Check if dismissed within the last week
-        const dismissedAt = localStorage.getItem(DISMISS_KEY);
-        if (dismissedAt) {
-            const elapsed = Date.now() - Number(dismissedAt);
-            if (elapsed < ONE_WEEK_MS) return;
-            localStorage.removeItem(DISMISS_KEY);
-        }
+            // Already marked as installed
+            if (localStorage.getItem(INSTALLED_KEY) === "true") {
+                setState("ok");
+                return;
+            }
+
+            // Desktop — not mandatory
+            if (!isMobile()) {
+                setState("ok");
+                return;
+            }
+
+            // iOS — show manual instructions
+            if (isIOS()) {
+                setState("ios");
+                return;
+            }
+
+            // Android — wait for beforeinstallprompt
+            setState("android");
+        }, 3000);
+
+        return () => clearTimeout(timer);
+    }, [isSignedIn]);
+
+    // Listen for beforeinstallprompt (Android Chrome/Edge)
+    useEffect(() => {
+        if (state !== "android") return;
 
         const handler = (e: Event) => {
             e.preventDefault();
             setDeferredPrompt(e as BeforeInstallPromptEvent);
-            setVisible(true);
         };
 
         window.addEventListener("beforeinstallprompt", handler);
 
-        // Listen for app installed -> hide
-        const installed = () => setVisible(false);
+        // If already installed
+        const installed = () => {
+            localStorage.setItem(INSTALLED_KEY, "true");
+            setState("ok");
+        };
         window.addEventListener("appinstalled", installed);
 
         return () => {
             window.removeEventListener("beforeinstallprompt", handler);
             window.removeEventListener("appinstalled", installed);
         };
-    }, []);
-
-    if (!visible || !deferredPrompt) return null;
+    }, [state]);
 
     const handleInstall = async () => {
-        await deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === "accepted") {
-            setVisible(false);
+        if (!deferredPrompt) return;
+        setInstalling(true);
+        try {
+            await deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === "accepted") {
+                localStorage.setItem(INSTALLED_KEY, "true");
+                setState("ok");
+            }
+        } catch {
+            // Ignored
         }
+        setInstalling(false);
         setDeferredPrompt(null);
     };
 
-    const handleDismiss = () => {
-        setVisible(false);
-        localStorage.setItem(DISMISS_KEY, String(Date.now()));
-    };
+    if (state === "loading" || state === "ok") return null;
 
     return (
-        <div className="fixed bottom-20 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 animate-[slideUp_0.3s_ease-out] lg:bottom-6">
-            <div className="flex items-center gap-3 rounded-xl border border-divider bg-background/90 px-4 py-3 shadow-lg backdrop-blur-xl">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    src={PWA_ICON}
-                    alt={GAME.name}
-                    className="h-8 w-8 shrink-0 rounded-lg"
-                />
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground/90 truncate">
-                        Install {GAME.name}
-                    </p>
-                    <p className="text-[10px] text-foreground/40">
-                        For faster access · ~1.5 MB
-                    </p>
-                </div>
-                <button
-                    onClick={handleInstall}
-                    className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-                >
-                    Install
-                </button>
-                <button
-                    onClick={handleDismiss}
-                    className="shrink-0 rounded-full p-1 text-foreground/40 transition-colors hover:text-foreground/70"
-                >
-                    <X className="h-4 w-4" />
-                </button>
-            </div>
-        </div>
+        <Modal
+            isOpen={true}
+            isDismissable={false}
+            hideCloseButton
+            placement="center"
+            size="sm"
+            backdrop="blur"
+        >
+            <ModalContent>
+                <ModalBody className="px-6 py-8">
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-5 text-center"
+                    >
+                        {/* ── Android: Native install ── */}
+                        {state === "android" && (
+                            <>
+                                <div className="flex justify-center">
+                                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={PWA_ICON} alt={GAME.name} className="w-10 h-10 rounded-xl" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold">Install {GAME.name}</h2>
+                                    <p className="text-sm text-foreground/50 mt-1">
+                                        Add to your home screen for the best experience
+                                    </p>
+                                </div>
+                                <div className="text-left space-y-2 bg-foreground/[0.03] rounded-lg p-3">
+                                    {[
+                                        "⚡ Faster loading — works like a real app",
+                                        "🔔 Push notifications for room info",
+                                        "📱 Full-screen experience",
+                                        "💾 Only ~1.5 MB",
+                                    ].map((item) => (
+                                        <div key={item} className="text-xs text-foreground/60">
+                                            {item}
+                                        </div>
+                                    ))}
+                                </div>
+                                {deferredPrompt ? (
+                                    <Button
+                                        color="primary"
+                                        size="lg"
+                                        className="w-full font-semibold"
+                                        isLoading={installing}
+                                        startContent={!installing ? <Download className="w-4 h-4" /> : undefined}
+                                        onPress={handleInstall}
+                                    >
+                                        {installing ? "Installing..." : "Install App"}
+                                    </Button>
+                                ) : (
+                                    /* Prompt not fired yet — show manual instructions */
+                                    <>
+                                        <div className="text-left space-y-3 bg-foreground/[0.03] rounded-lg p-4">
+                                            <div className="flex items-start gap-3 text-sm text-foreground/70">
+                                                <span className="text-lg shrink-0">1.</span>
+                                                <span>Tap the <strong>⋮ menu</strong> (3 dots) at the top right</span>
+                                            </div>
+                                            <div className="flex items-start gap-3 text-sm text-foreground/70">
+                                                <span className="text-lg shrink-0">2.</span>
+                                                <span>Tap <strong>&quot;Add to Home screen&quot;</strong> or <strong>&quot;Install app&quot;</strong></span>
+                                            </div>
+                                            <div className="flex items-start gap-3 text-sm text-foreground/70">
+                                                <span className="text-lg shrink-0">3.</span>
+                                                <span>Open the app from your home screen</span>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            color="default"
+                                            variant="flat"
+                                            size="lg"
+                                            className="w-full font-semibold"
+                                            onPress={() => window.location.reload()}
+                                        >
+                                            I&apos;ve installed it — Refresh
+                                        </Button>
+                                    </>
+                                )}
+                            </>
+                        )}
+
+                        {/* ── iOS: Manual instructions ── */}
+                        {state === "ios" && (
+                            <>
+                                <div className="flex justify-center">
+                                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                        <Smartphone className="w-7 h-7 text-primary" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold">Add to Home Screen</h2>
+                                    <p className="text-sm text-foreground/50 mt-1">
+                                        Install {GAME.name} on your iPhone for push notifications &amp; the best experience
+                                    </p>
+                                </div>
+                                <div className="text-left space-y-3 bg-foreground/[0.03] rounded-lg p-4">
+                                    <div className="flex items-center gap-3 text-sm text-foreground/70">
+                                        <span className="text-lg shrink-0">1.</span>
+                                        <span>
+                                            Tap the <Share className="w-4 h-4 inline text-primary" /> <strong>Share</strong> button at the bottom of Safari
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-foreground/70">
+                                        <span className="text-lg shrink-0">2.</span>
+                                        <span>
+                                            Scroll down and tap <Plus className="w-4 h-4 inline text-primary" /> <strong>&quot;Add to Home Screen&quot;</strong>
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-foreground/70">
+                                        <span className="text-lg shrink-0">3.</span>
+                                        <span>Tap <strong>Add</strong> in the top right</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-foreground/70">
+                                        <span className="text-lg shrink-0">4.</span>
+                                        <span>Open the app from your home screen</span>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-foreground/30">
+                                    Push notifications &amp; full-screen mode only work when installed from home screen
+                                </p>
+                                <Button
+                                    color="default"
+                                    variant="flat"
+                                    size="lg"
+                                    className="w-full font-semibold"
+                                    onPress={() => window.location.reload()}
+                                >
+                                    I&apos;ve added it — Refresh
+                                </Button>
+                            </>
+                        )}
+                    </motion.div>
+                </ModalBody>
+            </ModalContent>
+        </Modal>
     );
 }
