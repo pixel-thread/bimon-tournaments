@@ -127,9 +127,9 @@ export async function connectAndExecute<T>(
         const timeout = setTimeout(() => {
             if (!settled) {
                 settled = true;
-                reject(new Error("WhatsApp connection timed out (30s)"));
+                reject(new Error("WhatsApp connection timed out (50s)"));
             }
-        }, 30_000);
+        }, 50_000);
 
         const startSocket = () => {
             attempt++;
@@ -142,6 +142,7 @@ export async function connectAndExecute<T>(
                 printQRInTerminal: false,
                 logger: silentLogger,
                 syncFullHistory: false,
+                connectTimeoutMs: 20_000,
             });
 
             sock.ev.on("creds.update", async (update) => {
@@ -151,8 +152,9 @@ export async function connectAndExecute<T>(
             });
 
             sock.ev.on("connection.update", async (update: Partial<ConnectionState>) => {
-                const { connection, lastDisconnect } = update;
+                const { connection, lastDisconnect, qr } = update;
                 const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+                console.log(`[WhatsApp] connection.update:`, { connection, statusCode, hasQR: !!qr, attempt });
 
                 if (connection === "open") {
                     try {
