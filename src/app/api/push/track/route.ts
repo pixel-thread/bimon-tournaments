@@ -119,12 +119,13 @@ export async function GET(req: NextRequest) {
 
             // Build per-tag delivery summary
             const deliveryByTag = new Map<string, Map<string, string>>();
+            const statusPriority: Record<string, number> = { sent: 1, delivered: 2, clicked: 3 };
             for (const d of deliveries) {
                 if (!deliveryByTag.has(d.tag)) deliveryByTag.set(d.tag, new Map());
                 const playerMap = deliveryByTag.get(d.tag)!;
-                // Keep the best status (clicked > delivered)
+                // Keep the best status (clicked > delivered > sent)
                 const current = playerMap.get(d.playerId);
-                if (!current || (d.status === "clicked" && current === "delivered")) {
+                if (!current || (statusPriority[d.status] || 0) > (statusPriority[current] || 0)) {
                     playerMap.set(d.playerId, d.status);
                 }
             }

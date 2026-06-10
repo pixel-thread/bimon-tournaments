@@ -965,21 +965,25 @@ function TeamPushStatus({ tournamentId }: { tournamentId: string }) {
                                                             </div>
                                                             <div className="flex flex-wrap gap-1.5">
                                                                 {team.players.map((player) => {
-                                                                    const status = tagDeliveries[player.id]; // "delivered" | "clicked" | undefined
+                                                                    const status = tagDeliveries[player.id]; // "sent" | "delivered" | "clicked" | undefined
                                                                     const dotColor = status === "clicked"
                                                                         ? "bg-blue-500"
                                                                         : status === "delivered"
                                                                             ? "bg-emerald-500"
-                                                                            : player.hasPush
+                                                                            : status === "sent"
                                                                                 ? "bg-amber-500"
-                                                                                : "bg-red-500";
+                                                                                : player.hasPush
+                                                                                    ? "bg-zinc-500"
+                                                                                    : "bg-red-500";
                                                                     const dotTitle = status === "clicked"
                                                                         ? "Clicked"
                                                                         : status === "delivered"
                                                                             ? "Delivered"
-                                                                            : player.hasPush
-                                                                                ? "Sent but not delivered"
-                                                                                : "No push subscription";
+                                                                            : status === "sent"
+                                                                                ? "Sent (push accepted)"
+                                                                                : player.hasPush
+                                                                                    ? "Not sent"
+                                                                                    : "No push subscription";
                                                                     return (
                                                                         <div
                                                                             key={player.id}
@@ -1020,7 +1024,7 @@ function TeamPushStatus({ tournamentId }: { tournamentId: string }) {
                                                 {[
                                                     { color: "bg-blue-500", label: "Clicked" },
                                                     { color: "bg-emerald-500", label: "Delivered" },
-                                                    { color: "bg-amber-500", label: "Sent (pending)" },
+                                                    { color: "bg-amber-500", label: "Sent" },
                                                     { color: "bg-red-500", label: "No push" },
                                                 ].map((item) => (
                                                     <div key={item.label} className="flex items-center gap-1">

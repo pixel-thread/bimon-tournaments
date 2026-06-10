@@ -96,12 +96,13 @@ async function sendToSubscriptions(
     if (!subscriptions.length) return { sent: 0, failed: 0, staleRemoved: 0 };
 
     const trackTag = `push-${Date.now()}`;
+    const notifTag = payload.tag || trackTag;
     const basePayload = {
         title: payload.title,
         body: payload.body,
         icon: "/icons/icon-192x192.png",
         badge: "/icons/icon-72x72.png",
-        tag: payload.tag || trackTag,
+        tag: notifTag,
         data: { url: payload.url || "/channel", trackTag },
         requireInteraction: payload.requireInteraction ?? false,
         renotify: false,
@@ -110,6 +111,7 @@ async function sendToSubscriptions(
     let sent = 0;
     let failed = 0;
     const staleIds: string[] = [];
+    const sentPlayerIds: string[] = [];
 
     await Promise.allSettled(
         subscriptions.map(async (sub) => {
@@ -128,6 +130,7 @@ async function sendToSubscriptions(
                     { TTL: 60 * 60 }
                 );
                 sent++;
+                sentPlayerIds.push(sub.playerId);
             } catch (error: unknown) {
                 const statusCode = (error as { statusCode?: number })?.statusCode;
                 if (statusCode === 403 || statusCode === 404 || statusCode === 410) {
@@ -143,6 +146,24 @@ async function sendToSubscriptions(
         await prisma.pushSubscription.deleteMany({
             where: { id: { in: staleIds } },
         });
+    }
+
+    // Track "sent" server-side so delivery tab works even with old SWs
+    // Deduplicate player IDs (one player may have multiple devices)
+    const uniqueSentIds = [...new Set(sentPlayerIds)];
+    if (uniqueSentIds.length > 0) {
+        try {
+            await prisma.pushDelivery.createMany({
+                data: uniqueSentIds.map((playerId) => ({
+                    tag: notifTag,
+                    playerId,
+                    status: "sent",
+                })),
+                skipDuplicates: true,
+            });
+        } catch (err) {
+            console.error("[Push] Failed to track sent status:", err);
+        }
     }
 
     return { sent, failed, staleRemoved: staleIds.length };
