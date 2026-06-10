@@ -13,31 +13,53 @@ export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
 
-        // Lightweight role check for the channel UI (tournament tab permissions)
+        // Lightweight role check for the channel UI
         if (searchParams.get("check") === "role") {
             const user = await getCurrentUser();
 
-            // Check if any active tournament exists (for showing the tab)
-            const activeTournamentCount = await prisma.tournament.count({
+            // Fetch active tournaments (for tab labels)
+            const activeTournaments = await prisma.tournament.findMany({
                 where: { status: "ACTIVE" },
+                select: { id: true, name: true },
+                orderBy: { createdAt: "desc" },
             });
-            const hasActiveTournament = activeTournamentCount > 0;
 
             if (!user?.player) {
-                return SuccessResponse({ message: "Role", data: { role: "viewer", hasActiveTournament }, cache: CACHE.NONE });
+                return SuccessResponse({
+                    message: "Role",
+                    data: { role: "viewer", activeTournaments, captainOfTournaments: [] },
+                    cache: CACHE.NONE,
+                });
             }
             if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
-                return SuccessResponse({ message: "Role", data: { role: "admin", hasActiveTournament }, cache: CACHE.NONE });
+                return SuccessResponse({
+                    message: "Role",
+                    data: {
+                        role: "admin",
+                        activeTournaments,
+                        captainOfTournaments: activeTournaments.map((t) => t.id), // admins can post in all
+                    },
+                    cache: CACHE.NONE,
+                });
             }
-            const captainCount = await prisma.squad.count({
+
+            // Find which active tournaments this user is captain in
+            const captainSquads = await prisma.squad.findMany({
                 where: {
                     captainId: user.player.id,
                     poll: { tournament: { status: "ACTIVE" } },
                 },
+                select: { poll: { select: { tournamentId: true } } },
             });
+            const captainOfTournaments = captainSquads.map((s) => s.poll.tournamentId);
+
             return SuccessResponse({
                 message: "Role",
-                data: { role: captainCount > 0 ? "captain" : "viewer", hasActiveTournament },
+                data: {
+                    role: captainOfTournaments.length > 0 ? "captain" : "viewer",
+                    activeTournaments,
+                    captainOfTournaments,
+                },
                 cache: CACHE.NONE,
             });
         }
@@ -136,11 +158,12 @@ export async function POST(req: NextRequest) {
         }
 
         // Tournament channel — captains + admins only
-        if (channel === "tournament" && !isAdmin) {
+        // Channel value is either "general" or a tournament ID
+        if (channel !== "general" && !isAdmin) {
             const isCaptain = (await prisma.squad.count({
                 where: {
                     captainId: user.player.id,
-                    poll: { tournament: { status: "ACTIVE" } },
+                    poll: { tournamentId: channel, tournament: { status: "ACTIVE" } },
                 },
             })) > 0;
 

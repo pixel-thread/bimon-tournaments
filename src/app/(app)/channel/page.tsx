@@ -5,7 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Textarea, Modal, ModalContent, ModalBody, ModalHeader } from "@heroui/react";
 import {
     Send, Image as ImageIcon, Copy, Check, Trash2, MessageSquare,
-    ChevronLeft, KeyRound, X, Loader2, Shield, Crown, Users, Swords
+    ChevronLeft, KeyRound, X, Loader2, Shield, Crown, Users, Swords,
+    Pencil
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -34,7 +35,16 @@ interface Announcement {
     _count?: { replies: number };
 }
 
-type ChannelTab = "general" | "tournament";
+interface ActiveTournament {
+    id: string;
+    name: string;
+}
+
+interface RoleData {
+    role: string;
+    activeTournaments: ActiveTournament[];
+    captainOfTournaments: string[];
+}
 
 /* ─── Helpers ──────────────────────────────────────── */
 
@@ -78,7 +88,6 @@ function AuthorAvatar({ author, size = 32 }: { author: Author; size?: number }) 
 function RoomInfoCard({ content }: { content: string }) {
     const [copied, setCopied] = useState(false);
 
-    // Parse room info from content
     let roomId = "";
     let password = "";
     let map = "";
@@ -101,7 +110,6 @@ function RoomInfoCard({ content }: { content: string }) {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            /* fallback */
             const ta = document.createElement("textarea");
             ta.value = roomId;
             document.body.appendChild(ta);
@@ -151,11 +159,13 @@ function MessageBubble({
     isAdmin,
     onOpenThread,
     onDelete,
+    onEdit,
 }: {
     msg: Announcement;
     isAdmin: boolean;
     onOpenThread?: () => void;
     onDelete?: () => void;
+    onEdit?: () => void;
 }) {
     const authorName = msg.author.displayName || "Unknown";
 
@@ -168,21 +178,25 @@ function MessageBubble({
             <div className="flex gap-3">
                 <AuthorAvatar author={msg.author} size={36} />
                 <div className="flex-1 min-w-0">
-                    {/* Author line */}
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold truncate">{authorName}</span>
                         <span className="text-xs text-foreground/30">{timeAgo(msg.createdAt)}</span>
-                        {isAdmin && onDelete && (
-                            <button
-                                onClick={onDelete}
-                                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger/10 transition-all"
-                            >
-                                <Trash2 className="w-3 h-3 text-danger/50" />
-                            </button>
+                        {(onEdit || onDelete) && (
+                            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
+                                {onEdit && (
+                                    <button onClick={onEdit} className="p-1 rounded hover:bg-primary/10">
+                                        <Pencil className="w-3 h-3 text-primary/50" />
+                                    </button>
+                                )}
+                                {onDelete && (
+                                    <button onClick={onDelete} className="p-1 rounded hover:bg-danger/10">
+                                        <Trash2 className="w-3 h-3 text-danger/50" />
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </div>
 
-                    {/* Content */}
                     {msg.type === "room-info" ? (
                         <RoomInfoCard content={msg.content} />
                     ) : (
@@ -191,7 +205,6 @@ function MessageBubble({
                         </p>
                     )}
 
-                    {/* Image */}
                     {msg.imageUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -201,7 +214,6 @@ function MessageBubble({
                         />
                     )}
 
-                    {/* Thread indicator */}
                     {onOpenThread && (
                         <button
                             onClick={onOpenThread}
@@ -216,6 +228,57 @@ function MessageBubble({
                 </div>
             </div>
         </motion.div>
+    );
+}
+
+/* ─── Edit Modal ───────────────────────────────────── */
+
+function EditModal({
+    msg,
+    isOpen,
+    onClose,
+    onSave,
+    isSaving,
+}: {
+    msg: Announcement | null;
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (content: string) => void;
+    isSaving: boolean;
+}) {
+    const [content, setContent] = useState("");
+
+    useEffect(() => {
+        if (msg) setContent(msg.content);
+    }, [msg]);
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} size="lg" placement="center">
+            <ModalContent>
+                <ModalHeader className="text-sm font-semibold">Edit Message</ModalHeader>
+                <ModalBody className="pb-6">
+                    <Textarea
+                        value={content}
+                        onValueChange={setContent}
+                        minRows={2}
+                        maxRows={8}
+                        size="sm"
+                    />
+                    <div className="flex justify-end gap-2 mt-2">
+                        <Button size="sm" variant="flat" onPress={onClose}>Cancel</Button>
+                        <Button
+                            size="sm"
+                            color="primary"
+                            isDisabled={!content.trim()}
+                            isLoading={isSaving}
+                            onPress={() => onSave(content.trim())}
+                        >
+                            Save
+                        </Button>
+                    </div>
+                </ModalBody>
+            </ModalContent>
+        </Modal>
     );
 }
 
@@ -234,7 +297,7 @@ function ThreadPanel({
     onClose: () => void;
     canPost: boolean;
     isAdmin: boolean;
-    channel: ChannelTab;
+    channel: string;
 }) {
     const queryClient = useQueryClient();
     const [reply, setReply] = useState("");
@@ -252,7 +315,6 @@ function ThreadPanel({
         refetchInterval: 10_000,
     });
 
-    // Auto-scroll to bottom on new replies
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -294,14 +356,12 @@ function ThreadPanel({
                     <span className="text-sm font-semibold">Thread</span>
                 </ModalHeader>
                 <ModalBody className="p-0 flex flex-col">
-                    {/* Parent message */}
                     {parent && (
                         <div className="border-b border-divider">
                             <MessageBubble msg={parent} isAdmin={isAdminUser} />
                         </div>
                     )}
 
-                    {/* Replies */}
                     <div ref={scrollRef} className="flex-1 overflow-y-auto">
                         {isLoading ? (
                             <div className="flex justify-center py-8">
@@ -316,7 +376,6 @@ function ThreadPanel({
                         )}
                     </div>
 
-                    {/* Reply input */}
                     {canPost && (
                         <div className="border-t border-divider p-3 flex gap-2">
                             <Textarea
@@ -359,31 +418,32 @@ export default function ChannelPage() {
     const queryClient = useQueryClient();
     const [message, setMessage] = useState("");
     const [threadParent, setThreadParent] = useState<Announcement | null>(null);
-    const [activeTab, setActiveTab] = useState<ChannelTab>("general");
+    const [activeTab, setActiveTab] = useState("general");
+    const [editMsg, setEditMsg] = useState<Announcement | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
 
-    // Check tournament role + whether active tournament exists
-    const { data: roleData } = useQuery<{ role: string; hasActiveTournament: boolean }>({
+    // Fetch role + active tournaments
+    const { data: roleData } = useQuery<RoleData>({
         queryKey: ["channel-role", user?.player?.id],
         queryFn: async () => {
             const res = await fetch("/api/announcements?check=role");
-            if (!res.ok) return { role: "viewer", hasActiveTournament: false };
+            if (!res.ok) return { role: "viewer", activeTournaments: [], captainOfTournaments: [] };
             const json = await res.json();
-            return json.data || { role: "viewer", hasActiveTournament: false };
+            return json.data || { role: "viewer", activeTournaments: [], captainOfTournaments: [] };
         },
         enabled: !!user,
         staleTime: 60 * 1000,
     });
 
-    const tournamentRole = roleData?.role || "viewer";
-    const hasActiveTournament = roleData?.hasActiveTournament || false;
+    const activeTournaments = roleData?.activeTournaments || [];
+    const captainOfTournaments = roleData?.captainOfTournaments || [];
 
-    // Permissions per tab
-    const canPostGeneral = !!user?.player;
-    const canPostTournament = isAdmin || tournamentRole === "captain";
-    const canPost = activeTab === "general" ? canPostGeneral : canPostTournament;
+    // Can post in current tab?
+    const canPost = activeTab === "general"
+        ? !!user?.player
+        : isAdmin || captainOfTournaments.includes(activeTab);
 
     // Fetch announcements for current tab
     const { data, isLoading } = useQuery<{ items: Announcement[]; nextCursor: string | null }>({
@@ -437,6 +497,24 @@ export default function ChannelPage() {
         },
     });
 
+    // Edit message
+    const editMessage = useMutation({
+        mutationFn: async ({ id, content }: { id: string; content: string }) => {
+            const res = await fetch(`/api/announcements/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content }),
+            });
+            if (!res.ok) throw new Error("Failed to edit");
+        },
+        onSuccess: () => {
+            setEditMsg(null);
+            queryClient.invalidateQueries({ queryKey: ["announcements", activeTab] });
+            toast.success("Updated");
+        },
+        onError: (err) => toast.error(err.message),
+    });
+
     // Image upload (admin only)
     const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -444,19 +522,14 @@ export default function ChannelPage() {
             toast.error("Type a message first, then attach an image");
             return;
         }
-
         setUploading(true);
         try {
             const reader = new FileReader();
             reader.onload = () => {
-                const dataUrl = reader.result as string;
-                postMessage.mutate(dataUrl);
+                postMessage.mutate(reader.result as string);
                 setUploading(false);
             };
-            reader.onerror = () => {
-                toast.error("Failed to read image");
-                setUploading(false);
-            };
+            reader.onerror = () => { toast.error("Failed to read image"); setUploading(false); };
             reader.readAsDataURL(file);
         } catch {
             toast.error("Failed to upload");
@@ -464,6 +537,11 @@ export default function ChannelPage() {
         }
         if (fileInputRef.current) fileInputRef.current.value = "";
     }, [message, postMessage]);
+
+    // Get current tab label for placeholder
+    const currentTabName = activeTab === "general"
+        ? "General"
+        : activeTournaments.find((t) => t.id === activeTab)?.name || "Tournament";
 
     return (
         <div className="flex flex-col h-[calc(100dvh-128px)] lg:h-[calc(100dvh-64px)] max-w-2xl mx-auto">
@@ -474,13 +552,13 @@ export default function ChannelPage() {
                         <MessageSquare className="w-4 h-4 text-primary" />
                         <h1 className="text-sm font-bold">Channel</h1>
                     </div>
-                    {activeTab === "tournament" && !canPostTournament && (
+                    {activeTab !== "general" && !canPost && (
                         <div className="flex items-center gap-1 text-xs text-foreground/30">
                             <Shield className="w-3 h-3" />
                             View only
                         </div>
                     )}
-                    {activeTab === "tournament" && canPostTournament && !isAdmin && (
+                    {activeTab !== "general" && canPost && !isAdmin && (
                         <div className="flex items-center gap-1 text-xs text-warning/60">
                             <Crown className="w-3 h-3" />
                             Captain
@@ -489,10 +567,10 @@ export default function ChannelPage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex px-4 gap-1">
+                <div className="flex px-4 gap-1 overflow-x-auto scrollbar-hide">
                     <button
                         onClick={() => setActiveTab("general")}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors ${
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap ${
                             activeTab === "general"
                                 ? "text-primary border-b-2 border-primary bg-primary/5"
                                 : "text-foreground/40 hover:text-foreground/60"
@@ -501,19 +579,20 @@ export default function ChannelPage() {
                         <Users className="w-3.5 h-3.5" />
                         General
                     </button>
-                    {(hasActiveTournament || isAdmin) && (
+                    {activeTournaments.map((t) => (
                         <button
-                            onClick={() => setActiveTab("tournament")}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors ${
-                                activeTab === "tournament"
+                            key={t.id}
+                            onClick={() => setActiveTab(t.id)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap ${
+                                activeTab === t.id
                                     ? "text-warning border-b-2 border-warning bg-warning/5"
                                     : "text-foreground/40 hover:text-foreground/60"
                             }`}
                         >
                             <Swords className="w-3.5 h-3.5" />
-                            Tournament
+                            {t.name}
                         </button>
-                    )}
+                    ))}
                 </div>
             </div>
 
@@ -527,7 +606,7 @@ export default function ChannelPage() {
                     <div className="flex flex-col items-center justify-center py-16 gap-3">
                         <MessageSquare className="w-10 h-10 text-foreground/10" />
                         <p className="text-sm text-foreground/30">
-                            {activeTab === "tournament" ? "No tournament messages yet" : "No messages yet"}
+                            No messages in {currentTabName}
                         </p>
                         {canPost && (
                             <p className="text-xs text-foreground/20">Send the first message below ↓</p>
@@ -536,15 +615,20 @@ export default function ChannelPage() {
                 ) : (
                     <div className="py-2">
                         <AnimatePresence initial={false}>
-                            {announcements.map((msg) => (
-                                <MessageBubble
-                                    key={msg.id}
-                                    msg={msg}
-                                    isAdmin={isAdmin}
-                                    onOpenThread={() => setThreadParent(msg)}
-                                    onDelete={isAdmin ? () => deleteMessage.mutate(msg.id) : undefined}
-                                />
-                            ))}
+                            {announcements.map((msg) => {
+                                const isOwn = msg.authorId === user?.player?.id;
+                                const canModify = isAdmin || isOwn;
+                                return (
+                                    <MessageBubble
+                                        key={msg.id}
+                                        msg={msg}
+                                        isAdmin={isAdmin}
+                                        onOpenThread={() => setThreadParent(msg)}
+                                        onDelete={canModify ? () => deleteMessage.mutate(msg.id) : undefined}
+                                        onEdit={canModify ? () => setEditMsg(msg) : undefined}
+                                    />
+                                );
+                            })}
                         </AnimatePresence>
                     </div>
                 )}
@@ -553,7 +637,6 @@ export default function ChannelPage() {
             {/* Input bar */}
             {canPost && (
                 <div className="border-t border-divider p-3 flex gap-2 items-end">
-                    {/* Image button (admin only) */}
                     {isAdmin && (
                         <>
                             <input
@@ -579,11 +662,7 @@ export default function ChannelPage() {
                     <Textarea
                         value={message}
                         onValueChange={setMessage}
-                        placeholder={
-                            activeTab === "tournament"
-                                ? "Message tournament channel..."
-                                : "Send a message..."
-                        }
+                        placeholder={`Message ${currentTabName}...`}
                         minRows={1}
                         maxRows={4}
                         size="sm"
@@ -617,6 +696,15 @@ export default function ChannelPage() {
                 canPost={canPost}
                 isAdmin={isAdmin}
                 channel={activeTab}
+            />
+
+            {/* Edit modal (admin) */}
+            <EditModal
+                msg={editMsg}
+                isOpen={!!editMsg}
+                onClose={() => setEditMsg(null)}
+                isSaving={editMessage.isPending}
+                onSave={(content) => editMsg && editMessage.mutate({ id: editMsg.id, content })}
             />
         </div>
     );
