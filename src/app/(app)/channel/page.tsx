@@ -6,7 +6,7 @@ import { Button, Textarea, Modal, ModalContent, ModalBody, ModalHeader } from "@
 import {
     Send, Image as ImageIcon, Copy, Check, Trash2, MessageSquare,
     ChevronLeft, KeyRound, X, Loader2, Shield, Crown, Users, Swords,
-    Pencil, MoreVertical
+    Pencil, MoreVertical, MapPin, Lock, Gamepad2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -86,7 +86,7 @@ function AuthorAvatar({ author, size = 32 }: { author: Author; size?: number }) 
 /* ─── Room Info Card ───────────────────────────────── */
 
 function RoomInfoCard({ content }: { content: string }) {
-    const [copied, setCopied] = useState(false);
+    const [copied, setCopied] = useState("");
 
     let roomId = "";
     let password = "";
@@ -104,48 +104,95 @@ function RoomInfoCard({ content }: { content: string }) {
         if (matchMatch) matchNum = matchMatch[1];
     }
 
-    const handleCopy = async () => {
+    const handleCopy = async (text: string, label: string) => {
         try {
-            await navigator.clipboard.writeText(roomId);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            await navigator.clipboard.writeText(text);
         } catch {
             const ta = document.createElement("textarea");
-            ta.value = roomId;
+            ta.value = text;
             document.body.appendChild(ta);
             ta.select();
             document.execCommand("copy");
             document.body.removeChild(ta);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
         }
+        setCopied(label);
+        setTimeout(() => setCopied(""), 2000);
     };
 
     return (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-primary">
-                <KeyRound className="w-3.5 h-3.5" />
-                {matchNum && <span>Match {matchNum}</span>}
-                {map && <span>— {map}</span>}
-            </div>
-            <div className="flex items-center gap-3">
-                <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg px-3 py-1.5 transition-colors group"
-                >
-                    <span className="text-sm font-mono font-bold tracking-wider text-primary">
-                        {roomId}
+        <div className="rounded-xl overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/[0.08] to-primary/[0.02]">
+            {/* Header bar */}
+            <div className="flex items-center justify-between px-3.5 py-2 bg-primary/10 border-b border-primary/10">
+                <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md bg-primary/20 flex items-center justify-center">
+                        <Gamepad2 className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <span className="text-xs font-bold text-primary tracking-wide">
+                        {matchNum ? `MATCH ${matchNum}` : "ROOM INFO"}
                     </span>
-                    {copied ? (
-                        <Check className="w-3.5 h-3.5 text-success" />
-                    ) : (
-                        <Copy className="w-3.5 h-3.5 text-primary/50 group-hover:text-primary transition-colors" />
-                    )}
-                </button>
-                <div className="w-px h-5 bg-foreground/10" />
+                </div>
                 <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-foreground/40">Pass:</span>
-                    <span className="text-sm font-mono font-bold text-foreground/80">{password}</span>
+                    {map && (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold text-foreground/50 bg-foreground/[0.06] rounded-md px-2 py-0.5">
+                            <MapPin className="w-2.5 h-2.5" />
+                            {map}
+                        </span>
+                    )}
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-success bg-success/10 rounded-md px-2 py-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                        LIVE
+                    </span>
+                </div>
+            </div>
+
+            {/* Room ID & Password */}
+            <div className="p-3.5 space-y-2.5">
+                {/* Room ID row */}
+                <div className="flex items-center gap-2.5">
+                    <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-semibold text-foreground/30 uppercase tracking-wider">Room ID</span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-lg font-mono font-black tracking-[0.15em] text-primary">
+                                {roomId}
+                            </span>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => handleCopy(roomId, "room")}
+                        className="flex items-center gap-1.5 bg-primary/10 hover:bg-primary/20 active:scale-95 rounded-lg px-3 py-2 transition-all group"
+                    >
+                        {copied === "room" ? (
+                            <><Check className="w-3.5 h-3.5 text-success" /><span className="text-[11px] font-semibold text-success">Copied!</span></>
+                        ) : (
+                            <><Copy className="w-3.5 h-3.5 text-primary/60 group-hover:text-primary" /><span className="text-[11px] font-semibold text-primary/60 group-hover:text-primary">Copy</span></>
+                        )}
+                    </button>
+                </div>
+
+                {/* Divider */}
+                <div className="h-px bg-foreground/[0.06]" />
+
+                {/* Password row */}
+                <div className="flex items-center gap-2.5">
+                    <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-semibold text-foreground/30 uppercase tracking-wider">Password</span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <Lock className="w-3.5 h-3.5 text-foreground/30" />
+                            <span className="text-lg font-mono font-black tracking-[0.15em] text-foreground/80">
+                                {password}
+                            </span>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => handleCopy(password, "pass")}
+                        className="flex items-center gap-1.5 bg-foreground/[0.04] hover:bg-foreground/[0.08] active:scale-95 rounded-lg px-3 py-2 transition-all group"
+                    >
+                        {copied === "pass" ? (
+                            <><Check className="w-3.5 h-3.5 text-success" /><span className="text-[11px] font-semibold text-success">Copied!</span></>
+                        ) : (
+                            <><Copy className="w-3.5 h-3.5 text-foreground/30 group-hover:text-foreground/50" /><span className="text-[11px] font-semibold text-foreground/30 group-hover:text-foreground/50">Copy</span></>
+                        )}
+                    </button>
                 </div>
             </div>
         </div>
