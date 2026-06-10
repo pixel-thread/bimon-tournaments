@@ -534,19 +534,15 @@ export function StandingsModal({
                 return;
             }
 
-            // Convert data URL to blob, then upload via /api/upload-image
-            const blobRes = await fetch(dataUrl);
-            const blob = await blobRes.blob();
-            const formData = new FormData();
-            formData.append("image", blob, `standings-${Date.now()}.jpg`);
-
+            // Upload screenshot via /api/upload-image (expects JSON { image: dataUrl })
             const uploadRes = await fetch("/api/upload-image", {
                 method: "POST",
-                body: formData,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: dataUrl }),
             });
             if (!uploadRes.ok) throw new Error("Image upload failed");
-            const { data: uploadData } = await uploadRes.json();
-            const imageUrl = uploadData?.url;
+            const uploadJson = await uploadRes.json();
+            const imageUrl = uploadJson.url;
             if (!imageUrl) throw new Error("No image URL returned");
 
             // Build caption
