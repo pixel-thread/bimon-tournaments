@@ -506,6 +506,15 @@ export default function ChannelPage() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
+    const [initialLoad, setInitialLoad] = useState(true);
+
+    // Clear cached data on fresh mount so skeletons always show
+    useEffect(() => {
+        queryClient.removeQueries({ queryKey: ["announcements"] });
+        queryClient.removeQueries({ queryKey: ["channel-role"] });
+        setInitialLoad(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Fetch role + active tournaments
     const { data: roleData, isLoading: isLoadingRole } = useQuery<RoleData>({
@@ -540,6 +549,14 @@ export default function ChannelPage() {
         refetchInterval: 15_000,
     });
 
+    // Clear initialLoad once data arrives
+    useEffect(() => {
+        if (data && !isLoading) {
+            setInitialLoad(false);
+        }
+    }, [data, isLoading]);
+
+    const showSkeleton = initialLoad || isLoading;
     const announcements = data?.items || [];
 
     // Post message
@@ -699,7 +716,7 @@ export default function ChannelPage() {
 
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto">
-                {isLoading ? (
+                {showSkeleton ? (
                     <div className="py-2 space-y-1">
                         {[1, 2, 3, 4].map((i) => (
                             <div key={i} className="flex items-start gap-3 px-4 py-3" style={{ opacity: 1 - i * 0.2 }}>
