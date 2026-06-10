@@ -91,30 +91,105 @@ export default function PushTestPage() {
                     </ol>
                 </div>
 
-                {/* Clear old subscriptions */}
-                <button
-                    onClick={async () => {
-                        const res = await fetch("/api/push/test", { method: "DELETE" });
-                        const data = await res.json();
-                        alert(data.message);
-                        setDiagnostics(null);
-                        setResult(null);
-                    }}
-                    style={{
-                        width: "100%",
-                        padding: "12px",
-                        marginBottom: 24,
-                        borderRadius: 10,
-                        border: "1px solid rgba(239, 68, 68, 0.3)",
-                        background: "rgba(239, 68, 68, 0.08)",
-                        color: "#ef4444",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                    }}
-                >
-                    🗑️ Clear ALL old subscriptions from DB (do this first!)
-                </button>
+                {/* Subscribe this browser + Clear old */}
+                <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+                    <button
+                        onClick={async () => {
+                            try {
+                                // Step 1: Check support
+                                if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+                                    alert("❌ Push not supported in this browser");
+                                    return;
+                                }
+
+                                // Step 2: Request permission
+                                const permission = await Notification.requestPermission();
+                                if (permission !== "granted") {
+                                    alert(`❌ Permission ${permission}`);
+                                    return;
+                                }
+
+                                // Step 3: Get SW registration
+                                const reg = await Promise.race([
+                                    navigator.serviceWorker.ready,
+                                    new Promise<never>((_, rej) => setTimeout(() => rej(new Error("SW timeout 10s")), 10000)),
+                                ]);
+
+                                // Step 4: Unsubscribe old
+                                const old = await reg.pushManager.getSubscription();
+                                if (old) await old.unsubscribe();
+
+                                // Step 5: Subscribe
+                                const vapidKey = process.env.NEXT_PUBLIC_VAPID_TOKEN;
+                                if (!vapidKey) { alert("❌ VAPID key missing"); return; }
+
+                                const padding = "=".repeat((4 - (vapidKey.length % 4)) % 4);
+                                const b64 = (vapidKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+                                const raw = atob(b64);
+                                const arr = new Uint8Array(raw.length);
+                                for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+
+                                const sub = await reg.pushManager.subscribe({
+                                    userVisibleOnly: true,
+                                    applicationServerKey: arr,
+                                });
+
+                                // Step 6: Save to server
+                                const json = sub.toJSON();
+                                const res = await fetch("/api/push/subscribe", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+                                });
+                                const data = await res.json();
+
+                                if (data.success) {
+                                    alert("✅ Subscribed! Now click a test button.");
+                                } else {
+                                    alert(`❌ Save failed: ${data.message}`);
+                                }
+                            } catch (err) {
+                                alert(`❌ Error: ${err instanceof Error ? err.message : String(err)}`);
+                            }
+                        }}
+                        style={{
+                            flex: 1,
+                            padding: "12px",
+                            borderRadius: 10,
+                            border: "1px solid rgba(52, 211, 153, 0.3)",
+                            background: "rgba(52, 211, 153, 0.08)",
+                            color: "#34d399",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                        }}
+                    >
+                        🔔 Subscribe THIS browser
+                    </button>
+
+                    <button
+                        onClick={async () => {
+                            const res = await fetch("/api/push/test", { method: "DELETE" });
+                            const data = await res.json();
+                            alert(data.message);
+                            setDiagnostics(null);
+                            setResult(null);
+                        }}
+                        style={{
+                            flex: 1,
+                            padding: "12px",
+                            borderRadius: 10,
+                            border: "1px solid rgba(239, 68, 68, 0.3)",
+                            background: "rgba(239, 68, 68, 0.08)",
+                            color: "#ef4444",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                        }}
+                    >
+                        🗑️ Clear old subs
+                    </button>
+                </div>
 
                 {/* Form fields */}
                 <div style={{
