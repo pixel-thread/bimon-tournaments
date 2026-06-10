@@ -27,6 +27,7 @@ import {
     ClipboardList,
     Clapperboard,
     KeyRound,
+    MessageCircle,
 } from "lucide-react";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useState, useEffect, useCallback } from "react";
@@ -58,6 +59,7 @@ const sidebarItems: SidebarSection[] = [
             { label: GAME.clanLabel + "s", href: "/dashboard/clan", icon: Shield },
             { label: "Polls", href: "/dashboard/polls", icon: Vote },
             { label: "Room Info", href: "/dashboard/room-info", icon: KeyRound },
+            { label: "WhatsApp", href: "/dashboard/whatsapp", icon: MessageCircle },
             { label: "Operations", href: "/dashboard/operations", icon: Settings },
         ],
     },

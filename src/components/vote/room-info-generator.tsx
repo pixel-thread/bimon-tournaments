@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardBody, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save, Camera, X, Smartphone, Bell, BellOff } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save, Camera, X, Smartphone, Bell, BellOff, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
@@ -303,6 +303,8 @@ function TournamentRow({ tournament, state, onChange, group }: {
     const [discordEdited, setDiscordEdited] = useState(false);
     const [appSending, setAppSending] = useState(false);
     const [appSent, setAppSent] = useState(false);
+    const [waSending, setWaSending] = useState(false);
+    const [waSent, setWaSent] = useState(false);
     const [rulesSending, setRulesSending] = useState(false);
     const [rulesSent, setRulesSent] = useState(false);
     const [sentMatchNumbers, setSentMatchNumbers] = useState<Set<number>>(new Set());
@@ -448,6 +450,45 @@ function TournamentRow({ tournament, state, onChange, group }: {
             setRulesSending(false);
         }
     }, [tournament.id, tournamentName, rulesSending]);
+
+    /** Send room info to WhatsApp group */
+    const handleSendWA = useCallback(async () => {
+        if (state.roomId.length !== 7) return;
+        setWaSending(true);
+
+        const matchNum = matchNumber;
+        const waMessage = [
+            `🔐 *Match ${matchNum} — ${state.map}*`,
+            ``,
+            `🆔 Room ID: \`${state.roomId.trim()}\``,
+            `🔑 Password: \`${state.password}\``,
+            `⏰ Time: ${state.time.trim() || "Now"}`,
+            ``,
+            `Join now! Lobby closing soon. 🏃‍♂️`,
+        ].join("\n");
+
+        fetch("/api/whatsapp/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                tournamentId: tournament.id,
+                message: waMessage,
+                group: group || undefined,
+            }),
+        }).then(async (res) => {
+            if (!res.ok) throw new Error("Failed");
+            const json = await res.json();
+            if (json.skipped) {
+                toast("No WhatsApp group", { icon: "💬" });
+            } else {
+                setWaSent(true);
+                toast.success("Sent to WhatsApp 💬");
+                setTimeout(() => setWaSent(false), 3000);
+            }
+        }).catch((err) => {
+            toast.error(`WhatsApp: ${err.message || "Failed"}`);
+        }).finally(() => setWaSending(false));
+    }, [matchNumber, state.roomId, state.password, state.map, state.time, tournament.id, group]);
 
     return (
         <div className="space-y-3">
@@ -669,6 +710,40 @@ function TournamentRow({ tournament, state, onChange, group }: {
                         <>
                             <Smartphone className="w-4 h-4" />
                             App
+                        </>
+                    )}
+                </button>
+
+                {/* Send to WhatsApp */}
+                <button
+                    type="button"
+                    onClick={handleSendWA}
+                    disabled={state.roomId.length !== 7 || waSending}
+                    className={`
+                        flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold
+                        transition-all duration-200 active:scale-[0.98]
+                        ${state.roomId.length !== 7 || waSending
+                            ? "bg-default-200 text-foreground/30 cursor-not-allowed"
+                            : waSent
+                                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 cursor-pointer"
+                                : "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 cursor-pointer"
+                        }
+                    `}
+                >
+                    {waSending ? (
+                        <>
+                            <MessageCircle className="w-4 h-4 animate-pulse" />
+                            Sending...
+                        </>
+                    ) : waSent ? (
+                        <>
+                            <Check className="w-4 h-4" />
+                            WA ✓
+                        </>
+                    ) : (
+                        <>
+                            <MessageCircle className="w-4 h-4" />
+                            WA
                         </>
                     )}
                 </button>

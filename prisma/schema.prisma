@@ -588,6 +588,8 @@ model Tournament {
   discordChannelId       String?          // Auto-created Discord channel for room info (deleted on winner declaration)
   discordGroupChannels   Json?            // Championship: per-group channel IDs — { "A": "id", "B": "id", "C": "id", ... }
   discordRoomMsgIds      Json?            // Per-match Discord message IDs for edit-instead-of-resend: { "1": { "embedId": "...", "roomIdMsgId": "..." }, ... }
+  whatsappGroupId        String?          // WhatsApp group JID for this tournament
+  whatsappGroupChannels  Json?            // Championship: per-group WhatsApp JIDs — { "A": "jid", "B": "jid", ... }
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1705,4 +1707,11 @@ model PushDelivery {
 
   @@index([tag])
   @@index([playerId])
+}
+
+model WhatsAppAuth {
+  id        String   @id @default(cuid())
+  key       String   @unique    // e.g. "creds.json", "pre-key-1", etc.
+  value     String   @db.Text   // JSON serialized auth data
+  updatedAt DateTime @updatedAt
 }

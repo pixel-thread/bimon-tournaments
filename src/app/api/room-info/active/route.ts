@@ -126,6 +126,36 @@ export async function POST(req: NextRequest) {
             console.error("[RoomInfo] Push error:", err);
         }
 
+        // Send to WhatsApp group (fire-and-forget — don't block response)
+        import("@/lib/whatsapp").then(async ({ sendMessage }) => {
+            try {
+                const tournament = await prisma.tournament.findUnique({
+                    where: { id: tournamentId },
+                    select: { whatsappGroupId: true, whatsappGroupChannels: true },
+                });
+                if (!tournament) return;
+
+                // Determine group ID (championship group or main)
+                const groupId = tournament.whatsappGroupId;
+                if (!groupId) return;
+
+                const waMessage = [
+                    `🔐 *Match ${matchNumber} — ${map}*`,
+                    ``,
+                    `🆔 Room ID: \`${roomId}\``,
+                    `🔑 Password: \`${password}\``,
+                    `⏰ Time: ${roomInfo.time}`,
+                    ``,
+                    `Join now! Lobby closing soon. 🏃‍♂️`,
+                ].join("\n");
+
+                await sendMessage(groupId, waMessage);
+                console.log(`[RoomInfo] WhatsApp sent for ${tournamentId}`);
+            } catch (err) {
+                console.error("[RoomInfo] WhatsApp error:", err);
+            }
+        });
+
         return SuccessResponse({
             message: "Room info published",
             data: roomInfo,

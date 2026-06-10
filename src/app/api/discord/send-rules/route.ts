@@ -31,6 +31,39 @@ export async function POST(req: NextRequest) {
 
         await sendTournamentRules(tournamentId, tournamentName);
 
+        // Also send rules to WhatsApp group (fire-and-forget)
+        import("@/lib/whatsapp").then(async ({ sendMessage }) => {
+            try {
+                const tournament = await prisma.tournament.findUnique({
+                    where: { id: tournamentId },
+                    select: { whatsappGroupId: true },
+                });
+                if (!tournament?.whatsappGroupId) return;
+
+                // Load saved rules
+                const rulesRow = await prisma.appConfig.findUnique({
+                    where: { key: "tournament_rules" },
+                });
+                interface SavedRule { id: string; text: string }
+                const rules: SavedRule[] = rulesRow ? JSON.parse(rulesRow.value) : [];
+
+                if (rules.length === 0) return;
+
+                const rulesText = [
+                    `📜 *Tournament Rules — ${tournamentName}*`,
+                    ``,
+                    ...rules.map((r, i) => `${i + 1}. ${r.text}`),
+                    ``,
+                    `⚠️ Violating rules may lead to disqualification.`,
+                ].join("\n");
+
+                await sendMessage(tournament.whatsappGroupId, rulesText);
+                console.log(`[Rules] WhatsApp sent for ${tournamentId}`);
+            } catch (err) {
+                console.error("[Rules] WhatsApp error:", err);
+            }
+        });
+
         return NextResponse.json({ success: true, message: "Tournament rules sent to Discord" });
     } catch (error) {
         console.error("Discord send-rules error:", error);

@@ -15,6 +15,7 @@ import {
     Trophy,
     Send,
     Bell,
+    MessageCircle,
     RefreshCw,
     Sparkles,
 } from "lucide-react";
@@ -106,6 +107,8 @@ export function StandingsModal({
     const [discordSent, setDiscordSent] = useState(false);
     const [isSendingApp, setIsSendingApp] = useState(false);
     const [appSent, setAppSent] = useState(false);
+    const [isSendingWA, setIsSendingWA] = useState(false);
+    const [waSent, setWaSent] = useState(false);
     const [isFinalStandings, setIsFinalStandings] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [compareMatches, setCompareMatches] = useState(1);
@@ -584,6 +587,69 @@ export function StandingsModal({
         }
     }, [isSendingApp, captureScreenshot, champGroup, tournamentTitle, tournamentId, standings, isFinalStandings]);
 
+    // ── Send to WhatsApp ─────────────────────────────────
+
+    const sendToWhatsApp = useCallback(async () => {
+        if (isSendingWA) return;
+        setIsSendingWA(true);
+        setWaSent(false);
+
+        try {
+            const dataUrl = await captureScreenshot();
+            if (!dataUrl) {
+                toast.error("Failed to capture screenshot");
+                return;
+            }
+
+            // Build caption
+            const maxMatches = standings.length > 0
+                ? Math.max(...standings.map(s => s.matchCount))
+                : 0;
+            const phaseLabel = champGroup === "A" ? "Heats · Group A"
+                : champGroup === "B" ? "Heats · Group B"
+                : champGroup === "FINALS" ? "Finals"
+                : "";
+            const matchInfo = maxMatches ? ` (After ${maxMatches} Match${maxMatches !== 1 ? "es" : ""})` : "";
+            const caption = isFinalStandings
+                ? `🏆 *${tournamentTitle}* — ${phaseLabel ? phaseLabel + " " : ""}FINAL STANDINGS`
+                : `🏆 *${tournamentTitle}* — ${phaseLabel ? phaseLabel : "Overall Standings"}${matchInfo}`;
+
+            const group = champGroup === "A" ? "A"
+                : champGroup === "B" ? "B"
+                : champGroup === "FINALS" ? "FINALS"
+                : undefined;
+
+            const res = await fetch("/api/whatsapp/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    tournamentId,
+                    image: dataUrl,
+                    caption,
+                    group,
+                }),
+            });
+
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
+                throw new Error(json.error || "Failed to send");
+            }
+
+            const result = await res.json();
+            if (result.skipped) {
+                toast("No WhatsApp group for this tournament", { icon: "💬" });
+            } else {
+                setWaSent(true);
+                toast.success("Standings sent to WhatsApp! 💬");
+                setTimeout(() => setWaSent(false), 3000);
+            }
+        } catch (err) {
+            toast.error((err as Error).message || "Failed to send to WhatsApp");
+        } finally {
+            setIsSendingWA(false);
+        }
+    }, [isSendingWA, captureScreenshot, champGroup, tournamentTitle, tournamentId, standings, isFinalStandings]);
+
     // ── Copy AI Prompt ────────────────────────────────────
 
     const copyAIPrompt = useCallback(async () => {
@@ -717,6 +783,22 @@ Make it look premium and professional — suitable for posting on a tournament w
                             <Check className="h-5 w-5 text-orange-400" />
                         ) : (
                             <Bell className="h-5 w-5" />
+                        )}
+                    </button>
+
+                    {/* Send to WhatsApp Button */}
+                    <button
+                        onClick={sendToWhatsApp}
+                        disabled={isSendingWA}
+                        className={`relative overflow-hidden text-white hover:text-green-400 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-green-500/50 p-2.5 rounded-xl transition-all duration-300 ${waSent ? "bg-green-500/20 border-green-500/50" : ""}`}
+                        title="Send to WhatsApp group"
+                    >
+                        {isSendingWA ? (
+                            <div className="h-5 w-5 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                        ) : waSent ? (
+                            <Check className="h-5 w-5 text-green-400" />
+                        ) : (
+                            <MessageCircle className="h-5 w-5" />
                         )}
                     </button>
 

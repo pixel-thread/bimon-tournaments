@@ -66,7 +66,7 @@ export async function POST(
         // ── 1. Fetch tournament ──────────────────────────────
         const tournament = await prisma.tournament.findUnique({
             where: { id },
-            select: { id: true, name: true, fee: true, seasonId: true, isWinnerDeclared: true, type: true, discordChannelId: true, discordGroupChannels: true, season: { select: { name: true } } },
+            select: { id: true, name: true, fee: true, seasonId: true, isWinnerDeclared: true, type: true, discordChannelId: true, discordGroupChannels: true, whatsappGroupId: true, whatsappGroupChannels: true, season: { select: { name: true } } },
         });
         if (!tournament) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
         if (!dryRun && tournament.isWinnerDeclared) return NextResponse.json({ error: "Winners already declared" }, { status: 400 });
@@ -724,6 +724,32 @@ export async function POST(
         for (const chId of Object.values(groupChannels)) {
             deleteTournamentChannel(chId)
                 .catch((err) => console.error("Discord group channel deletion error:", err));
+        }
+
+        // ── 6f. Auto-delete tournament WhatsApp groups ──
+        if (tournament.whatsappGroupId || tournament.whatsappGroupChannels) {
+            import("@/lib/whatsapp").then(async ({ deleteGroup }) => {
+                try {
+                    // Delete main group
+                    if (tournament.whatsappGroupId) {
+                        await deleteGroup(tournament.whatsappGroupId);
+                        console.log(`[WhatsApp] Deleted main group for ${tournament.name}`);
+                    }
+                    // Delete championship group channels
+                    const waGroupChannels = (tournament.whatsappGroupChannels as Record<string, string>) || {};
+                    for (const [group, groupId] of Object.entries(waGroupChannels)) {
+                        await deleteGroup(groupId);
+                        console.log(`[WhatsApp] Deleted group ${group} for ${tournament.name}`);
+                    }
+                    // Clear from DB
+                    await prisma.tournament.update({
+                        where: { id },
+                        data: { whatsappGroupId: null, whatsappGroupChannels: Prisma.JsonNull },
+                    });
+                } catch (err) {
+                    console.error("[WhatsApp] Group deletion error:", err);
+                }
+            }).catch(err => console.error("[WhatsApp] Import error:", err));
         }
 
         // ── 6e. Clean old messages from standings channel (keeps Discord lightweight) ──
