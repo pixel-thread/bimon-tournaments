@@ -6,7 +6,7 @@ import { Button, Textarea, Modal, ModalContent, ModalBody, ModalHeader } from "@
 import {
     Send, Image as ImageIcon, Copy, Check, Trash2, MessageSquare,
     ChevronLeft, KeyRound, X, Loader2, Shield, Crown, Users, Swords,
-    Pencil
+    Pencil, MoreVertical
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -168,6 +168,18 @@ function MessageBubble({
     onEdit?: () => void;
 }) {
     const authorName = msg.author.displayName || "Unknown";
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close menu on outside click
+    useEffect(() => {
+        if (!menuOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [menuOpen]);
 
     return (
         <motion.div
@@ -182,16 +194,34 @@ function MessageBubble({
                         <span className="text-sm font-semibold truncate">{authorName}</span>
                         <span className="text-xs text-foreground/30">{timeAgo(msg.createdAt)}</span>
                         {(onEdit || onDelete) && (
-                            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
-                                {onEdit && (
-                                    <button onClick={onEdit} className="p-1 rounded hover:bg-primary/10">
-                                        <Pencil className="w-3 h-3 text-primary/50" />
-                                    </button>
-                                )}
-                                {onDelete && (
-                                    <button onClick={onDelete} className="p-1 rounded hover:bg-danger/10">
-                                        <Trash2 className="w-3 h-3 text-danger/50" />
-                                    </button>
+                            <div className="relative ml-auto" ref={menuRef}>
+                                <button
+                                    onClick={() => setMenuOpen(!menuOpen)}
+                                    className="p-1 rounded-full hover:bg-foreground/10 transition-colors"
+                                >
+                                    <MoreVertical className="w-4 h-4 text-foreground/30" />
+                                </button>
+                                {menuOpen && (
+                                    <div className="absolute right-0 top-full mt-1 bg-content1 border border-divider rounded-lg shadow-lg py-1 z-50 min-w-[120px]">
+                                        {onEdit && (
+                                            <button
+                                                onClick={() => { setMenuOpen(false); onEdit(); }}
+                                                className="flex items-center gap-2 w-full px-3 py-2 text-xs hover:bg-foreground/5 transition-colors"
+                                            >
+                                                <Pencil className="w-3 h-3 text-primary/60" />
+                                                Edit
+                                            </button>
+                                        )}
+                                        {onDelete && (
+                                            <button
+                                                onClick={() => { setMenuOpen(false); onDelete(); }}
+                                                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-danger hover:bg-danger/5 transition-colors"
+                                            >
+                                                <Trash2 className="w-3 h-3" />
+                                                Delete
+                                            </button>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         )}
