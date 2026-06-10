@@ -156,6 +156,21 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        // Auto-post broadcast messages to the channel
+        if (mode === "broadcast" && target === "all" && title && msgBody) {
+            try {
+                await prisma.announcement.create({
+                    data: {
+                        type: "broadcast",
+                        content: `**${title}**\n${msgBody}`,
+                        authorId: user.player.id,
+                    },
+                });
+            } catch {
+                // Non-critical — don't fail the push if channel post fails
+            }
+        }
+
         return SuccessResponse({
             message: `Push ${mode === "broadcast" ? "broadcast" : "test"} complete`,
             data: {

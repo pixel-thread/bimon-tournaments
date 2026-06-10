@@ -1674,7 +1674,8 @@ model PlayerAutoAccept {
 
 model Announcement {
   id        String   @id @default(uuid())
-  type      String   @default("message") // "message" | "room-info" | "image"
+  type      String   @default("message") // "message" | "room-info" | "image" | "broadcast"
+  channel   String   @default("general") // "general" | "tournament"
   content   String   @db.Text
   imageUrl  String?
   pinned    Boolean  @default(false)
@@ -1692,4 +1693,5 @@ model Announcement {
   @@index([createdAt])
   @@index([parentId])
   @@index([authorId])
+  @@index([channel])
 }

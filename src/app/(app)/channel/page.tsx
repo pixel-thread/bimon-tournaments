@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Textarea, Modal, ModalContent, ModalBody, ModalHeader } from "@heroui/react";
 import {
     Send, Image as ImageIcon, Copy, Check, Trash2, MessageSquare,
-    ChevronLeft, KeyRound, X, Loader2, Shield, Crown
+    ChevronLeft, KeyRound, X, Loader2, Shield, Crown, Users, Swords
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ interface Author {
 interface Announcement {
     id: string;
     type: string;
+    channel?: string;
     content: string;
     imageUrl: string | null;
     pinned: boolean;
@@ -32,6 +33,8 @@ interface Announcement {
     createdAt: string;
     _count?: { replies: number };
 }
+
+type ChannelTab = "general" | "tournament";
 
 /* ─── Helpers ──────────────────────────────────────── */
 
@@ -224,12 +227,14 @@ function ThreadPanel({
     onClose,
     canPost,
     isAdmin: isAdminUser,
+    channel,
 }: {
     parent: Announcement | null;
     isOpen: boolean;
     onClose: () => void;
     canPost: boolean;
     isAdmin: boolean;
+    channel: ChannelTab;
 }) {
     const queryClient = useQueryClient();
     const [reply, setReply] = useState("");
@@ -262,6 +267,7 @@ function ThreadPanel({
                 body: JSON.stringify({
                     content: reply.trim(),
                     parentId: parent!.id,
+                    channel,
                 }),
             });
             if (!res.ok) {
@@ -273,7 +279,7 @@ function ThreadPanel({
         onSuccess: () => {
             setReply("");
             queryClient.invalidateQueries({ queryKey: ["thread-replies", parent?.id] });
-            queryClient.invalidateQueries({ queryKey: ["announcements"] });
+            queryClient.invalidateQueries({ queryKey: ["announcements", channel] });
         },
         onError: (err) => toast.error(err.message),
     });
@@ -353,36 +359,42 @@ export default function ChannelPage() {
     const queryClient = useQueryClient();
     const [message, setMessage] = useState("");
     const [threadParent, setThreadParent] = useState<Announcement | null>(null);
+    const [activeTab, setActiveTab] = useState<ChannelTab>("general");
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
 
-    // Check user's channel role (admin/captain/viewer)
-    const { data: channelRole = "viewer" } = useQuery<string>({
+    // Check tournament role + whether active tournament exists
+    const { data: roleData } = useQuery<{ role: string; hasActiveTournament: boolean }>({
         queryKey: ["channel-role", user?.player?.id],
         queryFn: async () => {
             const res = await fetch("/api/announcements?check=role");
-            if (!res.ok) return "viewer";
+            if (!res.ok) return { role: "viewer", hasActiveTournament: false };
             const json = await res.json();
-            return json.data?.role || "viewer";
+            return json.data || { role: "viewer", hasActiveTournament: false };
         },
-        enabled: !!user?.player?.id && !isAdmin,
-        staleTime: 5 * 60 * 1000,
+        enabled: !!user,
+        staleTime: 60 * 1000,
     });
 
-    const isCaptain = channelRole === "captain";
-    const canPost = isAdmin || isCaptain;
+    const tournamentRole = roleData?.role || "viewer";
+    const hasActiveTournament = roleData?.hasActiveTournament || false;
 
-    // Fetch announcements
+    // Permissions per tab
+    const canPostGeneral = !!user?.player;
+    const canPostTournament = isAdmin || tournamentRole === "captain";
+    const canPost = activeTab === "general" ? canPostGeneral : canPostTournament;
+
+    // Fetch announcements for current tab
     const { data, isLoading } = useQuery<{ items: Announcement[]; nextCursor: string | null }>({
-        queryKey: ["announcements"],
+        queryKey: ["announcements", activeTab],
         queryFn: async () => {
-            const res = await fetch("/api/announcements");
+            const res = await fetch(`/api/announcements?channel=${activeTab}`);
             if (!res.ok) return { items: [], nextCursor: null };
             const json = await res.json();
             return json.data || { items: [], nextCursor: null };
         },
-        refetchInterval: 15_000, // Poll every 15s
+        refetchInterval: 15_000,
     });
 
     const announcements = data?.items || [];
@@ -396,6 +408,7 @@ export default function ChannelPage() {
                 body: JSON.stringify({
                     content: message.trim(),
                     imageUrl: imageUrl || undefined,
+                    channel: activeTab,
                 }),
             });
             if (!res.ok) {
@@ -406,8 +419,7 @@ export default function ChannelPage() {
         },
         onSuccess: () => {
             setMessage("");
-            queryClient.invalidateQueries({ queryKey: ["announcements"] });
-            // Scroll to top (newest)
+            queryClient.invalidateQueries({ queryKey: ["announcements", activeTab] });
             setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 200);
         },
         onError: (err) => toast.error(err.message),
@@ -420,7 +432,7 @@ export default function ChannelPage() {
             if (!res.ok) throw new Error("Failed to delete");
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["announcements"] });
+            queryClient.invalidateQueries({ queryKey: ["announcements", activeTab] });
             toast.success("Deleted");
         },
     });
@@ -435,7 +447,6 @@ export default function ChannelPage() {
 
         setUploading(true);
         try {
-            // Convert to base64 data URL for simplicity
             const reader = new FileReader();
             reader.onload = () => {
                 const dataUrl = reader.result as string;
@@ -451,30 +462,59 @@ export default function ChannelPage() {
             toast.error("Failed to upload");
             setUploading(false);
         }
-        // Clear input
         if (fileInputRef.current) fileInputRef.current.value = "";
     }, [message, postMessage]);
 
     return (
         <div className="flex flex-col h-[calc(100dvh-128px)] lg:h-[calc(100dvh-64px)] max-w-2xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-divider">
-                <div className="flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-primary" />
-                    <h1 className="text-sm font-bold">Tournament Channel</h1>
+            {/* Header + Tabs */}
+            <div className="border-b border-divider">
+                <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                    <div className="flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-primary" />
+                        <h1 className="text-sm font-bold">Channel</h1>
+                    </div>
+                    {activeTab === "tournament" && !canPostTournament && (
+                        <div className="flex items-center gap-1 text-xs text-foreground/30">
+                            <Shield className="w-3 h-3" />
+                            View only
+                        </div>
+                    )}
+                    {activeTab === "tournament" && canPostTournament && !isAdmin && (
+                        <div className="flex items-center gap-1 text-xs text-warning/60">
+                            <Crown className="w-3 h-3" />
+                            Captain
+                        </div>
+                    )}
                 </div>
-                {!canPost && (
-                    <div className="flex items-center gap-1 text-xs text-foreground/30">
-                        <Shield className="w-3 h-3" />
-                        View only
-                    </div>
-                )}
-                {canPost && !isAdmin && (
-                    <div className="flex items-center gap-1 text-xs text-warning/60">
-                        <Crown className="w-3 h-3" />
-                        Captain
-                    </div>
-                )}
+
+                {/* Tabs */}
+                <div className="flex px-4 gap-1">
+                    <button
+                        onClick={() => setActiveTab("general")}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors ${
+                            activeTab === "general"
+                                ? "text-primary border-b-2 border-primary bg-primary/5"
+                                : "text-foreground/40 hover:text-foreground/60"
+                        }`}
+                    >
+                        <Users className="w-3.5 h-3.5" />
+                        General
+                    </button>
+                    {(hasActiveTournament || isAdmin) && (
+                        <button
+                            onClick={() => setActiveTab("tournament")}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors ${
+                                activeTab === "tournament"
+                                    ? "text-warning border-b-2 border-warning bg-warning/5"
+                                    : "text-foreground/40 hover:text-foreground/60"
+                            }`}
+                        >
+                            <Swords className="w-3.5 h-3.5" />
+                            Tournament
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Messages */}
@@ -486,7 +526,9 @@ export default function ChannelPage() {
                 ) : announcements.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 gap-3">
                         <MessageSquare className="w-10 h-10 text-foreground/10" />
-                        <p className="text-sm text-foreground/30">No announcements yet</p>
+                        <p className="text-sm text-foreground/30">
+                            {activeTab === "tournament" ? "No tournament messages yet" : "No messages yet"}
+                        </p>
                         {canPost && (
                             <p className="text-xs text-foreground/20">Send the first message below ↓</p>
                         )}
@@ -508,7 +550,7 @@ export default function ChannelPage() {
                 )}
             </div>
 
-            {/* Input bar (admin + captain) */}
+            {/* Input bar */}
             {canPost && (
                 <div className="border-t border-divider p-3 flex gap-2 items-end">
                     {/* Image button (admin only) */}
@@ -537,7 +579,11 @@ export default function ChannelPage() {
                     <Textarea
                         value={message}
                         onValueChange={setMessage}
-                        placeholder={isAdmin ? "Announce something..." : "Send a message..."}
+                        placeholder={
+                            activeTab === "tournament"
+                                ? "Message tournament channel..."
+                                : "Send a message..."
+                        }
                         minRows={1}
                         maxRows={4}
                         size="sm"
@@ -570,6 +616,7 @@ export default function ChannelPage() {
                 onClose={() => setThreadParent(null)}
                 canPost={canPost}
                 isAdmin={isAdmin}
+                channel={activeTab}
             />
         </div>
     );
