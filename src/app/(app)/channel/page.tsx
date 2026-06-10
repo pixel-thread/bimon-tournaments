@@ -576,7 +576,7 @@ export default function ChannelPage() {
     const showSkeleton = isLoading && !data;
     const announcements = data?.items || [];
 
-    // Post message
+    // Post message (optimistic — appears instantly)
     const postMessage = useMutation({
         mutationFn: async (imageUrl?: string) => {
             const res = await fetch("/api/announcements", {
@@ -594,12 +594,61 @@ export default function ChannelPage() {
             }
             return res.json();
         },
-        onSuccess: () => {
+        onMutate: async (imageUrl?: string) => {
+            // Cancel outgoing refetches
+            await queryClient.cancelQueries({ queryKey: ["announcements", activeTab] });
+
+            // Snapshot current cache
+            const prev = queryClient.getQueryData<{ items: Announcement[]; nextCursor: string | null }>(["announcements", activeTab]);
+
+            // Build optimistic message
+            const optimistic: Announcement = {
+                id: `optimistic-${Date.now()}`,
+                type: imageUrl ? "image" : "message",
+                channel: activeTab,
+                content: message.trim(),
+                imageUrl: imageUrl || null,
+                pinned: false,
+                parentId: null,
+                authorId: user?.player?.id || "",
+                author: {
+                    id: user?.player?.id || "",
+                    displayName: user?.player?.displayName || "You",
+                    customProfileImageUrl: null,
+                    user: { imageUrl: null },
+                },
+                createdAt: new Date().toISOString(),
+                _count: { replies: 0 },
+            };
+
+            // Optimistically add to cache (newest first)
+            queryClient.setQueryData<{ items: Announcement[]; nextCursor: string | null }>(
+                ["announcements", activeTab],
+                (old) => ({
+                    items: [optimistic, ...(old?.items || [])],
+                    nextCursor: old?.nextCursor || null,
+                })
+            );
+
+            // Clear input immediately
+            const savedMsg = message;
             setMessage("");
-            queryClient.invalidateQueries({ queryKey: ["announcements", activeTab] });
-            setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 200);
+            setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 100);
+
+            return { prev, savedMsg };
         },
-        onError: (err) => toast.error(err.message),
+        onError: (_err, _vars, context) => {
+            // Rollback on error
+            if (context?.prev) {
+                queryClient.setQueryData(["announcements", activeTab], context.prev);
+            }
+            if (context?.savedMsg) setMessage(context.savedMsg);
+            toast.error(_err.message);
+        },
+        onSettled: () => {
+            // Always refetch to get the real data (server ID, timestamps, etc.)
+            queryClient.invalidateQueries({ queryKey: ["announcements", activeTab] });
+        },
     });
 
     // Delete message
