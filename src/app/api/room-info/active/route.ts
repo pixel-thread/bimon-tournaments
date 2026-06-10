@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
             data: {
                 type: "room-info",
                 channel: tournamentId,
-                content: `Match ${matchNumber} — ${map}\nRoom ID: ${roomId}\nPassword: ${password}\nMap: ${map}`,
+                content: `Match ${matchNumber} — ${map}\nRoom ID: ${roomId}\nPassword: ${password}\nMap: ${map}\nTime: ${roomInfo.time}`,
                 pinned: true,
                 authorId: user.player!.id,
             },
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
         try {
             const result = await sendPushToTournament(tournamentId, {
                 title: `🔐 Match ${matchNumber} — ${map}`,
-                body: `Room ID: ${roomId}\nPassword: ${password}\n\nJoin now! Lobby closing soon.`,
+                body: `Room ID: ${roomId}\nPassword: ${password}\n⏰ ${roomInfo.time}\n\nJoin now! Lobby closing soon.`,
                 tag: "live-room-info",
                 url: `/channel?tab=${tournamentId}`,
                 requireInteraction: true,
