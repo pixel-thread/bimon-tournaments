@@ -8,12 +8,14 @@
  */
 
 import makeWASocket, {
-    useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
+    initAuthCreds,
+    BufferJSON,
     type WASocket,
     type ConnectionState,
+    type AuthenticationCreds,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import { prisma } from "@/lib/database";
@@ -23,24 +25,29 @@ import { prisma } from "@/lib/database";
 /**
  * Custom auth state that stores Baileys credentials in the
  * WhatsAppAuth table instead of the filesystem.
+ *
+ * IMPORTANT: Uses BufferJSON for serialization to preserve
+ * Buffer instances in the auth data (noise keys, etc.).
  */
 async function useDBAuthState() {
-    // Load creds
+    // Load creds — use BufferJSON.reviver to restore Buffer instances
     const credsRow = await prisma.whatsAppAuth.findUnique({ where: { key: "creds" } });
-    const creds = credsRow ? JSON.parse(credsRow.value) : undefined;
+    const creds: AuthenticationCreds = credsRow
+        ? JSON.parse(credsRow.value, BufferJSON.reviver)
+        : initAuthCreds();
 
     // Helper to read a key
     const readData = async (key: string) => {
         const row = await prisma.whatsAppAuth.findUnique({ where: { key } });
-        return row ? JSON.parse(row.value) : null;
+        return row ? JSON.parse(row.value, BufferJSON.reviver) : null;
     };
 
-    // Helper to write a key
+    // Helper to write a key — use BufferJSON.replacer to serialize Buffers
     const writeData = async (key: string, data: any) => {
         await prisma.whatsAppAuth.upsert({
             where: { key },
-            update: { value: JSON.stringify(data) },
-            create: { key, value: JSON.stringify(data) },
+            update: { value: JSON.stringify(data, BufferJSON.replacer) },
+            create: { key, value: JSON.stringify(data, BufferJSON.replacer) },
         });
     };
 
@@ -51,7 +58,7 @@ async function useDBAuthState() {
 
     return {
         state: {
-            creds: creds || undefined,
+            creds,
             keys: {
                 get: async (type: string, ids: string[]) => {
                     const result: Record<string, any> = {};
@@ -89,12 +96,13 @@ async function useDBAuthState() {
 export async function connectAndExecute<T>(
     action: (sock: WASocket) => Promise<T>
 ): Promise<T> {
-    const { state, saveCreds } = await useDBAuthState();
-
-    if (!state.creds) {
+    // Check if WhatsApp has been linked (creds row exists in DB from a successful QR scan)
+    const credsRow = await prisma.whatsAppAuth.findUnique({ where: { key: "creds" } });
+    if (!credsRow) {
         throw new Error("WhatsApp not linked. Please scan QR code first at /dashboard/whatsapp");
     }
 
+    const { state, saveCreds } = await useDBAuthState();
     const { version } = await fetchLatestBaileysVersion();
 
     return new Promise<T>((resolve, reject) => {
@@ -104,7 +112,7 @@ export async function connectAndExecute<T>(
         const sock = makeWASocket({
             version,
             auth: {
-                creds: state.creds!,
+                creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys as any, undefined as any),
             },
             printQRInTerminal: false,
@@ -202,7 +210,7 @@ export async function linkWhatsApp(
             const sock = makeWASocket({
                 version,
                 auth: {
-                    creds: state.creds || ({} as any),
+                    creds: state.creds,
                     keys: makeCacheableSignalKeyStore(state.keys as any, undefined as any),
                 },
                 printQRInTerminal: false,
