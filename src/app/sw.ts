@@ -51,6 +51,13 @@ self.addEventListener("push", (event) => {
         const { title, body, icon, badge, tag, data: notifData, requireInteraction, renotify } = data;
         const notifTag = tag || "bimon-notification";
 
+        // ── Staleness guard: discard notifications older than 10 minutes ──
+        const MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+        if (notifData?.sentAt && Date.now() - notifData.sentAt > MAX_AGE_MS) {
+            // Silently discard — showing a hours-old notification is worse than none
+            return;
+        }
+
         event.waitUntil(
             self.registration.showNotification(title || "Bimon", {
                 body: body || "",

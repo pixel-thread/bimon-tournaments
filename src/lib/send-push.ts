@@ -103,7 +103,7 @@ async function sendToSubscriptions(
         icon: "/icons/icon-192x192.png",
         badge: "/icons/icon-72x72.png",
         tag: notifTag,
-        data: { url: payload.url || "/channel", trackTag },
+        data: { url: payload.url || "/channel", trackTag, sentAt: Date.now() },
         requireInteraction: payload.requireInteraction ?? false,
         renotify: false,
     };
@@ -127,7 +127,7 @@ async function sendToSubscriptions(
                         keys: { p256dh: sub.p256dh, auth: sub.auth },
                     },
                     perSubPayload,
-                    { TTL: 60 * 60 }
+                    { TTL: 60 * 10 } // 10 minutes — discard stale pushes
                 );
                 sent++;
                 sentPlayerIds.push(sub.playerId);
