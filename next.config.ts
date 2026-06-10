@@ -9,6 +9,10 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   turbopack: {},
+  // Baileys uses the `ws` library which has native C++ addons for
+  // WebSocket frame masking. Webpack breaks these during bundling,
+  // so we tell Next.js to use them directly from node_modules.
+  serverExternalPackages: ["@whiskeysockets/baileys", "ws"],
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",

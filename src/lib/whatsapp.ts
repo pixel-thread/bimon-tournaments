@@ -87,6 +87,19 @@ async function useDBAuthState() {
     };
 }
 
+// ── Shared silent logger (pino-compatible) ────────────────────
+
+const silentLogger = {
+    level: "silent" as const,
+    child: () => silentLogger as any,
+    trace: () => {},
+    debug: () => {},
+    info: () => {},
+    warn: () => {},
+    error: (...args: any[]) => console.error("[Baileys]", ...args),
+    fatal: (...args: any[]) => console.error("[Baileys FATAL]", ...args),
+} as any;
+
 // ── Connection helper ─────────────────────────────────────────
 
 /**
@@ -113,21 +126,10 @@ export async function connectAndExecute<T>(
             version,
             auth: {
                 creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys as any, undefined as any),
+                keys: makeCacheableSignalKeyStore(state.keys as any, silentLogger),
             },
             printQRInTerminal: false,
-            // Reduce logging noise in serverless
-            logger: {
-                level: "silent",
-                child: () => ({ level: "silent" }) as any,
-                trace: () => {},
-                debug: () => {},
-                info: () => {},
-                warn: () => {},
-                error: console.error,
-                fatal: console.error,
-            } as any,
-            // Don't sync full history — we only need to send
+            logger: silentLogger,
             syncFullHistory: false,
         });
 
@@ -211,19 +213,10 @@ export async function linkWhatsApp(
                 version,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys as any, undefined as any),
+                    keys: makeCacheableSignalKeyStore(state.keys as any, silentLogger),
                 },
                 printQRInTerminal: false,
-                logger: {
-                    level: "silent",
-                    child: () => ({ level: "silent" }) as any,
-                    trace: () => {},
-                    debug: () => {},
-                    info: () => {},
-                    warn: () => {},
-                    error: (...args: any[]) => console.error("[Baileys]", ...args),
-                    fatal: (...args: any[]) => console.error("[Baileys FATAL]", ...args),
-                } as any,
+                logger: silentLogger,
                 syncFullHistory: false,
                 connectTimeoutMs: 20_000,
             });
