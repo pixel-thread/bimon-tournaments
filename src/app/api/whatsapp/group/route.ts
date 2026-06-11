@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         const adminPhone = process.env.WHATSAPP_ADMIN_PHONE;
 
         // Create WhatsApp group
-        const groupId = await createGroup(groupName, adminPhone);
+        const groupId = await createGroup(groupName, { adminPhone });
 
         // Store group ID
         if (group) {
