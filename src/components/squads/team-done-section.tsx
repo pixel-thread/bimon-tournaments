@@ -54,12 +54,13 @@ export function TeamDoneSection({
 }: TeamDoneSectionProps) {
     const [inviteSearch, setInviteSearch] = useState("");
     const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
-    const [discordLinked, setDiscordLinked] = useState(() => {
-        if (typeof window !== "undefined" && isRanked) {
-            return sessionStorage.getItem("discord_linked") === "true";
-        }
-        return false;
-    });
+    // Discord state (disabled — kept for future use)
+    // const [discordLinked, setDiscordLinked] = useState(() => {
+    //     if (typeof window !== "undefined" && isRanked) {
+    //         return sessionStorage.getItem("discord_linked") === "true";
+    //     }
+    //     return false;
+    // });
     const inviteMutation = useInvitePlayer();
     const { data: searchResults, isLoading: isSearching } = useSearchPlayers(
         inviteSearch,
@@ -67,60 +68,44 @@ export function TeamDoneSection({
     );
     const { data: recentTeammates } = useRecentTeammates(pollId, !!createdSquadId);
 
-    const mustJoinWhatsapp = !!whatsappGroupLink && !whatsappJoined;
-    const mustJoinDiscord = isRanked && !discordLinked;
+    // All blocking gates removed — no restrictions on team creation
+    // const mustJoinWhatsapp = !!whatsappGroupLink && !whatsappJoined;
+    // const mustJoinDiscord = isRanked && !discordLinked;
+    const isBlocked = false; // No gates — invite tools always visible
 
-    // For ranked tournaments: Discord must be linked before showing invite tools
-    const isBlocked = mustJoinWhatsapp || mustJoinDiscord;
+    // Discord OAuth callback (disabled — kept for future use)
+    // useEffect(() => {
+    //     const params = new URLSearchParams(window.location.search);
+    //     if (params.get("discord") === "linked") {
+    //         setDiscordLinked(true);
+    //         sessionStorage.setItem("discord_linked", "true");
+    //     }
+    // }, []);
 
-    // Check URL params for Discord OAuth callback result
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("discord") === "linked") {
-            setDiscordLinked(true);
-            sessionStorage.setItem("discord_linked", "true");
-        }
-    }, []);
-
-    const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
-
-    const handleDiscordAuth = () => {
-        openDiscordModal(`/api/discord/authorize?returnTo=&pollId=${encodeURIComponent(pollId)}`);
-    };
+    // const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
+    // const handleDiscordAuth = () => {
+    //     openDiscordModal(`/api/discord/authorize?returnTo=&pollId=${encodeURIComponent(pollId)}`);
+    // };
 
     return (
         <div className="space-y-4">
-            {/* Discord — ranked tournaments: one-tap OAuth linking */}
+            {/* Discord linking removed — leader invite will be sent via WhatsApp bot */}
+            {/* Discord UI code kept below as comment for future re-enablement */}
+            {/*
             {isRanked && !discordLinked && (
                 <div className="space-y-2">
-                    {/* One-tap OAuth link button */}
-                    <button
-                        type="button"
-                        onClick={handleDiscordAuth}
-                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-[#5865F2]/25 ring-2 ring-[#5865F2]/40 animate-pulse cursor-pointer active:scale-[0.98]"
-                    >
-                        <DiscordIcon className="w-5 h-5" />
-                        Link with Discord
+                    <button type="button" onClick={handleDiscordAuth}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm bg-[#5865F2] text-white">
+                        <DiscordIcon className="w-5 h-5" /> Link with Discord
                     </button>
-                    <p className="text-[11px] text-foreground/40 text-center">
-                        One tap — auto-joins the server &amp; grants access to <strong>#ranked-room-id</strong>.
-                    </p>
                 </div>
             )}
+            */}
 
-            {/* WhatsApp join — prominent unskippable button (non-ranked only) */}
-            {!isRanked && whatsappGroupLink && (
+            {/* WhatsApp group join gate removed — no restrictions on team creation */}
+            {/* WhatsApp group link kept as optional (non-blocking) if present */}
+            {whatsappGroupLink && (
                 <div className="space-y-2">
-                    {!whatsappJoined && (
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/15 text-red-500">
-                                Required
-                            </span>
-                            <span className="text-xs text-foreground/50">
-                                Join the group for match details
-                            </span>
-                        </div>
-                    )}
                     <a
                         href={whatsappGroupLink}
                         target="_blank"
@@ -129,7 +114,7 @@ export function TeamDoneSection({
                         className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all ${
                             whatsappJoined
                                 ? "bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                                : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400/40 animate-pulse"
+                                : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25"
                         }`}
                     >
                         <WhatsAppIcon className="w-5 h-5" />
@@ -276,14 +261,8 @@ export function TeamDoneSection({
                         )}
                     </div>
                 </motion.div>
-            ) : (
-                <p className="text-xs text-foreground/40 text-center">
-                    {mustJoinDiscord
-                        ? "Link your Discord to invite teammates"
-                        : "Join the WhatsApp group to invite teammates"}
-                </p>
-            )}
-            <DiscordCompareModal />
+            ) : null}
+            {/* <DiscordCompareModal /> */}
         </div>
     );
 }

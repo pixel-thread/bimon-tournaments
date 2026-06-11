@@ -19,8 +19,15 @@ function wasRecentlyDismissed(): boolean {
 /**
  * Global guard — nudges unlinked users to link Discord.
  * Shows once, then waits 7 days before showing again if skipped.
+ * 
+ * NOTE: Discord linking is currently disabled — using WhatsApp instead.
+ * The guard now always passes through. Re-enable by uncommenting below.
  */
 export function DiscordGuard({ children }: { children: React.ReactNode }) {
+    // ── Discord disabled — always pass through ──
+    return <>{children}</>;
+
+    /* ── Discord linking (disabled — kept for future use) ──
     const { user, isLoading, isSignedIn } = useAuthUser();
     const [dismissed, setDismissed] = useState(() => wasRecentlyDismissed());
 
@@ -51,4 +58,5 @@ export function DiscordGuard({ children }: { children: React.ReactNode }) {
             />
         </>
     );
+    */
 }

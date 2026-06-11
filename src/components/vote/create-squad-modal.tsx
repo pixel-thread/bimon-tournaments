@@ -66,28 +66,30 @@ export function CreateSquadModal({
     const [useClanTreasury, setUseClanTreasury] = useState(false);
     const [treasuryRequested, setTreasuryRequested] = useState(false);
     const [whatsappJoined, setWhatsappJoined] = useState(false);
-    const [discordLinked, setDiscordLinked] = useState(() => {
-        if (typeof window !== "undefined") {
-            return sessionStorage.getItem("discord_linked") === "true";
-        }
-        return false;
-    });
+    // Discord state (disabled — kept for future use)
+    // const [discordLinked, setDiscordLinked] = useState(() => {
+    //     if (typeof window !== "undefined") {
+    //         return sessionStorage.getItem("discord_linked") === "true";
+    //     }
+    //     return false;
+    // });
 
-    useEffect(() => {
-        if (!isOpen) return;
-        fetch("/api/discord/link", { method: "GET" })
-            .then((res) => res.json())
-            .then((data) => {
-                if (data.linked) {
-                    setDiscordLinked(true);
-                    sessionStorage.setItem("discord_linked", "true");
-                } else {
-                    setDiscordLinked(false);
-                    sessionStorage.removeItem("discord_linked");
-                }
-            })
-            .catch(() => {});
-    }, [isOpen]);
+    // Discord link check (disabled — kept for future use)
+    // useEffect(() => {
+    //     if (!isOpen) return;
+    //     fetch("/api/discord/link", { method: "GET" })
+    //         .then((res) => res.json())
+    //         .then((data) => {
+    //             if (data.linked) {
+    //                 setDiscordLinked(true);
+    //                 sessionStorage.setItem("discord_linked", "true");
+    //             } else {
+    //                 setDiscordLinked(false);
+    //                 sessionStorage.removeItem("discord_linked");
+    //             }
+    //         })
+    //         .catch(() => {});
+    // }, [isOpen]);
 
     const handleWhatsappJoin = useCallback(() => {
         setWhatsappJoined(true);
@@ -95,7 +97,7 @@ export function CreateSquadModal({
     }, [pollId]);
 
     const createMutation = useCreateSquad();
-    const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
+    // const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal(); // Discord disabled
 
     // Fetch player's clan membership (lightweight)
     const { data: myClan } = useQuery<MyClan | null>({
@@ -154,12 +156,12 @@ export function CreateSquadModal({
                     toast.success(`Team "${name}" created! 🎉`);
                     handleClose();
 
-                    // Show Discord stepper if not linked yet
-                    if (!discordLinked) {
-                        setTimeout(() => {
-                            openDiscordModal(`/api/discord/authorize?returnTo=vote`);
-                        }, 300);
-                    }
+                    // Discord stepper disabled — leader invite sent via WhatsApp bot
+                    // if (!discordLinked) {
+                    //     setTimeout(() => {
+                    //         openDiscordModal(`/api/discord/authorize?returnTo=vote`);
+                    //     }, 300);
+                    // }
 
                     // Persist WhatsApp pending state for global guard
                     if (whatsappGroupLink) {
@@ -173,13 +175,13 @@ export function CreateSquadModal({
                 },
             }
         );
-    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName, discordLinked, handleClose, openDiscordModal]);
+    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName, handleClose]);
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
-    // On the done step, block dismiss until WhatsApp is joined (Discord is no longer blocking)
-    const mustJoinWhatsapp = step === "done" && !!whatsappGroupLink && !whatsappJoined;
-    const isModalBlocked = mustJoinWhatsapp;
+    // All blocking gates removed — no restrictions on team creation
+    // const mustJoinWhatsapp = step === "done" && !!whatsappGroupLink && !whatsappJoined;
+    const isModalBlocked = false;
 
     return (
         <>
@@ -402,7 +404,7 @@ export function CreateSquadModal({
                 </ModalFooter>
             </ModalContent>
         </Modal>
-        <DiscordCompareModal />
+        {/* <DiscordCompareModal /> */}{/* Discord disabled */}
         </>
     );
 }

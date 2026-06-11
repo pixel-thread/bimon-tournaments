@@ -23,7 +23,7 @@ const FAQ_SECTIONS: { title: string; items: FAQItem[] }[] = [
             },
             {
                 question: "How do I create an account?",
-                answer: "Click the \"Sign Up\" button on the homepage. You can register using your Discord account for quick authentication. Once registered, link your BGMI ID in your profile settings to start participating in tournaments.",
+                answer: "Click the \"Sign Up\" button on the homepage. You can register using your Google account for quick authentication. Once registered, link your BGMI ID in your profile settings to start participating in tournaments.",
             },
             {
                 question: "Is Bimon free to use?",
@@ -124,7 +124,7 @@ const FAQ_SECTIONS: { title: string; items: FAQItem[] }[] = [
             },
             {
                 question: "I'm having technical issues. How do I get help?",
-                answer: "Visit the Help page for common troubleshooting guides, or reach out to the admin team through our Discord server or the Contact page. For urgent issues during a live tournament, message an admin directly on Discord for the fastest response.",
+                answer: "Visit the Help page for common troubleshooting guides, or reach out to the admin team through our WhatsApp group or the Contact page. For urgent issues during a live tournament, message an admin directly on WhatsApp for the fastest response.",
             },
         ],
     },
@@ -205,7 +205,7 @@ export default function FAQPage() {
                 <div className="mt-16 rounded-xl border border-foreground/10 bg-gradient-to-br from-blue-600/10 to-violet-600/10 p-6 text-center">
                     <h3 className="text-lg font-bold">Still have questions?</h3>
                     <p className="mt-2 text-sm text-foreground/50">
-                        Join our Discord community or check out our blog for in-depth guides.
+                        Join our WhatsApp community or check out our blog for in-depth guides.
                     </p>
                     <div className="mt-4 flex items-center justify-center gap-3">
                         <Link

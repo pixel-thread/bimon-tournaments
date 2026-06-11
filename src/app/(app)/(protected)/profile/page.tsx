@@ -1166,10 +1166,10 @@ export default function ProfilePage() {
                                                 {player.discord ? (
                                                     <div className="min-w-0">
                                                         <span className="text-sm font-medium truncate block">{player.discord.username}</span>
-                                                        <span className="text-[10px] text-foreground/30">Discord linked</span>
+                                                        <span className="text-[10px] text-foreground/30">Discord linked (optional)</span>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-sm text-foreground/30 italic">Discord not linked</span>
+                                                    <span className="text-sm text-foreground/30 italic">Discord not linked (optional)</span>
                                                 )}
                                             </div>
                                             {player.discord ? (
@@ -1597,25 +1597,17 @@ export default function ProfilePage() {
                                     <div>
                                         <h3 className="text-lg font-bold">Unlink Discord?</h3>
                                         <p className="text-sm text-foreground/50 mt-1">
-                                            You need Discord linked to:
+                                            Discord is currently optional. You can unlink it safely.
                                         </p>
                                     </div>
                                     <div className="space-y-2 text-left text-sm">
-                                        <div className="flex items-center gap-2.5 rounded-lg bg-danger/5 px-3 py-2.5">
-                                            <span className="text-base">🎮</span>
-                                            <span className="text-foreground/70">Receive room IDs for matches</span>
+                                        <div className="flex items-center gap-2.5 rounded-lg bg-foreground/5 px-3 py-2.5">
+                                            <span className="text-base">💬</span>
+                                            <span className="text-foreground/70">Room IDs are now sent via WhatsApp</span>
                                         </div>
-                                        <div className="flex items-center gap-2.5 rounded-lg bg-danger/5 px-3 py-2.5">
-                                            <span className="text-base">📢</span>
-                                            <span className="text-foreground/70">Get match updates & announcements</span>
-                                        </div>
-                                        <div className="flex items-center gap-2.5 rounded-lg bg-danger/5 px-3 py-2.5">
-                                            <span className="text-base">🏆</span>
-                                            <span className="text-foreground/70">Vote IN & create squads</span>
-                                        </div>
-                                        <div className="flex items-center gap-2.5 rounded-lg bg-danger/5 px-3 py-2.5">
-                                            <span className="text-base">🎫</span>
-                                            <span className="text-foreground/70">Open support tickets</span>
+                                        <div className="flex items-center gap-2.5 rounded-lg bg-foreground/5 px-3 py-2.5">
+                                            <span className="text-base">🔄</span>
+                                            <span className="text-foreground/70">You can re-link anytime from profile</span>
                                         </div>
                                     </div>
                                     <div className="flex gap-2 pt-1">
