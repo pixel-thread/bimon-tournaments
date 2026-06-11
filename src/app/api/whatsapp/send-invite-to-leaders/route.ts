@@ -117,7 +117,8 @@ export async function POST(req: NextRequest) {
                     const phoneWithCountry = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
 
                     // Verify the number exists on WhatsApp
-                    const [exists] = await sock.onWhatsApp(phoneWithCountry);
+                    const waResult = await sock.onWhatsApp(phoneWithCountry);
+                    const exists = waResult?.[0];
                     if (!exists?.exists) {
                         failed.push({
                             name: leader.name,
