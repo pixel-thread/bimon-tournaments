@@ -5,7 +5,7 @@ import { createGroup, addMembers, deleteGroup } from "@/lib/whatsapp";
 
 /**
  * POST /api/whatsapp/group
- * Create a WhatsApp group for a tournament and add all players.
+ * Create a WhatsApp group for a tournament and add team leaders only.
  *
  * Body: { tournamentId, group? }
  * - group: championship group name (e.g. "A", "B"). If omitted, creates main group.
@@ -28,14 +28,22 @@ export async function POST(req: NextRequest) {
                 name: true,
                 whatsappGroupId: true,
                 whatsappGroupChannels: true,
+                poll: {
+                    select: {
+                        id: true,
+                        allowSquads: true,
+                    },
+                },
                 teams: {
                     select: {
+                        teamNumber: true,
                         players: {
                             select: {
                                 id: true,
                                 displayName: true,
                                 phoneNumber: true,
                             },
+                            orderBy: { createdAt: "asc" as const },
                         },
                     },
                 },
@@ -81,32 +89,47 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // Collect all unique players with phone numbers
-        const playerMap = new Map<string, { phone: string; name: string }>();
-        for (const team of tournament.teams) {
-            for (const player of team.players) {
-                if (player.phoneNumber && !playerMap.has(player.id)) {
-                    playerMap.set(player.id, {
-                        phone: player.phoneNumber,
-                        name: player.displayName || "Unknown",
-                    });
-                }
+        // Build captain map for squad-based tournaments
+        const captainMap = new Map<string, boolean>();
+        if (tournament.poll?.id && tournament.poll.allowSquads) {
+            const squads = await prisma.squad.findMany({
+                where: { pollId: tournament.poll.id, status: "REGISTERED" },
+                select: { captainId: true },
+            });
+            for (const s of squads) {
+                captainMap.set(s.captainId, true);
             }
         }
 
-        // Add players to group
-        const phones = Array.from(playerMap.values());
+        // Collect ONLY team leaders (captain or first player) with phone numbers
+        const leaderMap = new Map<string, { phone: string; name: string }>();
+        for (const team of tournament.teams) {
+            if (team.players.length === 0) continue;
+            const leader = team.players.find(p => captainMap.has(p.id)) || team.players[0];
+            if (leader.phoneNumber && !leaderMap.has(leader.id)) {
+                leaderMap.set(leader.id, {
+                    phone: leader.phoneNumber,
+                    name: leader.displayName || "Unknown",
+                });
+            }
+        }
+
+        // Add leaders to group
+        const phones = Array.from(leaderMap.values());
         let addResult = { added: [] as string[], failed: [] as { name: string; phone: string; reason: string }[] };
 
         if (phones.length > 0) {
             addResult = await addMembers(groupId, phones);
         }
 
-        const noPhone = tournament.teams.flatMap(t =>
-            t.players
-                .filter((p) => !p.phoneNumber)
-                .map((p) => p.displayName || "Unknown")
-        );
+        const noPhone = tournament.teams
+            .filter(t => t.players.length > 0)
+            .map(t => {
+                const leader = t.players.find(p => captainMap.has(p.id)) || t.players[0];
+                return { name: leader.displayName || "Unknown", phone: leader.phoneNumber, teamNumber: t.teamNumber };
+            })
+            .filter(l => !l.phone)
+            .map(l => `T${l.teamNumber} — ${l.name}`);
 
         return NextResponse.json({
             success: true,
@@ -116,6 +139,7 @@ export async function POST(req: NextRequest) {
             failed: addResult.failed,
             noPhone,
             total: phones.length + noPhone.length,
+            note: "Only team leaders were added. They share room IDs with their team.",
         });
     } catch (error) {
         console.error("[WhatsApp Group] Create error:", error);

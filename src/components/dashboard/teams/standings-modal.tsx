@@ -619,7 +619,7 @@ export function StandingsModal({
                 : champGroup === "FINALS" ? "FINALS"
                 : undefined;
 
-            const res = await fetch("/api/whatsapp/send", {
+            const res = await fetch("/api/whatsapp/send-image", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -635,14 +635,9 @@ export function StandingsModal({
                 throw new Error(json.error || "Failed to send");
             }
 
-            const result = await res.json();
-            if (result.skipped) {
-                toast("No WhatsApp group for this tournament", { icon: "💬" });
-            } else {
-                setWaSent(true);
-                toast.success("Standings sent to WhatsApp! 💬");
-                setTimeout(() => setWaSent(false), 3000);
-            }
+            setWaSent(true);
+            toast.success("Standings sent to WhatsApp! 💬");
+            setTimeout(() => setWaSent(false), 3000);
         } catch (err) {
             toast.error((err as Error).message || "Failed to send to WhatsApp");
         } finally {
@@ -770,21 +765,7 @@ Make it look premium and professional — suitable for posting on a tournament w
                         )}
                     </button>
 
-                    {/* Send to App Button */}
-                    <button
-                        onClick={sendToApp}
-                        disabled={isSendingApp}
-                        className={`relative overflow-hidden text-white hover:text-orange-400 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-orange-500/50 p-2.5 rounded-xl transition-all duration-300 ${appSent ? "bg-orange-500/20 border-orange-500/50" : ""}`}
-                        title="Send to App channel with push notification"
-                    >
-                        {isSendingApp ? (
-                            <div className="h-5 w-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                        ) : appSent ? (
-                            <Check className="h-5 w-5 text-orange-400" />
-                        ) : (
-                            <Bell className="h-5 w-5" />
-                        )}
-                    </button>
+
 
                     {/* Send to WhatsApp Button */}
                     <button

@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Gamepad2, Trophy, ChevronRight, Zap, Loader2 } from "lucide-react";
 import { Avatar } from "@heroui/react";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+import { MySlotPage } from "@/components/game/my-slot-page";
 
 interface GameMeta {
     id: string;
@@ -128,6 +129,23 @@ function GameCard({ game, index, stats }: { game: GameMeta; index: number; stats
 }
 
 export default function GamesPage() {
+    // Check if player is in an active tournament
+    const { data: myGameData, isLoading: myGameLoading } = useQuery({
+        queryKey: ["my-game"],
+        queryFn: () => fetch("/api/my-game").then(r => r.json()),
+        staleTime: 30_000,
+    });
+
+    // If in tournament → show My Slot page
+    if (myGameData?.active) {
+        return <MySlotPage />;
+    }
+
+    // Otherwise → show Arcade
+    return <ArcadePage />;
+}
+
+function ArcadePage() {
     // Fetch stats for both games
     const { data: memoryData } = useQuery({
         queryKey: ["game-hub", "memory"],

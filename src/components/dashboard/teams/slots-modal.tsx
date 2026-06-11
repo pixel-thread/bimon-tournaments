@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toPng, toJpeg } from "html-to-image";
 import { toast } from "sonner";
-import { X, Copy, Check, Send, Loader2, Smartphone } from "lucide-react";
+import { X, Copy, Check, Send, Loader2, MessageCircle } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -50,8 +50,8 @@ export function SlotsModal({
     const [shareSuccess, setShareSuccess] = useState(false);
     const [discordSending, setDiscordSending] = useState(false);
     const [discordSent, setDiscordSent] = useState(false);
-    const [appSending, setAppSending] = useState(false);
-    const [appSent, setAppSent] = useState(false);
+    const [waSending, setWaSending] = useState(false);
+    const [waSent, setWaSent] = useState(false);
 
     // Fetch saved overlay settings from gallery
     const { data: overlaySettings } = useQuery<{ overlayOpacity: number; cardTint: number; cardBlur: number; rowTint: number }>({
@@ -285,56 +285,51 @@ export function SlotsModal({
         }
     }, [tournamentId, tournamentTitle, captureImage, selectedGroup]);
 
-    // ── Send to App Channel ──────────────────────────────────
+    // ── Send to WhatsApp ──────────────────────────────────────
 
-    const sendToChannel = useCallback(async () => {
+    const sendToWhatsApp = useCallback(async () => {
         if (!tournamentId) {
             toast.error("No tournament selected");
             return;
         }
 
-        setAppSending(true);
-        setAppSent(false);
+        setWaSending(true);
+        setWaSent(false);
 
         try {
             const dataUrl = await captureImage();
             if (!dataUrl) {
                 toast.error("Failed to capture image");
-                setAppSending(false);
+                setWaSending(false);
                 return;
             }
 
-            // Upload image via server (server has ImgBB API key)
-            const uploadRes = await fetch("/api/upload-image", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ image: dataUrl }),
-            });
-            if (!uploadRes.ok) throw new Error("Image upload failed");
-            const { url: imageUrl } = await uploadRes.json();
-
-            // Post to tournament channel
-            const res = await fetch("/api/announcements", {
+            const res = await fetch("/api/whatsapp/send-image", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    content: `📋 ${tournamentTitle} — Team Slots`,
-                    imageUrl,
-                    channel: tournamentId,
+                    image: dataUrl,
+                    tournamentId,
+                    caption: `📋 ${tournamentTitle} — Team Slots`,
+                    group: selectedGroup || undefined,
                 }),
             });
-            if (!res.ok) throw new Error("Failed to post");
 
-            setAppSent(true);
-            toast.success("Slot image sent to App!");
-            setTimeout(() => setAppSent(false), 3000);
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({ error: "Unknown error" }));
+                throw new Error(json.error || `Failed (${res.status})`);
+            }
+
+            setWaSent(true);
+            toast.success("Slot image sent to WhatsApp!");
+            setTimeout(() => setWaSent(false), 3000);
         } catch (error) {
-            console.error("App send error:", error);
-            toast.error(`App: ${(error as Error).message || "Failed to send"}`);
+            console.error("WhatsApp send error:", error);
+            toast.error(`WhatsApp: ${(error as Error).message || "Failed to send"}`);
         } finally {
-            setAppSending(false);
+            setWaSending(false);
         }
-    }, [tournamentId, tournamentTitle, captureImage]);
+    }, [tournamentId, tournamentTitle, captureImage, selectedGroup]);
 
     if (!isOpen) return null;
 
@@ -416,24 +411,24 @@ export function SlotsModal({
                         </button>
                     )}
 
-                    {/* Send to App Channel */}
+                    {/* Send to WhatsApp */}
                     {tournamentId && (
                         <button
-                            onClick={sendToChannel}
-                            disabled={appSending}
-                            title="Send to App Channel"
+                            onClick={sendToWhatsApp}
+                            disabled={waSending}
+                            title="Send to WhatsApp"
                             className={`relative overflow-hidden text-white bg-black/60 backdrop-blur-md border p-2.5 rounded-xl transition-all duration-300 ${
-                                appSent
-                                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
-                                    : "hover:text-emerald-400 border-white/20 hover:border-emerald-500/50 hover:bg-black/80"
+                                waSent
+                                    ? "bg-green-500/20 border-green-500/50 text-green-400"
+                                    : "hover:text-green-400 border-white/20 hover:border-green-500/50 hover:bg-black/80"
                             }`}
                         >
-                            {appSending ? (
-                                <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
-                            ) : appSent ? (
-                                <Check className="h-5 w-5 text-emerald-400" />
+                            {waSending ? (
+                                <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+                            ) : waSent ? (
+                                <Check className="h-5 w-5 text-green-400" />
                             ) : (
-                                <Smartphone className="h-5 w-5" />
+                                <MessageCircle className="h-5 w-5" />
                             )}
                         </button>
                     )}

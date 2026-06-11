@@ -590,6 +590,10 @@ model Tournament {
   discordRoomMsgIds      Json?            // Per-match Discord message IDs for edit-instead-of-resend: { "1": { "embedId": "...", "roomIdMsgId": "..." }, ... }
   whatsappGroupId        String?          // WhatsApp group JID for this tournament
   whatsappGroupChannels  Json?            // Championship: per-group WhatsApp JIDs — { "A": "jid", "B": "jid", ... }
+  whatsappInviteLink     String?          // Invite link for self-join (single group mode)
+  whatsappChannelInvites Json?            // Championship: per-group invite links — { "A": "https://...", "B": "https://...", ... }
+  whatsappJoinedPlayers  Json?            // Array of player IDs who confirmed joining the WhatsApp group
+  highlightedRules       String[]  @default([]) // Custom rules set by admin, shown on player My Slot page
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

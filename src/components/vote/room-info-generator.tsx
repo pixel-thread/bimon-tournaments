@@ -3,7 +3,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardBody, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save, Camera, X, Smartphone, Bell, BellOff, MessageCircle } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronUp, KeyRound, RotateCcw, Send, ShieldAlert, Pencil, Trash2, ImagePlus, Plus, Save, Camera, X, Smartphone, Bell, BellOff } from "lucide-react";
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
@@ -283,11 +284,12 @@ function TimeInput({ value, onChange }: { value: string; onChange: (time: string
 
 /* ─── Per-Tournament Row ────────────────────────────────────── */
 
-function TournamentRow({ tournament, state, onChange, group }: {
+function TournamentRow({ tournament, state, onChange, group, mode = "v1" }: {
     tournament: InPlayTournament;
     state: TournamentState;
     onChange: (update: Partial<TournamentState>) => void;
     group?: string; // "A", "B", etc. — for championship group routing
+    mode?: "v1" | "v2";
 }) {
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const isRanked = tournament.allowSquads;
@@ -451,6 +453,47 @@ function TournamentRow({ tournament, state, onChange, group }: {
         }
     }, [tournament.id, tournamentName, rulesSending]);
 
+    /** V2: Send rules to WhatsApp + save to tournament DB */
+    const handleSendRulesV2 = useCallback(async () => {
+        if (rulesSending) return;
+        setRulesSending(true);
+        try {
+            // Fetch current custom rules from the rules editor
+            const rulesRes = await fetch("/api/settings/tournament-rules");
+            const rulesData = rulesRes.ok ? await rulesRes.json() : null;
+            const rulesList = (rulesData?.data?.length > 0)
+                ? rulesData.data.map((r: { text: string }) => r.text)
+                : [
+                    "No use of emulators, triggers, or hacks",
+                    "Join lobby within 5 minutes of room ID being shared",
+                    "No team killing — results in immediate disqualification",
+                    "All players must use the IGN registered on the platform",
+                ];
+
+            const res = await fetch("/api/whatsapp/send-rules", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    tournamentId: tournament.id,
+                    rules: rulesList,
+                    group: group || undefined,
+                }),
+            });
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({ error: "Unknown error" }));
+                throw new Error(json.error || "Failed to send rules");
+            }
+            const json = await res.json();
+            setRulesSent(true);
+            toast.success(json.whatsappSent ? "Rules sent to WhatsApp & saved!" : "Rules saved (WhatsApp failed)");
+            setTimeout(() => setRulesSent(false), 3000);
+        } catch (err: any) {
+            toast.error(`Failed: ${err.message || "Unknown error"}`);
+        } finally {
+            setRulesSending(false);
+        }
+    }, [tournament.id, group, rulesSending]);
+
     /** Send room info to WhatsApp group */
     const handleSendWA = useCallback(async () => {
         if (state.roomId.length !== 7) return;
@@ -489,6 +532,44 @@ function TournamentRow({ tournament, state, onChange, group }: {
             toast.error(`WhatsApp: ${err.message || "Failed"}`);
         }).finally(() => setWaSending(false));
     }, [matchNumber, state.roomId, state.password, state.map, state.time, tournament.id, group]);
+
+    /** V2: Send room info via WhatsApp + publish to DB (no Discord, no push) */
+    const handleSendV2 = useCallback(async () => {
+        if (state.roomId.length !== 7) return;
+        setWaSending(true);
+
+        // Copy to clipboard as fallback
+        const msg = generateMessage(matchNumber);
+        try { await navigator.clipboard.writeText(msg + "\n\n" + state.roomId); } catch {}
+
+        fetch("/api/whatsapp/send-room-info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                tournamentId: tournament.id,
+                roomId: state.roomId.trim(),
+                password: state.password,
+                map: state.map,
+                matchNumber,
+                time: state.time.trim() || "Now",
+                group: group || undefined,
+            }),
+        }).then(async (res) => {
+            if (!res.ok) throw new Error("Failed");
+            const json = await res.json();
+            setWaSent(true);
+            setSentMatchNumbers(prev => new Set(prev).add(matchNumber));
+            setLastSentMatch(matchNumber);
+            toast.success(json.whatsappSent ? "Sent to WhatsApp ✓" : "Published (WA failed — copied to clipboard)");
+            setTimeout(() => setWaSent(false), 3000);
+            // Auto-increment match
+            const nextMatch = matchNumber + 1;
+            onChange({ copyCount: matchNumber, map: getDefaultMapForMatch(nextMatch) });
+            if (nextMatch > maxMatches) setMaxMatches(nextMatch);
+        }).catch((err) => {
+            toast.error(`Failed: ${err.message || "Failed"}`);
+        }).finally(() => setWaSending(false));
+    }, [matchNumber, state.roomId, state.password, state.map, state.time, tournament.id, group, generateMessage, onChange, maxMatches]);
 
     return (
         <div className="space-y-3">
@@ -643,6 +724,44 @@ function TournamentRow({ tournament, state, onChange, group }: {
             </div>
 
             {/* Send buttons row */}
+            {mode === "v2" ? (
+                /* V2: WhatsApp only + copy fallback */
+                <div className="flex gap-2">
+                    <button
+                        type="button"
+                        onClick={handleSendV2}
+                        disabled={state.roomId.length !== 7 || waSending}
+                        className={`
+                            flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold
+                            transition-all duration-200 active:scale-[0.98]
+                            ${state.roomId.length !== 7 || waSending
+                                ? "bg-default-200 text-foreground/30 cursor-not-allowed"
+                                : waSent
+                                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 cursor-pointer"
+                                    : "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 cursor-pointer"
+                            }
+                        `}
+                    >
+                        {waSending ? (
+                            <>
+                                <WhatsAppIcon className="w-4 h-4 animate-pulse" />
+                                Sending...
+                            </>
+                        ) : waSent ? (
+                            <>
+                                <Check className="w-4 h-4" />
+                                Sent to WhatsApp ✓
+                            </>
+                        ) : (
+                            <>
+                                <WhatsAppIcon className="w-4 h-4" />
+                                Send to WhatsApp
+                            </>
+                        )}
+                    </button>
+                </div>
+            ) : (
+            <>
             <div className="flex gap-2">
                 {/* Send to Discord */}
                 <button
@@ -732,7 +851,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
                 >
                     {waSending ? (
                         <>
-                            <MessageCircle className="w-4 h-4 animate-pulse" />
+                            <WhatsAppIcon className="w-4 h-4 animate-pulse" />
                             Sending...
                         </>
                     ) : waSent ? (
@@ -742,7 +861,7 @@ function TournamentRow({ tournament, state, onChange, group }: {
                         </>
                     ) : (
                         <>
-                            <MessageCircle className="w-4 h-4" />
+                            <WhatsAppIcon className="w-4 h-4" />
                             WA
                         </>
                     )}
@@ -784,11 +903,13 @@ function TournamentRow({ tournament, state, onChange, group }: {
                     )}
                 </button>
             )}
+            </>
+            )}
 
             {/* Send Rules button */}
             <button
                 type="button"
-                onClick={handleSendRules}
+                onClick={mode === "v2" ? handleSendRulesV2 : handleSendRules}
                 disabled={rulesSending}
                 className={`
                     w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium
@@ -814,13 +935,13 @@ function TournamentRow({ tournament, state, onChange, group }: {
                 ) : (
                     <>
                         <ShieldAlert className="w-3.5 h-3.5" />
-                        Send Rules to Discord
+                        {mode === "v2" ? "Send Rules to WhatsApp" : "Send Rules to Discord"}
                     </>
                 )}
             </button>
 
-            {/* Notification Status per Team */}
-            <TeamPushStatus tournamentId={tournament.id} />
+            {/* Notification Status per Team — V1 only */}
+            {mode !== "v2" && <TeamPushStatus tournamentId={tournament.id} />}
         </div>
     );
 }
@@ -1365,11 +1486,14 @@ interface RoomInfoGeneratorProps {
     alwaysExpanded?: boolean;
     /** Hide the rules editor section (when rules are shown separately) */
     hideRulesEditor?: boolean;
+    /** Default mode — controlled by parent page */
+    defaultMode?: "v1" | "v2";
 }
 
-export function RoomInfoGenerator({ alwaysExpanded = false, hideRulesEditor = false }: RoomInfoGeneratorProps = {}) {
+export function RoomInfoGenerator({ alwaysExpanded = false, hideRulesEditor = false, defaultMode = "v2" }: RoomInfoGeneratorProps = {}) {
     const [isOpen, setIsOpen] = useState(alwaysExpanded);
     const [rulesEditorOpen, setRulesEditorOpen] = useState(false);
+    const mode = defaultMode;
     const getDefaultTime = () => "8:00 PM";
 
     // Fetch in-play tournaments independently
@@ -1466,6 +1590,7 @@ export function RoomInfoGenerator({ alwaysExpanded = false, hideRulesEditor = fa
                                     state={getState(stateKey)}
                                     onChange={(update) => updateState(stateKey, update)}
                                     group={group}
+                                    mode={mode}
                                 />
                             </div>
                         );
@@ -1480,6 +1605,7 @@ export function RoomInfoGenerator({ alwaysExpanded = false, hideRulesEditor = fa
                             tournament={t}
                             state={getState(t.id)}
                             onChange={(update) => updateState(t.id, update)}
+                            mode={mode}
                         />
                     </div>
                 );

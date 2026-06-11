@@ -48,31 +48,33 @@ export async function POST() {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
         async start(controller) {
+            let closed = false;
+            const safeEnqueue = (data: string) => {
+                if (closed) return;
+                try { controller.enqueue(encoder.encode(data)); } catch { closed = true; }
+            };
+            const safeClose = () => {
+                if (closed) return;
+                closed = true;
+                try { controller.close(); } catch {}
+            };
+
             try {
                 await linkWhatsApp(async (qrString) => {
-                    // Convert QR string to data URL for display
                     const qrDataUrl = await QRCode.toDataURL(qrString, {
                         width: 300,
                         margin: 2,
                         color: { dark: "#000000", light: "#ffffff" },
                     });
-                    // Send QR event to client
-                    controller.enqueue(
-                        encoder.encode(`event: qr\ndata: ${JSON.stringify({ qr: qrDataUrl })}\n\n`)
-                    );
+                    safeEnqueue(`event: qr\ndata: ${JSON.stringify({ qr: qrDataUrl })}\n\n`);
                 });
 
                 // linkWhatsApp resolved — user scanned successfully
-                controller.enqueue(
-                    encoder.encode(`event: connected\ndata: ${JSON.stringify({ status: "linked" })}\n\n`)
-                );
-                controller.close();
+                safeEnqueue(`event: connected\ndata: ${JSON.stringify({ status: "linked" })}\n\n`);
+                safeClose();
             } catch (error) {
-                // Timeout or error
-                controller.enqueue(
-                    encoder.encode(`event: error\ndata: ${JSON.stringify({ error: (error as Error).message })}\n\n`)
-                );
-                controller.close();
+                safeEnqueue(`event: error\ndata: ${JSON.stringify({ error: (error as Error).message })}\n\n`);
+                safeClose();
             }
         },
     });

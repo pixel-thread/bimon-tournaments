@@ -873,6 +873,60 @@ export async function createTeamsByPoll({
         console.error("[createTeamsByPoll] Discord channel creation failed (non-blocking):", err);
     }
 
+    // ── Post-transaction: create WhatsApp group(s) with invite link ──
+    // Players self-join via the invite link shown on the website.
+    try {
+        const { setupTournamentGroup } = await import("@/lib/whatsapp");
+
+        if (shouldChampionship) {
+            // Championship: create per-group WhatsApp groups
+            const entries = await prisma.championshipEntry.findMany({
+                where: { tournamentId },
+                select: { group: true },
+            });
+            const uniqueGroups = [...new Set(entries.map(e => e.group).filter(Boolean))] as string[];
+            const existingChannelInvites: Record<string, string> = {};
+            const existingGroupChannelsWA: Record<string, string> = {};
+
+            for (const group of uniqueGroups) {
+                const waResult = await setupTournamentGroup({
+                    name: `🎮 ${tournamentName} — Group ${group}`,
+                    description: `${tournamentName} — Group ${group}\nJoin to receive room info, match schedules, and updates.`,
+                });
+                existingGroupChannelsWA[group] = waResult.groupId;
+                existingChannelInvites[group] = waResult.inviteLink;
+                console.log(`[createTeamsByPoll] WhatsApp Group ${group} created: ${waResult.inviteLink}`);
+            }
+
+            await prisma.tournament.update({
+                where: { id: tournamentId },
+                data: {
+                    whatsappGroupChannels: existingGroupChannelsWA,
+                    whatsappChannelInvites: existingChannelInvites,
+                    whatsappJoinedPlayers: [],
+                },
+            });
+        } else {
+            // Single group tournament
+            const waResult = await setupTournamentGroup({
+                name: `🎮 ${tournamentName}`,
+                description: `${tournamentName}\nJoin to receive room info, match schedules, and updates.`,
+            });
+
+            await prisma.tournament.update({
+                where: { id: tournamentId },
+                data: {
+                    whatsappGroupId: waResult.groupId,
+                    whatsappInviteLink: waResult.inviteLink,
+                    whatsappJoinedPlayers: [],
+                },
+            });
+            console.log(`[createTeamsByPoll] WhatsApp group created: ${waResult.inviteLink}`);
+        }
+    } catch (err) {
+        console.error("[createTeamsByPoll] WhatsApp group creation failed (non-blocking):", err);
+    }
+
     return {
         ...result,
         entryFeeCharged: entryFee,

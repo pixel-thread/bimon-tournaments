@@ -72,14 +72,16 @@ export async function POST() {
     const result = await setupTournamentGroup({
         name: groupName,
         description,
-        adminPhone: "8837011018",
-        players: phones,
     });
 
-    // Save group ID to tournament
+    // Save group ID and invite link to tournament
     await prisma.tournament.update({
         where: { id: tournament.id },
-        data: { whatsappGroupId: result.groupId },
+        data: {
+            whatsappGroupId: result.groupId,
+            whatsappInviteLink: result.inviteLink,
+            whatsappJoinedPlayers: [],
+        },
     });
 
     return NextResponse.json({
@@ -90,7 +92,5 @@ export async function POST() {
         inviteLink: result.inviteLink,
         totalPlayers,
         playersWithPhone: phones.length,
-        added: result.added.length,
-        failed: result.failed,
     });
 }

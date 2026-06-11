@@ -15,7 +15,11 @@ import { sendMessage, sendImage } from "@/lib/whatsapp";
  */
 export async function POST(req: NextRequest) {
     const user = await getCurrentUser();
-    if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+    const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+    const isUCExempt = user?.player
+        ? (await prisma.player.findUnique({ where: { id: user.player.id }, select: { isUCExempt: true } }))?.isUCExempt
+        : false;
+    if (!user || (!isAdmin && !isUCExempt)) {
         return NextResponse.json({ error: "Admin only" }, { status: 403 });
     }
 

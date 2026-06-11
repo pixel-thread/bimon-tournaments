@@ -301,15 +301,14 @@ export async function linkWhatsApp(
 // ── Group operations ──────────────────────────────────────────
 
 /**
- * Create a tournament WhatsApp group, set description, add admin, and add all players.
+ * Create a tournament WhatsApp group with description and invite link.
+ * Players self-join via the invite link (shown on the website).
  * Does everything in ONE connection to avoid 401 session errors.
  */
 export async function setupTournamentGroup(opts: {
     name: string;
     description?: string;
-    adminPhone?: string;
-    players: { phone: string; name: string }[];
-}): Promise<{ groupId: string; added: string[]; failed: { name: string; phone: string; reason: string }[]; inviteLink: string }> {
+}): Promise<{ groupId: string; inviteLink: string }> {
     return connectAndExecute(async (sock) => {
         // 1. Create group
         console.log(`[WhatsApp] Creating group: ${opts.name}`);
@@ -328,7 +327,7 @@ export async function setupTournamentGroup(opts: {
             }
         }
 
-        // 3. Generate invite link (always works, even if direct adds fail)
+        // 3. Generate invite link
         let inviteLink = "";
         try {
             await humanDelay(500);
@@ -339,67 +338,8 @@ export async function setupTournamentGroup(opts: {
             console.error(`[WhatsApp] Failed to get invite link:`, err);
         }
 
-        // 4. Add admin
-        if (opts.adminPhone) {
-            await humanDelay(1000);
-            const adminJid = formatPhoneToJid(opts.adminPhone);
-            try {
-                await sock.groupParticipantsUpdate(groupId, [adminJid], "add");
-                await humanDelay(500);
-                await sock.groupParticipantsUpdate(groupId, [adminJid], "promote");
-                console.log(`[WhatsApp] Admin added: ${opts.adminPhone}`);
-            } catch (err) {
-                console.error(`[WhatsApp] Failed to add admin (will use invite link):`, (err as Error).message);
-            }
-        }
-
-        // 5. Add players in small batches
-        const added: string[] = [];
-        const failed: { name: string; phone: string; reason: string }[] = [];
-        const batchSize = 5;
-        const totalBatches = Math.ceil(opts.players.length / batchSize);
-
-        for (let i = 0; i < opts.players.length; i += batchSize) {
-            const batch = opts.players.slice(i, i + batchSize);
-            const jids = batch.map((p) => formatPhoneToJid(p.phone));
-            const batchNum = Math.floor(i / batchSize) + 1;
-
-            await humanDelay(3000);
-            console.log(`[WhatsApp] Adding batch ${batchNum}/${totalBatches} (${batch.map(b => b.name).join(", ")})...`);
-
-            try {
-                const result = await sock.groupParticipantsUpdate(groupId, jids, "add");
-                for (let j = 0; j < result.length; j++) {
-                    const r = result[j];
-                    const player = batch[j];
-                    const status = r.status?.toString();
-                    console.log(`[WhatsApp]   ${player.name}: status=${status}`);
-                    if (status === "200" || status === "409") {
-                        added.push(player.name);
-                    } else {
-                        failed.push({ name: player.name, phone: player.phone, reason: `Status: ${status}` });
-                    }
-                }
-            } catch (err) {
-                const errMsg = (err as Error).message || "Unknown error";
-                console.error(`[WhatsApp]   Batch ${batchNum} FAILED: ${errMsg}`);
-                // If account_reachout_restricted, skip remaining — they'll use invite link
-                if (errMsg.includes("reachout_restricted")) {
-                    console.log(`[WhatsApp] ⚠️  Bot restricted from adding. Players will use invite link.`);
-                    for (const player of opts.players.slice(i)) {
-                        failed.push({ name: player.name, phone: player.phone, reason: "Use invite link" });
-                    }
-                    break;
-                }
-                for (const player of batch) {
-                    failed.push({ name: player.name, phone: player.phone, reason: errMsg });
-                }
-            }
-        }
-
-        console.log(`[WhatsApp] Done! Added: ${added.length}, Failed: ${failed.length}`);
-        if (inviteLink) console.log(`[WhatsApp] Invite link for failed adds: ${inviteLink}`);
-        return { groupId, added, failed, inviteLink };
+        console.log(`[WhatsApp] Done! Group ready for self-join.`);
+        return { groupId, inviteLink };
     });
 }
 
@@ -569,6 +509,28 @@ export async function isLinked(): Promise<boolean> {
 /** Clear all WhatsApp auth data (unlink) */
 export async function unlinkWhatsApp(): Promise<void> {
     await prisma.whatsAppAuth.deleteMany({});
+}
+
+/** Get group ID (JID) from a WhatsApp invite link — bot must be linked */
+export async function getGroupIdFromInviteLink(inviteLink: string): Promise<string> {
+    return connectAndExecute(async (sock) => {
+        // Extract invite code from link: https://chat.whatsapp.com/XXXX
+        const code = inviteLink.replace("https://chat.whatsapp.com/", "").trim();
+        if (!code) throw new Error("Invalid invite link");
+
+        const groupInfo = await sock.groupGetInviteInfo(code);
+        if (!groupInfo?.id) throw new Error("Could not resolve group from invite link");
+
+        return groupInfo.id;
+    });
+}
+
+/** Get all participant phone numbers from a WhatsApp group */
+export async function getGroupParticipants(groupId: string): Promise<string[]> {
+    return connectAndExecute(async (sock) => {
+        const metadata = await sock.groupMetadata(groupId);
+        return metadata.participants.map(p => p.id.replace("@s.whatsapp.net", ""));
+    });
 }
 
 // ── Utility ───────────────────────────────────────────────────

@@ -744,7 +744,13 @@ export async function POST(
                     // Clear from DB
                     await prisma.tournament.update({
                         where: { id },
-                        data: { whatsappGroupId: null, whatsappGroupChannels: Prisma.JsonNull },
+                        data: {
+                            whatsappGroupId: null,
+                            whatsappGroupChannels: Prisma.JsonNull,
+                            whatsappInviteLink: null,
+                            whatsappChannelInvites: Prisma.JsonNull,
+                            whatsappJoinedPlayers: Prisma.JsonNull,
+                        },
                     });
                 } catch (err) {
                     console.error("[WhatsApp] Group deletion error:", err);

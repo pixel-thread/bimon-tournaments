@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 import { AutoUpdater } from "@/components/common/auto-updater";
 import { ColorThemeProvider } from "@/components/common/color-theme-provider";
 import { LocaleProvider } from "@/components/common/locale-provider";
+import { WhatsAppTournamentGuard } from "@/components/common/whatsapp-tournament-guard";
 
 import { GAME } from "@/lib/game-config";
 
@@ -141,6 +142,7 @@ export default function RootLayout({
             <LocaleProvider>
 
               <AutoUpdater />
+              <WhatsAppTournamentGuard />
 
               {children}
             </LocaleProvider>
