@@ -309,7 +309,7 @@ export async function setupTournamentGroup(opts: {
     description?: string;
     adminPhone?: string;
     players: { phone: string; name: string }[];
-}): Promise<{ groupId: string; added: string[]; failed: { name: string; phone: string; reason: string }[] }> {
+}): Promise<{ groupId: string; added: string[]; failed: { name: string; phone: string; reason: string }[]; inviteLink: string }> {
     return connectAndExecute(async (sock) => {
         // 1. Create group
         console.log(`[WhatsApp] Creating group: ${opts.name}`);
