@@ -10,7 +10,7 @@ import { AdSenseScript } from "@/components/common/adsense-script";
 import { WhatsAppSquadGuard } from "@/components/common/whatsapp-squad-guard";
 import { WhatsAppMainGroupGuard } from "@/components/common/WhatsAppMainGroupGuard";
 import { PushGuard } from "@/components/common/push-guard";
-import { RoomInfoBanner } from "@/components/common/room-info-banner";
+// import { RoomInfoBanner } from "@/components/common/room-info-banner"; // Removed — room IDs sent via WhatsApp now
 
 
 /**
@@ -30,7 +30,7 @@ export default function AppLayout({
             <AuthGateProvider>
                 <div className="flex min-h-dvh flex-col">
                     <Header />
-                    <RoomInfoBanner />
+                    {/* RoomInfoBanner removed — room IDs sent via WhatsApp now */}
                     <main className="flex-1 pt-16 pb-16 lg:pb-0">{children}</main>
 
                     {/* Compact footer — visible on all app pages (AdSense compliance) */}

@@ -21,8 +21,8 @@ export function useClanInviteCount(): number {
             return json.data?.count ?? 0;
         },
         enabled: GAME.features.hasClans && !!session?.user,
-        staleTime: 30_000,
-        refetchInterval: 60_000, // Poll every 60s for new invites
+        staleTime: 90_000,
+        refetchInterval: 120_000, // Poll every 2min (was 60s)
     });
 
     return data ?? 0;

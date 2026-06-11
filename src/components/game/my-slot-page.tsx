@@ -103,7 +103,7 @@ export function MySlotPage() {
     const { data, isLoading } = useQuery<MyGameData>({
         queryKey: ["my-game"],
         queryFn: () => fetch("/api/my-game").then(r => r.json()),
-        refetchInterval: 15000, // Auto-refresh every 15s for room info
+        refetchInterval: 30_000, // Auto-refresh every 30s (was 15s — saves edge requests)
     });
 
 

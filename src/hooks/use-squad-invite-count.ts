@@ -20,8 +20,8 @@ export function useSquadInviteCount(): number {
             return json.data?.pendingSquadInviteCount ?? 0;
         },
         enabled: GAME.features.hasSquads && !!session?.user,
-        staleTime: 30_000, // 30s — re-check periodically
-        refetchInterval: 60_000, // poll every 60s for new invites
+        staleTime: 90_000, // 90s — reduced to save edge requests
+        refetchInterval: 120_000, // poll every 2min (was 60s)
     });
 
     return data ?? 0;
