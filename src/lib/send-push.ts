@@ -127,7 +127,10 @@ async function sendToSubscriptions(
                         keys: { p256dh: sub.p256dh, auth: sub.auth },
                     },
                     perSubPayload,
-                    { TTL: 60 * 10 } // 10 minutes — discard stale pushes
+                    {
+                        TTL: 60 * 5,          // 5 minutes — discard stale pushes
+                        urgency: "high",       // Forces immediate delivery (no batching)
+                    }
                 );
                 sent++;
                 sentPlayerIds.push(sub.playerId);

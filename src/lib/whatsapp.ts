@@ -124,13 +124,6 @@ export async function connectAndExecute<T>(
     return new Promise<T>((resolve, reject) => {
         let settled = false;
 
-        const timeout = setTimeout(() => {
-            if (!settled) {
-                settled = true;
-                reject(new Error("WhatsApp connection timed out (50s)"));
-            }
-        }, 50_000);
-
         const startSocket = () => {
             attempt++;
             console.log(`[WhatsApp] Connect attempt ${attempt}/${maxAttempts}`);
@@ -160,12 +153,10 @@ export async function connectAndExecute<T>(
                     try {
                         const result = await action(sock);
                         settled = true;
-                        clearTimeout(timeout);
                         try { sock.end(undefined); } catch {}
                         resolve(result);
                     } catch (err) {
                         settled = true;
-                        clearTimeout(timeout);
                         try { sock.end(undefined); } catch {}
                         reject(err);
                     }
@@ -177,7 +168,6 @@ export async function connectAndExecute<T>(
 
                     if (statusCode === DisconnectReason.loggedOut) {
                         settled = true;
-                        clearTimeout(timeout);
                         await prisma.whatsAppAuth.deleteMany({});
                         reject(new Error("WhatsApp session logged out. Please re-scan QR code."));
                         return;
@@ -190,7 +180,6 @@ export async function connectAndExecute<T>(
                         setTimeout(startSocket, delay);
                     } else {
                         settled = true;
-                        clearTimeout(timeout);
                         reject(new Error(`WhatsApp connection failed after ${maxAttempts} attempts (status: ${statusCode})`));
                     }
                 }
@@ -311,26 +300,139 @@ export async function linkWhatsApp(
 
 // ── Group operations ──────────────────────────────────────────
 
+/**
+ * Create a tournament WhatsApp group, set description, add admin, and add all players.
+ * Does everything in ONE connection to avoid 401 session errors.
+ */
+export async function setupTournamentGroup(opts: {
+    name: string;
+    description?: string;
+    adminPhone?: string;
+    players: { phone: string; name: string }[];
+}): Promise<{ groupId: string; added: string[]; failed: { name: string; phone: string; reason: string }[] }> {
+    return connectAndExecute(async (sock) => {
+        // 1. Create group
+        console.log(`[WhatsApp] Creating group: ${opts.name}`);
+        const group = await sock.groupCreate(opts.name, []);
+        const groupId = group.id;
+        console.log(`[WhatsApp] Group created: ${groupId}`);
+
+        // 2. Set description
+        if (opts.description) {
+            await humanDelay(500);
+            try {
+                await sock.groupUpdateDescription(groupId, opts.description);
+                console.log(`[WhatsApp] Description set`);
+            } catch (err) {
+                console.error(`[WhatsApp] Failed to set description:`, err);
+            }
+        }
+
+        // 3. Generate invite link (always works, even if direct adds fail)
+        let inviteLink = "";
+        try {
+            await humanDelay(500);
+            const code = await sock.groupInviteCode(groupId);
+            inviteLink = `https://chat.whatsapp.com/${code}`;
+            console.log(`[WhatsApp] Invite link: ${inviteLink}`);
+        } catch (err) {
+            console.error(`[WhatsApp] Failed to get invite link:`, err);
+        }
+
+        // 4. Add admin
+        if (opts.adminPhone) {
+            await humanDelay(1000);
+            const adminJid = formatPhoneToJid(opts.adminPhone);
+            try {
+                await sock.groupParticipantsUpdate(groupId, [adminJid], "add");
+                await humanDelay(500);
+                await sock.groupParticipantsUpdate(groupId, [adminJid], "promote");
+                console.log(`[WhatsApp] Admin added: ${opts.adminPhone}`);
+            } catch (err) {
+                console.error(`[WhatsApp] Failed to add admin (will use invite link):`, (err as Error).message);
+            }
+        }
+
+        // 5. Add players in small batches
+        const added: string[] = [];
+        const failed: { name: string; phone: string; reason: string }[] = [];
+        const batchSize = 5;
+        const totalBatches = Math.ceil(opts.players.length / batchSize);
+
+        for (let i = 0; i < opts.players.length; i += batchSize) {
+            const batch = opts.players.slice(i, i + batchSize);
+            const jids = batch.map((p) => formatPhoneToJid(p.phone));
+            const batchNum = Math.floor(i / batchSize) + 1;
+
+            await humanDelay(3000);
+            console.log(`[WhatsApp] Adding batch ${batchNum}/${totalBatches} (${batch.map(b => b.name).join(", ")})...`);
+
+            try {
+                const result = await sock.groupParticipantsUpdate(groupId, jids, "add");
+                for (let j = 0; j < result.length; j++) {
+                    const r = result[j];
+                    const player = batch[j];
+                    const status = r.status?.toString();
+                    console.log(`[WhatsApp]   ${player.name}: status=${status}`);
+                    if (status === "200" || status === "409") {
+                        added.push(player.name);
+                    } else {
+                        failed.push({ name: player.name, phone: player.phone, reason: `Status: ${status}` });
+                    }
+                }
+            } catch (err) {
+                const errMsg = (err as Error).message || "Unknown error";
+                console.error(`[WhatsApp]   Batch ${batchNum} FAILED: ${errMsg}`);
+                // If account_reachout_restricted, skip remaining — they'll use invite link
+                if (errMsg.includes("reachout_restricted")) {
+                    console.log(`[WhatsApp] ⚠️  Bot restricted from adding. Players will use invite link.`);
+                    for (const player of opts.players.slice(i)) {
+                        failed.push({ name: player.name, phone: player.phone, reason: "Use invite link" });
+                    }
+                    break;
+                }
+                for (const player of batch) {
+                    failed.push({ name: player.name, phone: player.phone, reason: errMsg });
+                }
+            }
+        }
+
+        console.log(`[WhatsApp] Done! Added: ${added.length}, Failed: ${failed.length}`);
+        if (inviteLink) console.log(`[WhatsApp] Invite link for failed adds: ${inviteLink}`);
+        return { groupId, added, failed, inviteLink };
+    });
+}
+
 /** Create a WhatsApp group and return its JID */
 export async function createGroup(
     name: string,
-    adminPhone?: string
+    opts?: { adminPhone?: string; description?: string }
 ): Promise<string> {
     return connectAndExecute(async (sock) => {
         // Create group with bot as the only initial member
         const group = await sock.groupCreate(name, []);
         const groupId = group.id;
 
+        // Set group description
+        if (opts?.description) {
+            await humanDelay(500);
+            try {
+                await sock.groupUpdateDescription(groupId, opts.description);
+            } catch (err) {
+                console.error(`[WhatsApp] Failed to set description:`, err);
+            }
+        }
+
         // Add admin if provided (with delay to appear natural)
-        if (adminPhone) {
+        if (opts?.adminPhone) {
             await humanDelay(1000);
-            const adminJid = formatPhoneToJid(adminPhone);
+            const adminJid = formatPhoneToJid(opts.adminPhone);
             try {
                 await sock.groupParticipantsUpdate(groupId, [adminJid], "add");
                 await humanDelay(500);
                 await sock.groupParticipantsUpdate(groupId, [adminJid], "promote");
             } catch (err) {
-                console.error(`[WhatsApp] Failed to add admin ${adminPhone}:`, err);
+                console.error(`[WhatsApp] Failed to add admin ${opts.adminPhone}:`, err);
             }
         }
 
