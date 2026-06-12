@@ -477,8 +477,6 @@ export async function deleteGroup(groupId: string): Promise<void> {
 /** Send a text message to a WhatsApp group */
 export async function sendMessage(groupId: string, text: string): Promise<void> {
     return connectAndExecute(async (sock) => {
-        // Small delay before sending to appear natural
-        await humanDelay(500);
         await sock.sendMessage(groupId, { text });
     });
 }
@@ -490,7 +488,6 @@ export async function sendImage(
     caption?: string
 ): Promise<void> {
     return connectAndExecute(async (sock) => {
-        await humanDelay(500);
         await sock.sendMessage(groupId, {
             image: imageBuffer,
             caption: caption || undefined,

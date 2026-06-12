@@ -496,7 +496,7 @@ function UnlinkedLeadersSection({ tournaments }: { tournaments: InPlayTournament
 
 /* ─── WhatsApp Group Manager ───────────────────────────────────── */
 
-type WaTab = "setup" | "members";
+
 
 interface MembersData {
     totalMembers: number;
@@ -511,11 +511,11 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
     const [addingLeaders, setAddingLeaders] = useState<string | null>(null);
     const [sendingInvites, setSendingInvites] = useState<string | null>(null);
     const [groupStatus, setGroupStatus] = useState<Record<string, { hasGroup: boolean; inviteLink?: string }>>({});
-    const [activeTab, setActiveTab] = useState<Record<string, WaTab>>({});
     const [membersData, setMembersData] = useState<Record<string, MembersData>>({});
     const [checkingMembers, setCheckingMembers] = useState<string | null>(null);
     const [leadersData, setLeadersData] = useState<Record<string, { tournamentName: string; leaders: { teamNumber: number; name: string; phone: string | null; teammates: string[] }[]; inviteLink: string | null }>>({});
     const [sentLeaders, setSentLeaders] = useState<Record<string, Set<number>>>({});
+    const [showSettings, setShowSettings] = useState<Record<string, boolean>>({});
 
     // Fetch group status for each tournament
     useEffect(() => {
@@ -674,8 +674,8 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
                     {tournaments.map(t => {
                         const status = groupStatus[t.id];
                         const hasGroup = status?.hasGroup;
-                        const tab = activeTab[t.id] || (hasGroup ? "members" : "setup");
                         const members = membersData[t.id];
+                        const isSettingsOpen = showSettings[t.id];
 
                         return (
                             <div key={t.id} className="rounded-xl border border-divider p-3 space-y-2">
@@ -694,58 +694,28 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
                                     )}
                                 </div>
 
-                                {/* Tabs — only show when group is set */}
-                                {hasGroup && (
-                                    <div className="flex rounded-lg bg-default-100 p-0.5 gap-0.5">
-                                        {([
-                                            { key: "setup" as WaTab, label: "Setup", icon: Link },
-                                            { key: "members" as WaTab, label: "Members", icon: Users },
-                                        ]).map(({ key, label, icon: Icon }) => (
-                                            <button
-                                                key={key}
-                                                type="button"
-                                                onClick={() => setActiveTab(prev => ({ ...prev, [t.id]: key }))}
-                                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-                                                    tab === key
-                                                        ? "bg-background shadow-sm text-foreground"
-                                                        : "text-foreground/40 hover:text-foreground/60"
-                                                }`}
-                                            >
-                                                <Icon className="w-3 h-3" />
-                                                {label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Tab: Setup */}
-                                {(tab === "setup" || !hasGroup) && (
+                                {/* No group — Setup */}
+                                {!hasGroup && (
                                     <div className="space-y-2">
-                                        {!hasGroup && (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleCreateGroup(t.id)}
-                                                    disabled={creating === t.id}
-                                                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold bg-green-500 text-white hover:bg-green-600 transition-colors cursor-pointer disabled:opacity-50"
-                                                >
-                                                    {creating === t.id ? "Creating..." : "Create Group (Bot)"}
-                                                </button>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex-1 border-t border-divider" />
-                                                    <span className="text-[10px] text-foreground/30 font-medium">OR paste link</span>
-                                                    <div className="flex-1 border-t border-divider" />
-                                                </div>
-                                            </>
-                                        )}
-
-                                        {/* Invite link input */}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCreateGroup(t.id)}
+                                            disabled={creating === t.id}
+                                            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold bg-green-500 text-white hover:bg-green-600 transition-colors cursor-pointer disabled:opacity-50"
+                                        >
+                                            {creating === t.id ? "Creating..." : "Create Group (Bot)"}
+                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1 border-t border-divider" />
+                                            <span className="text-[10px] text-foreground/30 font-medium">OR paste link</span>
+                                            <div className="flex-1 border-t border-divider" />
+                                        </div>
                                         <div className="flex gap-1.5">
                                             <input
                                                 type="text"
                                                 value={inviteInputs[t.id] || ""}
                                                 onChange={(e) => setInviteInputs(prev => ({ ...prev, [t.id]: e.target.value }))}
-                                                placeholder={status?.inviteLink || "https://chat.whatsapp.com/..."}
+                                                placeholder="https://chat.whatsapp.com/..."
                                                 className="flex-1 px-2.5 py-1.5 rounded-lg bg-default-100 border border-divider text-xs focus:outline-none focus:ring-1 focus:ring-green-500 placeholder:text-foreground/25"
                                             />
                                             <button
@@ -754,20 +724,14 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
                                                 disabled={!inviteInputs[t.id]?.trim() || saving === t.id}
                                                 className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-default-200 hover:bg-default-300 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                             >
-                                                {saving === t.id ? "..." : hasGroup ? "Update" : "Set"}
+                                                {saving === t.id ? "..." : "Set"}
                                             </button>
                                         </div>
-
-                                        {status?.inviteLink && (
-                                            <p className="text-[10px] text-foreground/30 truncate">
-                                                ✓ {status.inviteLink}
-                                            </p>
-                                        )}
                                     </div>
                                 )}
 
-                                {/* Tab: Members */}
-                                {tab === "members" && hasGroup && (
+                                {/* Has group — flat layout: Manual Send + Status + Settings */}
+                                {hasGroup && (
                                     <MembersTab
                                         tournamentId={t.id}
                                         status={status}
@@ -795,6 +759,12 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
                                             });
                                         }}
                                         setMembersData={(tid, data) => setMembersData(prev => ({ ...prev, [tid]: data }))}
+                                        inviteInputs={inviteInputs}
+                                        setInviteInputs={setInviteInputs}
+                                        saving={saving}
+                                        onSetInvite={handleSetInvite}
+                                        isSettingsOpen={isSettingsOpen}
+                                        onToggleSettings={() => setShowSettings(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
                                     />
                                 )}
                             </div>
@@ -806,7 +776,7 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
     );
 }
 
-/* ─── Members Tab (auto-loads on mount) ────────────────────────── */
+/* ─── Members Panel (flat layout, no tabs) ─────────────────────── */
 
 interface MembersTabProps {
     tournamentId: string;
@@ -823,6 +793,12 @@ interface MembersTabProps {
     onLoadLeaders: (tid: string) => Promise<void>;
     onSetSent: (tid: string, teamNum: number) => void;
     setMembersData: (tid: string, data: MembersData) => void;
+    inviteInputs: Record<string, string>;
+    setInviteInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+    saving: string | null;
+    onSetInvite: (tid: string) => void;
+    isSettingsOpen?: boolean;
+    onToggleSettings: () => void;
 }
 
 function MembersTab({
@@ -839,6 +815,12 @@ function MembersTab({
     onCheckMembers,
     onLoadLeaders,
     onSetSent,
+    inviteInputs,
+    setInviteInputs,
+    saving,
+    onSetInvite,
+    isSettingsOpen,
+    onToggleSettings,
 }: MembersTabProps) {
     const members = membersData[tournamentId];
     const leaders = leadersData[tournamentId];
@@ -858,168 +840,203 @@ function MembersTab({
 
     return (
         <div className="space-y-2">
-            {/* Action buttons */}
-            <div className="grid grid-cols-2 gap-1.5">
+
+            {/* ── 1. Manual Send List (primary section) ── */}
+            <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold text-foreground/50">📋 Manual Send</p>
                 <button
                     type="button"
-                    onClick={() => onAddLeaders(tournamentId)}
-                    disabled={addingLeaders === tournamentId}
-                    className="flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold bg-default-100 border border-divider hover:bg-default-200 transition-colors cursor-pointer disabled:opacity-50"
+                    onClick={() => {
+                        setLoadingLeaders(true);
+                        onLoadLeaders(tournamentId).finally(() => setLoadingLeaders(false));
+                    }}
+                    disabled={loadingLeaders}
+                    className="text-[10px] font-semibold text-blue-500 hover:text-blue-400 cursor-pointer disabled:opacity-50"
                 >
-                    <Users className="w-3 h-3" />
-                    {addingLeaders === tournamentId ? "Adding..." : "Add to Group"}
+                    {loadingLeaders ? "Loading..." : "Refresh"}
                 </button>
-                {status?.inviteLink && (
-                    <button
-                        type="button"
-                        onClick={() => onSendInvites(tournamentId)}
-                        disabled={sendingInvites === tournamentId}
-                        className="flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-500/20 transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                        <Send className="w-3 h-3" />
-                        {sendingInvites === tournamentId ? "Sending..." : "DM Invite"}
-                    </button>
+            </div>
+
+            {/* Loading skeleton */}
+            {loadingLeaders && !leaders && (
+                <div className="space-y-1.5 animate-pulse">
+                    {[1, 2, 3, 4, 5].map(i => (
+                        <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-default-50">
+                            <div className="w-5 h-3 bg-default-200 rounded" />
+                            <div className="flex-1 h-3 bg-default-200 rounded" />
+                            <div className="w-12 h-5 bg-default-200 rounded" />
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {leaders && (
+                <div className="space-y-1 max-h-60 overflow-y-auto">
+                    {leaders.leaders.map((l) => {
+                        const isSent = sentLeaders[tournamentId]?.has(l.teamNumber);
+                        const invLink = leaders.inviteLink || status?.inviteLink;
+                        const tName = leaders.tournamentName;
+                        const cleanPhone = l.phone?.replace(/[^0-9]/g, "") || "";
+                        const fullPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
+                        const teammatesList = l.teammates.length > 0
+                            ? `\nYour teammates:\n${l.teammates.map(t => `• ${t}`).join("\n")}`
+                            : "";
+                        const waText = encodeURIComponent(
+                            `Hi ${l.name}! 👋 You are the leader of Team ${l.teamNumber} in *${tName}*.\n\nJoin this WhatsApp group to get Room ID and other info:\n${invLink || ""}\n\nPlease share this link with your teammates too. Thank you! 🙏${teammatesList}`
+                        );
+                        const waUrl = `https://wa.me/${fullPhone}?text=${waText}`;
+
+                        return (
+                            <div key={l.teamNumber} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${isSent ? "bg-green-500/5" : "bg-default-50"}`}>
+                                <span className="text-[10px] font-bold text-foreground/30 w-5 text-right shrink-0">
+                                    T{l.teamNumber}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-medium truncate">{l.name}</p>
+                                    {l.teammates.length > 0 && (
+                                        <p className="text-[9px] text-foreground/30 truncate">
+                                            + {l.teammates.join(", ")}
+                                        </p>
+                                    )}
+                                </div>
+                                {l.phone ? (
+                                    isSent ? (
+                                        <span className="text-[10px] text-green-500 font-bold shrink-0">Sent ✓</span>
+                                    ) : (
+                                        <a
+                                            href={waUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={() => onSetSent(tournamentId, l.teamNumber)}
+                                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-[#25D366]/15 text-[#25D366] hover:bg-[#25D366]/25 transition-colors cursor-pointer shrink-0"
+                                        >
+                                            <WhatsAppIcon className="w-3 h-3" />
+                                            Send
+                                        </a>
+                                    )
+                                ) : (
+                                    <span className="text-[10px] text-amber-500 italic shrink-0">No phone</span>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* ── 2. Group Status (who joined) ── */}
+            <div className="border-t border-divider pt-2">
+                <button
+                    type="button"
+                    onClick={() => onCheckMembers(tournamentId)}
+                    disabled={checkingMembers === tournamentId}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                    <RefreshCw className={`w-3 h-3 ${checkingMembers === tournamentId ? "animate-spin" : ""}`} />
+                    {checkingMembers === tournamentId ? "Checking..." : "Check Who Joined"}
+                </button>
+
+                {/* Skeleton */}
+                {checkingMembers === tournamentId && !members && (
+                    <div className="mt-1.5 rounded-lg bg-default-50 border border-divider p-2 space-y-1.5 animate-pulse">
+                        <div className="h-3 w-24 bg-default-200 rounded" />
+                        {[1, 2, 3].map(i => <div key={i} className="h-3 bg-default-200 rounded w-3/4" />)}
+                    </div>
+                )}
+
+                {members && (
+                    <div className="mt-1.5 rounded-lg bg-default-50 border border-divider p-2 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-foreground/50">
+                                Group: {members.totalMembers} members
+                            </span>
+                            <span className="text-[10px] font-bold text-green-500">
+                                {members.joined.length} ✓ / {members.notJoined.length} ✗
+                            </span>
+                        </div>
+                        {members.notJoined.length > 0 && (
+                            <div className="space-y-0.5">
+                                <p className="text-[10px] font-bold text-red-400">Not joined:</p>
+                                {members.notJoined.map((m, i) => (
+                                    <p key={i} className="text-[10px] text-foreground/50 pl-2">
+                                        T{m.teamNumber} — {m.name}
+                                        {!m.phone && <span className="text-amber-500 ml-1">(no phone)</span>}
+                                    </p>
+                                ))}
+                            </div>
+                        )}
+                        {members.joined.length > 0 && members.notJoined.length === 0 && (
+                            <p className="text-[10px] text-green-500 font-bold text-center py-1">
+                                🎉 All leaders joined!
+                            </p>
+                        )}
+                    </div>
                 )}
             </div>
 
-            {/* Check who joined — still clickable for manual refresh */}
-            <button
-                type="button"
-                onClick={() => onCheckMembers(tournamentId)}
-                disabled={checkingMembers === tournamentId}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer disabled:opacity-50"
-            >
-                <RefreshCw className={`w-3 h-3 ${checkingMembers === tournamentId ? "animate-spin" : ""}`} />
-                {checkingMembers === tournamentId ? "Checking..." : "Check Who Joined"}
-            </button>
-
-            {/* Members result — skeleton while loading */}
-            {checkingMembers === tournamentId && !members && (
-                <div className="rounded-lg bg-default-50 border border-divider p-2 space-y-1.5 animate-pulse">
-                    <div className="flex items-center justify-between">
-                        <div className="h-3 w-24 bg-default-200 rounded" />
-                        <div className="h-3 w-16 bg-default-200 rounded" />
-                    </div>
-                    <div className="space-y-1">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="h-3 bg-default-200 rounded w-3/4" />
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {members && (
-                <div className="rounded-lg bg-default-50 border border-divider p-2 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-foreground/50">
-                            Group: {members.totalMembers} members
-                        </span>
-                        <span className="text-[10px] font-bold text-green-500">
-                            {members.joined.length} ✓ / {members.notJoined.length} ✗
-                        </span>
-                    </div>
-                    {members.notJoined.length > 0 && (
-                        <div className="space-y-0.5">
-                            <p className="text-[10px] font-bold text-red-400">Not joined:</p>
-                            {members.notJoined.map((m, i) => (
-                                <p key={i} className="text-[10px] text-foreground/50 pl-2">
-                                    T{m.teamNumber} — {m.name}
-                                    {!m.phone && <span className="text-amber-500 ml-1">(no phone)</span>}
-                                </p>
-                            ))}
-                        </div>
-                    )}
-                    {members.joined.length > 0 && members.notJoined.length === 0 && (
-                        <p className="text-[10px] text-green-500 font-bold text-center py-1">
-                            🎉 All leaders joined!
-                        </p>
-                    )}
-                </div>
-            )}
-
-            {/* ── Manual Send List (auto-loaded) ── */}
+            {/* ── 3. Settings (collapsible) ── */}
             <div className="border-t border-divider pt-2">
-                <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-[10px] font-bold text-foreground/50">📋 Manual Send</p>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setLoadingLeaders(true);
-                            onLoadLeaders(tournamentId).finally(() => setLoadingLeaders(false));
-                        }}
-                        disabled={loadingLeaders}
-                        className="text-[10px] font-semibold text-blue-500 hover:text-blue-400 cursor-pointer disabled:opacity-50"
-                    >
-                        {loadingLeaders ? "Loading..." : "Refresh"}
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    onClick={onToggleSettings}
+                    className="w-full flex items-center justify-between py-1 text-[10px] font-bold text-foreground/40 hover:text-foreground/60 cursor-pointer transition-colors"
+                >
+                    <span>⚙️ Settings & Bulk Actions</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${isSettingsOpen ? "rotate-180" : ""}`} />
+                </button>
 
-                {/* Loading skeleton */}
-                {loadingLeaders && !leaders && (
-                    <div className="space-y-1.5 animate-pulse">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-default-50">
-                                <div className="w-5 h-3 bg-default-200 rounded" />
-                                <div className="flex-1 h-3 bg-default-200 rounded" />
-                                <div className="w-12 h-5 bg-default-200 rounded" />
-                            </div>
-                        ))}
-                    </div>
-                )}
+                {isSettingsOpen && (
+                    <div className="mt-1.5 space-y-2">
+                        {/* Invite link */}
+                        <div className="flex gap-1.5">
+                            <input
+                                type="text"
+                                value={inviteInputs[tournamentId] || ""}
+                                onChange={(e) => setInviteInputs(prev => ({ ...prev, [tournamentId]: e.target.value }))}
+                                placeholder={status?.inviteLink || "https://chat.whatsapp.com/..."}
+                                className="flex-1 px-2.5 py-1.5 rounded-lg bg-default-100 border border-divider text-xs focus:outline-none focus:ring-1 focus:ring-green-500 placeholder:text-foreground/25"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => onSetInvite(tournamentId)}
+                                disabled={!inviteInputs[tournamentId]?.trim() || saving === tournamentId}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-default-200 hover:bg-default-300 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                                {saving === tournamentId ? "..." : "Update Link"}
+                            </button>
+                        </div>
+                        {status?.inviteLink && (
+                            <p className="text-[10px] text-foreground/30 truncate">
+                                ✓ {status.inviteLink}
+                            </p>
+                        )}
 
-                {leaders && (
-                    <div className="space-y-1 max-h-60 overflow-y-auto">
-                        {leaders.leaders.map((l) => {
-                            const isSent = sentLeaders[tournamentId]?.has(l.teamNumber);
-                            const invLink = leaders.inviteLink || status?.inviteLink;
-                            const tName = leaders.tournamentName;
-                            const cleanPhone = l.phone?.replace(/[^0-9]/g, "") || "";
-                            const fullPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
-                            const teammatesList = l.teammates.length > 0
-                                ? `\nYour teammates:\n${l.teammates.map(t => `• ${t}`).join("\n")}`
-                                : "";
-                            const waText = encodeURIComponent(
-                                `Hi ${l.name}! 👋 You are the leader of Team ${l.teamNumber} in *${tName}*.\n\nJoin this WhatsApp group to get Room ID and other info:\n${invLink || ""}\n\nPlease share this link with your teammates too. Thank you! 🙏${teammatesList}`
-                            );
-                            const waUrl = `https://wa.me/${fullPhone}?text=${waText}`;
-
-                            return (
-                                <div key={l.teamNumber} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${isSent ? "bg-green-500/5" : "bg-default-50"}`}>
-                                    <span className="text-[10px] font-bold text-foreground/30 w-5 text-right shrink-0">
-                                        T{l.teamNumber}
-                                    </span>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[11px] font-medium truncate">{l.name}</p>
-                                        {l.teammates.length > 0 && (
-                                            <p className="text-[9px] text-foreground/30 truncate">
-                                                + {l.teammates.join(", ")}
-                                            </p>
-                                        )}
-                                    </div>
-                                    {l.phone ? (
-                                        isSent ? (
-                                            <span className="text-[10px] text-green-500 font-bold shrink-0">Sent ✓</span>
-                                        ) : (
-                                            <a
-                                                href={waUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                onClick={() => onSetSent(tournamentId, l.teamNumber)}
-                                                className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-[#25D366]/15 text-[#25D366] hover:bg-[#25D366]/25 transition-colors cursor-pointer shrink-0"
-                                            >
-                                                <WhatsAppIcon className="w-3 h-3" />
-                                                Send
-                                            </a>
-                                        )
-                                    ) : (
-                                        <span className="text-[10px] text-amber-500 italic shrink-0">No phone</span>
-                                    )}
-                                </div>
-                            );
-                        })}
+                        {/* Bulk actions */}
+                        <div className="grid grid-cols-2 gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => onAddLeaders(tournamentId)}
+                                disabled={addingLeaders === tournamentId}
+                                className="flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold bg-default-100 border border-divider hover:bg-default-200 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                                <Users className="w-3 h-3" />
+                                {addingLeaders === tournamentId ? "Adding..." : "Add to Group"}
+                            </button>
+                            {status?.inviteLink && (
+                                <button
+                                    type="button"
+                                    onClick={() => onSendInvites(tournamentId)}
+                                    disabled={sendingInvites === tournamentId}
+                                    className="flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-500/20 transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                    <Send className="w-3 h-3" />
+                                    {sendingInvites === tournamentId ? "Sending..." : "DM Invite All"}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
         </div>
     );
 }
+
