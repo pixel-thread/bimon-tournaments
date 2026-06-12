@@ -36,6 +36,7 @@ const tabs: Tab[] = [
     ...(GAME.features.hasBracket
         ? [{ label: "Matches", href: "/bracket", icon: Swords }]
         : []),
+    { label: "My Slot", href: "/games", icon: Gamepad2 },
     // Channel disabled — using WhatsApp now, saves ~300K edge requests/day
     // : [{ label: "Channel", href: "/channel", icon: MessageCircle }]),
     { label: "Profile", href: "/profile" },
