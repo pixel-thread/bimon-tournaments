@@ -27,8 +27,7 @@ export default function BracketPage({ params }: BracketPageProps) {
             const json = await res.json();
             return json.data;
         },
-        // refetchInterval: 60_000, // FROZEN: polling disabled to save edge requests (June 2026)
-        refetchOnWindowFocus: true, // Still refreshes when user switches back
+        refetchInterval: 30_000, // Auto-refresh every 30s
     });
 
     const confirmResult = useConfirmResult(tournamentId);

@@ -79,7 +79,7 @@ export function usePolls() {
             const json = await res.json();
             return json.data;
         },
-        staleTime: 2 * 60 * 1000, // 2min — was 30s, polls rarely change mid-session
+        staleTime: 30_000,
     });
 }
 

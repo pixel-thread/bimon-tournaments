@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import {
     Users, Copy, Check, Lock, Clock, Trophy,
     ChevronRight, ExternalLink, Shield, Crosshair,
-    BookOpen, Loader2, RefreshCw,
+    BookOpen, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -100,12 +100,10 @@ const DEFAULT_RULES = [
 export function MySlotPage() {
     const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
-    const { data, isLoading, refetch, isFetching } = useQuery<MyGameData>({
+    const { data, isLoading } = useQuery<MyGameData>({
         queryKey: ["my-game"],
         queryFn: () => fetch("/api/my-game").then(r => r.json()),
-        // refetchInterval removed — manual refresh button saves edge requests (June 2026)
-        // To revert: add refetchInterval: 15000
-        refetchOnWindowFocus: true,
+        refetchInterval: 15_000,
     });
 
 
@@ -141,18 +139,10 @@ export function MySlotPage() {
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
                             <Shield className="h-5 w-5 text-primary" />
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div>
                             <h1 className="text-lg font-bold tracking-tight">{tournament?.name}</h1>
                             <p className="text-xs text-foreground/40">{tournament?.seasonName}</p>
                         </div>
-                        <button
-                            onClick={() => refetch()}
-                            disabled={isFetching}
-                            className="p-2 rounded-xl bg-foreground/5 hover:bg-foreground/10 active:scale-95 transition-all disabled:opacity-50"
-                            title="Refresh"
-                        >
-                            <RefreshCw className={`h-4 w-4 text-foreground/50 ${isFetching ? 'animate-spin' : ''}`} />
-                        </button>
                     </div>
                     {group && (
                         <span className="absolute top-4 right-4 px-2.5 py-0.5 rounded-full text-xs font-bold bg-warning/20 text-warning border border-warning/30">

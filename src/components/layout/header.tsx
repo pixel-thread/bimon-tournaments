@@ -171,7 +171,7 @@ export function Header() {
             const json = await res.json();
             return json.data ?? { enableElitePass: true };
         },
-        staleTime: 15 * 60 * 1000, // 15 min — settings rarely change, saves edge requests
+        staleTime: 5 * 60 * 1000,
     });
     const showRoyalPass = GAME.features.hasRoyalPass && (publicSettings?.enableElitePass !== false);
     const showReferrals = publicSettings?.enableReferrals !== false;

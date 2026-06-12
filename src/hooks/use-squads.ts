@@ -83,7 +83,7 @@ export function useSquads(pollId: string | undefined) {
             };
         },
         enabled: !!pollId && GAME.features.hasSquads,
-        staleTime: 60_000, // was 15s — increased to save edge requests
+        staleTime: 15_000,
     });
 }
 
@@ -109,7 +109,7 @@ export function useSearchPlayers(query: string, pollId: string | undefined) {
             return json.data;
         },
         enabled: debouncedQuery.length >= 2 && !!pollId,
-        staleTime: 30_000, // was 10s — increased to save edge requests
+        staleTime: 10_000,
     });
 }
 
