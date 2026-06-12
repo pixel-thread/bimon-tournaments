@@ -74,12 +74,12 @@ export function usePolls() {
     return useQuery<{ polls: PollDTO[]; currentPlayerId: string | null; isCouponVerifier: boolean; isUCExempt: boolean; isAdmin: boolean }>({
         queryKey: ["polls"],
         queryFn: async () => {
-            const res = await fetch(`/api/polls?_t=${Date.now()}`);
+            const res = await fetch("/api/polls"); // removed _t cache-buster to allow caching
             if (!res.ok) throw new Error("Failed to fetch polls");
             const json = await res.json();
             return json.data;
         },
-        staleTime: 30 * 1000,
+        staleTime: 2 * 60 * 1000, // 2min — was 30s, polls rarely change mid-session
     });
 }
 

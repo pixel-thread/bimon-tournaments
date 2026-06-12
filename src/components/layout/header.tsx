@@ -133,6 +133,7 @@ export function Header() {
                 unreadCount: json.data?.unreadCount ?? 0,
                 unclaimedRewardCount: json.data?.unclaimedRewards?.length ?? 0,
                 hasUnclaimedStreak: json.data?.hasUnclaimedStreakReward ?? false,
+                pendingSquadInviteCount: json.data?.pendingSquadInviteCount ?? 0, // shared with useSquadInviteCount
             };
         },
         enabled: isSignedIn,
@@ -170,7 +171,7 @@ export function Header() {
             const json = await res.json();
             return json.data ?? { enableElitePass: true };
         },
-        staleTime: 5 * 60 * 1000, // 5 min cache
+        staleTime: 15 * 60 * 1000, // 15 min — settings rarely change, saves edge requests
     });
     const showRoyalPass = GAME.features.hasRoyalPass && (publicSettings?.enableElitePass !== false);
     const showReferrals = publicSettings?.enableReferrals !== false;

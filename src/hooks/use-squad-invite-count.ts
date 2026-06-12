@@ -6,23 +6,31 @@ import { useSession } from "next-auth/react";
 
 /**
  * Returns the count of pending captain-initiated squad invites for the current player.
- * Uses a separate query key so it doesn't conflict with the header's notification-count query.
+ *
+ * OPTIMIZED: Now reads from the same "notification-count" query as the header,
+ * eliminating the duplicate /api/notifications call on every page load.
+ * The header's query has staleTime: Infinity, so this piggybacks for free.
  */
 export function useSquadInviteCount(): number {
     const { data: session } = useSession();
 
-    const { data } = useQuery({
-        queryKey: ["squad-invite-count"],
+    const { data } = useQuery<{ pendingSquadInviteCount?: number }>({
+        queryKey: ["notification-count"],
         queryFn: async () => {
             const res = await fetch("/api/notifications");
-            if (!res.ok) return 0;
+            if (!res.ok) return { pendingSquadInviteCount: 0 };
             const json = await res.json();
-            return json.data?.pendingSquadInviteCount ?? 0;
+            return {
+                unreadCount: json.data?.unreadCount ?? 0,
+                unclaimedRewardCount: json.data?.unclaimedRewards?.length ?? 0,
+                hasUnclaimedStreak: json.data?.hasUnclaimedStreakReward ?? false,
+                pendingSquadInviteCount: json.data?.pendingSquadInviteCount ?? 0,
+            };
         },
         enabled: GAME.features.hasSquads && !!session?.user,
-        staleTime: 90_000, // 90s — reduced to save edge requests
-        refetchInterval: 120_000, // poll every 2min (was 60s)
+        staleTime: Infinity, // Match header's staleTime — only fetches once per session
     });
 
-    return data ?? 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data as any)?.pendingSquadInviteCount ?? 0;
 }

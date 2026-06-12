@@ -10,7 +10,7 @@ import { AdSenseScript } from "@/components/common/adsense-script";
 import { WhatsAppSquadGuard } from "@/components/common/whatsapp-squad-guard";
 import { WhatsAppMainGroupGuard } from "@/components/common/WhatsAppMainGroupGuard";
 import { PushGuard } from "@/components/common/push-guard";
-// import { RoomInfoBanner } from "@/components/common/room-info-banner"; // Removed — room IDs sent via WhatsApp now
+
 
 
 /**

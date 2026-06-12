@@ -658,8 +658,8 @@ export function StandingsModal({
 
         // Truncate team name to 5 chars
         const shortName = (name: string) => {
-            const cleaned = name.replace(/[^\w\p{L}\p{N}]/gu, "").slice(0, 5).toUpperCase();
-            return cleaned || name.slice(0, 5).toUpperCase();
+            const cleaned = name.replace(/[^\w\p{L}\p{N}]/gu, "").slice(0, 6).toUpperCase();
+            return cleaned || name.slice(0, 6).toUpperCase();
         };
 
         const lines = standings.map((row, i) => {
@@ -1097,7 +1097,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                                     row.isDisqualified ? "text-red-400/70 line-through" :
                                                     zone?.zone === "ELIMINATED" ? "text-zinc-400" : "text-white"
                                                 }`} style={{ fontSize: hasSquadTeams ? '13px' : '10px', fontWeight: 700, whiteSpace: hasSquadTeams ? 'nowrap' : 'normal', wordBreak: hasSquadTeams ? undefined : 'break-word' as never }}>
-                                                    {hasSquadTeams ? (row.teamName.length > 5 ? row.teamName.slice(0, 5) : row.teamName) : row.playerNames.join(", ")}
+                                                    {hasSquadTeams ? (row.teamName.length > 6 ? row.teamName.slice(0, 6) : row.teamName) : row.playerNames.join(", ")}
                                                     {row.isDisqualified && <span style={{ marginLeft: '3px', fontSize: '8px', fontWeight: 700, color: '#f87171', backgroundColor: 'rgba(239,68,68,0.2)', padding: '1px 3px', borderRadius: '3px', display: 'inline-block' }}>DQ</span>}
                                                 </span>
                                                 {row.wins > 0 && <span style={{ fontSize: '8px', color: '#facc15', fontWeight: 600, lineHeight: 1 }}>🍗x{row.wins}</span>}

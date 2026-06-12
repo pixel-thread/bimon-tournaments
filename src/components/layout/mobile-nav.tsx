@@ -11,6 +11,7 @@ import {
     MessageCircle,
     Swords,
     HelpCircle,
+    Shield,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useAuthUser } from "@/hooks/use-auth-user";
@@ -29,17 +30,15 @@ type Tab = {
     icon?: LucideIcon;
 };
 
-// Build tabs based on game features
-const tabs: Tab[] = [
+// Build tabs based on game features (Games/My Slot tab is added dynamically inside MobileNav)
+const baseTabs: Tab[] = [
     { label: "Players", href: "/players", icon: Users },
     { label: "Vote", href: "/vote", icon: Vote },
     ...(GAME.features.hasBracket
         ? [{ label: "Matches", href: "/bracket", icon: Swords }]
         : []),
-    { label: "My Slot", href: "/games", icon: Gamepad2 },
     // Channel disabled — using WhatsApp now, saves ~300K edge requests/day
     // : [{ label: "Channel", href: "/channel", icon: MessageCircle }]),
-    { label: "Profile", href: "/profile" },
 ];
 
 /**
@@ -55,6 +54,15 @@ export function MobileNav() {
     const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
     const pendingInviteCount = useSquadInviteCount();
     const pendingClanInviteCount = useClanInviteCount();
+
+    // Dynamic Games/My Slot tab — reads cached my-game data (no extra API call)
+    const myGameData = useQuery({ queryKey: ["my-game"], enabled: false }).data as { active?: boolean } | undefined;
+    const hasActiveSlot = !!myGameData?.active;
+    const tabs: Tab[] = [
+        ...baseTabs,
+        { label: hasActiveSlot ? "My Slot" : "Games", href: "/games", icon: hasActiveSlot ? Shield : Gamepad2 },
+        { label: "Profile", href: "/profile" },
+    ];
 
     const { data: profileData } = useQuery<{ imageUrl?: string; player?: { displayName?: string; customProfileImageUrl?: string | null } | null; username?: string }>({
         queryKey: ["profile"],

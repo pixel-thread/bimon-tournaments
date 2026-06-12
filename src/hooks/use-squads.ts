@@ -69,7 +69,7 @@ export function useSquads(pollId: string | undefined) {
         queryKey: ["squads", pollId],
         queryFn: async () => {
             if (!pollId) return { squads: [], defendingChampion: null, maxSquads: 16, maxSquadWaitlist: 24, squadCount: 0, isChampionship: false, isMangoScrim: false };
-            const res = await fetch(`/api/squads?pollId=${pollId}&_t=${Date.now()}`);
+            const res = await fetch(`/api/squads?pollId=${pollId}`); // removed _t cache-buster
             if (!res.ok) throw new Error("Failed to fetch squads");
             const json = await res.json();
             return {
@@ -83,7 +83,7 @@ export function useSquads(pollId: string | undefined) {
             };
         },
         enabled: !!pollId && GAME.features.hasSquads,
-        staleTime: 15_000,
+        staleTime: 60_000, // was 15s — increased to save edge requests
     });
 }
 
@@ -109,7 +109,7 @@ export function useSearchPlayers(query: string, pollId: string | undefined) {
             return json.data;
         },
         enabled: debouncedQuery.length >= 2 && !!pollId,
-        staleTime: 10_000,
+        staleTime: 30_000, // was 10s — increased to save edge requests
     });
 }
 
