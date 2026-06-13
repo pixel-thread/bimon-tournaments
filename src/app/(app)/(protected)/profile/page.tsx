@@ -13,11 +13,7 @@ import {
     Input,
 } from "@heroui/react";
 import {
-    Target,
-    Swords,
-    Gamepad2,
     Flame,
-    Trophy,
     Crown,
     Shield,
     User,
@@ -25,40 +21,24 @@ import {
     Camera,
     Loader2,
     ImagePlus,
-    LogOut,
-    TrendingUp,
-    TrendingDown,
-    Minus,
-    ChevronDown,
-    Medal,
-    Star,
-    Pencil,
-    Mail,
-    Plus,
-    ArrowRightLeft,
-    X,
     VolumeX,
     Volume2,
     Users,
-    MapPin,
     Clipboard,
-    Link2,
-    Unlink,
+    Pencil,
+    X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CategoryBadge } from "@/components/ui/category-badge";
-import { signOut, useSession } from "next-auth/react";
 import { GameNameInput, validateDisplayName } from "@/components/common/GameNameInput";
 import { useIGNTutorial } from "@/components/common/IGNTutorialModal";
 import { toast } from "sonner";
 import { t } from "@/lib/translations";
 import { CharacterPreviewModal } from "@/components/profile/character-preview-modal";
 import { GAME } from "@/lib/game-config";
-import { LocationModal } from "@/components/common/location-modal";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { ModeTabs } from "@/components/common/ModeTabs";
 import { SurveyModal, useShouldShowSurvey } from "@/components/profile/SurveyModal";
-import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
 
 interface ProfileData {
     id: string;
@@ -120,8 +100,6 @@ interface ProfileData {
 export default function ProfilePage() {
     const queryClient = useQueryClient();
     const router = useRouter();
-    const { update: updateSession } = useSession();
-    const handleSignOut = () => signOut({ callbackUrl: "/" });
     const profileInputRef = useRef<HTMLInputElement>(null);
     const characterInputRef = useRef<HTMLInputElement>(null);
     const [uploadingProfile, setUploadingProfile] = useState(false);
@@ -139,8 +117,6 @@ export default function ProfilePage() {
     // Profile edit state
     const [editing, setEditing] = useState(false);
     const [newIGN, setNewIGN] = useState("");
-    const [newUID, setNewUID] = useState("");
-    const [newPhone, setNewPhone] = useState("");
     const [newBio, setNewBio] = useState("");
     const [ignError, setIgnError] = useState("");
     const [saving, setSaving] = useState(false);
@@ -149,51 +125,8 @@ export default function ProfilePage() {
     const [isBuyingRP, setIsBuyingRP] = useState(false);
     const profileSectionRef = useRef<HTMLDivElement>(null);
 
-    // Secondary email state
-    const [showEmailInput, setShowEmailInput] = useState(false);
-    const [newSecondaryEmail, setNewSecondaryEmail] = useState("");
-    const [emailSaving, setEmailSaving] = useState(false);
-    const [emailError, setEmailError] = useState("");
-    const [showSignOutModal, setShowSignOutModal] = useState(false);
-    const [showLocationModal, setShowLocationModal] = useState(false);
     const [statsMode, setStatsMode] = useState<"casual" | "ranked">("casual");
 
-    // Discord link/unlink state
-    const [discordUnlinking, setDiscordUnlinking] = useState(false);
-    const [showDiscordUnlinkConfirm, setShowDiscordUnlinkConfirm] = useState(false);
-    const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
-
-    // Handle Discord OAuth callback result via URL params
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const discordResult = params.get("discord");
-        if (!discordResult) return;
-
-        // Clean URL without reload
-        const url = new URL(window.location.href);
-        url.searchParams.delete("discord");
-        window.history.replaceState({}, "", url.toString());
-
-        switch (discordResult) {
-            case "linked":
-                toast.success("Discord linked successfully!");
-                sessionStorage.setItem("discord_linked", "true");
-                queryClient.invalidateQueries({ queryKey: ["profile"] });
-                break;
-            case "denied":
-                toast.error("Discord authorization was denied");
-                break;
-            case "already_linked":
-                toast.error("This Discord account is already linked to another player");
-                break;
-            case "not_in_server":
-                toast.error("You must join our Discord server first! Join the server, then link again.");
-                break;
-            case "error":
-                toast.error("Failed to link Discord — please try again");
-                break;
-        }
-    }, []);
 
     // Survey popup (BGMI only)
     const shouldShowSurvey = useShouldShowSurvey();
@@ -296,8 +229,6 @@ export default function ProfilePage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     ...(newIGN.trim() ? { displayName: newIGN.trim() } : {}),
-                    ...(newUID.trim() ? { uid: newUID.trim() } : {}),
-                    ...(newPhone.trim() ? { phoneNumber: newPhone.trim() } : {}),
                     ...(newBio !== undefined ? { bio: newBio.trim() } : {}),
                     ...(forceChange ? { forceChange: true } : {}),
                 }),
@@ -606,8 +537,6 @@ export default function ProfilePage() {
                                             e.stopPropagation();
                                             setEditing(true);
                                             setNewIGN(player?.displayName || profile.username);
-                                            setNewUID(player?.uid || "");
-                                            setNewPhone(player?.phoneNumber || "");
                                             setNewBio(player?.bio || "");
                                             setIgnError("");
                                             setTimeout(() => profileSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
@@ -900,8 +829,6 @@ export default function ProfilePage() {
                                         onPress={() => {
                                             setEditing(true);
                                             setNewIGN(player.displayName || profile.username);
-                                            setNewUID(player.uid || "");
-                                            setNewPhone(player.phoneNumber || "");
                                             setNewBio(player.bio || "");
                                             setIgnError("");
                                         }}
@@ -987,54 +914,6 @@ export default function ProfilePage() {
                                                 }
                                             />
                                     </div>
-
-                                    {/* UID — paste only (Free Fire only) */}
-                                    {GAME.hasUID && (
-                                        <div>
-                                            <label className="text-sm font-medium text-foreground/70 mb-2 block">
-                                                {GAME.idLabel}
-                                            </label>
-                                            <Input
-                                                value={newUID}
-                                                onChange={(e) => setNewUID(e.target.value)}
-                                                placeholder={GAME.idPlaceholder}
-                                                size="lg"
-                                                variant="bordered"
-                                                onPaste={(e) => {
-                                                    e.preventDefault();
-                                                    const pasted = e.clipboardData.getData("text").trim();
-                                                    if (pasted) setNewUID(pasted);
-                                                }}
-                                                description={`Copy from ${GAME.gameName} profile → paste here`}
-                                                isDisabled={saving}
-                                                startContent={
-                                                    <span className="text-foreground/30 text-sm">🆔</span>
-                                                }
-                                            />
-                                        </div>
-                                    )}
-
-                                    {/* Phone number */}
-                                    {(
-                                        <div>
-                                            <label className="text-sm font-medium text-foreground/70 mb-2 block">
-                                                Phone Number
-                                            </label>
-                                            <Input
-                                                value={newPhone}
-                                                onChange={(e) => setNewPhone(e.target.value)}
-                                                placeholder="e.g. +91 9876543210"
-                                                size="lg"
-                                                variant="bordered"
-                                                type="tel"
-                                                isDisabled={saving}
-                                                description="Used for prize delivery & contact"
-                                                startContent={
-                                                    <span className="text-foreground/30 text-sm">📱</span>
-                                                }
-                                            />
-                                        </div>
-                                    )}
 
                                     {/* Bio */}
                                     {(() => {
@@ -1127,228 +1006,6 @@ export default function ProfilePage() {
                                             </>
                                         )}
                                     </div>
-
-                                    {/* ── Location ── */}
-                                    <div className="border-t border-divider pt-3">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <MapPin className="h-3.5 w-3.5 text-foreground/40 shrink-0" />
-                                                {player.state ? (
-                                                    <span className="text-sm text-foreground/60 truncate">
-                                                        {player.town}, {player.district}, {player.state}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-sm text-foreground/30 italic">Location not set</span>
-                                                )}
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                variant="light"
-                                                className="text-xs shrink-0"
-                                                onPress={() => setShowLocationModal(true)}
-                                            >
-                                                {player.state ? "Change" : "Set"}
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <LocationModal
-                                        isOpen={showLocationModal}
-                                        onComplete={() => setShowLocationModal(false)}
-                                        blocking={false}
-                                    />
-
-                                    {/* ── Discord ── */}
-                                    <div className="border-t border-divider pt-3">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <svg className="h-4 w-4 text-[#5865F2] shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/></svg>
-                                                {player.discord ? (
-                                                    <div className="min-w-0">
-                                                        <span className="text-sm font-medium truncate block">{player.discord.username}</span>
-                                                        <span className="text-[10px] text-foreground/30">Discord linked (optional)</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-sm text-foreground/30 italic">Discord not linked (optional)</span>
-                                                )}
-                                            </div>
-                                            {player.discord ? (
-                                                <div className="flex items-center gap-1.5 shrink-0">
-                                                    <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">
-                                                        ✓ Connected
-                                                    </span>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="light"
-                                                        isIconOnly
-                                                        className="text-foreground/30 hover:text-danger h-6 w-6 min-w-6"
-                                                        title="Unlink Discord"
-                                                        onPress={() => setShowDiscordUnlinkConfirm(true)}
-                                                    >
-                                                        <Unlink className="h-3 w-3" />
-                                                    </Button>
-                                                </div>
-                                            ) : (
-                                                <Button
-                                                    size="sm"
-                                                    variant="flat"
-                                                    className="text-xs shrink-0 bg-[#5865F2]/15 text-[#5865F2] hover:bg-[#5865F2]/25"
-                                                    startContent={<Link2 className="h-3 w-3" />}
-                                                    onPress={() => {
-                                                        openDiscordModal(`/api/discord/authorize?returnTo=profile`);
-                                                    }}
-                                                >
-                                                    Link Discord
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* ── Emails ── */}
-                                    <div className="border-t border-divider pt-3 space-y-2">
-                                        {/* Primary Email */}
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] text-foreground/40 uppercase">Main Gmail</p>
-                                            <p className="text-sm truncate">{profile.email}</p>
-                                            <p className="text-[10px] text-foreground/30 mt-0.5">Used to link & transfer wallet across games</p>
-                                        </div>
-
-                                        {/* Secondary Email */}
-                                        {profile.secondaryEmail ? (
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-[10px] text-foreground/40 uppercase">Secondary Email</p>
-                                                    <p className="text-sm truncate">{profile.secondaryEmail}</p>
-                                                </div>
-                                                <div className="flex items-center gap-1.5 shrink-0">
-                                                    <Button
-                                                        size="sm" variant="flat" color="primary"
-                                                        isIconOnly
-                                                        title="Swap — make secondary the primary"
-                                                        isDisabled={emailSaving}
-                                                        onPress={async () => {
-                                                            setEmailSaving(true);
-                                                            try {
-                                                                const res = await fetch("/api/profile/secondary-email", {
-                                                                    method: "POST",
-                                                                    headers: { "Content-Type": "application/json" },
-                                                                    body: JSON.stringify({ action: "SWAP" }),
-                                                                });
-                                                                const json = await res.json();
-                                                                if (res.ok) {
-                                                                    if (json.data?.email) {
-                                                                        await updateSession({ email: json.data.email });
-                                                                    }
-                                                                    toast.success(json.message);
-                                                                    queryClient.invalidateQueries({ queryKey: ["profile"] });
-                                                                } else {
-                                                                    toast.error(json.message || "Failed");
-                                                                }
-                                                            } catch { toast.error("Network error"); }
-                                                            finally { setEmailSaving(false); }
-                                                        }}
-                                                    >
-                                                        <ArrowRightLeft className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                    <Button
-                                                        size="sm" variant="flat" color="danger"
-                                                        isIconOnly
-                                                        title="Remove secondary email"
-                                                        isDisabled={emailSaving}
-                                                        onPress={async () => {
-                                                            setEmailSaving(true);
-                                                            try {
-                                                                const res = await fetch("/api/profile/secondary-email", {
-                                                                    method: "POST",
-                                                                    headers: { "Content-Type": "application/json" },
-                                                                    body: JSON.stringify({ action: "REMOVE" }),
-                                                                });
-                                                                const json = await res.json();
-                                                                if (res.ok) {
-                                                                    if (json.data?.requireSignOut) {
-                                                                        setShowSignOutModal(true);
-                                                                        return;
-                                                                    }
-                                                                    toast.success("Secondary email removed");
-                                                                    queryClient.invalidateQueries({ queryKey: ["profile"] });
-                                                                } else {
-                                                                    toast.error(json.message || "Failed");
-                                                                }
-                                                            } catch { toast.error("Network error"); }
-                                                            finally { setEmailSaving(false); }
-                                                        }}
-                                                    >
-                                                        <X className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ) : showEmailInput ? (
-                                            <div className="space-y-2">
-                                                <p className="text-[10px] text-foreground/40 uppercase">Add Secondary Email</p>
-                                                <Input
-                                                    value={newSecondaryEmail}
-                                                    onChange={(e) => { setNewSecondaryEmail(e.target.value); setEmailError(""); }}
-                                                    placeholder="second.email@gmail.com"
-                                                    size="sm"
-                                                    variant="flat"
-                                                    type="email"
-                                                    isDisabled={emailSaving}
-                                                    isInvalid={!!emailError}
-                                                    errorMessage={emailError}
-                                                    classNames={{
-                                                        inputWrapper: "bg-default-100 border border-divider",
-                                                    }}
-                                                    startContent={<Mail className="h-3.5 w-3.5 text-foreground/30" />}
-                                                />
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        size="sm" variant="flat"
-                                                        onPress={() => { setShowEmailInput(false); setNewSecondaryEmail(""); setEmailError(""); }}
-                                                        isDisabled={emailSaving}
-                                                    >
-                                                        Cancel
-                                                    </Button>
-                                                    <Button
-                                                        size="sm" color="primary"
-                                                        className="flex-1"
-                                                        isLoading={emailSaving}
-                                                        isDisabled={!newSecondaryEmail.includes("@")}
-                                                        onPress={async () => {
-                                                            setEmailSaving(true);
-                                                            setEmailError("");
-                                                            try {
-                                                                const res = await fetch("/api/profile/secondary-email", {
-                                                                    method: "POST",
-                                                                    headers: { "Content-Type": "application/json" },
-                                                                    body: JSON.stringify({ action: "ADD", email: newSecondaryEmail.trim() }),
-                                                                });
-                                                                const json = await res.json();
-                                                                if (res.ok) {
-                                                                    toast.success(json.message);
-                                                                    setShowEmailInput(false);
-                                                                    setNewSecondaryEmail("");
-                                                                    queryClient.invalidateQueries({ queryKey: ["profile"] });
-                                                                } else {
-                                                                    setEmailError(json.message || "Failed to add email");
-                                                                }
-                                                            } catch { setEmailError("Network error"); }
-                                                            finally { setEmailSaving(false); }
-                                                        }}
-                                                    >
-                                                        Add Email
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={() => setShowEmailInput(true)}
-                                                className="flex items-center gap-1.5 text-xs text-foreground/40 hover:text-primary transition-colors"
-                                            >
-                                                <Plus className="h-3 w-3" />
-                                                Add Secondary Email
-                                            </button>
-                                        )}
-                                    </div>
                                 </div>
                             )}
                         </CardBody>
@@ -1356,7 +1013,7 @@ export default function ProfilePage() {
                 )}
 
                 {GAME.pasteOnlyIGN && ignTutorial.Modal}
-                <DiscordCompareModal />
+
 
                 {/* Royal Pass Purchase Modal */}
                 <AnimatePresence>
@@ -1573,136 +1230,15 @@ export default function ProfilePage() {
                 )}
 
 
-                {/* Discord Unlink Confirmation Modal */}
-                <AnimatePresence>
-                    {showDiscordUnlinkConfirm && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                                onClick={() => !discordUnlinking && setShowDiscordUnlinkConfirm(false)}
-                            />
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                                className="relative w-full max-w-sm rounded-2xl border border-divider bg-content1 p-6 shadow-2xl"
-                            >
-                                <div className="text-center space-y-4">
-                                    <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-danger/10 mx-auto">
-                                        <Unlink className="h-6 w-6 text-danger" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold">Unlink Discord?</h3>
-                                        <p className="text-sm text-foreground/50 mt-1">
-                                            Discord is currently optional. You can unlink it safely.
-                                        </p>
-                                    </div>
-                                    <div className="space-y-2 text-left text-sm">
-                                        <div className="flex items-center gap-2.5 rounded-lg bg-foreground/5 px-3 py-2.5">
-                                            <span className="text-base">💬</span>
-                                            <span className="text-foreground/70">Room IDs are now sent via WhatsApp</span>
-                                        </div>
-                                        <div className="flex items-center gap-2.5 rounded-lg bg-foreground/5 px-3 py-2.5">
-                                            <span className="text-base">🔄</span>
-                                            <span className="text-foreground/70">You can re-link anytime from profile</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2 pt-1">
-                                        <Button
-                                            variant="flat"
-                                            className="min-w-[80px] shrink-0"
-                                            onPress={() => setShowDiscordUnlinkConfirm(false)}
-                                            isDisabled={discordUnlinking}
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            color="danger"
-                                            variant="flat"
-                                            className="flex-1"
-                                            startContent={!discordUnlinking && <Unlink className="h-3.5 w-3.5" />}
-                                            isLoading={discordUnlinking}
-                                            onPress={async () => {
-                                                setDiscordUnlinking(true);
-                                                try {
-                                                    const res = await fetch("/api/discord/unlink", { method: "POST" });
-                                                    if (res.ok) {
-                                                        toast.success("Discord unlinked");
-                                                        sessionStorage.removeItem("discord_linked");
-                                                        setShowDiscordUnlinkConfirm(false);
-                                                        queryClient.invalidateQueries({ queryKey: ["profile"] });
-                                                    } else {
-                                                        const json = await res.json();
-                                                        toast.error(json.error || "Failed to unlink");
-                                                    }
-                                                } catch {
-                                                    toast.error("Network error");
-                                                } finally {
-                                                    setDiscordUnlinking(false);
-                                                }
-                                            }}
-                                        >
-                                            Unlink Discord
-                                        </Button>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </div>
-                    )}
-                </AnimatePresence>
-
-                {/* Sign-out modal after removing session email */}
-                <AnimatePresence>
-                    {showSignOutModal && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                            />
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                                className="relative w-full max-w-sm rounded-2xl border border-divider bg-content1 p-6 shadow-2xl"
-                            >
-                                <div className="text-center space-y-4">
-                                    <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-success/10 mx-auto">
-                                        <Mail className="h-6 w-6 text-success" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold">Email Removed</h3>
-                                        <p className="text-sm text-foreground/50 mt-1">
-                                            Sign back in with your new primary email to continue.
-                                        </p>
-                                    </div>
-                                    <Button
-                                        color="primary" fullWidth
-                                        startContent={<LogOut className="h-4 w-4" />}
-                                        onPress={() => handleSignOut()}
-                                        className="font-bold"
-                                    >
-                                        Sign Out & Re-login
-                                    </Button>
-                                </div>
-                            </motion.div>
-                        </div>
-                    )}
-                </AnimatePresence>
-
-                {/* Sign Out */}
-                <div className="mt-6 pb-20 lg:pb-4">
-                    <Button
-                        color="danger" variant="flat" fullWidth
-                        startContent={<LogOut className="h-4 w-4" />}
-                        onPress={() => handleSignOut()}
+                {/* Settings link */}
+                <div className="mt-2 pb-20 lg:pb-4">
+                    <button
+                        type="button"
+                        onClick={() => router.push("/settings")}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-divider text-sm font-medium text-foreground/50 hover:bg-default-50 transition-colors"
                     >
-                        Sign Out
-                    </Button>
+                        ⚙️ Account Settings
+                    </button>
                 </div>
             </div>
 

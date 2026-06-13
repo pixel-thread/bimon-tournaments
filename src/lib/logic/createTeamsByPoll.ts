@@ -127,22 +127,29 @@ export async function createTeamsByPoll({
     let luckyVoterId: string | null = poll?.luckyVoterId || null;
     const pollAllowSquads = poll?.allowSquads ?? false;
 
-
-    let previousSeasonId: string | undefined;
-    if (currentSeason) {
-        const previousSeason = await prisma.season.findFirst({
-            where: { startDate: { lt: currentSeason.startDate } },
-            orderBy: { startDate: "desc" },
-            select: { id: true },
-        });
-        previousSeasonId = previousSeason?.id;
-    }
-
-    const seasonScoringConfig: SeasonScoringConfig = {
+    // Season scoring config — only needed for random team balancing (not squad polls)
+    let seasonScoringConfig: SeasonScoringConfig = {
         currentSeasonId: seasonId,
-        previousSeasonId,
+        previousSeasonId: undefined,
         tournamentCountInSeason,
     };
+
+    if (!pollAllowSquads) {
+        let previousSeasonId: string | undefined;
+        if (currentSeason) {
+            const previousSeason = await prisma.season.findFirst({
+                where: { startDate: { lt: currentSeason.startDate } },
+                orderBy: { startDate: "desc" },
+                select: { id: true },
+            });
+            previousSeasonId = previousSeason?.id;
+        }
+        seasonScoringConfig = {
+            currentSeasonId: seasonId,
+            previousSeasonId,
+            tournamentCountInSeason,
+        };
+    }
 
     // Fetch eligible players — narrowed includes to only what's needed
     const players = await prisma.player.findMany({
@@ -283,177 +290,172 @@ export async function createTeamsByPoll({
         }
     }
 
-    // Exclude squad members from the regular team generation pool
-    const nonSquadPlayers = players.filter((p) => !squadPlayerIds.has(p.id));
-
-    // SOLO voters
-    const playersWhoVotedSolo = players.filter((p) =>
-        p.pollVotes.some((vote) => vote.pollId === pollId && vote.vote === "SOLO"),
-    );
-    // Count recent wins per player (from TournamentWinner in current season)
-    const recentWinners = await prisma.tournamentWinner.findMany({
-        where: {
-            tournament: { seasonId },
-            team: { players: { some: { id: { in: nonSquadPlayers.map(p => p.id) } } } },
-        },
-        select: {
-            team: { select: { players: { select: { id: true } } } },
-        },
-    });
-    const winCountMap = new Map<string, number>();
-    for (const w of recentWinners) {
-        for (const p of w.team.players) {
-            winCountMap.set(p.id, (winCountMap.get(p.id) ?? 0) + 1);
-        }
-    }
-
-    // Compute weighted scores — map v2 stats format
-    // Compute KD dynamically (kills/matches) — stored kd field may be stale
-    const playersWithScore = nonSquadPlayers.map((p) => {
-        const playerStats = p.stats.map((s) => {
-            const dynamicKd = s.matches > 0 ? s.kills / s.matches : 0;
-            return {
-                seasonId: s.seasonId,
-                kills: s.kills,
-                kd: dynamicKd,
-                deaths: dynamicKd > 0 ? Math.round(s.kills / dynamicKd) : 0,
-            };
-        });
-
-        const playerWithWins: PlayerWithWins = {
-            ...p,
-            stats: playerStats as any,       // Override stale DB stats
-            playerStats: playerStats as any,
-            recentWins: winCountMap.get(p.id) ?? 0,
-        } as any;
-
-        return {
-            ...p,
-            playerStats: playerStats as any,
-            weightedScore: computeWeightedScore(playerWithWins, seasonScoringConfig),
-        };
-    });
-
     let teams: TeamStats[] = [];
     const BATCH_SIZE = 5;
 
-    if (previewTeams && previewTeams.length > 0) {
-        // Use confirmed preview teams
-        const playerMap = new Map(playersWithScore.map((p) => [p.id, p]));
+    if (pollAllowSquads) {
+        // ── Fast path: squad polls ──────────────────────────────────
+        // All teams come from squads — skip weighted scoring, previous
+        // teammates query, snake-draft balancing, and solo handling.
+        teams = [...squadTeams];
+        if (teams.length === 0) {
+            throw new Error("No registered squads found for this tournament.");
+        }
+        teams = shuffle(teams);
+        console.log(`[createTeamsByPoll] Squad fast-path: ${teams.length} teams from squads`);
+    } else {
+        // ── Regular path: random team generation ───────────────────
+        // Exclude squad members from the regular team generation pool
+        const nonSquadPlayers = players.filter((p) => !squadPlayerIds.has(p.id));
 
-        for (const previewTeam of previewTeams) {
-            const teamPlayers: any[] = [];
-            for (const playerId of previewTeam.playerIds) {
-                const player = playerMap.get(playerId);
-                if (player) teamPlayers.push(player);
+        // SOLO voters
+        const playersWhoVotedSolo = players.filter((p) =>
+            p.pollVotes.some((vote) => vote.pollId === pollId && vote.vote === "SOLO"),
+        );
+        // Count recent wins per player (from TournamentWinner in current season)
+        const recentWinners = await prisma.tournamentWinner.findMany({
+            where: {
+                tournament: { seasonId },
+                team: { players: { some: { id: { in: nonSquadPlayers.map(p => p.id) } } } },
+            },
+            select: {
+                team: { select: { players: { select: { id: true } } } },
+            },
+        });
+        const winCountMap = new Map<string, number>();
+        for (const w of recentWinners) {
+            for (const p of w.team.players) {
+                winCountMap.set(p.id, (winCountMap.get(p.id) ?? 0) + 1);
             }
-            if (teamPlayers.length > 0) {
-                const totalKills = teamPlayers.reduce((sum, p) => {
-                    const stats = p.stats?.find((s: any) => s.seasonId === seasonId);
-                    return sum + (stats?.kills ?? 0);
-                }, 0);
-                const weightedScore = teamPlayers.reduce((sum: number, p: any) => sum + (p.weightedScore ?? 0), 0);
+        }
+
+        // Compute weighted scores — map v2 stats format
+        const playersWithScore = nonSquadPlayers.map((p) => {
+            const playerStats = p.stats.map((s) => {
+                const dynamicKd = s.matches > 0 ? s.kills / s.matches : 0;
+                return {
+                    seasonId: s.seasonId,
+                    kills: s.kills,
+                    kd: dynamicKd,
+                    deaths: dynamicKd > 0 ? Math.round(s.kills / dynamicKd) : 0,
+                };
+            });
+
+            const playerWithWins: PlayerWithWins = {
+                ...p,
+                stats: playerStats as any,
+                playerStats: playerStats as any,
+                recentWins: winCountMap.get(p.id) ?? 0,
+            } as any;
+
+            return {
+                ...p,
+                playerStats: playerStats as any,
+                weightedScore: computeWeightedScore(playerWithWins, seasonScoringConfig),
+            };
+        });
+
+        if (previewTeams && previewTeams.length > 0) {
+            // Use confirmed preview teams
+            const playerMap = new Map(playersWithScore.map((p) => [p.id, p]));
+
+            for (const previewTeam of previewTeams) {
+                const teamPlayers: any[] = [];
+                for (const playerId of previewTeam.playerIds) {
+                    const player = playerMap.get(playerId);
+                    if (player) teamPlayers.push(player);
+                }
+                if (teamPlayers.length > 0) {
+                    const totalKills = teamPlayers.reduce((sum, p) => {
+                        const stats = p.stats?.find((s: any) => s.seasonId === seasonId);
+                        return sum + (stats?.kills ?? 0);
+                    }, 0);
+                    const weightedScore = teamPlayers.reduce((sum: number, p: any) => sum + (p.weightedScore ?? 0), 0);
+                    teams.push({
+                        players: teamPlayers as unknown as PlayerWithWeightT[],
+                        totalKills,
+                        totalDeaths: 0,
+                        totalWins: 0,
+                        weightedScore,
+                    });
+                }
+            }
+        } else {
+            // Generate teams from scratch
+            const soloPlayers: typeof playersWithScore = [];
+            let playersForTeams: typeof playersWithScore = [];
+
+            for (const p of playersWithScore) {
+                const isSoloVoter = playersWhoVotedSolo.some((solo) => solo.id === p.id);
+                const isSoloRestricted = (p as any).isSoloRestricted === true;
+                if (isSoloVoter || isSoloRestricted) {
+                    soloPlayers.push(p);
+                } else {
+                    playersForTeams.push(p);
+                }
+            }
+
+            // Handle leftovers
+            if (groupSize > 1 && playersForTeams.length % groupSize !== 0) {
+                const remainder = playersForTeams.length % groupSize;
+                playersForTeams.sort((a, b) => {
+                    const aVote = a.pollVotes.find((v: any) => v.pollId === pollId);
+                    const bVote = b.pollVotes.find((v: any) => v.pollId === pollId);
+                    const aTime = aVote?.createdAt ? new Date(aVote.createdAt).getTime() : Infinity;
+                    const bTime = bVote?.createdAt ? new Date(bVote.createdAt).getTime() : Infinity;
+                    return aTime - bTime;
+                });
+                const lateVoters = playersForTeams.splice(playersForTeams.length - remainder, remainder);
+
+                if (GAME.features.hasBR) {
+                    soloPlayers.push(...lateVoters);
+                    console.log(`[createTeamsByPoll] Late voter(s) moved to solo: ${lateVoters.map(p => p.displayName ?? p.id).join(", ")}`);
+                } else {
+                    console.log(`[createTeamsByPoll] Excluded ${lateVoters.length} player(s) (last to vote): ${lateVoters.map(p => p.displayName ?? p.id).join(", ")}`);
+                }
+            }
+
+            playersForTeams = shuffle(playersForTeams);
+
+            const teamCount = Math.floor(playersForTeams.length / groupSize);
+            if (teamCount === 0 && soloPlayers.length === 0 && squadTeams.length === 0) {
+                throw new Error("Not enough players to form teams.");
+            }
+
+            if (teamCount > 0) {
+                const previousTeammates = await getPreviousTournamentTeammates(
+                    seasonId,
+                    tournamentId,
+                    playersForTeams.map((p) => p.id),
+                    2,
+                );
+                const asWeighted = playersForTeams as unknown as PlayerWithWeightT[];
+                if (groupSize === 2) teams = createBalancedDuos(asWeighted, seasonId, previousTeammates);
+                else if (groupSize === 3) teams = createBalancedTrios(asWeighted, seasonId, previousTeammates);
+                else if (groupSize === 4) teams = createBalancedQuads(asWeighted, seasonId, previousTeammates);
+            }
+
+            // Solo teams
+            for (const soloPlayer of soloPlayers) {
+                const stats = soloPlayer.stats.find((s) => s.seasonId === seasonId);
                 teams.push({
-                    players: teamPlayers as unknown as PlayerWithWeightT[],
-                    totalKills,
+                    players: [soloPlayer as unknown as PlayerWithWeightT],
+                    totalKills: stats?.kills ?? 0,
                     totalDeaths: 0,
                     totalWins: 0,
-                    weightedScore,
+                    weightedScore: soloPlayer.weightedScore,
                 });
             }
-        }
-    } else {
-        // Generate teams from scratch
-        const soloPlayers: typeof playersWithScore = [];
-        let playersForTeams: typeof playersWithScore = [];
 
-        for (const p of playersWithScore) {
-            const isSoloVoter = playersWhoVotedSolo.some((solo) => solo.id === p.id);
-            const isSoloRestricted = (p as any).isSoloRestricted === true;
-            if (isSoloVoter || isSoloRestricted) {
-                soloPlayers.push(p);
-            } else {
-                playersForTeams.push(p);
-            }
+            analyzeTeamBalance(teams);
+            teams = shuffle(teams);
         }
 
-        // Handle leftovers when player count isn't perfectly divisible by team size.
-        // Squad polls: exclude leftovers entirely (can't play with incomplete team)
-        // BR games (BGMI/FF): late voters play solo (they still participate).
-        // Non-BR games (PES/MLBB): exclude late voters to prevent friends gaming the system.
-        if (groupSize > 1 && playersForTeams.length % groupSize !== 0) {
-            const remainder = playersForTeams.length % groupSize;
-
-            // Sort by vote time ascending (earliest first = safe)
-            playersForTeams.sort((a, b) => {
-                const aVote = a.pollVotes.find((v: any) => v.pollId === pollId);
-                const bVote = b.pollVotes.find((v: any) => v.pollId === pollId);
-                const aTime = aVote?.createdAt ? new Date(aVote.createdAt).getTime() : Infinity;
-                const bTime = bVote?.createdAt ? new Date(bVote.createdAt).getTime() : Infinity;
-                return aTime - bTime;
-            });
-
-            // Remove the last N players (latest voters)
-            const lateVoters = playersForTeams.splice(playersForTeams.length - remainder, remainder);
-
-            if (pollAllowSquads) {
-                // Squad polls: exclude leftovers — can't play with incomplete squad
-                console.log(
-                    `[createTeamsByPoll] Squad poll: excluded ${lateVoters.length} leftover random(s): ${lateVoters.map(p => p.displayName ?? p.id).join(", ")}`
-                );
-            } else if (GAME.features.hasBR) {
-                // BR games (BGMI/FF): late voters play as solo teams instead of being excluded
-                soloPlayers.push(...lateVoters);
-                console.log(
-                    `[createTeamsByPoll] Late voter(s) moved to solo: ${lateVoters.map(p => p.displayName ?? p.id).join(", ")}`
-                );
-            } else {
-                // PES/MLBB: exclude late voters entirely
-                console.log(
-                    `[createTeamsByPoll] Excluded ${lateVoters.length} player(s) (last to vote): ${lateVoters.map(p => p.displayName ?? p.id).join(", ")}`
-                );
-            }
-        }
-
-        playersForTeams = shuffle(playersForTeams);
-
-        const teamCount = Math.floor(playersForTeams.length / groupSize);
-        if (teamCount === 0 && soloPlayers.length === 0 && squadTeams.length === 0) {
-            throw new Error("Not enough players to form teams.");
-        }
-
-        if (teamCount > 0) {
-            const previousTeammates = await getPreviousTournamentTeammates(
-                seasonId,
-                tournamentId,
-                playersForTeams.map((p) => p.id),
-                2, // Avoid teammates from last 2 tournaments
-            );
-            const asWeighted = playersForTeams as unknown as PlayerWithWeightT[];
-            if (groupSize === 2) teams = createBalancedDuos(asWeighted, seasonId, previousTeammates);
-            else if (groupSize === 3) teams = createBalancedTrios(asWeighted, seasonId, previousTeammates);
-            else if (groupSize === 4) teams = createBalancedQuads(asWeighted, seasonId, previousTeammates);
-        }
-
-        // Solo teams
-        for (const soloPlayer of soloPlayers) {
-            const stats = soloPlayer.stats.find((s) => s.seasonId === seasonId);
-            teams.push({
-                players: [soloPlayer as unknown as PlayerWithWeightT],
-                totalKills: stats?.kills ?? 0,
-                totalDeaths: 0,
-                totalWins: 0,
-                weightedScore: soloPlayer.weightedScore,
-            });
-        }
-
-        analyzeTeamBalance(teams);
-        teams = shuffle(teams);
+        // Add squad premade teams to the random teams
+        teams = [...squadTeams, ...teams];
     }
 
     // Validate
-    // Add squad premade teams to the list
-    teams = [...squadTeams, ...teams];
     const allTeamPlayerIds = new Set(teams.flatMap((t) => t.players.map((p) => p.id)));
     if (luckyVoterId && !allTeamPlayerIds.has(luckyVoterId)) {
         luckyVoterId = null;
@@ -557,23 +559,28 @@ export async function createTeamsByPoll({
             // Mark players to charge (skip lucky voter, birthday, UC-exempt)
             // Actual debit happens AFTER the transaction commits (see below)
             if (entryFee > 0) {
-                const birthdayPlayerIds = new Set<string>();
-                for (const player of allPlayers) {
-                    const dateOfBirth = (player as any).user?.dateOfBirth;
-                    if (dateOfBirth && isBirthdayWithinWindow(dateOfBirth)) {
-                        birthdayPlayerIds.add(player.id);
+                if (pollAllowSquads) {
+                    // Squad polls: no exemptions — captains pay via squadPlayersToCharge
+                    // Random players in squad polls don't exist, skip entirely
+                    playersToChargeList = [];
+                } else {
+                    // Random polls: check birthday, lucky voter, UC-exempt
+                    const birthdayPlayerIds = new Set<string>();
+                    for (const player of allPlayers) {
+                        const dateOfBirth = (player as any).user?.dateOfBirth;
+                        if (dateOfBirth && isBirthdayWithinWindow(dateOfBirth)) {
+                            birthdayPlayerIds.add(player.id);
+                        }
                     }
-                }
 
-                playersToChargeList = allPlayers.filter(
-                    (player) =>
-                        // Exclude squad members — captains pay full fee separately
-                        !squadPlayerIds.has(player.id) &&
-                        // UC exempt doesn't apply in squad polls — everyone pays their share
-                        (!player.isUCExempt || pollAllowSquads) &&
-                        player.id !== luckyVoterId &&
-                        !birthdayPlayerIds.has(player.id),
-                );
+                    playersToChargeList = allPlayers.filter(
+                        (player) =>
+                            !squadPlayerIds.has(player.id) &&
+                            !player.isUCExempt &&
+                            player.id !== luckyVoterId &&
+                            !birthdayPlayerIds.has(player.id),
+                    );
+                }
             }
 
             // Match-dependent records (skip for championship — group matches handle this)
@@ -822,110 +829,30 @@ export async function createTeamsByPoll({
         console.log(`[createTeamsByPoll] Championship setup: Group A (${groupA.length}), Group B (${groupB.length})`);
     }
 
-    // ── Post-transaction: create Discord channel(s) — NO access granting ──
-    // Access is granted manually from the Room Info page for full control.
-    try {
-        const existingTournament = await prisma.tournament.findUnique({
-            where: { id: tournamentId },
-            select: { discordChannelId: true, discordGroupChannels: true },
-        });
+    // ── DISABLED: Discord channel auto-creation ──
+    // Channels are now managed manually from the Room Info dashboard.
+    // try {
+    //     const existingTournament = await prisma.tournament.findUnique({
+    //         where: { id: tournamentId },
+    //         select: { discordChannelId: true, discordGroupChannels: true },
+    //     });
+    //     if (!existingTournament?.discordChannelId) {
+    //         const mainChannelId = await createTournamentChannel(tournamentName);
+    //         await prisma.tournament.update({
+    //             where: { id: tournamentId },
+    //             data: { discordChannelId: mainChannelId },
+    //         });
+    //     }
+    //     if (shouldChampionship) { ... per-group channels ... }
+    // } catch (err) { ... }
 
-        // Ensure main channel exists (created at tournament creation, but fallback here)
-        if (!existingTournament?.discordChannelId) {
-            const mainChannelId = await createTournamentChannel(tournamentName);
-            await prisma.tournament.update({
-                where: { id: tournamentId },
-                data: { discordChannelId: mainChannelId },
-            });
-            console.log(`[createTeamsByPoll] Created main Discord channel: ${mainChannelId}`);
-        }
-
-        // Championship: create per-group channels (no access granting)
-        if (shouldChampionship) {
-            const groups: Record<string, string[]> = {};
-            const entries = await prisma.championshipEntry.findMany({
-                where: { tournamentId },
-                select: { group: true, teamId: true },
-            });
-            for (const e of entries) {
-                if (!e.group) continue;
-                if (!groups[e.group]) groups[e.group] = [];
-                groups[e.group].push(e.teamId);
-            }
-
-            const existingGroupChannels = (existingTournament?.discordGroupChannels as Record<string, string>) || {};
-            const groupChannels: Record<string, string> = { ...existingGroupChannels };
-
-            for (const [group] of Object.entries(groups)) {
-                if (!existingGroupChannels[group]) {
-                    const suffix = `group-${group.toLowerCase()}`;
-                    groupChannels[group] = await createTournamentChannel(tournamentName, suffix);
-                    console.log(`[createTeamsByPoll] Created Discord group channel: ${group}`);
-                }
-            }
-
-            await prisma.tournament.update({
-                where: { id: tournamentId },
-                data: { discordGroupChannels: groupChannels },
-            });
-        }
-    } catch (err) {
-        console.error("[createTeamsByPoll] Discord channel creation failed (non-blocking):", err);
-    }
-
-    // ── Post-transaction: create WhatsApp group(s) with invite link ──
-    // Players self-join via the invite link shown on the website.
-    try {
-        const { setupTournamentGroup } = await import("@/lib/whatsapp");
-
-        if (shouldChampionship) {
-            // Championship: create per-group WhatsApp groups
-            const entries = await prisma.championshipEntry.findMany({
-                where: { tournamentId },
-                select: { group: true },
-            });
-            const uniqueGroups = [...new Set(entries.map(e => e.group).filter(Boolean))] as string[];
-            const existingChannelInvites: Record<string, string> = {};
-            const existingGroupChannelsWA: Record<string, string> = {};
-
-            for (const group of uniqueGroups) {
-                const waResult = await setupTournamentGroup({
-                    name: `🎮 ${tournamentName} — Group ${group}`,
-                    description: `${tournamentName} — Group ${group}\nJoin to receive room info, match schedules, and updates.`,
-                });
-                existingGroupChannelsWA[group] = waResult.groupId;
-                existingChannelInvites[group] = waResult.inviteLink;
-                console.log(`[createTeamsByPoll] WhatsApp Group ${group} created: ${waResult.inviteLink}`);
-            }
-
-            await prisma.tournament.update({
-                where: { id: tournamentId },
-                data: {
-                    whatsappGroupChannels: existingGroupChannelsWA,
-                    whatsappChannelInvites: existingChannelInvites,
-                    whatsappJoinedPlayers: [],
-                },
-            });
-        } else {
-            // Single group tournament
-            const waResult = await setupTournamentGroup({
-                name: `🎮 ${tournamentName}`,
-                description: `${tournamentName}\nJoin to receive room info, match schedules, and updates.`,
-            });
-
-            await prisma.tournament.update({
-                where: { id: tournamentId },
-                data: {
-                    whatsappGroupId: waResult.groupId,
-                    whatsappInviteLink: waResult.inviteLink,
-                    whatsappJoinedPlayers: [],
-                },
-            });
-            console.log(`[createTeamsByPoll] WhatsApp group created: ${waResult.inviteLink}`);
-        }
-    } catch (err) {
-        console.error("[createTeamsByPoll] WhatsApp group creation failed (non-blocking):", err);
-    }
+    // ── DISABLED: WhatsApp group auto-creation ──
+    // Groups are now created manually. No bot auto-creation.
+    // try {
+    //     const { setupTournamentGroup } = await import("@/lib/whatsapp");
+    //     if (shouldChampionship) { ... per-group WA groups ... }
+    //     else { ... single group ... }
+    // } catch (err) { ... }
 
     return {
         ...result,

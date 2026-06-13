@@ -38,6 +38,7 @@ interface SquadPublicData {
     isSignedIn: boolean;
     hasPlayerProfile: boolean;
     whatsappGroupLink: string | null;
+    hasAutoAccept: boolean;
 }
 
 /* ─── Main Page ─────────────────────────────────────────────── */
@@ -55,7 +56,7 @@ export default function InvitePage() {
     //     if (typeof window !== "undefined") return sessionStorage.getItem("discord_linked") === "true";
     //     return false;
     // });
-    const [autoAccept, setAutoAccept] = useState(false);
+    const [autoAccept, setAutoAccept] = useState<boolean | null>(null); // null = not loaded yet
 
     // Discord link check (disabled — kept for future use)
     // useEffect(() => {
@@ -90,6 +91,28 @@ export default function InvitePage() {
             router.replace(`/vote`);
         }
     }, [data?.myStatus, joined, router]);
+
+    // Sync auto-accept checkbox with API data on first load
+    useEffect(() => {
+        if (data && autoAccept === null) {
+            setAutoAccept(data.hasAutoAccept);
+        }
+    }, [data, autoAccept]);
+
+    // Save auto-accept preference immediately when toggled
+    const handleAutoAcceptToggle = useCallback((enabled: boolean) => {
+        setAutoAccept(enabled);
+        if (!data) return;
+        fetch("/api/squads/auto-accept-player", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ captainId: data.captain.id, enabled }),
+        }).catch(() => {});
+        toast.success(enabled
+            ? `Subscribed — future invites from ${data.captain.displayName} will auto-accept`
+            : `Unsubscribed from ${data.captain.displayName}`
+        );
+    }, [data]);
 
     // If pending request → auto-accept via invite link (captain shared link = implicit approval)
     useEffect(() => {
@@ -146,14 +169,6 @@ export default function InvitePage() {
                 return;
             }
             toast.success(json.message || "Joined!");
-            // Save auto-accept preference if toggled on
-            if (autoAccept && data) {
-                fetch("/api/squads/auto-accept-player", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ captainId: data.captain.id, enabled: true }),
-                }).catch(() => {}); // fire-and-forget
-            }
             setJoined(true);
         } catch {
             toast.error("Network error. Please try again.");
@@ -341,22 +356,29 @@ export default function InvitePage() {
                     <label
                         className={`flex items-start gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${
                             autoAccept
-                                ? "bg-primary/5 border-primary/20"
+                                ? "bg-success/5 border-success/20"
                                 : "bg-foreground/[0.02] border-divider hover:border-foreground/20"
                         }`}
                     >
                         <Checkbox
-                            isSelected={autoAccept}
-                            onValueChange={setAutoAccept}
+                            isSelected={!!autoAccept}
+                            onValueChange={handleAutoAcceptToggle}
                             size="sm"
                             className="mt-0.5"
                         />
                         <div className="text-left min-w-0">
                             <p className="text-sm font-medium">
-                                Auto-accept from {data.captain.displayName}
+                                {autoAccept ? (
+                                    <span className="text-success">Subscribed ✓</span>
+                                ) : (
+                                    <>Always accept from {data.captain.displayName}</>  
+                                )}
                             </p>
                             <p className="text-[11px] text-foreground/40 mt-0.5">
-                                Future invites from this player will be accepted automatically
+                                {autoAccept
+                                    ? `Future invites from ${data.captain.displayName} will be auto-accepted`
+                                    : "Toggle to auto-accept future invites from this player"
+                                }
                             </p>
                         </div>
                     </label>

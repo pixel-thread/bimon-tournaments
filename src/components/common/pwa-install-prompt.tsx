@@ -112,7 +112,7 @@ type PwaState = "loading" | "ok" | "android" | "ios" | "browser-nudge";
  * - Desktop: Skipped (not mandatory)
  * - Already installed: Skipped
  */
-export function PwaInstallPrompt() {
+export function PwaInstallPrompt({ onSkip }: { onSkip?: () => void } = {}) {
     const { isSignedIn } = useAuthUser();
     const [state, setState] = useState<PwaState>("loading");
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -152,9 +152,14 @@ export function PwaInstallPrompt() {
                 return;
             }
 
-            // Installed but browsing via browser — nudge to open PWA
+            // Already installed but browsing via browser — nudge (1-day dismiss)
             if (localStorage.getItem(INSTALLED_KEY) === "true" && isMobile()) {
-                setState("browser-nudge");
+                const nudgeDismissed = localStorage.getItem("pwa-nudge-until");
+                if (nudgeDismissed && Date.now() < Number(nudgeDismissed)) {
+                    setState("ok");
+                } else {
+                    setState("browser-nudge");
+                }
                 return;
             }
 
@@ -217,35 +222,23 @@ export function PwaInstallPrompt() {
                     <img src={PWA_ICON} alt="" className="w-10 h-10 rounded-xl shrink-0" />
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold">{GAME.name}</p>
-                        <p className="text-xs text-foreground/50">Open in app for better experience</p>
+                        <p className="text-xs text-foreground/50">Open the installed app for best experience</p>
                     </div>
-                    <div className="flex flex-col gap-1.5 shrink-0">
-                        <Button
-                            size="sm"
-                            color="primary"
-                            className="text-xs font-semibold h-7 px-3"
-                            onPress={() => {
-                                // Try to open the PWA — same URL in standalone mode
-                                window.location.href = window.location.href;
-                            }}
-                        >
-                            <Smartphone className="w-3 h-3" />
-                            Open App
-                        </Button>
-                        <button
-                            onClick={() => setState("ok")}
-                            className="text-[10px] text-foreground/30 hover:text-foreground/50 transition-colors"
-                        >
-                            Stay here
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => {
+                            localStorage.setItem("pwa-nudge-until", String(Date.now() + 24 * 60 * 60 * 1000));
+                            setState("ok");
+                        }}
+                        className="text-[11px] text-foreground/40 hover:text-foreground/60 transition-colors shrink-0"
+                    >
+                        Dismiss
+                    </button>
                 </div>
                 {/* Reinstall option for users who uninstalled */}
                 <div className="mx-3 mt-1.5 text-center">
                     <button
                         onClick={() => {
                             localStorage.removeItem(INSTALLED_KEY);
-                            // Re-detect platform and show install flow
                             if (isIOS()) {
                                 setState("ios");
                             } else {
@@ -272,8 +265,9 @@ export function PwaInstallPrompt() {
     return (
         <Modal
             isOpen={true}
-            isDismissable={false}
+            isDismissable={!!onSkip}
             hideCloseButton
+            onClose={onSkip}
             placement="center"
             size="sm"
             backdrop="blur"
@@ -410,6 +404,17 @@ export function PwaInstallPrompt() {
                                     I&apos;ve added it — Refresh
                                 </Button>
                             </>
+                        )}
+
+                        {/* Skip option */}
+                        {onSkip && (
+                            <button
+                                type="button"
+                                onClick={onSkip}
+                                className="text-xs text-foreground/30 hover:text-foreground/50 transition-colors mt-2"
+                            >
+                                Maybe later
+                            </button>
                         )}
                     </motion.div>
                 </ModalBody>

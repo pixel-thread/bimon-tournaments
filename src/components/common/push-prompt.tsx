@@ -139,58 +139,33 @@ export function usePushStatus() {
 export function PushPrompt() {
     const { status, subscribing, handleEnable } = usePushStatus();
 
-    if (status === "loading" || status === "unsupported") return null;
+    // Hide entirely when enabled, loading, or unsupported
+    if (status === "loading" || status === "unsupported" || status === "enabled") return null;
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`mb-3 flex items-center gap-2.5 rounded-lg border px-3 py-2 ${
-                status === "enabled"
-                    ? "border-success/20 bg-success/[0.04]"
-                    : status === "denied"
-                    ? "border-foreground/10 bg-foreground/[0.02]"
-                    : "border-primary/20 bg-primary/[0.04]"
-            }`}
-        >
-            {status === "enabled" && (
+        <div className={`mb-2 flex items-center gap-2 rounded-lg px-2.5 py-1.5 ${
+            status === "denied"
+                ? "bg-foreground/[0.03]"
+                : "bg-primary/[0.05]"
+        }`}>
+            {status === "denied" ? (
                 <>
-                    <BellRing className="h-3.5 w-3.5 text-success shrink-0" />
-                    <p className="text-xs text-success/80 flex-1">
-                        Push notifications enabled
-                    </p>
+                    <BellOff className="h-3 w-3 text-foreground/25 shrink-0" />
+                    <p className="text-[11px] text-foreground/35 flex-1">Notifications blocked</p>
                 </>
-            )}
-
-            {status === "denied" && (
+            ) : (
                 <>
-                    <BellOff className="h-3.5 w-3.5 text-foreground/30 shrink-0" />
-                    <p className="text-xs text-foreground/40 flex-1">
-                        Notifications blocked — enable in browser settings
-                    </p>
-                </>
-            )}
-
-            {status === "prompt" && (
-                <>
-                    <Bell className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <p className="text-xs text-foreground/60 flex-1">
-                        Get {GAME.currency} alerts, squad invites & rewards instantly
-                    </p>
+                    <Bell className="h-3 w-3 text-primary/60 shrink-0" />
+                    <p className="text-[11px] text-foreground/50 flex-1">Get alerts for rooms &amp; rewards</p>
                     <button
                         onClick={handleEnable}
                         disabled={subscribing}
-                        className="shrink-0 flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-50"
+                        className="shrink-0 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-50"
                     >
-                        {subscribing ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                            <Bell className="h-3 w-3" />
-                        )}
-                        Enable
+                        {subscribing ? "..." : "Enable"}
                     </button>
                 </>
             )}
-        </motion.div>
+        </div>
     );
 }

@@ -57,7 +57,7 @@ type GuardState = "loading" | "ok" | "prompt" | "denied" | "brave" | "ios-safari
  * - iOS Safari: Shows instructions to add to home screen first
  * - iOS PWA: Normal push flow (supported since iOS 16.4)
  */
-export function PushGuard() {
+export function PushGuard({ onSkip }: { onSkip?: () => void } = {}) {
     const { isSignedIn } = useAuthUser();
     const [ready, setReady] = useState(false);
     const [state, setState] = useState<GuardState>("loading");
@@ -275,8 +275,9 @@ export function PushGuard() {
     return (
         <Modal
             isOpen={true}
-            isDismissable={false}
+            isDismissable={!!onSkip}
             hideCloseButton
+            onClose={onSkip}
             placement="center"
             size="sm"
             backdrop="blur"
@@ -513,6 +514,14 @@ export function PushGuard() {
                                         className="text-xs text-foreground/30 hover:text-foreground/50 transition-colors"
                                     >
                                         {dismissed ? "Skip for now" : "Maybe later"}
+                                    </button>
+                                )}
+                                {onSkip && !(!isMobileDevice() || dismissed) && (
+                                    <button
+                                        onClick={onSkip}
+                                        className="text-xs text-foreground/30 hover:text-foreground/50 transition-colors"
+                                    >
+                                        Maybe later
                                     </button>
                                 )}
                             </>

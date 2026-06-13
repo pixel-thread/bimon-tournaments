@@ -70,20 +70,28 @@ export async function GET(
         let myStatus: "none" | "accepted" | "pending" | "declined" = "none";
         let isSignedIn = false;
         let hasPlayerProfile = false;
+        let hasAutoAccept = false;
         try {
             const user = await getCurrentUser();
             if (user) {
                 isSignedIn = true;
                 if (user.player?.id) {
                     hasPlayerProfile = true;
-                    const existing = await prisma.squadInvite.findFirst({
-                        where: { squadId, playerId: user.player.id },
-                        select: { status: true },
-                        orderBy: { createdAt: "desc" },
-                    });
+                    const [existing, autoAcceptRow] = await Promise.all([
+                        prisma.squadInvite.findFirst({
+                            where: { squadId, playerId: user.player.id },
+                            select: { status: true },
+                            orderBy: { createdAt: "desc" },
+                        }),
+                        prisma.playerAutoAccept.findUnique({
+                            where: { playerId_captainId: { playerId: user.player.id, captainId: squad.captainId } },
+                            select: { id: true },
+                        }),
+                    ]);
                     if (existing) {
                         myStatus = existing.status.toLowerCase() as typeof myStatus;
                     }
+                    hasAutoAccept = !!autoAcceptRow;
                 }
             }
         } catch {
@@ -128,6 +136,7 @@ export async function GET(
                 myStatus,
                 isSignedIn,
                 hasPlayerProfile,
+                hasAutoAccept,
             },
             cache: CACHE.NONE,
         });

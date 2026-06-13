@@ -389,50 +389,6 @@ export function SlotsModal({
             <div className="fixed inset-0 z-50 flex items-center justify-center">
                 {/* Floating Controls */}
                 <div className="floating-controls absolute top-4 right-4 z-30 flex gap-2">
-                    {/* Send to Discord */}
-                    {tournamentId && (
-                        <button
-                            onClick={sendToDiscord}
-                            disabled={discordSending}
-                            title="Send to Discord"
-                            className={`relative overflow-hidden text-white bg-black/60 backdrop-blur-md border p-2.5 rounded-xl transition-all duration-300 ${
-                                discordSent
-                                    ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
-                                    : "hover:text-indigo-400 border-white/20 hover:border-indigo-500/50 hover:bg-black/80"
-                            }`}
-                        >
-                            {discordSending ? (
-                                <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />
-                            ) : discordSent ? (
-                                <Check className="h-5 w-5 text-indigo-400" />
-                            ) : (
-                                <Send className="h-5 w-5" />
-                            )}
-                        </button>
-                    )}
-
-                    {/* Send to WhatsApp */}
-                    {tournamentId && (
-                        <button
-                            onClick={sendToWhatsApp}
-                            disabled={waSending}
-                            title="Send to WhatsApp"
-                            className={`relative overflow-hidden text-white bg-black/60 backdrop-blur-md border p-2.5 rounded-xl transition-all duration-300 ${
-                                waSent
-                                    ? "bg-green-500/20 border-green-500/50 text-green-400"
-                                    : "hover:text-green-400 border-white/20 hover:border-green-500/50 hover:bg-black/80"
-                            }`}
-                        >
-                            {waSending ? (
-                                <Loader2 className="h-5 w-5 animate-spin text-green-400" />
-                            ) : waSent ? (
-                                <Check className="h-5 w-5 text-green-400" />
-                            ) : (
-                                <MessageCircle className="h-5 w-5" />
-                            )}
-                        </button>
-                    )}
-
                     {/* Copy / Share */}
                     <button
                         onClick={copyToClipboard}

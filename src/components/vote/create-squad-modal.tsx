@@ -13,7 +13,7 @@ import {
 } from "@heroui/react";
 import { Shield, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useCreateSquad } from "@/hooks/use-squads";
+import { useCreateSquad, useRecentTeammates } from "@/hooks/use-squads";
 import { useQuery } from "@tanstack/react-query";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
@@ -99,6 +99,11 @@ export function CreateSquadModal({
     const createMutation = useCreateSquad();
     // const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal(); // Discord disabled
 
+    // Pre-fetch subscribers (players with auto-accept ON for this captain)
+    // Fetched as soon as modal opens so it's ready instantly after creation
+    const { data: subscribers } = useRecentTeammates(pollId, isOpen);
+    const hasSubscribers = (subscribers?.length ?? 0) > 0;
+
     // Fetch player's clan membership (lightweight)
     const { data: myClan } = useQuery<MyClan | null>({
         queryKey: ["my-clan"],
@@ -149,19 +154,12 @@ export function CreateSquadModal({
             {
                 onSuccess: async (data) => {
                     const name = data?.data?.name ?? squadName.trim();
-                    setCreatedSquadId(data?.data?.id ?? null);
+                    const newSquadId = data?.data?.id ?? null;
+                    setCreatedSquadId(newSquadId);
                     setCreatedSquadName(name);
 
                     const { toast } = await import("sonner");
                     toast.success(`Team "${name}" created! 🎉`);
-                    handleClose();
-
-                    // Discord stepper disabled — leader invite sent via WhatsApp bot
-                    // if (!discordLinked) {
-                    //     setTimeout(() => {
-                    //         openDiscordModal(`/api/discord/authorize?returnTo=vote`);
-                    //     }, 300);
-                    // }
 
                     // Persist WhatsApp pending state for global guard
                     if (whatsappGroupLink) {
@@ -172,10 +170,18 @@ export function CreateSquadModal({
                             whatsappGroupLink,
                         });
                     }
+
+                    if (hasSubscribers) {
+                        // Has subscribers → show quick invite modal instantly (data pre-fetched)
+                        setStep("done");
+                    } else {
+                        // No subscribers → just close, toast is enough
+                        handleClose();
+                    }
                 },
             }
         );
-    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName, handleClose]);
+    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName, handleClose, hasSubscribers]);
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
@@ -207,7 +213,7 @@ export function CreateSquadModal({
                         <span className="truncate block">
                             {step === "name"
                                 ? "Create Team"
-                                : `${createdSquadName} Created! 🎉`}
+                                : "Quick Invite"}
                         </span>
                         <span className="text-xs font-normal text-foreground/50">{tournamentName}</span>
                     </div>
@@ -376,7 +382,7 @@ export function CreateSquadModal({
                 </ModalBody>
 
                 <ModalFooter>
-                    {step === "name" ? (
+                    {step === "name" && (
                         <div className="flex gap-2 w-full">
                             <Button variant="flat" className="flex-1" onPress={handleClose}>
                                 Cancel
@@ -392,15 +398,17 @@ export function CreateSquadModal({
                                 Create Team
                             </Button>
                         </div>
-                    ) : !isModalBlocked ? (
+                    )}
+                    {step === "done" && (
                         <Button
+                            color="primary"
                             variant="flat"
                             className="w-full font-medium"
                             onPress={handleClose}
                         >
-                            Skip for now
+                            Done
                         </Button>
-                    ) : null}
+                    )}
                 </ModalFooter>
             </ModalContent>
         </Modal>

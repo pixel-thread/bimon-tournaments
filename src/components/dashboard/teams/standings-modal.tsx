@@ -749,52 +749,8 @@ Make it look premium and professional — suitable for posting on a tournament w
                         👑
                     </button>
 
-                    {/* Send to Discord Button */}
-                    <button
-                        onClick={sendToDiscord}
-                        disabled={isSendingDiscord}
-                        className={`relative overflow-hidden text-white hover:text-[#5865F2] bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-[#5865F2]/50 p-2.5 rounded-xl transition-all duration-300 ${discordSent ? "bg-[#5865F2]/20 border-[#5865F2]/50" : ""} ${isFinalStandings ? "ring-1 ring-amber-500/40" : ""}`}
-                        title={isFinalStandings ? "Send FINAL standings to Discord" : "Send to Discord"}
-                    >
-                        {isSendingDiscord ? (
-                            <div className="h-5 w-5 border-2 border-[#5865F2] border-t-transparent rounded-full animate-spin" />
-                        ) : discordSent ? (
-                            <Check className="h-5 w-5 text-[#5865F2]" />
-                        ) : (
-                            <Send className="h-5 w-5" />
-                        )}
-                    </button>
 
 
-
-                    {/* Send to WhatsApp Button */}
-                    <button
-                        onClick={sendToWhatsApp}
-                        disabled={isSendingWA}
-                        className={`relative overflow-hidden text-white hover:text-green-400 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-green-500/50 p-2.5 rounded-xl transition-all duration-300 ${waSent ? "bg-green-500/20 border-green-500/50" : ""}`}
-                        title="Send to WhatsApp group"
-                    >
-                        {isSendingWA ? (
-                            <div className="h-5 w-5 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
-                        ) : waSent ? (
-                            <Check className="h-5 w-5 text-green-400" />
-                        ) : (
-                            <MessageCircle className="h-5 w-5" />
-                        )}
-                    </button>
-
-                    {/* Copy AI Prompt Button */}
-                    <button
-                        onClick={copyAIPrompt}
-                        className={`text-white hover:text-fuchsia-400 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-fuchsia-500/50 p-2.5 rounded-xl transition-all duration-300 ${promptCopied ? "bg-fuchsia-500/20 border-fuchsia-500/50" : ""}`}
-                        title="Copy AI image prompt for Gemini"
-                    >
-                        {promptCopied ? (
-                            <Check className="h-5 w-5 text-fuchsia-400" />
-                        ) : (
-                            <Sparkles className="h-5 w-5" />
-                        )}
-                    </button>
 
                     {/* Settings Button */}
                     <button
