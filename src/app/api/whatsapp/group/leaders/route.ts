@@ -50,14 +50,18 @@ export async function GET(req: NextRequest) {
 
     const isChampionship = tournament.poll?.isChampionship ?? false;
 
-    // Build captain map
+    // Build captain map + squad full name map
     const captainMap = new Map<string, boolean>();
+    const captainFullNameMap = new Map<string, string>(); // captainId → fullName || name
     if (tournament.poll?.id && tournament.poll.allowSquads) {
         const squads = await prisma.squad.findMany({
             where: { pollId: tournament.poll.id, status: "REGISTERED" },
-            select: { captainId: true },
+            select: { captainId: true, name: true, fullName: true },
         });
-        for (const s of squads) captainMap.set(s.captainId, true);
+        for (const s of squads) {
+            captainMap.set(s.captainId, true);
+            captainFullNameMap.set(s.captainId, s.fullName || s.name);
+        }
     }
 
     // Build championship entry map: teamId -> { group, phase, status }
@@ -116,9 +120,11 @@ export async function GET(req: NextRequest) {
                 .filter(p => p.id !== leader.id)
                 .map(p => p.displayName || "Unknown");
             const entry = entryMap.get(t.id);
+            // Use squad fullName (longer name) for WhatsApp messages, fall back to team.name
+            const squadFullName = captainFullNameMap.get(leader.id);
             return {
                 teamNumber: t.teamNumber,
-                teamName: t.name,
+                teamName: squadFullName || t.name,
                 group: entry?.group || null,
                 phase: entry?.phase || null,
                 status: entry?.status || null,
