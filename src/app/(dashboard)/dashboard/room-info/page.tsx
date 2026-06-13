@@ -12,6 +12,7 @@ interface InPlayTournament {
     name: string;
     type: string;
     hasTeams: boolean;
+    hasSquads: boolean;
     allowSquads: boolean;
     seasonName: string | null;
 }
@@ -273,11 +274,11 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
 
     // Auto-load leaders
     useEffect(() => {
-        if (tournament.hasTeams && !leadersData) {
+        if ((tournament.hasTeams || tournament.hasSquads) && !leadersData) {
             loadLeaders();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tournament.id, tournament.hasTeams]);
+    }, [tournament.id, tournament.hasTeams, tournament.hasSquads]);
 
     const loadLeaders = async () => {
         setLoadingLeaders(true);
@@ -316,7 +317,7 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
     const phase = leadersData?.currentPhase || "HEATS";
     const isChamp = leadersData?.isChampionship || false;
 
-    const initialLoading = loadingGroup || (tournament.hasTeams && loadingLeaders && !leadersData);
+    const initialLoading = loadingGroup || ((tournament.hasTeams || tournament.hasSquads) && loadingLeaders && !leadersData);
 
     if (initialLoading) {
         return (
@@ -426,14 +427,14 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
                 );
             })()}
             {/* No teams yet */}
-            {!tournament.hasTeams && (
+            {!tournament.hasTeams && !tournament.hasSquads && (
                 <div className="rounded-lg bg-default-50 border border-divider p-3 text-center">
-                    <p className="text-[11px] text-foreground/40">Teams not generated yet</p>
+                    <p className="text-[11px] text-foreground/40">No teams or squads yet</p>
                 </div>
             )}
 
             {/* Leaders list */}
-            {tournament.hasTeams && (
+            {(tournament.hasTeams || tournament.hasSquads) && (
                 <LeadersList
                     tournamentId={tournament.id}
                     leaders={leaders}

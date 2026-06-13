@@ -36,6 +36,17 @@ export async function GET() {
             orderBy: { createdAt: "desc" },
         });
 
+        // Check which polls have registered/full squads (for pre-team leader messaging)
+        const pollIds = tournaments.map(t => t.poll?.id).filter(Boolean) as string[];
+        const squadCounts = pollIds.length > 0
+            ? await prisma.squad.groupBy({
+                by: ["pollId"],
+                where: { pollId: { in: pollIds }, status: { in: ["FORMING", "FULL", "REGISTERED"] } },
+                _count: { id: true },
+            })
+            : [];
+        const squadCountMap = new Map(squadCounts.map(s => [s.pollId, s._count.id]));
+
         return SuccessResponse({
             data: tournaments.map((t) => {
                 const isChampionship = t.poll?.isChampionship ?? false;
@@ -49,6 +60,7 @@ export async function GET() {
                     type: t.type,
                     seasonName: t.season?.name ?? null,
                     hasTeams: t._count.teams > 0,
+                    hasSquads: (t.poll?.allowSquads && (squadCountMap.get(t.poll?.id ?? "") ?? 0) > 0) || false,
                     pollId: t.poll?.id ?? null,
                     allowSquads: t.poll?.allowSquads ?? false,
                     question: t.poll?.question ?? t.name,

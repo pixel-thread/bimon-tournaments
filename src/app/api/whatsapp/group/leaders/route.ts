@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
         const squads = await prisma.squad.findMany({
             where: {
                 pollId: tournament.poll.id,
-                status: { in: ["REGISTERED", "FULL"] },
+                status: { in: ["FORMING", "FULL", "REGISTERED"] },
             },
             select: {
                 name: true,
