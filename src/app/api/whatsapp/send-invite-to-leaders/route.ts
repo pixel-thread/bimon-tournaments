@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
                         `Join kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:`,
                         inviteLink,
                         ``,
-                        `Sngewbha share lang ia kane ka link sha kine ki teammates phi ha rum, ba kin ioh lang ia ka Room ID. Khublei! 🙏`,
+                        `Sngewbha share lang ia kane ka link sha kine ki teammates phi, ba kin ioh lang ia ka Room ID. Khublei! 🙏`,
                         ``,
                         getRandomSpiritLine(),
                     ].join("\n");

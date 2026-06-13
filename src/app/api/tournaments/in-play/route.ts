@@ -17,6 +17,7 @@ export async function GET() {
                 id: true,
                 name: true,
                 type: true,
+                season: { select: { name: true } },
                 _count: { select: { teams: true } },
                 poll: {
                     select: {
@@ -46,6 +47,7 @@ export async function GET() {
                     id: t.id,
                     name: t.name,
                     type: t.type,
+                    seasonName: t.season?.name ?? null,
                     hasTeams: t._count.teams > 0,
                     pollId: t.poll?.id ?? null,
                     allowSquads: t.poll?.allowSquads ?? false,

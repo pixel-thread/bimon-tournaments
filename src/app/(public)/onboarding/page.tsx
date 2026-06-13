@@ -453,7 +453,7 @@ export default function OnboardingPage() {
                         {requiresPhone && (
                             <div>
                                 <label className="text-sm font-medium text-foreground/70 mb-2 block">
-                                    Phone Number <span className="text-danger text-xs">*</span>
+                                    WhatsApp Number <span className="text-danger text-xs">*</span>
                                 </label>
                                 <Input
                                     value={phoneNumber}
@@ -473,7 +473,7 @@ export default function OnboardingPage() {
                                     isInvalid={!!phoneError}
                                     errorMessage={phoneError}
                                     color={phoneError ? "danger" : "default"}
-                                    description={!phoneError ? "WhatsApp preferred — keeps you updated on match details" : undefined}
+                                    description={!phoneError ? "Your WhatsApp number — Room ID will be sent here" : undefined}
                                     classNames={{
                                         inputWrapper: "!border-default-400",
                                     }}

@@ -193,8 +193,7 @@ export default function VotePage() {
             {/* ── Merit Rating (non-blocking, above polls) ────── */}
             <MeritRatingSection />
 
-            {/* ── Room Info (UC exempt only — admins use /dashboard/room-info) ── */}
-            {isUCExempt && !isAdmin && <RoomInfoGenerator />}
+            {/* Room info hidden — room IDs sent via WhatsApp now */}
 
             {/* ── Casual / Ranked Tabs (premium animated) ── */}
             {hasBothTypes && (

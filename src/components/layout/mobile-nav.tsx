@@ -56,7 +56,7 @@ export function MobileNav() {
     const pendingClanInviteCount = useClanInviteCount();
 
     // Dynamic Games/My Slot tab — reads cached my-game data (no extra API call)
-    const myGameData = useQuery({ queryKey: ["my-game"], enabled: false }).data as { active?: boolean } | undefined;
+    const myGameData = useQuery({ queryKey: ["my-game"], queryFn: () => null, enabled: false }).data as { active?: boolean } | undefined;
     const hasActiveSlot = !!myGameData?.active;
     const tabs: Tab[] = [
         ...baseTabs,
