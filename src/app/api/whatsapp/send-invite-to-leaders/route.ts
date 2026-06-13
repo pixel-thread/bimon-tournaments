@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
                     const jid = exists.jid;
                     console.log(`[SendInvite] ${leader.name} (T${leader.teamNumber}): ${leader.phone} → ${jid}`);
 
+                    const { getRandomSpiritLine } = await import("@/lib/spirit-lines");
                     const message = [
                         `Hi! 👋 Phi dei u leader jong ka *${leader.teamName}*.`,
                         ``,
@@ -153,6 +154,8 @@ export async function POST(req: NextRequest) {
                         inviteLink,
                         ``,
                         `Sngewbha share lang ia kane ka link sha kine ki teammates phi ha rum, ba kin ioh lang ia ka Room ID. Khublei! 🙏`,
+                        ``,
+                        getRandomSpiritLine(),
                     ].join("\n");
 
                     // Longer delay between messages to avoid spam detection

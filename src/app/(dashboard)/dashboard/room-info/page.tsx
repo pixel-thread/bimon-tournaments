@@ -8,6 +8,7 @@ import { Card, CardBody } from "@heroui/react";
 import { KeyRound, Shield, BookOpen, Send, Check, ChevronDown, Phone, Users, RefreshCw, UserCheck, Link } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { toast } from "sonner";
+import { SPIRIT_LINES } from "@/lib/spirit-lines";
 
 interface InPlayTournament {
     id: string;
@@ -926,8 +927,9 @@ function MembersTab({
                     const teammatesList = l.teammates.length > 0
                         ? `\nKi teammates phi:\n${l.teammates.map(t => `• ${t}`).join("\n")}`
                         : "";
+                    const spiritLine = SPIRIT_LINES[(l.teamNumber + Date.now() % 97) % SPIRIT_LINES.length];
                     const waText = encodeURIComponent(
-                        `Hi ${l.name}! 👋 Phi dei u leader jong ka *${l.teamName}* haka *${tName}*.\n\nJoin kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:\n${invLink || ""}\n\nSngewbha share lang ia kane ka link sha kine ki teammates phi ha rum, ba kin ioh lang ia ka Room ID. Khublei! 🙏${teammatesList}`
+                        `Hi ${l.name}! 👋 Phi dei u leader jong ka *${l.teamName}* haka *${tName}*.\n\nJoin kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:\n${invLink || ""}\n\nSngewbha share lang ia kane ka link sha kine ki teammates phi ha rum, ba kin ioh lang ia ka Room ID. Khublei! 🙏${teammatesList}\n\n${spiritLine}`
                     );
                     const waUrl = `https://wa.me/${fullPhone}?text=${waText}`;
 
