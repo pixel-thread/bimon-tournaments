@@ -13,6 +13,7 @@ interface InPlayTournament {
     id: string;
     name: string;
     type: string;
+    hasTeams: boolean;
     allowSquads: boolean;
 }
 
@@ -514,8 +515,30 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
     const [membersData, setMembersData] = useState<Record<string, MembersData>>({});
     const [checkingMembers, setCheckingMembers] = useState<string | null>(null);
     const [leadersData, setLeadersData] = useState<Record<string, { tournamentName: string; leaders: { teamNumber: number; name: string; phone: string | null; teammates: string[] }[]; inviteLink: string | null }>>({});
-    const [sentLeaders, setSentLeaders] = useState<Record<string, Set<number>>>({});
+    const [sentLeaders, setSentLeaders] = useState<Record<string, Set<number>>>(() => {
+        if (typeof window === "undefined") return {};
+        try {
+            const saved = localStorage.getItem("wa-sent-leaders");
+            if (!saved) return {};
+            const parsed = JSON.parse(saved);
+            // Convert arrays back to Sets
+            const result: Record<string, Set<number>> = {};
+            for (const [tid, nums] of Object.entries(parsed)) {
+                result[tid] = new Set(nums as number[]);
+            }
+            return result;
+        } catch { return {}; }
+    });
     const [showSettings, setShowSettings] = useState<Record<string, boolean>>({});
+
+    // Persist sentLeaders to localStorage
+    useEffect(() => {
+        const serialized: Record<string, number[]> = {};
+        for (const [tid, set] of Object.entries(sentLeaders)) {
+            serialized[tid] = [...set];
+        }
+        localStorage.setItem("wa-sent-leaders", JSON.stringify(serialized));
+    }, [sentLeaders]);
 
     // Fetch group status for each tournament
     useEffect(() => {
@@ -730,8 +753,8 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
                                     </div>
                                 )}
 
-                                {/* Has group — flat layout: Manual Send + Status + Settings */}
-                                {hasGroup && (
+                                {/* Has group — show content based on whether teams exist */}
+                                {hasGroup && t.hasTeams && (
                                     <MembersTab
                                         tournamentId={t.id}
                                         status={status}
@@ -766,6 +789,16 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
                                         isSettingsOpen={isSettingsOpen}
                                         onToggleSettings={() => setShowSettings(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
                                     />
+                                )}
+
+                                {/* Group ready but no teams generated yet */}
+                                {hasGroup && !t.hasTeams && (
+                                    <div className="rounded-lg bg-blue-500/5 border border-blue-500/15 p-3 text-center space-y-1">
+                                        <p className="text-xs font-semibold text-blue-400">✅ Group ready!</p>
+                                        <p className="text-[10px] text-foreground/40">
+                                            Generate teams to start sending invites to leaders
+                                        </p>
+                                    </div>
                                 )}
                             </div>
                         );
@@ -843,7 +876,18 @@ function MembersTab({
 
             {/* ── 1. Manual Send List (primary section) ── */}
             <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold text-foreground/50">📋 Manual Send</p>
+                <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold text-foreground/50">📋 Manual Send</p>
+                    {leaders && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            (sentLeaders[tournamentId]?.size || 0) === leaders.leaders.filter(l => l.phone).length
+                                ? "bg-green-500/15 text-green-500"
+                                : "bg-foreground/5 text-foreground/40"
+                        }`}>
+                            {sentLeaders[tournamentId]?.size || 0}/{leaders.leaders.filter(l => l.phone).length}
+                        </span>
+                    )}
+                </div>
                 <button
                     type="button"
                     onClick={() => {
@@ -879,10 +923,10 @@ function MembersTab({
                         const cleanPhone = l.phone?.replace(/[^0-9]/g, "") || "";
                         const fullPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
                         const teammatesList = l.teammates.length > 0
-                            ? `\nYour teammates:\n${l.teammates.map(t => `• ${t}`).join("\n")}`
+                            ? `\nKi teammates phi:\n${l.teammates.map(t => `• ${t}`).join("\n")}`
                             : "";
                         const waText = encodeURIComponent(
-                            `Hi ${l.name}! 👋 You are the leader of Team ${l.teamNumber} in *${tName}*.\n\nJoin this WhatsApp group to get Room ID and other info:\n${invLink || ""}\n\nPlease share this link with your teammates too. Thank you! 🙏${teammatesList}`
+                            `Hi ${l.name}! 👋 Phi dei u leader jong ka Team ${l.teamNumber} haka *${tName}*.\n\nJoin kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:\n${invLink || ""}\n\nSngewbha share lang ia kane ka link sha kine ki teammates phi ha rum, ba kin ioh lang ia ka Room ID. Khublei! 🙏${teammatesList}`
                         );
                         const waUrl = `https://wa.me/${fullPhone}?text=${waText}`;
 
@@ -901,7 +945,14 @@ function MembersTab({
                                 </div>
                                 {l.phone ? (
                                     isSent ? (
-                                        <span className="text-[10px] text-green-500 font-bold shrink-0">Sent ✓</span>
+                                        <a
+                                            href={waUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-foreground/5 text-foreground/40 hover:bg-foreground/10 transition-colors cursor-pointer shrink-0"
+                                        >
+                                            Resend
+                                        </a>
                                     ) : (
                                         <a
                                             href={waUrl}

@@ -3,8 +3,8 @@ import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 
 /**
  * GET /api/tournaments/in-play
- * Returns tournaments that are ACTIVE, have teams generated, and winner not yet declared.
- * Used by the Room Info Generator to show in-play tournaments.
+ * Returns ACTIVE tournaments (with or without teams).
+ * Used by Room Info and WhatsApp Groups pages.
  */
 export async function GET() {
     try {
@@ -12,12 +12,12 @@ export async function GET() {
             where: {
                 status: "ACTIVE",
                 isWinnerDeclared: false,
-                teams: { some: {} },
             },
             select: {
                 id: true,
                 name: true,
                 type: true,
+                _count: { select: { teams: true } },
                 poll: {
                     select: {
                         id: true,
@@ -46,6 +46,7 @@ export async function GET() {
                     id: t.id,
                     name: t.name,
                     type: t.type,
+                    hasTeams: t._count.teams > 0,
                     pollId: t.poll?.id ?? null,
                     allowSquads: t.poll?.allowSquads ?? false,
                     question: t.poll?.question ?? t.name,

@@ -133,12 +133,12 @@ export async function POST(req: NextRequest) {
                     console.log(`[SendInvite] ${leader.name} (T${leader.teamNumber}): ${leader.phone} → ${jid}`);
 
                     const message = [
-                        `Hi! 👋 You are the leader of Team ${leader.teamNumber}.`,
+                        `Hi! 👋 Phi dei u leader jong ka Team ${leader.teamNumber}.`,
                         ``,
-                        `Join this WhatsApp group to get Room ID and other info:`,
+                        `Join kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:`,
                         inviteLink,
                         ``,
-                        `You can share this link to your teammates who participate in this tournament. Thank you! 🙏`,
+                        `Sngewbha share lang ia kane ka link sha kine ki teammates phi ha rum, ba kin ioh lang ia ka Room ID. Khublei! 🙏`,
                     ].join("\n");
 
                     // Longer delay between messages to avoid spam detection
