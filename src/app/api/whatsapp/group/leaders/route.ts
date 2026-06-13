@@ -64,26 +64,49 @@ export async function GET(req: NextRequest) {
     const entryMap = new Map<string, { group: string | null; phase: string; status: string }>();
     let currentPhase = "HEATS";
     if (isChampionship) {
-        const entries = await prisma.championshipEntry.findMany({
-            where: { tournamentId },
-            select: { teamId: true, group: true, phase: true, status: true },
-        });
+        const [entries, champMatches] = await Promise.all([
+            prisma.championshipEntry.findMany({
+                where: { tournamentId },
+                select: { teamId: true, group: true, phase: true, status: true },
+            }),
+            prisma.match.findMany({
+                where: { tournamentId, phase: { not: null } },
+                select: { phase: true },
+            }),
+        ]);
         for (const e of entries) {
             entryMap.set(e.teamId, { group: e.group, phase: e.phase, status: e.status });
         }
-        // Determine current phase from active entries
-        const activeEntry = entries.find(e => e.status === "ACTIVE");
-        if (activeEntry) currentPhase = activeEntry.phase;
+        // Determine current phase from matches (same logic as teams page)
+        const matchPhases = new Set(champMatches.map(m => m.phase));
+        if (matchPhases.has("FINALS")) {
+            currentPhase = "FINALS";
+        } else if (matchPhases.has("WILDCARD")) {
+            currentPhase = "WILDCARD";
+        } else {
+            currentPhase = "HEATS";
+        }
     }
 
     const leaders = tournament.teams
         .filter(t => {
             if (t.players.length === 0) return false;
-            // For championship: exclude eliminated and standby teams
             if (isChampionship) {
                 const entry = entryMap.get(t.id);
                 if (!entry) return false;
+                // Always exclude eliminated and standby
                 if (entry.status === "ELIMINATED" || entry.status === "STANDBY") return false;
+                // Filter by current phase to match teams page
+                if (currentPhase === "HEATS") {
+                    // During heats: show all ACTIVE teams
+                    return entry.status === "ACTIVE";
+                } else if (currentPhase === "WILDCARD") {
+                    // During wildcard: show wildcard teams + direct qualifiers
+                    return entry.status === "WILDCARD" || entry.status === "ACTIVE" || entry.status === "QUALIFIED";
+                } else if (currentPhase === "FINALS") {
+                    // During finals: show only finalists (ACTIVE in finals phase)
+                    return entry.phase === "FINALS" && (entry.status === "ACTIVE" || entry.status === "QUALIFIED");
+                }
             }
             return true;
         })
