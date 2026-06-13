@@ -18,6 +18,7 @@ import {
     MessageCircle,
     RefreshCw,
     Sparkles,
+    Download,
 } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
@@ -393,13 +394,7 @@ export function StandingsModal({
                 }
             }
 
-            // Fallback: download
-            const link = document.createElement("a");
-            link.download = file.name;
-            link.href = dataUrl;
-            link.click();
-            setShareSuccess(true);
-            setTimeout(() => setShareSuccess(false), 2000);
+            toast.error("Could not copy — use the download button instead");
         } catch (error) {
             console.error("Screenshot error:", error);
             toast.error("Failed to capture screenshot");
@@ -408,6 +403,7 @@ export function StandingsModal({
             setIsSharing(false);
         }
     }, [tournamentTitle, backgroundImage, standings]);
+
 
     // ── Capture screenshot as data URL (shared helper) ────────
     // Uses landscape two-col layout with boosted DPI for Discord clarity
@@ -470,6 +466,27 @@ export function StandingsModal({
             document.body.removeChild(tempContainer);
         }
     }, [backgroundImage, standings, detectedChampionship]);
+
+    // ── Download image ───────────────────────────────────────
+
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const downloadImage = useCallback(async () => {
+        setIsDownloading(true);
+        try {
+            const dataUrl = await captureScreenshot();
+            if (!dataUrl) { setIsDownloading(false); return; }
+            const link = document.createElement("a");
+            link.download = `${(tournamentTitle || "standings").replace(/\s+/g, "-")}-standings.jpg`;
+            link.href = dataUrl;
+            link.click();
+        } catch (error) {
+            console.error("Download error:", error);
+            toast.error("Failed to download");
+        } finally {
+            setIsDownloading(false);
+        }
+    }, [tournamentTitle, captureScreenshot]);
 
     // ── Send to Discord ───────────────────────────────────────
 
@@ -733,6 +750,20 @@ Make it look premium and professional — suitable for posting on a tournament w
                             <Check className="h-5 w-5 text-green-400" />
                         ) : (
                             <Copy className="h-5 w-5" />
+                        )}
+                    </button>
+
+                    {/* Download */}
+                    <button
+                        onClick={downloadImage}
+                        disabled={isDownloading}
+                        className="text-white hover:text-blue-400 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-blue-500/50 p-2.5 rounded-xl transition-all duration-300"
+                        title="Download image"
+                    >
+                        {isDownloading ? (
+                            <div className="h-5 w-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <Download className="h-5 w-5" />
                         )}
                     </button>
 

@@ -5,6 +5,9 @@ import { prisma } from "@/lib/database";
 /**
  * GET /api/whatsapp/group/leaders?tournamentId=xxx
  * Returns team leaders with phone numbers for manual WhatsApp messaging.
+ * Works in two modes:
+ *   1. Post-generation: reads from tournament.teams (existing flow)
+ *   2. Pre-generation:  reads directly from squads when no teams exist yet
  * For championship tournaments, includes group assignment and per-group invite links.
  */
 export async function GET(req: NextRequest) {
@@ -49,6 +52,69 @@ export async function GET(req: NextRequest) {
     }
 
     const isChampionship = tournament.poll?.isChampionship ?? false;
+    const hasTeams = tournament.teams.length > 0;
+
+    // ═══════════════════════════════════════════════════════════════
+    // PRE-GENERATION: no teams yet — build leaders from squads
+    // ═══════════════════════════════════════════════════════════════
+    if (!hasTeams && tournament.poll?.id && tournament.poll.allowSquads) {
+        const squads = await prisma.squad.findMany({
+            where: {
+                pollId: tournament.poll.id,
+                status: { in: ["REGISTERED", "FULL"] },
+            },
+            select: {
+                name: true,
+                fullName: true,
+                captain: {
+                    select: {
+                        id: true,
+                        displayName: true,
+                        phoneNumber: true,
+                    },
+                },
+                invites: {
+                    where: { status: "ACCEPTED" },
+                    select: {
+                        player: {
+                            select: { id: true, displayName: true },
+                        },
+                    },
+                },
+            },
+            orderBy: { createdAt: "asc" },
+        });
+
+        const leaders = squads.map((sq, idx) => {
+            const teammates = sq.invites
+                .filter(inv => inv.player.id !== sq.captain.id)
+                .map(inv => inv.player.displayName || "Unknown");
+            return {
+                teamNumber: idx + 1,
+                teamName: sq.fullName || sq.name,
+                group: null,
+                phase: null,
+                status: null,
+                name: sq.captain.displayName || "Unknown",
+                phone: sq.captain.phoneNumber || null,
+                teammates,
+            };
+        });
+
+        return NextResponse.json({
+            tournamentName: tournament.name,
+            isChampionship,
+            currentPhase: null,
+            leaders,
+            inviteLink: tournament.whatsappInviteLink || null,
+            channelInvites: {},
+            preGeneration: true,
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // POST-GENERATION: teams exist — existing flow
+    // ═══════════════════════════════════════════════════════════════
 
     // Build captain map + squad full name map
     const captainMap = new Map<string, boolean>();
@@ -98,17 +164,12 @@ export async function GET(req: NextRequest) {
             if (isChampionship) {
                 const entry = entryMap.get(t.id);
                 if (!entry) return false;
-                // Always exclude eliminated and standby
                 if (entry.status === "ELIMINATED" || entry.status === "STANDBY") return false;
-                // Filter by current phase to match teams page
                 if (currentPhase === "HEATS") {
-                    // During heats: show all ACTIVE teams
                     return entry.status === "ACTIVE";
                 } else if (currentPhase === "WILDCARD") {
-                    // During wildcard: show wildcard teams + direct qualifiers
                     return entry.status === "WILDCARD" || entry.status === "ACTIVE" || entry.status === "QUALIFIED";
                 } else if (currentPhase === "FINALS") {
-                    // During finals: show only finalists (ACTIVE in finals phase)
                     return entry.phase === "FINALS" && (entry.status === "ACTIVE" || entry.status === "QUALIFIED");
                 }
             }

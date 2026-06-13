@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toPng, toJpeg } from "html-to-image";
 import { toast } from "sonner";
-import { X, Copy, Check, Send, Loader2, MessageCircle } from "lucide-react";
+import { X, Copy, Check, Send, Loader2, MessageCircle, Download } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -224,18 +224,33 @@ export function SlotsModal({
                 }
             }
 
-            // Fallback: download
-            const link = document.createElement("a");
-            link.download = file.name;
-            link.href = dataUrl;
-            link.click();
-            setShareSuccess(true);
-            setTimeout(() => setShareSuccess(false), 2000);
+            toast.error("Could not copy — use the download button instead");
         } catch (error) {
             console.error("Screenshot error:", error);
             toast.error("Failed to capture screenshot");
         } finally {
             setIsSharing(false);
+        }
+    }, [tournamentTitle, captureImage]);
+
+    // ── Download image ───────────────────────────────────────
+
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const downloadImage = useCallback(async () => {
+        setIsDownloading(true);
+        try {
+            const dataUrl = await captureImage();
+            if (!dataUrl) { setIsDownloading(false); return; }
+            const link = document.createElement("a");
+            link.download = `${(tournamentTitle || "teams").replace(/\s+/g, "-")}-teams.jpg`;
+            link.href = dataUrl;
+            link.click();
+        } catch (error) {
+            console.error("Download error:", error);
+            toast.error("Failed to download");
+        } finally {
+            setIsDownloading(false);
         }
     }, [tournamentTitle, captureImage]);
 
@@ -401,6 +416,20 @@ export function SlotsModal({
                             <Check className="h-5 w-5 text-green-400" />
                         ) : (
                             <Copy className="h-5 w-5" />
+                        )}
+                    </button>
+
+                    {/* Download */}
+                    <button
+                        onClick={downloadImage}
+                        disabled={isDownloading}
+                        className="text-white hover:text-blue-400 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 hover:border-blue-500/50 p-2.5 rounded-xl transition-all duration-300"
+                        title="Download image"
+                    >
+                        {isDownloading ? (
+                            <div className="h-5 w-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <Download className="h-5 w-5" />
                         )}
                     </button>
 
