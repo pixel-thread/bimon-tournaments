@@ -60,29 +60,45 @@ export async function GET(req: NextRequest) {
         for (const s of squads) captainMap.set(s.captainId, true);
     }
 
-    // Build group map for championship
-    const groupMap = new Map<string, string>(); // teamId -> group letter
+    // Build championship entry map: teamId -> { group, phase, status }
+    const entryMap = new Map<string, { group: string | null; phase: string; status: string }>();
+    let currentPhase = "HEATS";
     if (isChampionship) {
         const entries = await prisma.championshipEntry.findMany({
-            where: { tournamentId, status: "ACTIVE" },
-            select: { teamId: true, group: true },
+            where: { tournamentId },
+            select: { teamId: true, group: true, phase: true, status: true },
         });
         for (const e of entries) {
-            if (e.group) groupMap.set(e.teamId, e.group);
+            entryMap.set(e.teamId, { group: e.group, phase: e.phase, status: e.status });
         }
+        // Determine current phase from active entries
+        const activeEntry = entries.find(e => e.status === "ACTIVE");
+        if (activeEntry) currentPhase = activeEntry.phase;
     }
 
     const leaders = tournament.teams
-        .filter(t => t.players.length > 0)
+        .filter(t => {
+            if (t.players.length === 0) return false;
+            // For championship: exclude eliminated and standby teams
+            if (isChampionship) {
+                const entry = entryMap.get(t.id);
+                if (!entry) return false;
+                if (entry.status === "ELIMINATED" || entry.status === "STANDBY") return false;
+            }
+            return true;
+        })
         .map(t => {
             const leader = t.players.find(p => captainMap.has(p.id)) || t.players[0];
             const teammates = t.players
                 .filter(p => p.id !== leader.id)
                 .map(p => p.displayName || "Unknown");
+            const entry = entryMap.get(t.id);
             return {
                 teamNumber: t.teamNumber,
                 teamName: t.name,
-                group: groupMap.get(t.id) || null,
+                group: entry?.group || null,
+                phase: entry?.phase || null,
+                status: entry?.status || null,
                 name: leader.displayName || "Unknown",
                 phone: leader.phoneNumber || null,
                 teammates,
@@ -97,6 +113,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
         tournamentName: tournament.name,
         isChampionship,
+        currentPhase: isChampionship ? currentPhase : null,
         leaders,
         inviteLink: tournament.whatsappInviteLink || null,
         channelInvites,

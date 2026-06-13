@@ -514,7 +514,7 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
     const [groupStatus, setGroupStatus] = useState<Record<string, { hasGroup: boolean; inviteLink?: string }>>({});
     const [membersData, setMembersData] = useState<Record<string, MembersData>>({});
     const [checkingMembers, setCheckingMembers] = useState<string | null>(null);
-    const [leadersData, setLeadersData] = useState<Record<string, { tournamentName: string; isChampionship: boolean; leaders: { teamNumber: number; teamName: string; group: string | null; name: string; phone: string | null; teammates: string[] }[]; inviteLink: string | null; channelInvites: Record<string, string> }>>({});
+    const [leadersData, setLeadersData] = useState<Record<string, { tournamentName: string; isChampionship: boolean; currentPhase: string | null; leaders: { teamNumber: number; teamName: string; group: string | null; phase: string | null; status: string | null; name: string; phone: string | null; teammates: string[] }[]; inviteLink: string | null; channelInvites: Record<string, string> }>>({});
     const [sentLeaders, setSentLeaders] = useState<Record<string, Set<number>>>(() => {
         if (typeof window === "undefined") return {};
         try {
@@ -818,7 +818,7 @@ interface MembersTabProps {
     sendingInvites: string | null;
     checkingMembers: string | null;
     membersData: Record<string, MembersData>;
-    leadersData: Record<string, { tournamentName: string; isChampionship: boolean; leaders: { teamNumber: number; teamName: string; group: string | null; name: string; phone: string | null; teammates: string[] }[]; inviteLink: string | null; channelInvites: Record<string, string> }>;
+    leadersData: Record<string, { tournamentName: string; isChampionship: boolean; currentPhase: string | null; leaders: { teamNumber: number; teamName: string; group: string | null; phase: string | null; status: string | null; name: string; phone: string | null; teammates: string[] }[]; inviteLink: string | null; channelInvites: Record<string, string> }>;
     sentLeaders: Record<string, Set<number>>;
     onAddLeaders: (tid: string) => void;
     onSendInvites: (tid: string) => void;
@@ -973,8 +973,47 @@ function MembersTab({
                     );
                 };
 
-                // Championship mode: Main Group + per-group sections
+                // Championship mode: phase-aware rendering
                 if (leaders.isChampionship) {
+                    const phase = leaders.currentPhase || "HEATS";
+                    const mainInvLink = leaders.inviteLink || status?.inviteLink;
+                    const allSent = leaders.leaders.filter(l => l.phone && sentLeaders[tournamentId]?.has(l.teamNumber)).length;
+                    const allTotal = leaders.leaders.filter(l => l.phone).length;
+
+                    const phaseLabel = phase === "HEATS" ? "Heats" : phase === "WILDCARD" ? "Wildcard" : "Finals";
+
+                    // WILDCARD / FINALS — flat list (no group split)
+                    if (phase !== "HEATS") {
+                        const phaseInvLink = leaders.channelInvites[phase] || mainInvLink;
+                        return (
+                            <div className="space-y-2">
+                                <div className="rounded-lg border border-divider overflow-hidden">
+                                    <div className="flex items-center justify-between px-2.5 py-1.5 bg-default-50">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[11px] font-bold">🏆 {phaseLabel}</span>
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                                allSent === allTotal && allTotal > 0
+                                                    ? "bg-green-500/15 text-green-500"
+                                                    : "bg-foreground/5 text-foreground/40"
+                                            }`}>
+                                                {allSent}/{allTotal}
+                                            </span>
+                                        </div>
+                                        {phaseInvLink ? (
+                                            <span className="text-[9px] text-green-500 font-medium">Link ✓</span>
+                                        ) : (
+                                            <span className="text-[9px] text-amber-500 font-medium">No link</span>
+                                        )}
+                                    </div>
+                                    <div className="space-y-0.5 p-1 max-h-60 overflow-y-auto">
+                                        {leaders.leaders.map(l => renderLeader(l, phaseInvLink || undefined))}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // HEATS — Main Group + Group A / B sections
                     const groups = new Map<string, typeof leaders.leaders>();
                     for (const l of leaders.leaders) {
                         const g = l.group || "?";
@@ -982,9 +1021,6 @@ function MembersTab({
                         groups.get(g)!.push(l);
                     }
                     const sortedGroups = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-                    const mainInvLink = leaders.inviteLink || status?.inviteLink;
-                    const allSent = leaders.leaders.filter(l => l.phone && sentLeaders[tournamentId]?.has(l.teamNumber)).length;
-                    const allTotal = leaders.leaders.filter(l => l.phone).length;
 
                     return (
                         <div className="space-y-2">
@@ -1012,7 +1048,7 @@ function MembersTab({
                                 </div>
                             </div>
 
-                            {/* Per-group sections */}
+                            {/* Per-group sections (A, B, ...) */}
                             {sortedGroups.map(([groupLetter, groupLeaders]) => {
                                 const groupInvLink = leaders.channelInvites[groupLetter];
                                 const groupSent = groupLeaders.filter(l => l.phone && sentLeaders[tournamentId]?.has(l.teamNumber)).length;
