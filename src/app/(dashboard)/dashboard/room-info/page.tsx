@@ -514,7 +514,7 @@ function WhatsAppGroupManager({ tournaments }: { tournaments: InPlayTournament[]
     const [groupStatus, setGroupStatus] = useState<Record<string, { hasGroup: boolean; inviteLink?: string }>>({});
     const [membersData, setMembersData] = useState<Record<string, MembersData>>({});
     const [checkingMembers, setCheckingMembers] = useState<string | null>(null);
-    const [leadersData, setLeadersData] = useState<Record<string, { tournamentName: string; leaders: { teamNumber: number; name: string; phone: string | null; teammates: string[] }[]; inviteLink: string | null }>>({});
+    const [leadersData, setLeadersData] = useState<Record<string, { tournamentName: string; isChampionship: boolean; leaders: { teamNumber: number; teamName: string; group: string | null; name: string; phone: string | null; teammates: string[] }[]; inviteLink: string | null; channelInvites: Record<string, string> }>>({});
     const [sentLeaders, setSentLeaders] = useState<Record<string, Set<number>>>(() => {
         if (typeof window === "undefined") return {};
         try {
@@ -818,7 +818,7 @@ interface MembersTabProps {
     sendingInvites: string | null;
     checkingMembers: string | null;
     membersData: Record<string, MembersData>;
-    leadersData: Record<string, { tournamentName: string; leaders: { teamNumber: number; name: string; phone: string | null; teammates: string[] }[]; inviteLink: string | null }>;
+    leadersData: Record<string, { tournamentName: string; isChampionship: boolean; leaders: { teamNumber: number; teamName: string; group: string | null; name: string; phone: string | null; teammates: string[] }[]; inviteLink: string | null; channelInvites: Record<string, string> }>;
     sentLeaders: Record<string, Set<number>>;
     onAddLeaders: (tid: string) => void;
     onSendInvites: (tid: string) => void;
@@ -914,65 +914,146 @@ function MembersTab({
                 </div>
             )}
 
-            {leaders && (
-                <div className="space-y-1 max-h-60 overflow-y-auto">
-                    {leaders.leaders.map((l) => {
-                        const isSent = sentLeaders[tournamentId]?.has(l.teamNumber);
-                        const invLink = leaders.inviteLink || status?.inviteLink;
-                        const tName = leaders.tournamentName;
-                        const cleanPhone = l.phone?.replace(/[^0-9]/g, "") || "";
-                        const fullPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
-                        const teammatesList = l.teammates.length > 0
-                            ? `\nKi teammates phi:\n${l.teammates.map(t => `• ${t}`).join("\n")}`
-                            : "";
-                        const waText = encodeURIComponent(
-                            `Hi ${l.name}! 👋 Phi dei u leader jong ka Team ${l.teamNumber} haka *${tName}*.\n\nJoin kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:\n${invLink || ""}\n\nSngewbha share lang ia kane ka link sha kine ki teammates phi ha rum, ba kin ioh lang ia ka Room ID. Khublei! 🙏${teammatesList}`
-                        );
-                        const waUrl = `https://wa.me/${fullPhone}?text=${waText}`;
+            {leaders && (() => {
+                const tName = leaders.tournamentName;
 
-                        return (
-                            <div key={l.teamNumber} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${isSent ? "bg-green-500/5" : "bg-default-50"}`}>
-                                <span className="text-[10px] font-bold text-foreground/30 w-5 text-right shrink-0">
-                                    T{l.teamNumber}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[11px] font-medium truncate">{l.name}</p>
-                                    {l.teammates.length > 0 && (
-                                        <p className="text-[9px] text-foreground/30 truncate">
-                                            + {l.teammates.join(", ")}
-                                        </p>
-                                    )}
-                                </div>
-                                {l.phone ? (
-                                    isSent ? (
-                                        <a
-                                            href={waUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-foreground/5 text-foreground/40 hover:bg-foreground/10 transition-colors cursor-pointer shrink-0"
-                                        >
-                                            Resend
-                                        </a>
-                                    ) : (
-                                        <a
-                                            href={waUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={() => onSetSent(tournamentId, l.teamNumber)}
-                                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-[#25D366]/15 text-[#25D366] hover:bg-[#25D366]/25 transition-colors cursor-pointer shrink-0"
-                                        >
-                                            <WhatsAppIcon className="w-3 h-3" />
-                                            Send
-                                        </a>
-                                    )
-                                ) : (
-                                    <span className="text-[10px] text-amber-500 italic shrink-0">No phone</span>
+                // Helper to render a single leader row
+                const renderLeader = (l: typeof leaders.leaders[0], groupInviteLink?: string) => {
+                    const isSent = sentLeaders[tournamentId]?.has(l.teamNumber);
+                    const invLink = groupInviteLink || leaders.inviteLink || status?.inviteLink;
+                    const cleanPhone = l.phone?.replace(/[^0-9]/g, "") || "";
+                    const fullPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
+                    const teammatesList = l.teammates.length > 0
+                        ? `\nKi teammates phi:\n${l.teammates.map(t => `• ${t}`).join("\n")}`
+                        : "";
+                    const waText = encodeURIComponent(
+                        `Hi ${l.name}! 👋 Phi dei u leader jong ka *${l.teamName}* haka *${tName}*.\n\nJoin kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:\n${invLink || ""}\n\nSngewbha share lang ia kane ka link sha kine ki teammates phi ha rum, ba kin ioh lang ia ka Room ID. Khublei! 🙏${teammatesList}`
+                    );
+                    const waUrl = `https://wa.me/${fullPhone}?text=${waText}`;
+
+                    return (
+                        <div key={l.teamNumber} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${isSent ? "bg-green-500/5" : "bg-default-50"}`}>
+                            <span className="text-[10px] font-bold text-foreground/30 w-5 text-right shrink-0">
+                                T{l.teamNumber}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-medium truncate">{l.name}</p>
+                                {l.teammates.length > 0 && (
+                                    <p className="text-[9px] text-foreground/30 truncate">
+                                        + {l.teammates.join(", ")}
+                                    </p>
                                 )}
                             </div>
-                        );
-                    })}
-                </div>
-            )}
+                            {l.phone ? (
+                                isSent ? (
+                                    <a
+                                        href={waUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-foreground/5 text-foreground/40 hover:bg-foreground/10 transition-colors cursor-pointer shrink-0"
+                                    >
+                                        Resend
+                                    </a>
+                                ) : (
+                                    <a
+                                        href={waUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() => onSetSent(tournamentId, l.teamNumber)}
+                                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-[#25D366]/15 text-[#25D366] hover:bg-[#25D366]/25 transition-colors cursor-pointer shrink-0"
+                                    >
+                                        <WhatsAppIcon className="w-3 h-3" />
+                                        Send
+                                    </a>
+                                )
+                            ) : (
+                                <span className="text-[10px] text-amber-500 italic shrink-0">No phone</span>
+                            )}
+                        </div>
+                    );
+                };
+
+                // Championship mode: Main Group + per-group sections
+                if (leaders.isChampionship) {
+                    const groups = new Map<string, typeof leaders.leaders>();
+                    for (const l of leaders.leaders) {
+                        const g = l.group || "?";
+                        if (!groups.has(g)) groups.set(g, []);
+                        groups.get(g)!.push(l);
+                    }
+                    const sortedGroups = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+                    const mainInvLink = leaders.inviteLink || status?.inviteLink;
+                    const allSent = leaders.leaders.filter(l => l.phone && sentLeaders[tournamentId]?.has(l.teamNumber)).length;
+                    const allTotal = leaders.leaders.filter(l => l.phone).length;
+
+                    return (
+                        <div className="space-y-2">
+                            {/* Main Group — all leaders, main invite link */}
+                            <div className="rounded-lg border border-divider overflow-hidden">
+                                <div className="flex items-center justify-between px-2.5 py-1.5 bg-default-50">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-bold">🏠 Main Group</span>
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                            allSent === allTotal && allTotal > 0
+                                                ? "bg-green-500/15 text-green-500"
+                                                : "bg-foreground/5 text-foreground/40"
+                                        }`}>
+                                            {allSent}/{allTotal}
+                                        </span>
+                                    </div>
+                                    {mainInvLink ? (
+                                        <span className="text-[9px] text-green-500 font-medium">Link ✓</span>
+                                    ) : (
+                                        <span className="text-[9px] text-amber-500 font-medium">No link</span>
+                                    )}
+                                </div>
+                                <div className="space-y-0.5 p-1 max-h-48 overflow-y-auto">
+                                    {leaders.leaders.map(l => renderLeader(l, mainInvLink || undefined))}
+                                </div>
+                            </div>
+
+                            {/* Per-group sections */}
+                            {sortedGroups.map(([groupLetter, groupLeaders]) => {
+                                const groupInvLink = leaders.channelInvites[groupLetter];
+                                const groupSent = groupLeaders.filter(l => l.phone && sentLeaders[tournamentId]?.has(l.teamNumber)).length;
+                                const groupTotal = groupLeaders.filter(l => l.phone).length;
+
+                                return (
+                                    <div key={groupLetter} className="rounded-lg border border-divider overflow-hidden">
+                                        <div className="flex items-center justify-between px-2.5 py-1.5 bg-default-50">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[11px] font-bold">Group {groupLetter}</span>
+                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                                    groupSent === groupTotal && groupTotal > 0
+                                                        ? "bg-green-500/15 text-green-500"
+                                                        : "bg-foreground/5 text-foreground/40"
+                                                }`}>
+                                                    {groupSent}/{groupTotal}
+                                                </span>
+                                            </div>
+                                            {groupInvLink ? (
+                                                <span className="text-[9px] text-green-500 font-medium">Link ✓</span>
+                                            ) : (
+                                                <span className="text-[9px] text-amber-500 font-medium">No link</span>
+                                            )}
+                                        </div>
+                                        <div className="space-y-0.5 p-1 max-h-48 overflow-y-auto">
+                                            {groupLeaders.map(l => renderLeader(l, groupInvLink))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                }
+
+                // Regular mode: flat list
+                return (
+                    <div className="space-y-1 max-h-60 overflow-y-auto">
+                        {leaders.leaders.map(l => renderLeader(l))}
+                    </div>
+                );
+            })()}
 
             {/* ── 2. Group Status (who joined) ── */}
             <div className="border-t border-divider pt-2">

@@ -34,7 +34,9 @@ export async function POST(req: NextRequest) {
                 },
                 teams: {
                     select: {
+                        id: true,
                         teamNumber: true,
+                        name: true,
                         players: {
                             select: {
                                 id: true,
@@ -74,12 +76,23 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // For championship mode, filter teams by group
+        let teamsToProcess = tournament.teams;
+        if (group) {
+            const entries = await prisma.championshipEntry.findMany({
+                where: { tournamentId, group, status: "ACTIVE" },
+                select: { teamId: true },
+            });
+            const groupTeamIds = new Set(entries.map(e => e.teamId));
+            teamsToProcess = tournament.teams.filter(t => groupTeamIds.has(t.id));
+        }
+
         // Collect leaders with phone numbers
-        const leaders: { phone: string; name: string; teamNumber: number }[] = [];
+        const leaders: { phone: string; name: string; teamName: string; teamNumber: number }[] = [];
         const noPhone: string[] = [];
         const seen = new Set<string>();
 
-        for (const team of tournament.teams) {
+        for (const team of teamsToProcess) {
             if (team.players.length === 0) continue;
             const leader = team.players.find(p => captainMap.has(p.id)) || team.players[0];
             if (seen.has(leader.id)) continue;
@@ -89,6 +102,7 @@ export async function POST(req: NextRequest) {
                 leaders.push({
                     phone: leader.phoneNumber,
                     name: leader.displayName || "Unknown",
+                    teamName: team.name,
                     teamNumber: team.teamNumber,
                 });
             } else {
@@ -133,7 +147,7 @@ export async function POST(req: NextRequest) {
                     console.log(`[SendInvite] ${leader.name} (T${leader.teamNumber}): ${leader.phone} → ${jid}`);
 
                     const message = [
-                        `Hi! 👋 Phi dei u leader jong ka Team ${leader.teamNumber}.`,
+                        `Hi! 👋 Phi dei u leader jong ka *${leader.teamName}*.`,
                         ``,
                         `Join kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:`,
                         inviteLink,
