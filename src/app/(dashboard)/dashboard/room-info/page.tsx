@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Send, Check, ChevronDown, Phone, RefreshCw, Link, Copy } from "lucide-react";
+import { Send, Check, ChevronDown, Phone, RefreshCw, Link, Copy, ImagePlus } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { toast } from "sonner";
 import { SPIRIT_LINES } from "@/lib/spirit-lines";
@@ -147,6 +147,37 @@ function CopyBtn({ text, label }: { text: string; label: string }) {
         >
             {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
             {copied ? "Copied ✓" : label}
+        </button>
+    );
+}
+
+
+/* ─── Group Icon Copy (copies image to clipboard) ──────────────── */
+
+function GroupIconCopy() {
+    const [copied, setCopied] = useState(false);
+
+    const handleDownload = () => {
+        const a = document.createElement("a");
+        a.href = "/images/wa-group-icon.jpg";
+        a.download = "wa-group-icon.jpg";
+        a.click();
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleDownload}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                copied
+                    ? "bg-green-500/10 border-green-500/20 text-green-500"
+                    : "bg-default-50 border-divider text-foreground/50 hover:bg-default-100 hover:text-foreground/70"
+            }`}
+        >
+            {copied ? <Check className="w-3 h-3" /> : <ImagePlus className="w-3 h-3" />}
+            {copied ? "Copied ✓" : "Group Icon"}
         </button>
     );
 }
@@ -390,6 +421,7 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
                     <div className="flex gap-2">
                         <CopyBtn text={groupTitle} label="Group Title" />
                         <CopyBtn text={groupDesc} label="Group Desc" />
+                        <GroupIconCopy />
                     </div>
                 );
             })()}

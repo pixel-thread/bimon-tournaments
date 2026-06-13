@@ -2,7 +2,7 @@ import { Swords, Users, Trophy, Shield, Zap, Target, Star, ChevronRight, BarChar
 import Link from "next/link";
 import { HeroCTA, HeroHeading } from "@/components/landing/hero-cta";
 import { AnimateOnScroll, StaggerContainer, StaggerItem } from "@/components/landing/animate-on-scroll";
-import { PwaInstallPrompt } from "@/components/common/pwa-install-prompt";
+
 import { GAME } from "@/lib/game-config";
 import type { Metadata } from "next";
 
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
     return (
         <div className="min-h-dvh bg-background text-foreground">
-            <PwaInstallPrompt />
+
 
             {/* ═══════════════════════════════════════════════════════════ */}
             {/* HERO SECTION                                               */}

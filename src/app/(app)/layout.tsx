@@ -3,13 +3,14 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { OnboardingGuard } from "@/components/common/OnboardingGuard";
 import { AuthGateProvider } from "@/components/common/auth-gate-provider";
 
-import { PwaInstallPrompt } from "@/components/common/pwa-install-prompt";
+
 import { LocationGuard } from "@/components/common/location-guard";
 import { PhoneGuard } from "@/components/common/phone-guard";
 import { AdSenseScript } from "@/components/common/adsense-script";
 import { WhatsAppSquadGuard } from "@/components/common/whatsapp-squad-guard";
 import { WhatsAppMainGroupGuard } from "@/components/common/WhatsAppMainGroupGuard";
-import { PushGuard } from "@/components/common/push-guard";
+import { SkippablePrompts } from "@/components/common/skippable-prompts";
+
 
 
 
@@ -47,8 +48,7 @@ export default function AppLayout({
                     </footer>
                     <MobileNav />
 
-                    <PwaInstallPrompt />
-                    <PushGuard />
+                    <SkippablePrompts />
                     <LocationGuard />
                     <PhoneGuard />
                     <AdSenseScript />
