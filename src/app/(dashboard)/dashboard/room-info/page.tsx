@@ -229,6 +229,7 @@ interface LeadersResponse {
     leaders: LeaderData[];
     inviteLink: string | null;
     channelInvites: Record<string, string>;
+    preGeneration?: boolean;
 }
 
 function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
@@ -489,8 +490,9 @@ function LeadersList({
         const link = invLink || mainInvLink;
         const cleanPhone = l.phone?.replace(/[^0-9]/g, "") || "";
         const fullPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
-        const teammatesList = l.teammates.length > 0
-            ? `\nKi teammates phi:\n${l.teammates.map(t => `• ${t}`).join("\n")}`
+        const isPreGen = !!leadersData?.preGeneration;
+        const teammatesList = (!isPreGen && l.teammates.length > 0)
+            ? `\nKi teammates phi:\n${l.teammates.map(t => `•  ${t}`).join("\n")}`
             : "";
         const spiritLine = SPIRIT_LINES[(l.teamNumber + Date.now() % 97) % SPIRIT_LINES.length];
 
