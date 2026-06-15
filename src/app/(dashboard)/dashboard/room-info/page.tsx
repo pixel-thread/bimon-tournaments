@@ -318,6 +318,32 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
     const phase = leadersData?.currentPhase || "HEATS";
     const isChamp = leadersData?.isChampionship || false;
 
+    // ── Championship tab logic ─────────────────────────────────
+    // Build tabs: [Main] [Group A] [Group B] ... for HEATS, [Wildcard] / [Finals] for later phases
+    const champTabs: { key: string; label: string; leaders: LeaderData[]; invLink: string | null }[] = [];
+    if (isChamp && leaders.length > 0) {
+        if (phase === "HEATS") {
+            champTabs.push({ key: "main", label: "Heats Main", leaders, invLink: mainInvLink || null });
+            const groups = new Map<string, LeaderData[]>();
+            for (const l of leaders) {
+                const g = l.group || "?";
+                if (!groups.has(g)) groups.set(g, []);
+                groups.get(g)!.push(l);
+            }
+            [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).forEach(([letter, gl]) => {
+                champTabs.push({ key: letter, label: `Group ${letter}`, leaders: gl, invLink: leadersData?.channelInvites[letter] || null });
+            });
+        } else {
+            const phaseLabel = phase === "WILDCARD" ? "Wildcard" : "Finals";
+            champTabs.push({ key: phase, label: phaseLabel, leaders, invLink: leadersData?.channelInvites[phase] || mainInvLink || null });
+        }
+    }
+
+    const [champTab, setChampTab] = useState("main");
+    const activeChampTab = champTabs.find(t => t.key === champTab) || champTabs[0];
+    const activeInvLink = isChamp && activeChampTab ? activeChampTab.invLink : mainInvLink;
+    const activeLeaders = isChamp && activeChampTab ? activeChampTab.leaders : leaders;
+
     const initialLoading = loadingGroup || ((tournament.hasTeams || tournament.hasSquads) && loadingLeaders && !leadersData);
 
     if (initialLoading) {
@@ -339,21 +365,53 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
 
     return (
         <div className="space-y-3">
-            {/* Phase badge for championship */}
-            {isChamp && (
+            {/* Championship tabs — right below tournament selector */}
+            {isChamp && champTabs.length > 1 && (
+                <div className="flex gap-1 overflow-x-auto pb-0.5 -mx-1 px-1">
+                    {champTabs.map(tab => {
+                        const tabWithPhone = tab.leaders.filter(l => l.phone);
+                        const tabSent = tabWithPhone.filter(l => sentLeaders.has(l.teamNumber)).length;
+                        const isActive = champTab === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setChampTab(tab.key)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                                    isActive
+                                        ? "bg-green-500/15 text-green-500 border border-green-500/30"
+                                        : "bg-default-50 text-foreground/50 border border-transparent hover:bg-default-100"
+                                }`}
+                            >
+                                {tab.label}
+                                <span className={`text-[9px] px-1 py-0.5 rounded-full ${
+                                    tabSent === tabWithPhone.length && tabWithPhone.length > 0
+                                        ? "bg-green-500/20 text-green-400"
+                                        : "bg-foreground/5 text-foreground/30"
+                                }`}>
+                                    {tabSent}/{tabWithPhone.length}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Phase badge (non-tabbed championship or single phase) */}
+            {isChamp && champTabs.length <= 1 && (
                 <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 font-bold">
                     {phase === "HEATS" ? "Heats" : phase === "WILDCARD" ? "Wildcard" : phase === "FINALS" ? "Finals" : phase}
                 </span>
             )}
 
-            {/* Invite link */}
+            {/* Invite link — scoped to active tab */}
             <div className="space-y-1.5">
                 <div className="flex gap-1.5">
                     <input
                         type="text"
                         value={inviteInput}
                         onChange={(e) => setInviteInput(e.target.value)}
-                        placeholder={mainInvLink || "https://chat.whatsapp.com/..."}
+                        placeholder={activeInvLink || "https://chat.whatsapp.com/..."}
                         className="flex-1 px-3 py-2 rounded-xl bg-default-100 border border-divider text-xs focus:outline-none focus:ring-1 focus:ring-green-500 placeholder:text-foreground/25"
                     />
                     <button
@@ -362,31 +420,19 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
                         disabled={!inviteInput.trim() || saving}
                         className="px-3 py-2 rounded-xl text-xs font-semibold bg-green-500/15 text-green-600 dark:text-green-400 hover:bg-green-500/25 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                     >
-                        {saving ? "..." : mainInvLink ? "Update" : "Set"}
+                        {saving ? "..." : activeInvLink ? "Update" : "Set"}
                     </button>
                 </div>
-                {mainInvLink && <InvLinkRow link={mainInvLink} />}
-
-                {/* Championship: per-group invite links */}
-                {isChamp && phase === "HEATS" && leadersData?.channelInvites && (
-                    <div className="space-y-1 mt-1">
-                        {Object.entries(leadersData.channelInvites).sort(([a], [b]) => a.localeCompare(b)).map(([group, link]) => (
-                            <div key={group} className="flex items-center gap-1.5 px-1">
-                                <span className="text-[10px] font-bold text-foreground/40 w-10">Grp {group}</span>
-                                <Link className="w-2.5 h-2.5 text-blue-500 shrink-0" />
-                                <p className="text-[10px] text-blue-500/70 font-medium break-all">{link}</p>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                {activeInvLink && <InvLinkRow link={activeInvLink} />}
             </div>
 
-            {/* Quick copy: Group Title & Description */}
+            {/* Quick copy: Group Title & Description — scoped to active tab */}
             {(() => {
                 const tName = tournament.name;
                 const sName = tournament.seasonName;
                 const spiritLine = SPIRIT_LINES[Math.floor(Math.random() * SPIRIT_LINES.length)];
                 const seasonLine = sName ? `📅 Season: ${sName}` : "";
+                const tabLabel = activeChampTab?.label || "";
                 let groupTitle = tName;
                 let groupDesc = "";
 
@@ -407,8 +453,9 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
                 ].join("\n");
 
                 if (isChamp && phase === "HEATS") {
-                    groupTitle = `${tName} - Heats`;
-                    groupDesc = buildDesc(`🎮 ${tName} — Heats`, `Welcome to the Heats phase!`);
+                    const suffix = champTab === "main" ? "Heats" : tabLabel;
+                    groupTitle = `${tName} - ${suffix}`;
+                    groupDesc = buildDesc(`🎮 ${tName} — ${suffix}`, `Welcome to ${suffix}!`);
                 } else if (isChamp && phase === "WILDCARD") {
                     groupTitle = `${tName} - Wildcard`;
                     groupDesc = buildDesc(`🏆 ${tName} — Wildcard Round`, `Congratulations on making it to the Wildcard Round!`);
@@ -434,15 +481,15 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
                 </div>
             )}
 
-            {/* Leaders list */}
+            {/* Leaders list — scoped to active tab */}
             {(tournament.hasTeams || tournament.hasSquads) && (
                 <LeadersList
                     tournamentId={tournament.id}
-                    leaders={leaders}
+                    leaders={activeLeaders}
                     leadersData={leadersData}
                     isChamp={isChamp}
                     phase={phase}
-                    mainInvLink={mainInvLink || null}
+                    mainInvLink={activeInvLink || null}
                     groupStatus={groupStatus}
                     sentLeaders={sentLeaders}
                     loadingLeaders={loadingLeaders}
@@ -582,60 +629,8 @@ function LeadersList({
                 </div>
             )}
 
-            {/* Championship HEATS: Main Group + Group A + Group B */}
-            {isChamp && phase === "HEATS" && leaders.length > 0 && (() => {
-                const groups = new Map<string, LeaderData[]>();
-                for (const l of leaders) {
-                    const g = l.group || "?";
-                    if (!groups.has(g)) groups.set(g, []);
-                    groups.get(g)!.push(l);
-                }
-                const sortedGroups = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-
-                return (
-                    <div className="space-y-2">
-                        {/* Main Group — all leaders */}
-                        <GroupSection
-                            label="🏠 Main Group"
-                            leaders={leaders}
-                            inviteLink={mainInvLink}
-                            sentLeaders={sentLeaders}
-                            renderLeader={renderLeader}
-                        />
-
-                        {/* Per-group */}
-                        {sortedGroups.map(([groupLetter, groupLeaders]) => (
-                            <GroupSection
-                                key={groupLetter}
-                                label={`Group ${groupLetter}`}
-                                leaders={groupLeaders}
-                                inviteLink={leadersData?.channelInvites[groupLetter] || null}
-                                sentLeaders={sentLeaders}
-                                renderLeader={renderLeader}
-                            />
-                        ))}
-                    </div>
-                );
-            })()}
-
-            {/* Championship WILDCARD / FINALS: flat list */}
-            {isChamp && phase !== "HEATS" && leaders.length > 0 && (() => {
-                const phaseLabel = phase === "WILDCARD" ? "🏆 Wildcard" : "🏆 Finals";
-                const phaseInvLink = leadersData?.channelInvites[phase] || mainInvLink;
-
-                return (
-                    <GroupSection
-                        label={phaseLabel}
-                        leaders={leaders}
-                        inviteLink={phaseInvLink}
-                        sentLeaders={sentLeaders}
-                        renderLeader={renderLeader}
-                    />
-                );
-            })()}
-
-            {/* Regular tournament: flat list */}
-            {!isChamp && leaders.length > 0 && (
+            {/* Leader rows */}
+            {leaders.length > 0 && (
                 <div className="space-y-1">
                     {leaders.map(l => renderLeader(l))}
                 </div>
