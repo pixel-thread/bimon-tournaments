@@ -185,8 +185,7 @@ export function CreateSquadModal({
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
-    // All blocking gates removed — no restrictions on team creation
-    // const mustJoinWhatsapp = step === "done" && !!whatsappGroupLink && !whatsappJoined;
+    // Modal is always dismissable — leader can skip quick-add anytime
     const isModalBlocked = false;
 
     return (
