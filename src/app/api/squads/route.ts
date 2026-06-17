@@ -239,21 +239,21 @@ export async function POST(request: NextRequest) {
             }
             clanId = clanInfo.id;
             // Auto-name: truncated clan name (max 5 chars)
-            const baseName = clanInfo.name.slice(0, 6);
+            const baseName = clanInfo.name.slice(0, 7);
             const existingClanSquads = await prisma.squad.count({
                 where: { pollId, clanId, status: { in: ["FORMING", "FULL"] } },
             });
             trimmedName = existingClanSquads === 0
                 ? baseName
-                : `${baseName.slice(0, 5)}${existingClanSquads + 1}`;
+                : `${baseName.slice(0, 6)}${existingClanSquads + 1}`;
         }
 
         if (!trimmedName) {
             return ErrorResponse({ message: "Squad name is required", status: 400 });
         }
 
-        if (trimmedName.length > 6) {
-            return ErrorResponse({ message: "Squad name must be 6 characters or less", status: 400 });
+        if (trimmedName.length > 7) {
+            return ErrorResponse({ message: "Squad name must be 7 characters or less", status: 400 });
         }
 
         // Fetch poll + tournament

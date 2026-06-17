@@ -458,10 +458,10 @@ export default function JoinPage() {
                                         label="Team Tag"
                                         placeholder="e.g. ALPHA"
                                         value={teamName}
-                                        onValueChange={(v) => setTeamName(v.slice(0, 6))}
-                                        maxLength={6}
+                                        onValueChange={(v) => setTeamName(v.slice(0, 7))}
+                                        maxLength={7}
                                         size="lg"
-                                        description={`${teamName.length}/6 characters • shown in standings`}
+                                        description={`${teamName.length}/7 characters • shown in standings`}
                                         classNames={{
                                             input: "text-base",
                                             inputWrapper: "shadow-sm",

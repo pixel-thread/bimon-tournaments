@@ -275,10 +275,10 @@ export function CreateSquadModal({
                                         label="Team Tag"
                                         placeholder="e.g. ALPHA"
                                         value={squadName}
-                                        onValueChange={(v) => setSquadName(v.slice(0, 6))}
-                                        maxLength={6}
+                                        onValueChange={(v) => setSquadName(v.slice(0, 7))}
+                                        maxLength={7}
                                         autoFocus
-                                        description={`${squadName.length}/6 characters • shown in standings`}
+                                        description={`${squadName.length}/7 characters • shown in standings`}
                                         classNames={{ input: "text-base" }}
                                     />
                                 )}

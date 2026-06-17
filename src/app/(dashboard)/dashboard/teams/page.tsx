@@ -59,6 +59,7 @@ interface TeamPlayer {
 interface TeamDTO {
     id: string;
     name: string;
+    fullName?: string | null;
     teamNumber: number;
     matchCount: number;
     winner: {

@@ -12,6 +12,7 @@ import { GAME } from "@/lib/game-config";
 interface TeamDTO {
     id: string;
     name: string;
+    fullName?: string | null;
     clanLogo?: string | null;
     clanTag?: string | null;
     players: { id: string; displayName: string | null; username: string }[];
@@ -120,6 +121,10 @@ export function SlotsModal({
         const captureWidth = 80 + (hasSquadTeams ? 160 : 0) + maxPlayers * 160 + 60;
         const fullWidth = Math.max(600, captureWidth);
 
+        // Cap pixelRatio on mobile — large canvases get silently downscaled by mobile browsers
+        const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+        const pixelRatio = isMobile ? 2 : 3;
+
         // Create an off-screen container outside the modal layout
         const offscreen = document.createElement("div");
         offscreen.style.position = "fixed";
@@ -163,7 +168,7 @@ export function SlotsModal({
 
         try {
             const dataUrl = await toJpeg(clone, {
-                pixelRatio: 3,
+                pixelRatio,
                 quality: 0.92,
                 width: fullWidth,
                 height: capturedHeight,
@@ -371,7 +376,7 @@ export function SlotsModal({
                         <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[11px] sm:text-sm font-bold whitespace-nowrap ${textColor}`}>
                             <span className="inline-flex items-center gap-1.5">
                                 <img src={team.clanLogo || GAME.iconUrl} alt={team.clanTag || GAME.name} className="w-4 h-4 rounded-full object-cover shrink-0" />
-                                {team.name}
+                                {team.fullName || team.name}
                             </span>
                         </td>
                     )}
@@ -483,8 +488,6 @@ export function SlotsModal({
                             className="rounded-xl sm:rounded-2xl border border-white/[0.15] shadow-2xl shadow-black/50 overflow-hidden"
                             style={{
                                 backgroundColor: `rgba(0,0,0,${cardTint / 100})`,
-                                backdropFilter: `blur(${cardBlur}px)`,
-                                WebkitBackdropFilter: `blur(${cardBlur}px)`,
                             }}
                         >
                             <div className="overflow-x-auto">

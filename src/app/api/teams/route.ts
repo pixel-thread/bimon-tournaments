@@ -71,9 +71,21 @@ export async function GET(request: NextRequest) {
             }),
             prisma.poll.findUnique({
                 where: { tournamentId },
-                select: { allowSquads: true },
+                select: { id: true, allowSquads: true },
             }),
         ]);
+
+        // Build squad fullName map (squad.name → squad.fullName)
+        const squadFullNameMap = new Map<string, string>();
+        if (poll?.allowSquads && poll.id) {
+            const squads = await prisma.squad.findMany({
+                where: { pollId: poll.id, status: "REGISTERED" },
+                select: { name: true, fullName: true },
+            });
+            for (const sq of squads) {
+                if (sq.fullName) squadFullNameMap.set(sq.name, sq.fullName);
+            }
+        }
 
         // For migrated teams where team.players is empty,
         // fetch players via TeamPlayerStats
@@ -183,6 +195,7 @@ export async function GET(request: NextRequest) {
             return {
                 id: team.id,
                 name: team.name,
+                fullName: squadFullNameMap.get(team.name) ?? null,
                 teamNumber: team.teamNumber,
                 clanLogo: team.clan?.logoUrl ?? null,
                 clanTag: team.clan?.tag ?? null,
