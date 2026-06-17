@@ -171,6 +171,18 @@ export async function PATCH(
             updateData.isUCExempt = body.isUCExempt;
         }
 
+        // Display name rename
+        if (typeof body.displayName === "string") {
+            const trimmed = body.displayName.trim();
+            if (trimmed.length < 2 || trimmed.length > 20) {
+                return NextResponse.json(
+                    { error: "Display name must be 2-20 characters" },
+                    { status: 400 }
+                );
+            }
+            updateData.displayName = censorProfanity(trimmed);
+        }
+
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
         }
@@ -178,7 +190,7 @@ export async function PATCH(
         const updated = await prisma.player.update({
             where: { id },
             data: updateData,
-            select: { id: true, category: true, isTrusted: true, isUCExempt: true, discordId: true },
+            select: { id: true, displayName: true, category: true, isTrusted: true, isUCExempt: true, discordId: true },
         });
 
         // Auto-grant/revoke Discord UC Exempt role
