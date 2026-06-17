@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Send, Check, ChevronDown, ChevronRight, Phone, RefreshCw, Link, Copy, ImagePlus, BookOpen } from "lucide-react";
+import { Send, Check, ChevronDown, Phone, RefreshCw, Link, Copy, ImagePlus, BookOpen } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { toast } from "sonner";
 import { SPIRIT_LINES } from "@/lib/spirit-lines";

@@ -36,8 +36,6 @@ import {
     Link,
     Unlink,
     Pencil,
-    Check,
-    X,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -109,7 +107,6 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
     const [editingSecondary, setEditingSecondary] = useState(false);
     const [editingName, setEditingName] = useState(false);
     const [nameInput, setNameInput] = useState("");
-    const nameInputRef = useRef<HTMLInputElement>(null);
 
     // Debounced search for merge autocomplete
     useEffect(() => {
@@ -308,6 +305,7 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
     }, {});
 
     return (
+        <>
         <Modal
             isOpen={isOpen}
             onClose={onClose}
@@ -355,55 +353,19 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start gap-1.5 flex-wrap">
-                                            {editingName ? (
-                                                <div className="flex items-center gap-1.5">
-                                                    <input
-                                                        ref={nameInputRef}
-                                                        type="text"
-                                                        value={nameInput}
-                                                        onChange={(e) => setNameInput(e.target.value)}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === "Enter" && nameInput.trim().length >= 2) {
-                                                                renameMutation.mutate(nameInput.trim());
-                                                            } else if (e.key === "Escape") {
-                                                                setEditingName(false);
-                                                            }
-                                                        }}
-                                                        maxLength={20}
-                                                        autoFocus
-                                                        className="text-lg font-bold leading-snug bg-default-100 border border-divider rounded-lg px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary w-40"
-                                                    />
-                                                    <button
-                                                        onClick={() => nameInput.trim().length >= 2 && renameMutation.mutate(nameInput.trim())}
-                                                        disabled={nameInput.trim().length < 2 || renameMutation.isPending}
-                                                        className="p-1 rounded-md bg-success/15 text-success hover:bg-success/25 transition-colors disabled:opacity-30 cursor-pointer"
-                                                    >
-                                                        <Check className="h-3.5 w-3.5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setEditingName(false)}
-                                                        className="p-1 rounded-md bg-default-100 text-foreground/50 hover:bg-default-200 transition-colors cursor-pointer"
-                                                    >
-                                                        <X className="h-3.5 w-3.5" />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <h2 className="text-lg font-bold leading-snug" style={{ wordBreak: "break-word" }}>
-                                                        {player?.displayName || player?.username}
-                                                    </h2>
-                                                    <button
-                                                        onClick={() => {
-                                                            setNameInput(player?.displayName || player?.username || "");
-                                                            setEditingName(true);
-                                                        }}
-                                                        className="p-1 rounded-md text-foreground/25 hover:text-primary hover:bg-primary/10 transition-colors mt-0.5 cursor-pointer"
-                                                        title="Rename player"
-                                                    >
-                                                        <Pencil className="h-3 w-3" />
-                                                    </button>
-                                                </>
-                                            )}
+                                            <h2 className="text-lg font-bold leading-snug" style={{ wordBreak: "break-word" }}>
+                                                {player?.displayName || player?.username}
+                                            </h2>
+                                            <button
+                                                onClick={() => {
+                                                    setNameInput(player?.displayName || player?.username || "");
+                                                    setEditingName(true);
+                                                }}
+                                                className="p-1 rounded-md text-foreground/25 hover:text-primary hover:bg-primary/10 transition-colors mt-0.5 cursor-pointer"
+                                                title="Rename player"
+                                            >
+                                                <Pencil className="h-3 w-3" />
+                                            </button>
                                             {player?.isBanned && (
                                                 <Chip size="sm" color="danger" variant="flat" className="h-5 shrink-0 mt-0.5">
                                                     Banned
@@ -978,5 +940,51 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                 </ModalBody>
             </ModalContent>
         </Modal>
+
+            {/* Rename Modal */}
+            <Modal
+                isOpen={editingName}
+                onClose={() => setEditingName(false)}
+                size="xs"
+                placement="center"
+                classNames={{ base: "max-w-[320px]" }}
+            >
+                <ModalContent>
+                    <ModalHeader className="pb-2">
+                        <div className="flex items-center gap-2">
+                            <Pencil className="h-4 w-4 text-primary" />
+                            <span>Rename Player</span>
+                        </div>
+                    </ModalHeader>
+                    <ModalBody className="pb-5">
+                        <Input
+                            autoFocus
+                            size="sm"
+                            label="Display Name"
+                            placeholder="Enter new name"
+                            value={nameInput}
+                            onValueChange={setNameInput}
+                            maxLength={20}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && nameInput.trim().length >= 2) {
+                                    renameMutation.mutate(nameInput.trim());
+                                }
+                            }}
+                        />
+                        <Button
+                            size="sm"
+                            color="primary"
+                            variant="flat"
+                            onPress={() => nameInput.trim().length >= 2 && renameMutation.mutate(nameInput.trim())}
+                            isLoading={renameMutation.isPending}
+                            isDisabled={nameInput.trim().length < 2}
+                            className="w-full"
+                        >
+                            Rename
+                        </Button>
+                    </ModalBody>
+                </ModalContent>
+            </Modal>
+        </>
     );
 }
