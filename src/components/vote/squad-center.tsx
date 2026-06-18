@@ -15,7 +15,7 @@ import {
     Input,
 } from "@heroui/react";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
-import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, ChevronRight, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle } from "lucide-react";
+import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, ChevronRight, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle, Phone, Ghost } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     useSquads,
@@ -269,6 +269,14 @@ function SquadCard({
     const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? hasPendingInvite ?? false);
     const [showInvite, setShowInvite] = useState(false);
     const [inviteSearch, setInviteSearch] = useState("");
+    // Ghost member add state
+    const [showGhostAdd, setShowGhostAdd] = useState(false);
+    const [ghostPhone, setGhostPhone] = useState("");
+    const [ghostEmail, setGhostEmail] = useState("");
+    const [ghostName, setGhostName] = useState("");
+    const [ghostAdding, setGhostAdding] = useState(false);
+    const [ghostConfirm, setGhostConfirm] = useState<{ id: string; displayName: string; imageUrl?: string; phone?: string; email?: string } | null>(null);
+    const [ghostConfirming, setGhostConfirming] = useState(false);
     // Discord state (disabled — using WhatsApp now, kept for future use)
     // const [discordSkipped, setDiscordSkipped] = useState(() => {
     //     if (typeof window !== "undefined") return sessionStorage.getItem("discord_member_skipped") === "true";
@@ -288,6 +296,7 @@ function SquadCard({
         showInvite ? inviteSearch : "", pollId
     );
     const inviteMutation = useInvitePlayer();
+    const ghostQueryClient = useQueryClient();
     const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
     const emptySlots = squad.totalSlots - squad.members.length;
 
@@ -560,18 +569,28 @@ function SquadCard({
                         </div>
 
 
-                        {/* Captain: Invite Players */}
+                        {/* Captain: Invite Players + Add Ghost */}
                         {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
-                            <div className="px-4 py-3 border-t border-divider/50">
+                            <div className="px-4 py-3 border-t border-divider/50 flex gap-2">
                                 <Button
                                     size="sm"
                                     variant="flat"
                                     color="primary"
-                                    className="w-full font-medium"
+                                    className="flex-1 font-medium"
                                     startContent={<UserPlus className="w-3.5 h-3.5" />}
                                     onPress={() => setShowInvite(true)}
                                 >
                                     Invite Players
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="flat"
+                                    className="flex-1 font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20"
+                                    startContent={<Ghost className="w-3.5 h-3.5" />}
+                                    endContent={<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500 text-white leading-none">NEW</span>}
+                                    onPress={() => setShowGhostAdd(true)}
+                                >
+                                    Add Ghost
                                 </Button>
                             </div>
                         )}
@@ -883,7 +902,281 @@ function SquadCard({
                     </ModalBody>
                 </ModalContent>
             </Modal>
+
+            {/* ── Ghost Member Add Modal ── */}
+            <Modal
+                isOpen={showGhostAdd}
+                onClose={() => {
+                    setShowGhostAdd(false);
+                    setGhostPhone("");
+                    setGhostEmail("");
+                    setGhostName("");
+                    setGhostConfirm(null);
+                }}
+                placement="center"
+                size="full"
+                scrollBehavior="inside"
+                classNames={{
+                    wrapper: "z-[60]",
+                    body: "px-4 py-0",
+                }}
+            >
+                <ModalContent>
+                    <ModalHeader className="flex items-center gap-2 text-base pb-2">
+                        <Ghost className="w-4 h-4 text-purple-500" />
+                        <div className="flex-1 min-w-0">
+                            <span className="truncate block">Add Ghost Member</span>
+                            <span className="text-xs font-normal text-foreground/50">{squad.fullName || squad.name}</span>
+                        </div>
+                    </ModalHeader>
+                    <ModalBody>
+                        <p className="text-xs text-foreground/50 mb-3">
+                            Add a teammate who doesn&apos;t have an account yet. Enter their name and phone or email.
+                        </p>
+
+                        {/* Ghost form */}
+                        <div className="space-y-3">
+                            <Input
+                                label="Phone Number"
+                                placeholder="10-digit phone number"
+                                value={ghostPhone}
+                                onValueChange={setGhostPhone}
+                                size="lg"
+                                startContent={<Phone className="w-4 h-4 text-default-400" />}
+                                classNames={{ input: "text-base" }}
+                                type="tel"
+                                maxLength={10}
+                            />
+                            <Input
+                                label="Email"
+                                description="At least phone or email is required"
+                                placeholder="teammate@email.com"
+                                value={ghostEmail}
+                                onValueChange={setGhostEmail}
+                                size="lg"
+                                type="email"
+                                classNames={{ input: "text-base" }}
+                            />
+                            <Input
+                                label="Player Name"
+                                placeholder="Enter their in-game name"
+                                value={ghostName}
+                                onValueChange={setGhostName}
+                                size="lg"
+                                classNames={{ input: "text-base" }}
+                                maxLength={20}
+                            />
+                            <Button
+                                color="primary"
+                                className="w-full font-semibold"
+                                size="lg"
+                                isLoading={ghostAdding}
+                                isDisabled={!ghostName.trim() || (!ghostPhone && !ghostEmail)}
+                                startContent={!ghostAdding && <Ghost className="w-4 h-4" />}
+                                onPress={async () => {
+                                    setGhostAdding(true);
+                                    try {
+                                        const res = await fetch(`/api/squads/${squad.id}/add-member`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                                phone: ghostPhone || undefined,
+                                                email: ghostEmail || undefined,
+                                                name: ghostName.trim(),
+                                            }),
+                                        });
+                                        const json = await res.json();
+                                        if (!res.ok) {
+                                            const { toast } = await import("sonner");
+                                            toast.error(json.message || "Failed to add");
+                                            return;
+                                        }
+                                        // If matched a real player, show confirmation
+                                        if (json.data?.matched) {
+                                            setGhostConfirm(json.data.player);
+                                            return;
+                                        }
+                                        // Ghost added successfully
+                                        const { toast } = await import("sonner");
+                                        toast.success(json.message || "Ghost added!");
+                                        setGhostPhone("");
+                                        setGhostEmail("");
+                                        setGhostName("");
+                                        ghostQueryClient.invalidateQueries({ queryKey: ["squads"] });
+                                    } catch {
+                                        const { toast } = await import("sonner");
+                                        toast.error("Failed to add member");
+                                    } finally {
+                                        setGhostAdding(false);
+                                    }
+                                }}
+                            >
+                                Add Ghost Member
+                            </Button>
+                        </div>
+
+                        {/* Confirmation for real player match */}
+                        {ghostConfirm && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4"
+                            >
+                                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-3">
+                                    Found an existing player!
+                                </p>
+                                <div className="flex items-center gap-3 mb-3">
+                                    <Avatar
+                                        src={ghostConfirm.imageUrl}
+                                        name={ghostConfirm.displayName}
+                                        size="md"
+                                        className="shrink-0"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold truncate">{ghostConfirm.displayName}</p>
+                                        {ghostConfirm.phone && (
+                                            <p className="text-xs text-foreground/50">📱 {ghostConfirm.phone}</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        color="primary"
+                                        className="flex-1 font-semibold"
+                                        isLoading={ghostConfirming}
+                                        onPress={async () => {
+                                            setGhostConfirming(true);
+                                            try {
+                                                const res = await fetch(`/api/squads/${squad.id}/add-member/confirm`, {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ playerId: ghostConfirm.id }),
+                                                });
+                                                const json = await res.json();
+                                                if (!res.ok) {
+                                                    const { toast } = await import("sonner");
+                                                    toast.error(json.message || "Failed");
+                                                    return;
+                                                }
+                                                const { toast } = await import("sonner");
+                                                toast.success(json.message || "Added!");
+                                                setGhostConfirm(null);
+                                                setGhostPhone("");
+                                                setGhostEmail("");
+                                                setGhostName("");
+                                                ghostQueryClient.invalidateQueries({ queryKey: ["squads"] });
+                                            } catch {
+                                                const { toast } = await import("sonner");
+                                                toast.error("Failed");
+                                            } finally {
+                                                setGhostConfirming(false);
+                                            }
+                                        }}
+                                    >
+                                        Yes, add them
+                                    </Button>
+                                    <Button
+                                        variant="flat"
+                                        className="font-medium"
+                                        onPress={() => setGhostConfirm(null)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* Previous ghosts quick-add */}
+                        <PreviousGhostsSection squadId={squad.id} showGhostAdd={showGhostAdd} />
+                    </ModalBody>
+                </ModalContent>
+            </Modal>
         </>
+    );
+}
+
+/* ─── Previous Ghosts Quick-Add Section ────────────────────── */
+
+function PreviousGhostsSection({ squadId, showGhostAdd }: { squadId: string; showGhostAdd: boolean }) {
+    const [addingId, setAddingId] = useState<string | null>(null);
+    const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+    const queryClient = useQueryClient();
+
+    const { data: previousGhosts = [] } = useQuery<{ id: string; displayName: string; phone: string | null }[]>({
+        queryKey: ["previous-ghosts", squadId],
+        queryFn: async () => {
+            const res = await fetch(`/api/squads/${squadId}/previous-ghosts`);
+            if (!res.ok) return [];
+            const json = await res.json();
+            return json.data ?? [];
+        },
+        enabled: showGhostAdd,
+        staleTime: 15_000,
+    });
+
+    if (previousGhosts.length === 0) return null;
+
+    return (
+        <div className="mt-4 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3">
+            <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mb-2 flex items-center gap-1.5">
+                <Ghost className="w-3.5 h-3.5" />
+                Previous Ghosts — tap to re-add
+            </p>
+            <div className="space-y-1">
+                {previousGhosts.map((ghost) => {
+                    const isAdded = addedIds.has(ghost.id);
+                    const isAdding = addingId === ghost.id;
+                    return (
+                        <div key={ghost.id} className="flex items-center gap-3 py-2 px-1">
+                            <div className="w-8 h-8 rounded-full border-2 border-dashed border-purple-400/50 bg-purple-500/10 flex items-center justify-center shrink-0">
+                                <span className="text-sm">👻</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{ghost.displayName}</p>
+                                {ghost.phone && (
+                                    <p className="text-[10px] text-foreground/40">{ghost.phone}</p>
+                                )}
+                            </div>
+                            <Button
+                                size="sm"
+                                color={isAdded ? "success" : "secondary"}
+                                variant={isAdded ? "light" : "flat"}
+                                className="min-w-0 px-3 h-7"
+                                isLoading={isAdding}
+                                isDisabled={isAdded}
+                                onPress={async () => {
+                                    setAddingId(ghost.id);
+                                    try {
+                                        const res = await fetch(`/api/squads/${squadId}/add-member/confirm`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ playerId: ghost.id }),
+                                        });
+                                        const json = await res.json();
+                                        if (!res.ok) {
+                                            const { toast } = await import("sonner");
+                                            toast.error(json.message || "Failed");
+                                            return;
+                                        }
+                                        const { toast } = await import("sonner");
+                                        toast.success(json.message || "Added!");
+                                        setAddedIds((prev) => new Set(prev).add(ghost.id));
+                                        queryClient.invalidateQueries({ queryKey: ["squads"] });
+                                    } catch {
+                                        const { toast } = await import("sonner");
+                                        toast.error("Failed to add");
+                                    } finally {
+                                        setAddingId(null);
+                                    }
+                                }}
+                            >
+                                {isAdded ? "Added ✓" : "+ Add"}
+                            </Button>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
     );
 }
 
