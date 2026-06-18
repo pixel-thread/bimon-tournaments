@@ -448,13 +448,19 @@ function SquadCard({
                                     (member.status === "ACCEPTED" || (member.status === "PENDING" && member.initiatedBy === "CAPTAIN"));
                                 const canToggleSub = squad.acceptedCount > GAME.squadSize;
                                 return (
-                                    <div key={member.inviteId} className="flex items-center gap-3">
-                                        <Avatar
-                                            src={member.imageUrl}
-                                            name={member.displayName}
-                                            size="sm"
-                                            className="w-8 h-8 shrink-0"
-                                        />
+                                    <div key={member.inviteId} className={`flex items-center gap-3 ${member.isGhost ? 'opacity-70' : ''}`}>
+                                        {member.isGhost ? (
+                                            <div className="w-8 h-8 rounded-full border-2 border-dashed border-purple-400/50 bg-purple-500/10 flex items-center justify-center shrink-0">
+                                                <span className="text-sm">👻</span>
+                                            </div>
+                                        ) : (
+                                            <Avatar
+                                                src={member.imageUrl}
+                                                name={member.displayName}
+                                                size="sm"
+                                                className="w-8 h-8 shrink-0"
+                                            />
+                                        )}
                                         <div className="flex-1 min-w-0">
                                             <div className={`flex items-center gap-1.5 min-w-0 ${isMemberCaptain ? 'flex-wrap' : ''}`}>
                                                 <span className={`text-sm font-medium ${isMemberCaptain ? 'break-all' : 'truncate'}`}>{member.displayName}</span>
@@ -474,6 +480,9 @@ function SquadCard({
                                                 )}
                                                 {member.isSub && member.status === "ACCEPTED" && (
                                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-500 dark:text-blue-400 shrink-0 whitespace-nowrap">SUB</span>
+                                                )}
+                                                {member.isGhost && (
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-500 dark:text-purple-400 shrink-0 whitespace-nowrap">Ghost</span>
                                                 )}
                                             </div>
                                         </div>

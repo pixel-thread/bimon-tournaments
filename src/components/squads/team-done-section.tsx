@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Input, Button, Spinner, Avatar } from "@heroui/react";
-import { Search, X, Share2, Zap } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Input, Button, Spinner, Avatar, Modal, ModalContent, ModalHeader, ModalBody } from "@heroui/react";
+import { Search, X, Share2, Zap, Ghost, Phone, Mail, UserPlus, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useSearchPlayers, useRecentTeammates } from "@/hooks/use-squads";
-import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 /* ─── WhatsApp Icon ─────────────────────────────────────────── */
 
@@ -41,6 +42,26 @@ interface TeamDoneSectionProps {
     discordInviteLink?: string | null;
 }
 
+interface MatchedPlayer {
+    id: string;
+    displayName: string;
+    imageUrl: string | null;
+    phone: string | null;
+    email: string | null;
+}
+
+interface AddedMember {
+    id: string;
+    displayName: string;
+    isGhost: boolean;
+}
+
+interface PreviousGhost {
+    id: string;
+    displayName: string;
+    phone: string | null;
+}
+
 /* ─── Component ─────────────────────────────────────────────── */
 
 export function TeamDoneSection({
@@ -52,21 +73,123 @@ export function TeamDoneSection({
     isRanked,
     discordInviteLink,
 }: TeamDoneSectionProps) {
+    const queryClient = useQueryClient();
     const [inviteSearch, setInviteSearch] = useState("");
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
     const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
-    // Discord state (disabled — kept for future use)
-    // const [discordLinked, setDiscordLinked] = useState(() => {
-    //     if (typeof window !== "undefined" && isRanked) {
-    //         return sessionStorage.getItem("discord_linked") === "true";
-    //     }
-    //     return false;
-    // });
+
+    // Ghost member state
+    const [ghostPhone, setGhostPhone] = useState("");
+    const [ghostEmail, setGhostEmail] = useState("");
+    const [ghostName, setGhostName] = useState("");
+    const [addedMembers, setAddedMembers] = useState<AddedMember[]>([]);
+    const [confirmPlayer, setConfirmPlayer] = useState<MatchedPlayer | null>(null);
+    const [showAddSection, setShowAddSection] = useState(false);
+
     const { data: searchResults, isLoading: isSearching } = useSearchPlayers(
         inviteSearch,
         pollId
     );
     const { data: recentTeammates } = useRecentTeammates(pollId, !!createdSquadId);
+
+    // Fetch previous ghosts for quick-add
+    const { data: previousGhosts } = useQuery<PreviousGhost[]>({
+        queryKey: ["previous-ghosts", createdSquadId],
+        queryFn: async () => {
+            const res = await fetch(`/api/squads/${createdSquadId}/previous-ghosts`);
+            if (!res.ok) return [];
+            const json = await res.json();
+            return json.data || [];
+        },
+        enabled: !!createdSquadId,
+    });
+
+    // Add member mutation (phone/email lookup)
+    const addMemberMutation = useMutation({
+        mutationFn: async (data: { phone?: string; email?: string; name: string; isSub?: boolean }) => {
+            const res = await fetch(`/api/squads/${createdSquadId}/add-member`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || json.error || "Failed to add");
+            return json;
+        },
+        onSuccess: (json) => {
+            if (json.data?.matched) {
+                // Real player found — show confirmation
+                setConfirmPlayer(json.data.player);
+            } else if (json.data?.added) {
+                // Ghost or existing ghost added
+                setAddedMembers((prev) => [...prev, json.data.player]);
+                setGhostPhone("");
+                setGhostEmail("");
+                setGhostName("");
+                toast.success(json.message || "Teammate added");
+                queryClient.invalidateQueries({ queryKey: ["previous-ghosts"] });
+            }
+        },
+        onError: (err: Error) => {
+            toast.error(err.message);
+        },
+    });
+
+    // Confirm real player mutation
+    const confirmMutation = useMutation({
+        mutationFn: async (playerId: string) => {
+            const res = await fetch(`/api/squads/${createdSquadId}/add-member/confirm`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ playerId }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || json.error || "Failed to add");
+            return json;
+        },
+        onSuccess: (json) => {
+            if (json.data?.added) {
+                setAddedMembers((prev) => [...prev, json.data.player]);
+                toast.success(json.message || "Player added");
+            }
+            setConfirmPlayer(null);
+            setGhostPhone("");
+            setGhostEmail("");
+            setGhostName("");
+        },
+        onError: (err: Error) => {
+            toast.error(err.message);
+        },
+    });
+
+    // Quick-add a previous ghost
+    const handleQuickAddGhost = (ghost: PreviousGhost) => {
+        if (!createdSquadId || addedMembers.some((m) => m.id === ghost.id)) return;
+        // Use the ghost's phone to add them (phone is masked in display, but we need the real phone)
+        // Since we can't get the real phone from masked data, we add by playerId via confirm endpoint
+        confirmMutation.mutate(ghost.id);
+    };
+
+    const handleAddMember = () => {
+        const phone = ghostPhone.trim();
+        const email = ghostEmail.trim();
+        const name = ghostName.trim();
+
+        if (!phone && !email) {
+            toast.error("Enter phone or email");
+            return;
+        }
+        if (!name) {
+            toast.error("Enter player name");
+            return;
+        }
+
+        addMemberMutation.mutate({
+            phone: phone || undefined,
+            email: email || undefined,
+            name,
+        });
+    };
 
     // Fire-and-forget invite with per-player loading state
     const handleQuickInvite = (playerId: string) => {
@@ -80,12 +203,12 @@ export function TeamDoneSection({
             .then((res) => res.json())
             .then((json) => {
                 if (json.message) {
-                    import("sonner").then(({ toast }) => toast.success(json.message));
+                    toast.success(json.message);
                 }
                 setInvitedIds((prev) => new Set(prev).add(playerId));
             })
             .catch(() => {
-                import("sonner").then(({ toast }) => toast.error("Failed to invite"));
+                toast.error("Failed to invite");
             })
             .finally(() => {
                 setLoadingIds((prev) => {
@@ -96,42 +219,11 @@ export function TeamDoneSection({
             });
     };
 
-    // All blocking gates removed — no restrictions on team creation
-    // const mustJoinWhatsapp = !!whatsappGroupLink && !whatsappJoined;
-    // const mustJoinDiscord = isRanked && !discordLinked;
-    const isBlocked = false; // No gates — invite tools always visible
-
-    // Discord OAuth callback (disabled — kept for future use)
-    // useEffect(() => {
-    //     const params = new URLSearchParams(window.location.search);
-    //     if (params.get("discord") === "linked") {
-    //         setDiscordLinked(true);
-    //         sessionStorage.setItem("discord_linked", "true");
-    //     }
-    // }, []);
-
-    // const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal();
-    // const handleDiscordAuth = () => {
-    //     openDiscordModal(`/api/discord/authorize?returnTo=&pollId=${encodeURIComponent(pollId)}`);
-    // };
+    const isBlocked = false;
 
     return (
         <div className="space-y-4">
-            {/* Discord linking removed — leader invite will be sent via WhatsApp bot */}
-            {/* Discord UI code kept below as comment for future re-enablement */}
-            {/*
-            {isRanked && !discordLinked && (
-                <div className="space-y-2">
-                    <button type="button" onClick={handleDiscordAuth}
-                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm bg-[#5865F2] text-white">
-                        <DiscordIcon className="w-5 h-5" /> Link with Discord
-                    </button>
-                </div>
-            )}
-            */}
-
-            {/* WhatsApp group join gate removed — no restrictions on team creation */}
-            {/* WhatsApp group link kept as optional (non-blocking) if present */}
+            {/* WhatsApp group link (optional, non-blocking) */}
             {whatsappGroupLink && (
                 <div className="space-y-2">
                     <a
@@ -151,7 +243,6 @@ export function TeamDoneSection({
                 </div>
             )}
 
-            {/* Gate: show invite tools only after requirements met */}
             {!isBlocked ? (
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
@@ -227,6 +318,138 @@ export function TeamDoneSection({
                         </div>
                     )}
 
+                    {/* ─── Add Teammates by Phone/Email (Ghost Members) ─── */}
+                    {createdSquadId && (
+                        <div className="space-y-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowAddSection(!showAddSection)}
+                                className="flex items-center gap-1.5 w-full cursor-pointer"
+                            >
+                                <UserPlus className="w-3 h-3 text-purple-500" />
+                                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
+                                    Add by Phone / Email
+                                </p>
+                                <span className={`text-[10px] text-foreground/30 ml-auto transition-transform ${showAddSection ? "rotate-180" : ""}`}>
+                                    ▼
+                                </span>
+                            </button>
+
+                            {showAddSection && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    className="space-y-3"
+                                >
+                                    {/* Quick-add previous ghosts */}
+                                    {previousGhosts && previousGhosts.length > 0 && (
+                                        <div className="space-y-1.5">
+                                            <p className="text-[10px] text-foreground/30 uppercase tracking-wider">
+                                                Previous teammates
+                                            </p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {previousGhosts.map((ghost) => {
+                                                    const isAdded = addedMembers.some((m) => m.id === ghost.id);
+                                                    return (
+                                                        <Button
+                                                            key={ghost.id}
+                                                            size="sm"
+                                                            variant={isAdded ? "light" : "flat"}
+                                                            color={isAdded ? "success" : "default"}
+                                                            className="h-7 min-w-0 px-2.5 text-xs gap-1"
+                                                            isDisabled={isAdded || confirmMutation.isPending}
+                                                            onPress={() => handleQuickAddGhost(ghost)}
+                                                        >
+                                                            <Ghost className="w-3 h-3" />
+                                                            {ghost.displayName}
+                                                            {isAdded ? " ✓" : ""}
+                                                        </Button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Phone / Email + Name inputs */}
+                                    <div className="space-y-2 p-3 rounded-xl bg-default-50 border border-divider">
+                                        <div className="flex gap-2">
+                                            <Input
+                                                size="sm"
+                                                placeholder="Phone number"
+                                                value={ghostPhone}
+                                                onValueChange={setGhostPhone}
+                                                startContent={<Phone className="w-3 h-3 text-default-400" />}
+                                                className="flex-1"
+                                                classNames={{ inputWrapper: "h-8 min-h-8", input: "text-xs" }}
+                                                type="tel"
+                                            />
+                                            <Input
+                                                size="sm"
+                                                placeholder="Email (optional)"
+                                                value={ghostEmail}
+                                                onValueChange={setGhostEmail}
+                                                startContent={<Mail className="w-3 h-3 text-default-400" />}
+                                                className="flex-1"
+                                                classNames={{ inputWrapper: "h-8 min-h-8", input: "text-xs" }}
+                                                type="email"
+                                            />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                size="sm"
+                                                placeholder="IGN / Player name"
+                                                value={ghostName}
+                                                onValueChange={setGhostName}
+                                                className="flex-1"
+                                                classNames={{ inputWrapper: "h-8 min-h-8", input: "text-xs" }}
+                                                maxLength={20}
+                                            />
+                                            <Button
+                                                size="sm"
+                                                color="primary"
+                                                variant="flat"
+                                                className="h-8 min-w-0 px-3"
+                                                isLoading={addMemberMutation.isPending}
+                                                isDisabled={(!ghostPhone.trim() && !ghostEmail.trim()) || !ghostName.trim()}
+                                                onPress={handleAddMember}
+                                            >
+                                                Add
+                                            </Button>
+                                        </div>
+                                        <p className="text-[10px] text-foreground/25">
+                                            Phone or email required. If they have an account, they&apos;ll be linked automatically.
+                                        </p>
+                                    </div>
+
+                                    {/* Added members list */}
+                                    {addedMembers.length > 0 && (
+                                        <div className="space-y-1">
+                                            {addedMembers.map((member) => (
+                                                <div key={member.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-default-50">
+                                                    {member.isGhost ? (
+                                                        <div className="w-6 h-6 rounded-full bg-purple-500/15 flex items-center justify-center shrink-0">
+                                                            <Ghost className="w-3 h-3 text-purple-500" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-6 h-6 rounded-full bg-success/15 flex items-center justify-center shrink-0">
+                                                            <span className="text-[10px]">✅</span>
+                                                        </div>
+                                                    )}
+                                                    <span className={`text-sm font-medium truncate flex-1 ${member.isGhost ? "text-foreground/60" : ""}`}>
+                                                        {member.displayName}
+                                                    </span>
+                                                    <span className="text-[10px] text-foreground/30">
+                                                        {member.isGhost ? "Ghost" : "Linked"}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </motion.div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Search & Invite players */}
                     <div className="space-y-2">
                         <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
@@ -290,7 +513,66 @@ export function TeamDoneSection({
                     </div>
                 </motion.div>
             ) : null}
-            {/* <DiscordCompareModal /> */}
+
+            {/* Confirmation modal for real player match */}
+            <Modal
+                isOpen={!!confirmPlayer}
+                onClose={() => setConfirmPlayer(null)}
+                size="xs"
+                placement="center"
+            >
+                <ModalContent>
+                    <ModalHeader className="pb-2">
+                        <span className="text-sm">Player Found</span>
+                    </ModalHeader>
+                    <ModalBody className="pb-5">
+                        {confirmPlayer && (
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-success/10 border border-success/20">
+                                    <Avatar
+                                        src={confirmPlayer.imageUrl || undefined}
+                                        name={confirmPlayer.displayName}
+                                        size="sm"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold truncate">
+                                            {confirmPlayer.displayName}
+                                        </p>
+                                        {confirmPlayer.phone && (
+                                            <p className="text-[11px] text-foreground/40">
+                                                📱 {confirmPlayer.phone.slice(0, 4)}****{confirmPlayer.phone.slice(-2)}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                                <p className="text-xs text-foreground/50 text-center">
+                                    This player already has an account. Add them directly?
+                                </p>
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="flat"
+                                        className="flex-1"
+                                        onPress={() => setConfirmPlayer(null)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        color="success"
+                                        variant="flat"
+                                        className="flex-1"
+                                        isLoading={confirmMutation.isPending}
+                                        onPress={() => confirmMutation.mutate(confirmPlayer.id)}
+                                    >
+                                        Add to Squad
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </ModalBody>
+                </ModalContent>
+            </Modal>
         </div>
     );
 }

@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
                                 customProfileImageUrl: true,
                                 hasRoyalPass: true,
                                 discordId: true,
+                                isGhost: true,
                                 user: { select: { username: true, imageUrl: true } },
                             },
                         },
@@ -166,6 +167,7 @@ export async function GET(request: NextRequest) {
                     imageUrl: inv.player.customProfileImageUrl ?? inv.player.user.imageUrl ?? "",
                     hasRoyalPass: inv.player.hasRoyalPass,
                     hasDiscord: !!inv.player.discordId,
+                    isGhost: inv.player.isGhost ?? false,
                     status: inv.status,
                     initiatedBy: inv.initiatedBy ?? "CAPTAIN",
                     // Only reveal sub status to the squad's own members

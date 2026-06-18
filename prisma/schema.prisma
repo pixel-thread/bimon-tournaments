@@ -212,6 +212,7 @@ model Player {
   isSoloRestricted  Boolean        @default(false)
   soloMatchesNeeded Int            @default(0)
   hasRoyalPass      Boolean        @default(false)
+  isGhost           Boolean        @default(false)  // Created via captain's "add teammate by phone" — no real auth account
 
   // Leveling (lifetime, never resets)
   xp               Int            @default(0)
