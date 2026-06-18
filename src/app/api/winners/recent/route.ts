@@ -48,12 +48,14 @@ export async function GET(request: Request) {
                 id: true,
                 name: true,
                 createdAt: true,
+                poll: { select: { allowSquads: true } },
                 winners: {
                     orderBy: { position: "asc" },
                     select: {
                         position: true,
                         team: {
                             select: {
+                                name: true,
                                 players: {
                                     select: {
                                         displayName: true,
@@ -71,11 +73,15 @@ export async function GET(request: Request) {
 
         // 2. Transform tournaments into the expected format
         const tournamentResults = tournaments.map((t) => {
+            const isSquadTournament = t.poll?.allowSquads ?? false;
             const places = t.winners.map((w) => ({
                 position: w.position,
-                players: w.team.players.map(
-                    (p) => p.displayName || p.user.username
-                ),
+                // For squad tournaments: show team name. For casual: show player names.
+                players: isSquadTournament
+                    ? [w.team.name]
+                    : w.team.players.map(
+                        (p) => p.displayName || p.user.username
+                    ),
             }));
 
             return {
@@ -94,7 +100,7 @@ export async function GET(request: Request) {
 
         for (const t of tournaments) {
             for (const w of t.winners) {
-                if (w.position > 4) continue;
+                if (w.position > 3) continue;
                 for (const p of w.team.players) {
                     const name = p.displayName || p.user.username;
                     const entry = placementMap.get(name) || {
@@ -118,6 +124,7 @@ export async function GET(request: Request) {
                 thirdPlaceCount: counts.third,
                 totalPlacements: counts.first + counts.second + counts.third,
             }))
+            .filter((p) => p.totalPlacements > 0) // Exclude players with 0 placements
             .sort((a, b) => {
                 // Sort by total placements first, then by 1st > 2nd > 3rd as tiebreakers
                 const diff = b.totalPlacements - a.totalPlacements;
