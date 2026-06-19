@@ -727,13 +727,18 @@ Make it look premium and professional — suitable for posting on a tournament w
                 .team-name-marquee {
                     overflow: hidden;
                     white-space: nowrap;
+                }
+                .team-name-marquee[data-overflows="true"] {
                     mask-image: linear-gradient(90deg, black 90%, transparent 100%);
                     -webkit-mask-image: linear-gradient(90deg, black 90%, transparent 100%);
                 }
-                .team-name-marquee .marquee-inner {
+                .team-name-marquee[data-overflows="true"] .marquee-inner {
                     display: inline-block;
                     padding-right: 2em;
                     animation: marquee-scroll 5s ease-in-out infinite alternate;
+                }
+                .team-name-marquee:not([data-overflows="true"]) .marquee-inner {
+                    display: inline-block;
                 }
             `}</style>
 
@@ -1143,7 +1148,15 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                        <div className="team-name-marquee flex-1 min-w-0">
+                                        <div
+                                            className="team-name-marquee flex-1 min-w-0"
+                                            ref={(el) => {
+                                                if (!el) return;
+                                                requestAnimationFrame(() => {
+                                                    el.dataset.overflows = String(el.scrollWidth > el.clientWidth);
+                                                });
+                                            }}
+                                        >
                                             <span className={`marquee-inner text-sm font-semibold whitespace-nowrap ${zone?.zone === "ELIMINATED" ? "text-zinc-400" : "text-white"}`}>
                                                 <span className="inline-flex items-center gap-1.5">
                                                     {hasSquadTeams && (

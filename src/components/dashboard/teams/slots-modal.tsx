@@ -117,9 +117,13 @@ export function SlotsModal({
         const element = document.getElementById("teams-list-content");
         if (!element) return null;
 
-        // Calculate the full width needed for all columns
-        const captureWidth = 80 + (hasSquadTeams ? 160 : 0) + maxPlayers * 160 + 60;
-        const fullWidth = Math.max(600, captureWidth);
+        // Calculate the full width needed for all columns — ensure ALL player cols (incl. P6) fit
+        const slotCol = 50;
+        const teamCol = hasSquadTeams ? 110 : 0;
+        const playerCols = maxPlayers * 130;
+        const safetyPadding = 40; // extra buffer so nothing gets clipped
+        const captureWidth = slotCol + teamCol + playerCols + safetyPadding;
+        const fullWidth = Math.max(700, captureWidth);
 
         // Cap pixelRatio on mobile — large canvases get silently downscaled by mobile browsers
         const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
@@ -376,7 +380,12 @@ export function SlotsModal({
                     {showSquad && (
                         <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[11px] sm:text-sm font-bold whitespace-nowrap ${textColor}`}>
                             <span className="inline-flex items-center gap-1.5">
-                                <img src={team.clanLogo || GAME.iconUrl} alt={team.clanTag || GAME.name} className="w-4 h-4 rounded-full object-cover shrink-0" />
+                                <img
+                                    src={team.clanLogo || GAME.iconUrl}
+                                    alt={team.clanTag || GAME.name}
+                                    className="w-4 h-4 rounded-full object-cover shrink-0"
+                                    style={{ width: "16px", height: "16px", borderRadius: "9999px", objectFit: "cover", flexShrink: 0 }}
+                                />
                                 {team.fullName || team.name}
                             </span>
                         </td>
@@ -492,7 +501,7 @@ export function SlotsModal({
                             }}
                         >
                             <div className="overflow-x-auto">
-                                <table className="w-full" style={{ minWidth: `${60 + (hasSquadTeams ? 150 : 0) + maxPlayers * 150}px` }}>
+                                <table className="w-full" style={{ minWidth: `${40 + (hasSquadTeams ? 100 : 0) + maxPlayers * 130}px` }}>
                                     <thead>
                                         <tr className="bg-white/[0.06] border-b border-white/10">
                                             <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] sm:text-sm font-semibold text-white whitespace-nowrap">
