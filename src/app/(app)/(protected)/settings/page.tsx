@@ -301,7 +301,7 @@ export default function SettingsPage() {
                                         </Button>
                                     )}
                                 </div>
-                                <p className="text-[10px] text-foreground/30 mt-0.5">Used for prize delivery & contact</p>
+                                <p className="text-[10px] text-foreground/30 mt-0.5">Used to send room info, prize delivery & contact</p>
                             </div>
 
                             {/* Location */}
