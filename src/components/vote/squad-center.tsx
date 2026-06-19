@@ -65,13 +65,13 @@ function ShareButtonWithTooltip({ squad }: { squad: SquadDTO }) {
             <AnimatePresence>
                 {showTip && (
                     <motion.div
-                        initial={{ opacity: 0, y: 4 }}
+                        initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 4 }}
-                        className="absolute right-0 top-full mt-1.5 z-50 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-foreground text-background text-[11px] font-medium shadow-lg"
+                        exit={{ opacity: 0, y: -4 }}
+                        className="absolute right-0 bottom-full mb-1.5 z-50 whitespace-nowrap px-2.5 py-1.5 rounded-lg bg-foreground text-background text-[11px] font-medium shadow-lg"
                     >
                         Share to teammates on WhatsApp
-                        <div className="absolute -top-1 right-3 w-2 h-2 bg-foreground rotate-45" />
+                        <div className="absolute -bottom-1 right-3 w-2 h-2 bg-foreground rotate-45" />
                     </motion.div>
                 )}
             </AnimatePresence>

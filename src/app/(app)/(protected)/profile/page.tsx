@@ -992,12 +992,7 @@ export default function ProfilePage() {
                                             </>
                                         )}
 
-                                        {player.phoneNumber && (
-                                            <>
-                                                <span className="text-xs text-foreground/40">Phone</span>
-                                                <span className="text-sm font-mono">{player.phoneNumber}</span>
-                                            </>
-                                        )}
+
 
                                         {player.bio && (
                                             <>
