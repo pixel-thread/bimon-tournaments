@@ -398,9 +398,9 @@ export function useCancelSquad() {
             }
             return res.json();
         },
-        onMutate: async (squadId) => {
-            await queryClient.cancelQueries({ queryKey: ["squads"] });
-            const prev = queryClient.getQueriesData({ queryKey: ["squads"] });
+        onSuccess: (data, squadId) => {
+            toast.success(data.message || "Squad cancelled");
+            // Remove squad from cache after server confirms
             queryClient.setQueriesData({ queryKey: ["squads"] }, (old: any) => {
                 if (!old?.squads) return old;
                 return {
@@ -409,14 +409,9 @@ export function useCancelSquad() {
                     squadCount: Math.max(0, old.squadCount - 1),
                 };
             });
-            return { prev };
-        },
-        onSuccess: (data) => {
-            toast.success(data.message || "Squad cancelled");
             queryClient.invalidateQueries({ queryKey: ["squads"] });
         },
-        onError: (err, _, ctx) => {
-            if (ctx?.prev) ctx.prev.forEach(([key, data]: any) => queryClient.setQueryData(key, data));
+        onError: (err) => {
             toast.error(err instanceof Error ? err.message : "Failed to cancel squad");
         },
     });

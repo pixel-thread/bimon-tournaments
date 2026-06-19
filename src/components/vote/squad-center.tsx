@@ -736,20 +736,32 @@ function SquadCard({
 
 
 
-                        {/* Cancel squad (captain only — hide while creating) */}
-                        {isCaptain && squad.status === "FORMING" && !isCreating && (
+                        {/* Cancel squad / Creating indicator */}
+                        {isCaptain && squad.status === "FORMING" && (
                             <div className="px-4 py-2 border-t border-divider/50">
-                                <Button
-                                    size="sm"
-                                    variant="light"
-                                    color="danger"
-                                    className="w-full"
-                                    isLoading={isCancelling}
-                                    onPress={() => onCancel(squad.id)}
-                                    startContent={!isCancelling && <Trash2 className="w-3.5 h-3.5" />}
-                                >
-                                    Cancel Squad
-                                </Button>
+                                {isCreating ? (
+                                    <Button
+                                        size="sm"
+                                        variant="light"
+                                        className="w-full text-foreground/50"
+                                        isLoading
+                                        isDisabled
+                                    >
+                                        Creating…
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        variant="light"
+                                        color="danger"
+                                        className="w-full"
+                                        isLoading={isCancelling}
+                                        onPress={() => onCancel(squad.id)}
+                                        startContent={!isCancelling && <Trash2 className="w-3.5 h-3.5" />}
+                                    >
+                                        Cancel Squad
+                                    </Button>
+                                )}
                             </div>
                         )}
                         <div ref={bottomRef} />
