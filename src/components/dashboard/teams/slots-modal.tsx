@@ -125,9 +125,8 @@ export function SlotsModal({
         const captureWidth = slotCol + teamCol + playerCols + safetyPadding;
         const fullWidth = Math.max(700, captureWidth);
 
-        // Cap pixelRatio on mobile — large canvases get silently downscaled by mobile browsers
-        const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-        const pixelRatio = isMobile ? 2 : 3;
+        // Max quality — 4x DPI + near-lossless JPEG (canvas stays under 16MP mobile limit)
+        const pixelRatio = 4;
 
         // Create an off-screen container outside the modal layout
         const offscreen = document.createElement("div");
@@ -173,7 +172,7 @@ export function SlotsModal({
         try {
             const dataUrl = await toJpeg(clone, {
                 pixelRatio,
-                quality: 0.92,
+                quality: 0.98,
                 width: fullWidth,
                 height: capturedHeight,
                 style: {
