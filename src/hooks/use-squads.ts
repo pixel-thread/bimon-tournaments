@@ -147,7 +147,12 @@ export function useCreateSquad() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ pollId, name, useClan, useClanTreasury, fullName }: { pollId: string; name: string; useClan?: boolean; useClanTreasury?: boolean; fullName?: string }) => {
+        mutationFn: async ({ pollId, name, useClan, useClanTreasury, fullName }: {
+            pollId: string; name: string; useClan?: boolean; useClanTreasury?: boolean; fullName?: string;
+            // These are only used for optimistic UI, not sent to API:
+            _captain?: { id: string; displayName: string; imageUrl: string };
+            _clan?: { tag: string; name: string; logo: string | null } | null;
+        }) => {
             const res = await fetch("/api/squads", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -160,11 +165,12 @@ export function useCreateSquad() {
             return res.json();
         },
         onMutate: async (variables) => {
-            // Cancel outgoing refetches so they don't overwrite our optimistic update
             await queryClient.cancelQueries({ queryKey: ["squads", variables.pollId] });
             const prev = queryClient.getQueryData(["squads", variables.pollId]);
 
-            // Optimistic: add squad BEFORE the API responds
+            const cap = variables._captain ?? { id: "", displayName: "", imageUrl: "" };
+            const clan = variables._clan;
+
             queryClient.setQueryData(
                 ["squads", variables.pollId],
                 (old: { squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean; isMangoScrim: boolean } | undefined) => {
@@ -172,19 +178,30 @@ export function useCreateSquad() {
                     const tempId = `temp-${Date.now()}`;
                     const newSquad: SquadDTO = {
                         id: tempId,
-                        name: variables.name || "New Team",
-                        fullName: variables.fullName ?? null,
+                        name: variables.name || clan?.tag || "New Team",
+                        fullName: variables.fullName ?? (clan?.name ?? null),
                         status: "FORMING",
                         entryFee: 0,
-                        createdAt: new Date(0).toISOString(), // Earliest time so it lands in confirmed slots
-                        captain: { id: "", displayName: "", imageUrl: "" },
-                        clanLogo: null,
-                        clanTag: null,
-                        clanName: null,
+                        createdAt: new Date(0).toISOString(),
+                        captain: cap,
+                        clanLogo: clan?.logo ?? null,
+                        clanTag: clan?.tag ?? null,
+                        clanName: clan?.name ?? null,
                         isDefendingChampion: false,
                         isCaptain: true,
                         myInvite: { id: "", status: "ACCEPTED", initiatedBy: "CAPTAIN" },
-                        members: [],
+                        members: cap.id ? [{
+                            playerId: cap.id,
+                            displayName: cap.displayName,
+                            imageUrl: cap.imageUrl,
+                            status: "ACCEPTED" as const,
+                            isSub: false,
+                            inviteId: "",
+                            initiatedBy: "CAPTAIN" as const,
+                            hasRoyalPass: false,
+                            hasDiscord: false,
+                            isGhost: false,
+                        }] : [],
                         acceptedCount: 1,
                         activeCount: 1,
                         totalSlots: GAME.maxSquadSize,

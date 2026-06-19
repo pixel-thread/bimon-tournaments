@@ -34,6 +34,8 @@ interface CreateSquadModalProps {
     hasVotedIn?: boolean;
     /** Ranked/squad tournament — uses Discord instead of WhatsApp */
     isRanked?: boolean;
+    /** Captain info for optimistic UI */
+    captainInfo?: { id: string; displayName: string; imageUrl: string } | null;
 }
 
 interface MyClan {
@@ -56,6 +58,7 @@ export function CreateSquadModal({
     whatsappGroupLink,
     hasVotedIn,
     isRanked,
+    captainInfo,
 }: CreateSquadModalProps) {
     const [step, setStep] = useState<"name">("name");
     const [squadName, setSquadName] = useState("");
@@ -154,6 +157,8 @@ export function CreateSquadModal({
                 useClan: effectiveUseClan,
                 useClanTreasury: effectiveUseClan && useClanTreasury && isLeaderOrCoLeader,
                 fullName: squadFullName.trim() || undefined,
+                _captain: captainInfo ?? undefined,
+                _clan: effectiveUseClan && myClan ? { tag: myClan.tag, name: myClan.name, logo: myClan.logoUrl } : null,
             },
             {
                 onSuccess: async (data) => {
@@ -174,7 +179,7 @@ export function CreateSquadModal({
                 },
             }
         );
-    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName, handleClose, hasSubscribers]);
+    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName, handleClose, hasSubscribers, captainInfo, myClan, isLeaderOrCoLeader, useClanTreasury]);
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
