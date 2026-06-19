@@ -377,7 +377,9 @@ export function StandingsModal({
                     setTimeout(() => setShareSuccess(false), 2000);
                     return;
                 } catch (e: unknown) {
-                    if ((e as Error).name !== "AbortError") console.warn("Share failed:", e);
+                    // User cancelled share — just exit silently
+                    if ((e as Error).name === "AbortError") return;
+                    console.warn("Share failed:", e);
                 }
             }
 
