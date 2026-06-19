@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { useState, useEffect } from "react";
@@ -99,17 +99,23 @@ export function useSearchPlayers(query: string, pollId: string | undefined) {
         return () => clearTimeout(id);
     }, [query]);
 
-    return useQuery<SearchPlayerResult[]>({
+    return useInfiniteQuery<{ success: boolean; data: SearchPlayerResult[]; meta: { hasMore: boolean; nextCursor: string | null } }>({
         queryKey: ["squad-search-players", debouncedQuery, pollId],
-        queryFn: async () => {
-            const res = await fetch(
-                `/api/squads/search-players?q=${encodeURIComponent(debouncedQuery)}&pollId=${pollId}`
-            );
+        queryFn: async ({ pageParam }) => {
+            const params = new URLSearchParams({
+                pollId: pollId!,
+                limit: "20",
+                ...(debouncedQuery.length >= 2 ? { q: debouncedQuery } : {}),
+                ...(pageParam ? { cursor: pageParam as string } : {}),
+            });
+            const res = await fetch(`/api/squads/search-players?${params}`);
             if (!res.ok) throw new Error("Search failed");
-            const json = await res.json();
-            return json.data;
+            return res.json();
         },
-        enabled: debouncedQuery.length >= 2 && !!pollId,
+        initialPageParam: null as string | null,
+        getNextPageParam: (lastPage) =>
+            lastPage.meta?.hasMore ? lastPage.meta.nextCursor : undefined,
+        enabled: !!pollId,
         staleTime: 10_000,
     });
 }

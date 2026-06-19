@@ -5,13 +5,15 @@ import { type NextRequest } from "next/server";
 
 /**
  * GET /api/squads/recent-teammates?pollId=xxx
- * Returns players who have auto-accept enabled for this captain.
- * "Quick Add" — every player in this list will auto-join when invited.
+ * Returns Quick Add candidates for this captain:
+ *   1. Players who have auto-accept ON for this captain (subscribers)
+ *   2. Clan members (always quick-addable)
  *
  * For each player, includes:
  * - alreadyInSquad: true if already in captain's squad for this poll
  * - existingTeamName: name of the OTHER squad they're in for this poll (null if none)
  * - isClanMember: true if they share a clan with the captain
+ * - isSubscriber: true if they have auto-accept ON for this captain
  */
 export async function GET(request: NextRequest) {
     try {
@@ -27,7 +29,14 @@ export async function GET(request: NextRequest) {
 
         const currentPlayerId = user.player.id;
 
-        // Find all players who have auto-accept ON for this captain
+        // 1. Get captain's clan
+        const captainClan = await prisma.clanMember.findFirst({
+            where: { playerId: currentPlayerId },
+            select: { clanId: true },
+        });
+        const captainClanId = captainClan?.clanId || null;
+
+        // 2. Fetch subscribers (auto-accept ON for this captain)
         const autoAccepts = await prisma.playerAutoAccept.findMany({
             where: { captainId: currentPlayerId },
             include: {
@@ -45,25 +54,79 @@ export async function GET(request: NextRequest) {
             orderBy: { createdAt: "desc" },
         });
 
-        if (autoAccepts.length === 0) {
+        // 3. Fetch clan members (if captain has a clan)
+        let clanMembers: {
+            player: {
+                id: string;
+                displayName: string | null;
+                customProfileImageUrl: string | null;
+                isBanned: boolean;
+                user: { username: string | null; imageUrl: string | null };
+                clanMembership: { clanId: string } | null;
+            };
+        }[] = [];
+
+        if (captainClanId) {
+            clanMembers = await prisma.clanMember.findMany({
+                where: {
+                    clanId: captainClanId,
+                    playerId: { not: currentPlayerId }, // exclude self
+                },
+                select: {
+                    player: {
+                        select: {
+                            id: true,
+                            displayName: true,
+                            customProfileImageUrl: true,
+                            isBanned: true,
+                            user: { select: { username: true, imageUrl: true } },
+                            clanMembership: { select: { clanId: true } },
+                        },
+                    },
+                },
+            });
+        }
+
+        // 4. Merge into a unified map (dedup by playerId)
+        const subscriberIds = new Set(autoAccepts.map((a) => a.playerId));
+        const playerMap = new Map<string, {
+            id: string;
+            displayName: string;
+            imageUrl: string;
+            isClanMember: boolean;
+            isSubscriber: boolean;
+        }>();
+
+        // Add subscribers first
+        for (const a of autoAccepts) {
+            if (a.player.isBanned || a.playerId === currentPlayerId) continue;
+            const playerClanId = a.player.clanMembership?.clanId || null;
+            playerMap.set(a.playerId, {
+                id: a.player.id,
+                displayName: a.player.displayName ?? a.player.user.username ?? "Player",
+                imageUrl: a.player.customProfileImageUrl ?? a.player.user.imageUrl ?? "",
+                isClanMember: captainClanId ? playerClanId === captainClanId : false,
+                isSubscriber: true,
+            });
+        }
+
+        // Add clan members (not already in as subscribers)
+        for (const cm of clanMembers) {
+            if (cm.player.isBanned || playerMap.has(cm.player.id)) continue;
+            playerMap.set(cm.player.id, {
+                id: cm.player.id,
+                displayName: cm.player.displayName ?? cm.player.user.username ?? "Player",
+                imageUrl: cm.player.customProfileImageUrl ?? cm.player.user.imageUrl ?? "",
+                isClanMember: true,
+                isSubscriber: false,
+            });
+        }
+
+        if (playerMap.size === 0) {
             return SuccessResponse({ data: [], cache: CACHE.NONE });
         }
 
-        // Filter out banned players
-        const eligible = autoAccepts.filter((a) => !a.player.isBanned);
-
-        if (eligible.length === 0) {
-            return SuccessResponse({ data: [], cache: CACHE.NONE });
-        }
-
-        // Get captain's clan
-        const captainClan = await prisma.clanMember.findFirst({
-            where: { playerId: currentPlayerId },
-            select: { clanId: true },
-        });
-        const captainClanId = captainClan?.clanId || null;
-
-        // Get captain's squad for this poll
+        // 5. Get captain's squad for this poll
         const captainSquad = await prisma.squad.findFirst({
             where: {
                 pollId,
@@ -74,8 +137,8 @@ export async function GET(request: NextRequest) {
         });
         const captainSquadId = captainSquad?.id || null;
 
-        // Check which players are already in a squad for this poll
-        const playerIds = eligible.map((a) => a.playerId);
+        // 6. Check which players are already in a squad for this poll
+        const playerIds = Array.from(playerMap.keys());
         const playersInSquads = await prisma.squadInvite.findMany({
             where: {
                 playerId: { in: playerIds },
@@ -92,26 +155,31 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        // Map: playerId → { squadId, squadName }
         const squadMap = new Map<string, { squadId: string; squadName: string }>();
         for (const inv of playersInSquads) {
             squadMap.set(inv.playerId, { squadId: inv.squadId, squadName: inv.squad.name });
         }
 
-        const data = eligible.map((a) => {
-            const squadInfo = squadMap.get(a.playerId);
+        // 7. Build response — clan members first, then subscribers
+        const data = Array.from(playerMap.values()).map((p) => {
+            const squadInfo = squadMap.get(p.id);
             const isInCaptainSquad = squadInfo?.squadId === captainSquadId;
             const isInOtherSquad = squadInfo && !isInCaptainSquad;
-            const playerClanId = a.player.clanMembership?.clanId || null;
 
             return {
-                id: a.player.id,
-                displayName: a.player.displayName ?? a.player.user.username,
-                imageUrl: a.player.customProfileImageUrl ?? a.player.user.imageUrl ?? "",
-                isClanMember: captainClanId ? playerClanId === captainClanId : false,
+                id: p.id,
+                displayName: p.displayName,
+                imageUrl: p.imageUrl,
+                isClanMember: p.isClanMember,
+                isSubscriber: p.isSubscriber,
                 alreadyInSquad: isInCaptainSquad ?? false,
                 existingTeamName: isInOtherSquad ? squadInfo.squadName : null,
             };
+        }).sort((a, b) => {
+            // Clan members first, then subscribers, then rest
+            if (a.isClanMember !== b.isClanMember) return a.isClanMember ? -1 : 1;
+            if (a.isSubscriber !== b.isSubscriber) return a.isSubscriber ? -1 : 1;
+            return 0;
         });
 
         return SuccessResponse({ data, cache: CACHE.NONE });

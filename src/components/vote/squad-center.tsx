@@ -296,9 +296,14 @@ function SquadCard({
     const isCreating = squad.id.startsWith("temp-");
 
     // Invite hooks (only active when captain opens invite)
-    const { data: searchResults, isLoading: isSearching } = useSearchPlayers(
-        showInvite ? inviteSearch : "", pollId
-    );
+    const {
+        data: searchData,
+        isLoading: isSearching,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useSearchPlayers(showInvite ? inviteSearch : "", pollId);
+    const searchResults = searchData?.pages.flatMap((p) => p.data) ?? [];
     const inviteMutation = useInvitePlayer();
     const ghostQueryClient = useQueryClient();
     const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
@@ -753,13 +758,14 @@ function SquadCard({
                                     <Button
                                         size="sm"
                                         variant="light"
-                                        color="danger"
-                                        className="w-full"
+                                        color={isCancelling ? "default" : "danger"}
+                                        className={`w-full ${isCancelling ? "text-foreground/50" : ""}`}
                                         isLoading={isCancelling}
+                                        isDisabled={isCancelling}
                                         onPress={() => onCancel(squad.id)}
                                         startContent={!isCancelling && <Trash2 className="w-3.5 h-3.5" />}
                                     >
-                                        Cancel Squad
+                                        {isCancelling ? "Cancelling…" : "Cancel Squad"}
                                     </Button>
                                 )}
                             </div>
@@ -879,14 +885,14 @@ function SquadCard({
                             </div>
                         )}
 
-                        {/* Results */}
+                        {/* Results — infinite scroll */}
                         <div className="mt-3 space-y-1">
-                            {isSearching && (
+                            {isSearching && searchResults.length === 0 && (
                                 <div className="flex justify-center py-6">
                                     <Spinner size="sm" />
                                 </div>
                             )}
-                            {searchResults && searchResults.length > 0 && (
+                            {searchResults.length > 0 && (
                                 <div className="space-y-0.5">
                                     {searchResults
                                         .filter(p => !squad.members.some(m => m.playerId === p.id))
@@ -917,15 +923,39 @@ function SquadCard({
                                     ))}
                                 </div>
                             )}
-                            {searchResults && searchResults.filter(p => !squad.members.some(m => m.playerId === p.id)).length >= 10 && (
-                                <p className="text-xs text-foreground/40 text-center py-2">Player not found? Type more</p>
-                            )}
-                            {inviteSearch.length >= 2 && !isSearching && searchResults?.filter(p => !squad.members.some(m => m.playerId === p.id)).length === 0 && (
-                                <p className="text-xs text-foreground/40 text-center py-4">Player not found? Type more</p>
-                            )}
-                            {!inviteSearch && !isSearching && (
-                                <p className="text-sm text-foreground/30 text-center py-8">Type a name to search players</p>
-                            )}
+                            {/* Scroll-to-load sentinel */}
+                            <div
+                                ref={(el) => {
+                                    if (!el) return;
+                                    const observer = new IntersectionObserver(
+                                        ([entry]) => {
+                                            if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                                                fetchNextPage();
+                                            }
+                                        },
+                                        { rootMargin: "200px" }
+                                    );
+                                    observer.observe(el);
+                                    return () => observer.disconnect();
+                                }}
+                                className="flex justify-center py-4 min-h-[60px]"
+                            >
+                                {isFetchingNextPage ? (
+                                    <>
+                                        {/* @ts-expect-error – dotlottie-wc is a web component */}
+                                        <dotlottie-wc
+                                            src="https://lottie.host/1e87a411-568e-4c3c-9636-d83afd6d26f4/WELgDwxSwC.lottie"
+                                            style={{ width: "120px", height: "120px" }}
+                                            autoplay
+                                            loop
+                                        />
+                                    </>
+                                ) : !hasNextPage && searchResults.length > 0 ? (
+                                    <p className="text-xs text-foreground/30 py-2">
+                                        End of list • {searchResults.filter(p => !squad.members.some(m => m.playerId === p.id)).length} players
+                                    </p>
+                                ) : null}
+                            </div>
                         </div>
                     </ModalBody>
                 </ModalContent>
@@ -1136,13 +1166,13 @@ function SquadCard({
                     <ModalHeader className="flex items-center gap-2 text-base pb-2">
                         <Zap className="w-4 h-4 text-amber-500" />
                         <div className="flex-1 min-w-0">
-                            <span className="truncate block">Quick Add Subscribers</span>
+                            <span className="truncate block">Quick Add</span>
                             <span className="text-xs font-normal text-foreground/50">{squad.fullName || squad.name}</span>
                         </div>
                     </ModalHeader>
                     <ModalBody>
                         <p className="text-xs text-foreground/50 mb-3">
-                            Players who subscribed to you — add them instantly with one tap.
+                            Clan members & subscribers — add them instantly with one tap.
                         </p>
 
                         <QuickAddSubscribersList
