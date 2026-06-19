@@ -774,18 +774,7 @@ Make it look premium and professional — suitable for posting on a tournament w
                         )}
                     </button>
 
-                    {/* Final Standings Toggle */}
-                    <button
-                        onClick={() => setIsFinalStandings(!isFinalStandings)}
-                        className={`text-white bg-black/60 hover:bg-black/80 backdrop-blur-md border p-2.5 rounded-xl transition-all duration-300 text-sm font-bold ${
-                            isFinalStandings
-                                ? "border-amber-500/60 text-amber-400 bg-amber-500/10"
-                                : "border-white/20 hover:border-amber-500/30 hover:text-amber-400"
-                        }`}
-                        title={isFinalStandings ? "Final Standings ON" : "Mark as Final Standings"}
-                    >
-                        👑
-                    </button>
+
 
 
 
@@ -1084,7 +1073,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                     <td style={{ padding: '6px 4px', textAlign: 'left', verticalAlign: 'middle' }}>
                                         <div className="flex items-center" style={{ gap: '5px' }}>
                                             {hasSquadTeams && (
-                                                <img src={row.clanLogo || GAME.iconUrl} alt="" style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                                                <img src={row.clanLogo || GAME.iconUrl} alt="" style={{ width: '16px', height: '16px', objectFit: 'cover', flexShrink: 0, clipPath: 'circle(50%)' }} />
                                             )}
                                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                 <span className={`${ 
@@ -1160,7 +1149,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                             <span className={`marquee-inner text-sm font-semibold whitespace-nowrap ${zone?.zone === "ELIMINATED" ? "text-zinc-400" : "text-white"}`}>
                                                 <span className="inline-flex items-center gap-1.5">
                                                     {hasSquadTeams && (
-                                                        <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0 inline" />
+                                                        <img src={row.clanLogo || GAME.iconUrl} alt="" className="w-4 h-4 object-cover shrink-0 inline" style={{ clipPath: 'circle(50%)' }} />
                                                     )}
                                                     {hasSquadTeams ? row.teamName : row.playerNames.join(", ")}
                                                 </span>

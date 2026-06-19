@@ -382,8 +382,8 @@ export function SlotsModal({
                                 <img
                                     src={team.clanLogo || GAME.iconUrl}
                                     alt={team.clanTag || GAME.name}
-                                    className="w-4 h-4 rounded-full object-cover shrink-0"
-                                    style={{ width: "16px", height: "16px", borderRadius: "9999px", objectFit: "cover", flexShrink: 0 }}
+                                    className="w-4 h-4 object-cover shrink-0"
+                                    style={{ width: "16px", height: "16px", objectFit: "cover", flexShrink: 0, clipPath: "circle(50%)" }}
                                 />
                                 {team.fullName || team.name}
                             </span>
