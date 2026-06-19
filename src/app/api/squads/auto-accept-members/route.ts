@@ -5,9 +5,10 @@ import { type NextRequest } from "next/server";
 
 /**
  * GET /api/squads/auto-accept-members?squadId=xxx
- * Returns clan members who have autoAcceptSquadInvites enabled and are
- * eligible to be invited to this squad (same clan, not already in a squad
- * for this poll, not banned, etc.).
+ * Returns clan members who have autoAcceptSquadInvites enabled.
+ * For each member, includes:
+ *  - Whether they're already in this squad (alreadyInSquad)
+ *  - If they're in another squad for this poll, the team name (existingTeamName)
  * Captain-only.
  */
 export async function GET(request: NextRequest) {
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
             return SuccessResponse({ data: [], cache: CACHE.NONE });
         }
 
-        // Get all clan members with auto-accept ON (excluding the captain and leader)
+        // Get all clan members with auto-accept ON (excluding the captain)
         const autoAcceptMembers = await prisma.clanMember.findMany({
             where: {
                 clanId: squad.clanId,
@@ -75,31 +76,41 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        // Filter out members who are already in this squad or in another squad for this poll
-        const alreadyInSquadPlayerIds = new Set(squad.invites.map((i) => i.playerId));
+        // Check which are already in THIS squad
+        const alreadyInSquadPlayerIds = new Set(
+            squad.invites.filter((i) => i.status === "ACCEPTED" || i.status === "PENDING").map((i) => i.playerId)
+        );
 
-        const inOtherSquads = await prisma.squadInvite.findMany({
+        // Check which are in OTHER squads for this poll — include the team name
+        const otherSquadInvites = await prisma.squadInvite.findMany({
             where: {
                 playerId: { in: autoAcceptMembers.map((m) => m.playerId) },
                 status: { in: ["PENDING", "ACCEPTED"] },
                 squad: {
                     pollId: squad.pollId,
                     status: { in: ["FORMING", "FULL"] },
+                    id: { not: squadId },
                 },
             },
-            select: { playerId: true },
+            select: {
+                playerId: true,
+                squad: { select: { name: true } },
+            },
         });
-        const inOtherSquadPlayerIds = new Set(inOtherSquads.map((i) => i.playerId));
+        const otherSquadMap = new Map<string, string>();
+        for (const inv of otherSquadInvites) {
+            otherSquadMap.set(inv.playerId, inv.squad.name);
+        }
 
-        const eligible = autoAcceptMembers
-            .filter((m) => !alreadyInSquadPlayerIds.has(m.playerId) && !inOtherSquadPlayerIds.has(m.playerId))
-            .map((m) => ({
-                id: m.player.id,
-                displayName: m.player.displayName || m.player.user.username,
-                imageUrl: m.player.customProfileImageUrl || m.player.user.imageUrl || "",
-            }));
+        const result = autoAcceptMembers.map((m) => ({
+            id: m.player.id,
+            displayName: m.player.displayName || m.player.user.username,
+            imageUrl: m.player.customProfileImageUrl || m.player.user.imageUrl || "",
+            alreadyInSquad: alreadyInSquadPlayerIds.has(m.playerId),
+            existingTeamName: otherSquadMap.get(m.playerId) || null,
+        }));
 
-        return SuccessResponse({ data: eligible, cache: CACHE.NONE });
+        return SuccessResponse({ data: result, cache: CACHE.NONE });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch auto-accept members", error });
     }

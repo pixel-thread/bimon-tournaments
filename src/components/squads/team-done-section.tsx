@@ -1,10 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Input, Button, Spinner, Avatar } from "@heroui/react";
-import { Search, X, Share2, Zap } from "lucide-react";
-import { motion } from "motion/react";
-import { useSearchPlayers, useRecentTeammates } from "@/hooks/use-squads";
+import { Share2 } from "lucide-react";
 
 /* ─── WhatsApp Icon ─────────────────────────────────────────── */
 
@@ -24,9 +20,7 @@ interface TeamDoneSectionProps {
     onWhatsappJoin: () => void;
     createdSquadId: string | null;
     pollId: string;
-    /** If true, this is a ranked/squad tournament — require Discord */
     isRanked?: boolean;
-    /** Discord invite link for the server */
     discordInviteLink?: string | null;
 }
 
@@ -37,211 +31,56 @@ export function TeamDoneSection({
     whatsappJoined,
     onWhatsappJoin,
     createdSquadId,
-    pollId,
-    isRanked,
-    discordInviteLink,
 }: TeamDoneSectionProps) {
-    const [inviteSearch, setInviteSearch] = useState("");
-    const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
-    const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
-
-    const { data: searchResults, isLoading: isSearching } = useSearchPlayers(
-        inviteSearch,
-        pollId
-    );
-    const { data: recentTeammates } = useRecentTeammates(pollId, !!createdSquadId);
-
-    // Fire-and-forget invite with per-player loading state
-    const handleQuickInvite = (playerId: string) => {
-        if (!createdSquadId || loadingIds.has(playerId) || invitedIds.has(playerId)) return;
-        setLoadingIds((prev) => new Set(prev).add(playerId));
-        fetch("/api/squads/invite", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ squadId: createdSquadId, playerId }),
-        })
-            .then((res) => res.json())
-            .then((json) => {
-                if (json.message) {
-                    import("sonner").then(({ toast }) => toast.success(json.message));
-                }
-                setInvitedIds((prev) => new Set(prev).add(playerId));
-            })
-            .catch(() => {
-                import("sonner").then(({ toast }) => toast.error("Failed to invite"));
-            })
-            .finally(() => {
-                setLoadingIds((prev) => {
-                    const next = new Set(prev);
-                    next.delete(playerId);
-                    return next;
-                });
-            });
-    };
-
-    const isBlocked = false; // No gates — invite tools always visible
-
     return (
         <div className="space-y-4">
-            {/* WhatsApp group link (optional, non-blocking) */}
+            {/* WhatsApp group join (optional) */}
             {whatsappGroupLink && (
-                <div className="space-y-2">
-                    <a
-                        href={whatsappGroupLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={onWhatsappJoin}
-                        className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all ${
-                            whatsappJoined
-                                ? "bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                                : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25"
-                        }`}
-                    >
-                        <WhatsAppIcon className="w-5 h-5" />
-                        {whatsappJoined ? "Joined WhatsApp Group ✅" : "Join WhatsApp Group"}
-                    </a>
-                </div>
+                <a
+                    href={whatsappGroupLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={onWhatsappJoin}
+                    className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all ${
+                        whatsappJoined
+                            ? "bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                            : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25"
+                    }`}
+                >
+                    <WhatsAppIcon className="w-5 h-5" />
+                    {whatsappJoined ? "Joined WhatsApp Group ✅" : "Join WhatsApp Group"}
+                </a>
             )}
 
-            {/* Invite tools */}
-            {!isBlocked ? (
-                <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="space-y-4"
+            {/* Share invite on WhatsApp */}
+            {createdSquadId && (
+                <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`Join my team for the tournament! 🎮🔥\n${typeof window !== "undefined" ? window.location.origin : ""}/invite/${createdSquadId}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors cursor-pointer"
                 >
-                    {/* Share invite on WhatsApp */}
-                    {createdSquadId && (
-                        <a
-                            href={`https://wa.me/?text=${encodeURIComponent(`Join my team for the tournament! 🎮🔥\n${typeof window !== "undefined" ? window.location.origin : ""}/invite/${createdSquadId}`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors cursor-pointer"
-                        >
-                            <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                                <WhatsAppIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <div className="flex-1 min-w-0 text-left">
-                                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                                    Share Invite on WhatsApp
-                                </p>
-                                <p className="text-[11px] text-emerald-600/60 dark:text-emerald-400/60">
-                                    Send invite link to your teammates
-                                </p>
-                            </div>
-                            <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                                <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                        </a>
-                    )}
-
-                    {/* Quick Add — players with auto-accept ON for this captain */}
-                    {recentTeammates && recentTeammates.length > 0 && (
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-1.5">
-                                <Zap className="w-3 h-3 text-amber-500" />
-                                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
-                                    Subscribers — tap to add
-                                </p>
-                            </div>
-                            <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                                {recentTeammates.map((teammate) => {
-                                    const isInvited = invitedIds.has(teammate.id);
-                                    const isLoading = loadingIds.has(teammate.id);
-                                    return (
-                                        <div key={teammate.id} className="flex items-center gap-2 py-1.5">
-                                            <Avatar
-                                                src={teammate.imageUrl}
-                                                name={teammate.displayName}
-                                                size="sm"
-                                                className="w-7 h-7 shrink-0"
-                                            />
-                                            <span className="text-sm font-medium truncate flex-1">
-                                                {teammate.displayName}
-                                            </span>
-                                            <Button
-                                                size="sm"
-                                                color={isInvited ? "success" : "primary"}
-                                                variant={isInvited ? "light" : "flat"}
-                                                className="min-w-0 px-3 h-7"
-                                                isLoading={isLoading}
-                                                isDisabled={isInvited}
-                                                onPress={() => handleQuickInvite(teammate.id)}
-                                            >
-                                                {isInvited ? "Added ✓" : "+ Add"}
-                                            </Button>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <p className="text-[10px] text-foreground/30">These players subscribed to auto-join your invites</p>
-                        </div>
-                    )}
-
-                    {/* Search & Invite players */}
-                    <div className="space-y-2">
-                        <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
-                            {recentTeammates && recentTeammates.length > 0 ? "Or search players" : "Invite players"}
-                        </p>
-                        <Input
-                            placeholder="Search player..."
-                            value={inviteSearch}
-                            onValueChange={setInviteSearch}
-                            size="sm"
-                            startContent={<Search className="w-3.5 h-3.5 text-default-400" />}
-                            endContent={inviteSearch ? (
-                                <button type="button" onClick={() => setInviteSearch("")} className="p-0.5">
-                                    <X className="w-3 h-3 text-default-400" />
-                                </button>
-                            ) : undefined}
-                        />
-                        {isSearching && (
-                            <div className="flex justify-center py-2">
-                                <Spinner size="sm" />
-                            </div>
-                        )}
-                        {searchResults && searchResults.length > 0 && (
-                            <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                                {searchResults.map((player) => {
-                                    const isInvited = invitedIds.has(player.id);
-                                    const isLoading = loadingIds.has(player.id);
-                                    return (
-                                        <div key={player.id} className="flex items-center gap-2 py-1.5">
-                                            <Avatar
-                                                src={player.imageUrl}
-                                                name={player.displayName}
-                                                size="sm"
-                                                className="w-7 h-7 shrink-0"
-                                            />
-                                            <span className="text-sm font-medium truncate flex-1">
-                                                {player.displayName}
-                                            </span>
-                                            <Button
-                                                size="sm"
-                                                color={isInvited ? "success" : "primary"}
-                                                variant={isInvited ? "light" : "flat"}
-                                                className="min-w-0 px-3 h-7"
-                                                isLoading={isLoading}
-                                                isDisabled={isInvited}
-                                                onPress={() => handleQuickInvite(player.id)}
-                                            >
-                                                {isInvited ? "Invited ✓" : "Invite"}
-                                            </Button>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                        {searchResults && searchResults.length >= 10 && (
-                            <p className="text-[11px] text-foreground/40 text-center py-1.5">Player not found? Type more</p>
-                        )}
-                        {searchResults && searchResults.length === 0 && inviteSearch.length >= 2 && (
-                            <p className="text-xs text-foreground/40 text-center py-2">No players found</p>
-                        )}
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                        <WhatsAppIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
-                </motion.div>
-            ) : null}
+                    <div className="flex-1 min-w-0 text-left">
+                        <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                            Share Invite on WhatsApp
+                        </p>
+                        <p className="text-[11px] text-emerald-600/60 dark:text-emerald-400/60">
+                            Send invite link to your teammates
+                        </p>
+                    </div>
+                    <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                        <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                </a>
+            )}
+
+            {/* Hint to use squad card buttons */}
+            <p className="text-xs text-foreground/40 text-center">
+                Use the buttons on your squad card below to invite players, add ghosts, or quick-add subscribers
+            </p>
         </div>
     );
 }

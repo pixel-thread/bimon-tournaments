@@ -17,7 +17,7 @@ import { useCreateSquad, useRecentTeammates } from "@/hooks/use-squads";
 import { useQuery } from "@tanstack/react-query";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
-import { TeamDoneSection } from "@/components/squads/team-done-section";
+
 import { markWhatsAppPending, markWhatsAppJoined } from "@/components/common/whatsapp-squad-guard";
 import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
 
@@ -57,7 +57,7 @@ export function CreateSquadModal({
     hasVotedIn,
     isRanked,
 }: CreateSquadModalProps) {
-    const [step, setStep] = useState<"name" | "done">("name");
+    const [step, setStep] = useState<"name">("name");
     const [squadName, setSquadName] = useState("");
     const [squadFullName, setSquadFullName] = useState("");
     const [createdSquadId, setCreatedSquadId] = useState<string | null>(null);
@@ -143,6 +143,10 @@ export function CreateSquadModal({
     const handleCreate = useCallback(async () => {
         const effectiveUseClan = useClan && hasClan;
         if (!effectiveUseClan && !squadName.trim()) return;
+
+        // Close modal immediately — optimistic update in onMutate shows the squad card instantly
+        handleClose();
+
         createMutation.mutate(
             {
                 pollId,
@@ -154,9 +158,6 @@ export function CreateSquadModal({
             {
                 onSuccess: async (data) => {
                     const name = data?.data?.name ?? squadName.trim();
-                    const newSquadId = data?.data?.id ?? null;
-                    setCreatedSquadId(newSquadId);
-                    setCreatedSquadName(name);
 
                     const { toast } = await import("sonner");
                     toast.success(`Team "${name}" created! 🎉`);
@@ -169,14 +170,6 @@ export function CreateSquadModal({
                             tournamentName,
                             whatsappGroupLink,
                         });
-                    }
-
-                    if (hasSubscribers) {
-                        // Has subscribers → show quick invite modal instantly (data pre-fetched)
-                        setStep("done");
-                    } else {
-                        // No subscribers → just close, toast is enough
-                        handleClose();
                     }
                 },
             }
@@ -360,23 +353,7 @@ export function CreateSquadModal({
                             </motion.div>
                         )}
 
-                        {step === "done" && (
-                            <motion.div
-                                key="done-step"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                            >
-                                <TeamDoneSection
-                                    whatsappGroupLink={whatsappGroupLink}
-                                    whatsappJoined={whatsappJoined}
-                                    onWhatsappJoin={handleWhatsappJoin}
-                                    createdSquadId={createdSquadId}
-                                    pollId={pollId}
-                                    isRanked={isRanked}
-                                    discordInviteLink={process.env.NEXT_PUBLIC_DISCORD_INVITE_LINK || null}
-                                />
-                            </motion.div>
-                        )}
+
                     </AnimatePresence>
                 </ModalBody>
 
@@ -398,16 +375,7 @@ export function CreateSquadModal({
                             </Button>
                         </div>
                     )}
-                    {step === "done" && (
-                        <Button
-                            color="primary"
-                            variant="flat"
-                            className="w-full font-medium"
-                            onPress={handleClose}
-                        >
-                            Done
-                        </Button>
-                    )}
+
                 </ModalFooter>
             </ModalContent>
         </Modal>

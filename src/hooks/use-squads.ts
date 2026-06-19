@@ -159,20 +159,24 @@ export function useCreateSquad() {
             }
             return res.json();
         },
-        onSuccess: (data, variables) => {
+        onMutate: async (variables) => {
+            // Cancel outgoing refetches so they don't overwrite our optimistic update
+            await queryClient.cancelQueries({ queryKey: ["squads", variables.pollId] });
+            const prev = queryClient.getQueryData(["squads", variables.pollId]);
 
-            // Optimistic: immediately add the new squad to the cache
+            // Optimistic: add squad BEFORE the API responds
             queryClient.setQueryData(
                 ["squads", variables.pollId],
                 (old: { squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean; isMangoScrim: boolean } | undefined) => {
                     if (!old) return old;
+                    const tempId = `temp-${Date.now()}`;
                     const newSquad: SquadDTO = {
-                        id: data.data?.id ?? `temp-${Date.now()}`,
-                        name: data.data?.name ?? variables.name,
+                        id: tempId,
+                        name: variables.name || "New Team",
                         fullName: variables.fullName ?? null,
                         status: "FORMING",
-                        entryFee: data.data?.entryFee ?? 0,
-                        createdAt: new Date().toISOString(),
+                        entryFee: 0,
+                        createdAt: new Date(0).toISOString(), // Earliest time so it lands in confirmed slots
                         captain: { id: "", displayName: "", imageUrl: "" },
                         clanLogo: null,
                         clanTag: null,
@@ -193,11 +197,29 @@ export function useCreateSquad() {
                     };
                 }
             );
-
-            // Background refetch for accurate data
+            return { prev };
+        },
+        onSuccess: (data, variables) => {
+            // Replace temp squad with real data from API, then background refetch
+            queryClient.setQueryData(
+                ["squads", variables.pollId],
+                (old: { squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean; isMangoScrim: boolean } | undefined) => {
+                    if (!old) return old;
+                    return {
+                        ...old,
+                        squads: old.squads.map((s) =>
+                            s.id.startsWith("temp-")
+                                ? { ...s, id: data.data?.id ?? s.id, name: data.data?.name ?? s.name, entryFee: data.data?.entryFee ?? 0 }
+                                : s
+                        ),
+                    };
+                }
+            );
             queryClient.invalidateQueries({ queryKey: ["squads"] });
         },
-        onError: (err) => {
+        onError: (err, variables, ctx) => {
+            // Rollback optimistic update
+            if (ctx?.prev) queryClient.setQueryData(["squads", variables.pollId], ctx.prev);
             const msg = err instanceof Error ? err.message : "Failed to create squad";
             const isBalance = msg.toLowerCase().includes("not enough");
             toast.error(msg, {
@@ -232,11 +254,28 @@ export function useLeaveSquad() {
             }
             return res.json();
         },
+        onMutate: async (squadId) => {
+            await queryClient.cancelQueries({ queryKey: ["squads"] });
+            const prev = queryClient.getQueriesData({ queryKey: ["squads"] });
+            queryClient.setQueriesData({ queryKey: ["squads"] }, (old: any) => {
+                if (!old?.squads) return old;
+                return {
+                    ...old,
+                    squads: old.squads.map((s: any) =>
+                        s.id === squadId
+                            ? { ...s, myInvite: null, acceptedCount: Math.max(0, s.acceptedCount - 1), activeCount: Math.max(0, s.activeCount - 1) }
+                            : s
+                    ),
+                };
+            });
+            return { prev };
+        },
         onSuccess: (data) => {
             toast.success(data.message || "Left the squad");
             queryClient.invalidateQueries({ queryKey: ["squads"] });
         },
-        onError: (err) => {
+        onError: (err, _, ctx) => {
+            if (ctx?.prev) ctx.prev.forEach(([key, data]: any) => queryClient.setQueryData(key, data));
             toast.error(err instanceof Error ? err.message : "Failed to leave squad");
         },
     });
@@ -290,12 +329,36 @@ export function useRespondToInvite() {
             }
             return res.json();
         },
+        onMutate: async ({ inviteId, action }) => {
+            await queryClient.cancelQueries({ queryKey: ["squads"] });
+            const prev = queryClient.getQueriesData({ queryKey: ["squads"] });
+            queryClient.setQueriesData({ queryKey: ["squads"] }, (old: any) => {
+                if (!old?.squads) return old;
+                return {
+                    ...old,
+                    squads: old.squads.map((s: any) => {
+                        if (s.myInvite?.id === inviteId) {
+                            const newStatus = action === "ACCEPT" ? "ACCEPTED" : "DECLINED";
+                            return {
+                                ...s,
+                                myInvite: { ...s.myInvite, status: newStatus },
+                                acceptedCount: action === "ACCEPT" ? s.acceptedCount + 1 : s.acceptedCount,
+                                activeCount: action === "ACCEPT" ? s.activeCount + 1 : s.activeCount,
+                            };
+                        }
+                        return s;
+                    }),
+                };
+            });
+            return { prev };
+        },
         onSuccess: (data) => {
             toast.success(data.message || "Done!");
             queryClient.invalidateQueries({ queryKey: ["squads"] });
             queryClient.invalidateQueries({ queryKey: ["notifications"] });
         },
-        onError: (err) => {
+        onError: (err, _, ctx) => {
+            if (ctx?.prev) ctx.prev.forEach(([key, data]: any) => queryClient.setQueryData(key, data));
             toast.error(err instanceof Error ? err.message : "Failed to respond to invite");
         },
     });
@@ -318,11 +381,25 @@ export function useCancelSquad() {
             }
             return res.json();
         },
+        onMutate: async (squadId) => {
+            await queryClient.cancelQueries({ queryKey: ["squads"] });
+            const prev = queryClient.getQueriesData({ queryKey: ["squads"] });
+            queryClient.setQueriesData({ queryKey: ["squads"] }, (old: any) => {
+                if (!old?.squads) return old;
+                return {
+                    ...old,
+                    squads: old.squads.filter((s: any) => s.id !== squadId),
+                    squadCount: Math.max(0, old.squadCount - 1),
+                };
+            });
+            return { prev };
+        },
         onSuccess: (data) => {
             toast.success(data.message || "Squad cancelled");
             queryClient.invalidateQueries({ queryKey: ["squads"] });
         },
-        onError: (err) => {
+        onError: (err, _, ctx) => {
+            if (ctx?.prev) ctx.prev.forEach(([key, data]: any) => queryClient.setQueryData(key, data));
             toast.error(err instanceof Error ? err.message : "Failed to cancel squad");
         },
     });
@@ -347,13 +424,29 @@ export function useRequestJoin() {
             }
             return res.json();
         },
+        onMutate: async (squadId) => {
+            await queryClient.cancelQueries({ queryKey: ["squads"] });
+            const prev = queryClient.getQueriesData({ queryKey: ["squads"] });
+            queryClient.setQueriesData({ queryKey: ["squads"] }, (old: any) => {
+                if (!old?.squads) return old;
+                return {
+                    ...old,
+                    squads: old.squads.map((s: any) =>
+                        s.id === squadId
+                            ? { ...s, myInvite: { id: `temp-${Date.now()}`, status: "PENDING", initiatedBy: "PLAYER" } }
+                            : s
+                    ),
+                };
+            });
+            return { prev };
+        },
         onSuccess: (data) => {
             toast.success(data.message || "Request sent!");
             queryClient.invalidateQueries({ queryKey: ["squads"] });
         },
-        onError: (err) => {
-            const msg = err instanceof Error ? err.message : "Failed to send request";
-            toast.error(msg);
+        onError: (err, _, ctx) => {
+            if (ctx?.prev) ctx.prev.forEach(([key, data]: any) => queryClient.setQueryData(key, data));
+            toast.error(err instanceof Error ? err.message : "Failed to send request");
         },
     });
 }
@@ -407,11 +500,34 @@ export function useRemoveMember() {
             }
             return res.json();
         },
+        onMutate: async (inviteId) => {
+            await queryClient.cancelQueries({ queryKey: ["squads"] });
+            const prev = queryClient.getQueriesData({ queryKey: ["squads"] });
+            queryClient.setQueriesData({ queryKey: ["squads"] }, (old: any) => {
+                if (!old?.squads) return old;
+                return {
+                    ...old,
+                    squads: old.squads.map((s: any) => {
+                        const hasMember = s.members?.some((m: any) => m.inviteId === inviteId);
+                        if (!hasMember) return s;
+                        return {
+                            ...s,
+                            members: s.members.filter((m: any) => m.inviteId !== inviteId),
+                            acceptedCount: Math.max(0, s.acceptedCount - 1),
+                            activeCount: Math.max(0, s.activeCount - 1),
+                            isFull: false,
+                        };
+                    }),
+                };
+            });
+            return { prev };
+        },
         onSuccess: (data) => {
             toast.success(data.message || "Member removed");
             queryClient.invalidateQueries({ queryKey: ["squads"] });
         },
-        onError: (err) => {
+        onError: (err, _, ctx) => {
+            if (ctx?.prev) ctx.prev.forEach(([key, data]: any) => queryClient.setQueryData(key, data));
             toast.error(err instanceof Error ? err.message : "Failed to remove member");
         },
     });

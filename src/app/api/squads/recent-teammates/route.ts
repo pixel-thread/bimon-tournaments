@@ -8,9 +8,10 @@ import { type NextRequest } from "next/server";
  * Returns players who have auto-accept enabled for this captain.
  * "Quick Add" — every player in this list will auto-join when invited.
  *
- * Filters out:
- * - Players already in a squad for this poll
- * - Banned players
+ * For each player, includes:
+ * - alreadyInSquad: true if already in captain's squad for this poll
+ * - existingTeamName: name of the OTHER squad they're in for this poll (null if none)
+ * - isClanMember: true if they share a clan with the captain
  */
 export async function GET(request: NextRequest) {
     try {
@@ -29,9 +30,7 @@ export async function GET(request: NextRequest) {
         // Find all players who have auto-accept ON for this captain
         const autoAccepts = await prisma.playerAutoAccept.findMany({
             where: { captainId: currentPlayerId },
-            select: {
-                playerId: true,
-                createdAt: true,
+            include: {
                 player: {
                     select: {
                         id: true,
@@ -39,6 +38,7 @@ export async function GET(request: NextRequest) {
                         customProfileImageUrl: true,
                         isBanned: true,
                         user: { select: { username: true, imageUrl: true } },
+                        clanMembership: { select: { clanId: true } },
                     },
                 },
             },
@@ -56,7 +56,25 @@ export async function GET(request: NextRequest) {
             return SuccessResponse({ data: [], cache: CACHE.NONE });
         }
 
-        // Exclude players already in a squad for this poll
+        // Get captain's clan
+        const captainClan = await prisma.clanMember.findFirst({
+            where: { playerId: currentPlayerId },
+            select: { clanId: true },
+        });
+        const captainClanId = captainClan?.clanId || null;
+
+        // Get captain's squad for this poll
+        const captainSquad = await prisma.squad.findFirst({
+            where: {
+                pollId,
+                captainId: currentPlayerId,
+                status: { in: ["FORMING", "FULL"] },
+            },
+            select: { id: true },
+        });
+        const captainSquadId = captainSquad?.id || null;
+
+        // Check which players are already in a squad for this poll
         const playerIds = eligible.map((a) => a.playerId);
         const playersInSquads = await prisma.squadInvite.findMany({
             where: {
@@ -67,17 +85,34 @@ export async function GET(request: NextRequest) {
                     status: { in: ["FORMING", "FULL"] },
                 },
             },
-            select: { playerId: true },
+            select: {
+                playerId: true,
+                squadId: true,
+                squad: { select: { name: true } },
+            },
         });
-        const inSquadIds = new Set(playersInSquads.map((s) => s.playerId));
 
-        const data = eligible
-            .filter((a) => !inSquadIds.has(a.playerId))
-            .map((a) => ({
+        // Map: playerId → { squadId, squadName }
+        const squadMap = new Map<string, { squadId: string; squadName: string }>();
+        for (const inv of playersInSquads) {
+            squadMap.set(inv.playerId, { squadId: inv.squadId, squadName: inv.squad.name });
+        }
+
+        const data = eligible.map((a) => {
+            const squadInfo = squadMap.get(a.playerId);
+            const isInCaptainSquad = squadInfo?.squadId === captainSquadId;
+            const isInOtherSquad = squadInfo && !isInCaptainSquad;
+            const playerClanId = a.player.clanMembership?.clanId || null;
+
+            return {
                 id: a.player.id,
                 displayName: a.player.displayName ?? a.player.user.username,
                 imageUrl: a.player.customProfileImageUrl ?? a.player.user.imageUrl ?? "",
-            }));
+                isClanMember: captainClanId ? playerClanId === captainClanId : false,
+                alreadyInSquad: isInCaptainSquad ?? false,
+                existingTeamName: isInOtherSquad ? squadInfo.squadName : null,
+            };
+        });
 
         return SuccessResponse({ data, cache: CACHE.NONE });
     } catch (error) {

@@ -15,7 +15,7 @@ import {
     Input,
 } from "@heroui/react";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
-import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, ChevronRight, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle, Phone, Ghost } from "lucide-react";
+import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, ChevronRight, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle, Phone, Ghost, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     useSquads,
@@ -277,6 +277,7 @@ function SquadCard({
     const [ghostAdding, setGhostAdding] = useState(false);
     const [ghostConfirm, setGhostConfirm] = useState<{ id: string; displayName: string; imageUrl?: string; phone?: string; email?: string } | null>(null);
     const [ghostConfirming, setGhostConfirming] = useState(false);
+    const [showQuickAdd, setShowQuickAdd] = useState(false);
     // Discord state (disabled — using WhatsApp now, kept for future use)
     // const [discordSkipped, setDiscordSkipped] = useState(() => {
     //     if (typeof window !== "undefined") return sessionStorage.getItem("discord_member_skipped") === "true";
@@ -289,7 +290,7 @@ function SquadCard({
     const cardRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const proxyInputRef = useRef<HTMLInputElement>(null);
-    const isCaptain = squad.captain.id === currentPlayerId;
+    const isCaptain = squad.isCaptain || (squad.captain.id ? squad.captain.id === currentPlayerId : false);
 
     // Invite hooks (only active when captain opens invite)
     const { data: searchResults, isLoading: isSearching } = useSearchPlayers(
@@ -300,8 +301,8 @@ function SquadCard({
     const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
     const emptySlots = squad.totalSlots - squad.members.length;
 
-    // Auto-accept clan members (only for clan squads when captain opens invite)
-    const { data: autoAcceptMembers = [], refetch: refetchAutoAccept } = useQuery<{ id: string; displayName: string; imageUrl: string }[]>({
+    // Auto-accept clan members (for invite modal + quick-add modal)
+    const { data: autoAcceptMembers = [], refetch: refetchAutoAccept } = useQuery<{ id: string; displayName: string; imageUrl: string; alreadyInSquad: boolean; existingTeamName: string | null }[]>({
         queryKey: ["auto-accept-members", squad.id],
         queryFn: async () => {
             const res = await fetch(`/api/squads/auto-accept-members?squadId=${squad.id}`);
@@ -309,7 +310,7 @@ function SquadCard({
             const json = await res.json();
             return json.data ?? [];
         },
-        enabled: showInvite && isCaptain && !!squad.clanTag,
+        enabled: (showInvite || showQuickAdd) && isCaptain && !!squad.clanTag,
         staleTime: 15_000,
     });
 
@@ -569,28 +570,37 @@ function SquadCard({
                         </div>
 
 
-                        {/* Captain: Invite Players + Add Ghost */}
+                        {/* Captain: Invite Players + Quick Add + Add Ghost */}
                         {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
-                            <div className="px-4 py-3 border-t border-divider/50 flex gap-2">
+                            <div className="px-4 py-3 border-t border-divider/50 flex gap-2 flex-wrap">
                                 <Button
                                     size="sm"
                                     variant="flat"
                                     color="primary"
-                                    className="flex-1 font-medium"
+                                    className="flex-1 font-medium min-w-[90px]"
                                     startContent={<UserPlus className="w-3.5 h-3.5" />}
                                     onPress={() => setShowInvite(true)}
                                 >
-                                    Invite Players
+                                    Invite
                                 </Button>
                                 <Button
                                     size="sm"
                                     variant="flat"
-                                    className="flex-1 font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20"
+                                    className="flex-1 font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 min-w-[90px]"
+                                    startContent={<Zap className="w-3.5 h-3.5" />}
+                                    onPress={() => setShowQuickAdd(true)}
+                                >
+                                    Quick Add
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="flat"
+                                    className="flex-1 font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 min-w-[90px]"
                                     startContent={<Ghost className="w-3.5 h-3.5" />}
                                     endContent={<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500 text-white leading-none">NEW</span>}
                                     onPress={() => setShowGhostAdd(true)}
                                 >
-                                    Add Ghost
+                                    Ghost
                                 </Button>
                             </div>
                         )}
@@ -1091,7 +1101,171 @@ function SquadCard({
                     </ModalBody>
                 </ModalContent>
             </Modal>
+
+            {/* ── Quick Add Subscribers Modal ── */}
+            <Modal
+                isOpen={showQuickAdd}
+                onClose={() => setShowQuickAdd(false)}
+                placement="center"
+                size="full"
+                scrollBehavior="inside"
+                classNames={{
+                    wrapper: "z-[60]",
+                    body: "px-4 py-0",
+                }}
+            >
+                <ModalContent>
+                    <ModalHeader className="flex items-center gap-2 text-base pb-2">
+                        <Zap className="w-4 h-4 text-amber-500" />
+                        <div className="flex-1 min-w-0">
+                            <span className="truncate block">Quick Add Subscribers</span>
+                            <span className="text-xs font-normal text-foreground/50">{squad.fullName || squad.name}</span>
+                        </div>
+                    </ModalHeader>
+                    <ModalBody>
+                        <p className="text-xs text-foreground/50 mb-3">
+                            Players who subscribed to you — add them instantly with one tap.
+                        </p>
+
+                        <QuickAddSubscribersList
+                            squadId={squad.id}
+                            pollId={pollId}
+                            showQuickAdd={showQuickAdd}
+                            inviteMutation={inviteMutation}
+                            invitingPlayerId={invitingPlayerId}
+                            setInvitingPlayerId={setInvitingPlayerId}
+                        />
+                    </ModalBody>
+                </ModalContent>
+            </Modal>
         </>
+    );
+}
+
+/* ─── Quick Add Subscribers List ───────────────────────────── */
+
+interface Subscriber {
+    id: string;
+    displayName: string;
+    imageUrl: string;
+    isClanMember: boolean;
+    alreadyInSquad: boolean;
+    existingTeamName: string | null;
+}
+
+function QuickAddSubscribersList({
+    squadId,
+    pollId,
+    showQuickAdd,
+    inviteMutation,
+    invitingPlayerId,
+    setInvitingPlayerId,
+}: {
+    squadId: string;
+    pollId: string;
+    showQuickAdd: boolean;
+    inviteMutation: ReturnType<typeof useInvitePlayer>;
+    invitingPlayerId: string | null;
+    setInvitingPlayerId: (id: string | null) => void;
+}) {
+    const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+    const queryClient = useQueryClient();
+
+    const { data: subscribers = [], isLoading } = useQuery<Subscriber[]>({
+        queryKey: ["recent-teammates-full", pollId],
+        queryFn: async () => {
+            const res = await fetch(`/api/squads/recent-teammates?pollId=${pollId}`);
+            if (!res.ok) return [];
+            const json = await res.json();
+            return json.data ?? [];
+        },
+        enabled: showQuickAdd,
+        staleTime: 15_000,
+    });
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center py-8">
+                <Spinner size="sm" />
+            </div>
+        );
+    }
+
+    if (subscribers.length === 0) {
+        return (
+            <div className="flex flex-col items-center gap-3 rounded-xl bg-default-100 py-8 text-center">
+                <Zap className="w-8 h-8 text-foreground/20" />
+                <p className="text-sm text-foreground/50">No subscribers yet</p>
+                <p className="text-xs text-foreground/30">Players can subscribe to you from your profile</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-0.5">
+            {subscribers.map((player) => {
+                const isAdded = addedIds.has(player.id) || player.alreadyInSquad;
+                const isOnOtherTeam = !!player.existingTeamName;
+                const canAdd = !isAdded && !isOnOtherTeam;
+
+                return (
+                    <div
+                        key={player.id}
+                        className={`flex items-center gap-3 py-2.5 px-1 rounded-lg ${isOnOtherTeam ? "opacity-50" : ""}`}
+                    >
+                        <Avatar
+                            src={player.imageUrl}
+                            name={player.displayName}
+                            size="sm"
+                            className="w-8 h-8 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-medium truncate">{player.displayName}</span>
+                                {player.isClanMember && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary leading-none shrink-0">
+                                        Clan
+                                    </span>
+                                )}
+                            </div>
+                            {isOnOtherTeam && (
+                                <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                                    Already in {player.existingTeamName}
+                                </p>
+                            )}
+                        </div>
+                        {isAdded ? (
+                            <span className="text-xs font-semibold text-success px-3">Added ✓</span>
+                        ) : isOnOtherTeam ? (
+                            <span className="text-[10px] text-foreground/30 px-2">Unavailable</span>
+                        ) : (
+                            <Button
+                                size="sm"
+                                color="primary"
+                                className="min-w-0 px-4 h-8 font-semibold"
+                                isLoading={inviteMutation.isPending && invitingPlayerId === player.id}
+                                isDisabled={inviteMutation.isPending && invitingPlayerId !== player.id}
+                                onPress={() => {
+                                    setInvitingPlayerId(player.id);
+                                    inviteMutation.mutate(
+                                        { squadId, playerId: player.id },
+                                        {
+                                            onSuccess: () => {
+                                                setAddedIds((prev) => new Set(prev).add(player.id));
+                                                queryClient.invalidateQueries({ queryKey: ["squads"] });
+                                            },
+                                        },
+                                    );
+                                }}
+                                startContent={!(inviteMutation.isPending && invitingPlayerId === player.id) && <Plus className="w-3.5 h-3.5" />}
+                            >
+                                Add
+                            </Button>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
     );
 }
 
