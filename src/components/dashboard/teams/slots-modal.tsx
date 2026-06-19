@@ -215,21 +215,22 @@ export function SlotsModal({
                 }
             }
 
-            // Try clipboard
+            // Try JPEG clipboard
             if (navigator.clipboard && window.ClipboardItem) {
                 try {
                     await navigator.clipboard.write([
                         new window.ClipboardItem({ "image/jpeg": blob }),
                     ]);
                     setShareSuccess(true);
+                    toast.success("Copied to clipboard!");
                     setTimeout(() => setShareSuccess(false), 2000);
                     return;
                 } catch {
-                    console.warn("Clipboard failed");
+                    // JPEG clipboard not supported
                 }
             }
 
-            toast.error("Could not copy — use the download button instead");
+            toast.error("Clipboard not supported — use download button");
         } catch (error) {
             console.error("Screenshot error:", error);
             toast.error("Failed to capture screenshot");
@@ -420,7 +421,7 @@ export function SlotsModal({
                         ) : shareSuccess ? (
                             <Check className="h-5 w-5 text-green-400" />
                         ) : (
-                            <Copy className="h-5 w-5" />
+                            <Send className="h-5 w-5" />
                         )}
                     </button>
 

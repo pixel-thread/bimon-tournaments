@@ -351,6 +351,7 @@ export function StandingsModal({
         await new Promise((resolve) => setTimeout(resolve, 300));
 
         try {
+            // Capture as JPEG for best quality
             const dataUrl = await toJpeg(clone, {
                 width: captureWidth,
                 height: captureHeight,
@@ -358,17 +359,17 @@ export function StandingsModal({
                 quality: 0.92,
             });
 
-            // Convert data URL to blob
+            // Convert data URL to blob (JPEG)
             const res = await fetch(dataUrl);
-            const blob = await res.blob();
+            const jpegBlob = await res.blob();
 
             const file = new File(
-                [blob],
+                [jpegBlob],
                 `${(tournamentTitle || "standings").replace(/\s+/g, "-")}.jpg`,
                 { type: "image/jpeg" }
             );
 
-            // Try share API first (mobile)
+            // Try share API first (mobile) — supports JPEG
             if (navigator.share && navigator.canShare?.({ files: [file] })) {
                 try {
                     await navigator.share({ files: [file], title: tournamentTitle });
@@ -380,21 +381,22 @@ export function StandingsModal({
                 }
             }
 
-            // Try clipboard
+            // Try JPEG clipboard
             if (navigator.clipboard && window.ClipboardItem) {
                 try {
                     await navigator.clipboard.write([
-                        new window.ClipboardItem({ "image/jpeg": blob }),
+                        new window.ClipboardItem({ "image/jpeg": jpegBlob }),
                     ]);
                     setShareSuccess(true);
+                    toast.success("Copied to clipboard!");
                     setTimeout(() => setShareSuccess(false), 2000);
                     return;
                 } catch {
-                    console.warn("Clipboard failed");
+                    // JPEG clipboard not supported
                 }
             }
 
-            toast.error("Could not copy — use the download button instead");
+            toast.error("Clipboard not supported — use download button");
         } catch (error) {
             console.error("Screenshot error:", error);
             toast.error("Failed to capture screenshot");
@@ -402,7 +404,7 @@ export function StandingsModal({
             document.body.removeChild(tempContainer);
             setIsSharing(false);
         }
-    }, [tournamentTitle, backgroundImage, standings]);
+    }, [tournamentTitle, backgroundImage, standings, allowSquads]);
 
 
     // ── Capture screenshot as data URL (shared helper) ────────
@@ -738,7 +740,7 @@ Make it look premium and professional — suitable for posting on a tournament w
             <div className="fixed inset-0 z-50 overflow-y-auto">
                 {/* Floating Controls */}
                 <div className="floating-controls absolute top-4 right-4 z-30 flex gap-2">
-                    {/* Copy Button */}
+                    {/* Share Button */}
                     <button
                         onClick={copyToClipboard}
                         disabled={isSharing}
@@ -749,7 +751,7 @@ Make it look premium and professional — suitable for posting on a tournament w
                         ) : shareSuccess ? (
                             <Check className="h-5 w-5 text-green-400" />
                         ) : (
-                            <Copy className="h-5 w-5" />
+                            <Send className="h-5 w-5" />
                         )}
                     </button>
 
