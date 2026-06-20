@@ -50,17 +50,17 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        // Create Discord channel immediately (fire-and-forget)
-        // So players get access one-at-a-time as they register, instead of batching at team generation
-        createTournamentChannel(cleanName).then(async (channelId) => {
-            await prisma.tournament.update({
-                where: { id: tournament.id },
-                data: { discordChannelId: channelId },
-            });
-            console.log(`[tournament] Created Discord channel ${channelId} for "${cleanName}"`);
-        }).catch((err) => {
-            console.error(`[tournament] Failed to create Discord channel for "${cleanName}":`, err);
-        });
+        // ── DISABLED: Discord channel auto-creation ──
+        // Channels are now managed manually from the Room Info dashboard.
+        // createTournamentChannel(cleanName).then(async (channelId) => {
+        //     await prisma.tournament.update({
+        //         where: { id: tournament.id },
+        //         data: { discordChannelId: channelId },
+        //     });
+        //     console.log(`[tournament] Created Discord channel ${channelId} for "${cleanName}"`);
+        // }).catch((err) => {
+        //     console.error(`[tournament] Failed to create Discord channel for "${cleanName}":`, err);
+        // });
 
         return NextResponse.json({ success: true, data: tournament });
     } catch (error) {

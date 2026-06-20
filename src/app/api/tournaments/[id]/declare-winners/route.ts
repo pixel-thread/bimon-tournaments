@@ -714,17 +714,17 @@ export async function POST(
             }
         }
 
-        // ── 6d. Auto-delete tournament Discord channels ──
-        if (tournament.discordChannelId) {
-            deleteTournamentChannel(tournament.discordChannelId)
-                .catch((err) => console.error("Discord channel deletion error:", err));
-        }
-        // Also delete any group channels (championship)
-        const groupChannels = (tournament.discordGroupChannels as Record<string, string>) || {};
-        for (const chId of Object.values(groupChannels)) {
-            deleteTournamentChannel(chId)
-                .catch((err) => console.error("Discord group channel deletion error:", err));
-        }
+        // ── DISABLED: Discord channel auto-deletion ──
+        // Channels are now managed manually.
+        // if (tournament.discordChannelId) {
+        //     deleteTournamentChannel(tournament.discordChannelId)
+        //         .catch((err) => console.error("Discord channel deletion error:", err));
+        // }
+        // const groupChannels = (tournament.discordGroupChannels as Record<string, string>) || {};
+        // for (const chId of Object.values(groupChannels)) {
+        //     deleteTournamentChannel(chId)
+        //         .catch((err) => console.error("Discord group channel deletion error:", err));
+        // }
 
         // ── 6f. Auto-delete tournament WhatsApp groups ──
         if (tournament.whatsappGroupId || tournament.whatsappGroupChannels) {
@@ -1129,16 +1129,17 @@ async function declareBracketWinners({
         });
     }, { timeout: 30000, maxWait: 35000 });
 
-    // Auto-delete tournament Discord channels
-    if ((tournament as any).discordChannelId) {
-        deleteTournamentChannel((tournament as any).discordChannelId)
-            .catch((err) => console.error("Discord channel deletion error:", err));
-    }
-    const groupChs = ((tournament as any).discordGroupChannels as Record<string, string>) || {};
-    for (const chId of Object.values(groupChs)) {
-        deleteTournamentChannel(chId)
-            .catch((err) => console.error("Discord group channel deletion error:", err));
-    }
+    // ── DISABLED: Discord channel auto-deletion ──
+    // Channels are now managed manually.
+    // if ((tournament as any).discordChannelId) {
+    //     deleteTournamentChannel((tournament as any).discordChannelId)
+    //         .catch((err) => console.error("Discord channel deletion error:", err));
+    // }
+    // const groupChs = ((tournament as any).discordGroupChannels as Record<string, string>) || {};
+    // for (const chId of Object.values(groupChs)) {
+    //     deleteTournamentChannel(chId)
+    //         .catch((err) => console.error("Discord group channel deletion error:", err));
+    // }
 
     // Clean old standings messages (keeps Discord lightweight)
     const standingsChId = process.env.DISCORD_STANDINGS_CHANNEL_ID;
