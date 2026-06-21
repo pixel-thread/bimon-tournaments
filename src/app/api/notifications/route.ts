@@ -109,9 +109,9 @@ export async function GET() {
                     orderBy: { createdAt: "desc" },
                 })
                 : [],
-            // Count pending captain-initiated squad invites for this player (for Vote tab dot)
+            // Pending captain-initiated squad invites for this player (full data for Action Center)
             (user.player && GAME.features.hasSquads)
-                ? prisma.squadInvite.count({
+                ? prisma.squadInvite.findMany({
                     where: {
                         playerId: user.player.id,
                         initiatedBy: "CAPTAIN",
@@ -121,8 +121,21 @@ export async function GET() {
                             poll: { isActive: true },
                         },
                     },
+                    select: {
+                        id: true,
+                        squad: {
+                            select: {
+                                id: true,
+                                name: true,
+                                captain: { select: { displayName: true } },
+                                poll: { select: { tournament: { select: { name: true } } } },
+                            },
+                        },
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: 5,
                 })
-                : 0,
+                : [],
         ]);
 
         // Separate check: does the player have an unclaimed STREAK reward? (for RP page badge)
@@ -133,7 +146,7 @@ export async function GET() {
             : false;
 
         return SuccessResponse({
-            data: { notifications, unreadCount, pendingRequests, unclaimedRewards, pendingSquadRequests, pendingSquadInviteCount, hasUnclaimedStreakReward },
+            data: { notifications, unreadCount, pendingRequests, unclaimedRewards, pendingSquadRequests, pendingSquadInvites: pendingSquadInviteCount, pendingSquadInviteCount: pendingSquadInviteCount.length, hasUnclaimedStreakReward },
         });
     } catch (error) {
         console.error("Error fetching notifications:", error);

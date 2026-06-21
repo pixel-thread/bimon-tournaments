@@ -132,8 +132,11 @@ export function Header() {
             return {
                 unreadCount: json.data?.unreadCount ?? 0,
                 unclaimedRewardCount: json.data?.unclaimedRewards?.length ?? 0,
+                unclaimedRewards: json.data?.unclaimedRewards ?? [],
                 hasUnclaimedStreak: json.data?.hasUnclaimedStreakReward ?? false,
-                pendingSquadInviteCount: json.data?.pendingSquadInviteCount ?? 0, // shared with useSquadInviteCount
+                pendingSquadInviteCount: json.data?.pendingSquadInviteCount ?? 0,
+                pendingSquadInvites: json.data?.pendingSquadInvites ?? [],
+                pendingSquadRequests: json.data?.pendingSquadRequests ?? [],
             };
         },
         enabled: isSignedIn,

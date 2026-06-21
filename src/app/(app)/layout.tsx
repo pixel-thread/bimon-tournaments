@@ -10,6 +10,7 @@ import { AdSenseScript } from "@/components/common/adsense-script";
 import { WhatsAppSquadGuard } from "@/components/common/whatsapp-squad-guard";
 import { WhatsAppMainGroupGuard } from "@/components/common/WhatsAppMainGroupGuard";
 import { SkippablePrompts } from "@/components/common/skippable-prompts";
+import { ActionCenter } from "@/components/common/action-center";
 
 
 
@@ -53,6 +54,7 @@ export default function AppLayout({
                     <PhoneGuard />
                     <AdSenseScript />
                     <WhatsAppSquadGuard />
+                    <ActionCenter />
 
                 </div>
             </AuthGateProvider>
