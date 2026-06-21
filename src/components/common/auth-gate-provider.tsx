@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, createContext, useContext } from "react";
+import { usePathname } from "next/navigation";
 import {
     Modal,
     ModalContent,
@@ -43,14 +44,17 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
     const [showActionModal, setShowActionModal] = useState(false);
     const [showWelcome, setShowWelcome] = useState(false);
 
+    const pathname = usePathname();
+
     // Show welcome modal once for guests (persisted via sessionStorage)
+    // Skip on /invite/ pages — they have their own join flow
     useEffect(() => {
         if (isLoading) return;
-        if (!isSignedIn && !sessionStorage.getItem("bimon-welcomed")) {
+        if (!isSignedIn && !sessionStorage.getItem("bimon-welcomed") && !pathname.startsWith("/invite/")) {
             setShowWelcome(true);
             sessionStorage.setItem("bimon-welcomed", "1");
         }
-    }, [isSignedIn, isLoading]);
+    }, [isSignedIn, isLoading, pathname]);
 
     const requireAuth = useCallback(
         (action?: () => void) => {
