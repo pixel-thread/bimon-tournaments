@@ -132,6 +132,14 @@ export function PostOnboardingSetup() {
         // Already completed all steps
         if (localStorage.getItem(COMPLETED_KEY)) { setHydrated(true); return; }
 
+        // Legacy users (onboarded before this feature) — skip permanently
+        const isNewUser = !!localStorage.getItem("onboarded-at");
+        if (!isNewUser) {
+            localStorage.setItem(COMPLETED_KEY, "true");
+            setHydrated(true);
+            return;
+        }
+
         // Skipped recently?
         const skipUntil = localStorage.getItem(STORAGE_KEY);
         if (skipUntil && Date.now() < Number(skipUntil)) { setHydrated(true); return; }
