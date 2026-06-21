@@ -17,6 +17,7 @@ import { useCreateSquad, useRecentTeammates } from "@/hooks/use-squads";
 import { useQuery } from "@tanstack/react-query";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+import { containsProfanity } from "@/lib/profanity";
 
 import { markWhatsAppPending, markWhatsAppJoined } from "@/components/common/whatsapp-squad-guard";
 import { useDiscordCompareModal } from "@/components/common/discord-compare-modal";
@@ -146,6 +147,14 @@ export function CreateSquadModal({
     const handleCreate = useCallback(async () => {
         const effectiveUseClan = useClan && hasClan;
         if (!effectiveUseClan && !squadName.trim()) return;
+
+        // Client-side profanity check
+        const badWord = containsProfanity(squadName) || (squadFullName ? containsProfanity(squadFullName) : null);
+        if (badWord) {
+            const { toast } = await import("sonner");
+            toast.error("Team name contains inappropriate language. Please choose another name.");
+            return;
+        }
 
         // Close modal immediately — optimistic update in onMutate shows the squad card instantly
         handleClose();

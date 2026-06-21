@@ -5,6 +5,7 @@ import { GAME } from "@/lib/game-config";
 import { getConfirmedSquadCap } from "@/lib/logic/championship";
 import { getAvailableBalance } from "@/lib/wallet-service";
 import { grantRole } from "@/lib/discord-service";
+import { containsProfanity } from "@/lib/profanity";
 import { type NextRequest } from "next/server";
 
 /**
@@ -256,6 +257,12 @@ export async function POST(request: NextRequest) {
 
         if (trimmedName.length > 7) {
             return ErrorResponse({ message: "Squad name must be 7 characters or less", status: 400 });
+        }
+
+        // Profanity check on squad name and optional full name
+        const badWord = containsProfanity(trimmedName) || (fullName ? containsProfanity(fullName) : null);
+        if (badWord) {
+            return ErrorResponse({ message: "Team name contains inappropriate language. Please choose another name.", status: 400 });
         }
 
         // Fetch poll + tournament

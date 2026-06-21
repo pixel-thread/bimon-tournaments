@@ -3,7 +3,7 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { OnboardingGuard } from "@/components/common/OnboardingGuard";
 import { AuthGateProvider } from "@/components/common/auth-gate-provider";
 
-import { LocationGuard } from "@/components/common/location-guard";
+
 import { PhoneGuard } from "@/components/common/phone-guard";
 import { AdSenseScript } from "@/components/common/adsense-script";
 import { WhatsAppSquadGuard } from "@/components/common/whatsapp-squad-guard";
@@ -44,9 +44,8 @@ export default function AppLayout({
                     </footer>
                     <MobileNav />
 
-                    {/* Post-onboarding: WhatsApp + PWA + Notifications (replaces old separate guards) */}
+                    {/* Post-onboarding: WhatsApp + PWA + Notifications + Location */}
                     <PostOnboardingSetup />
-                    <LocationGuard />
                     <PhoneGuard />
                     <AdSenseScript />
                     <WhatsAppSquadGuard />

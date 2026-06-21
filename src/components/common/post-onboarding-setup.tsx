@@ -1,21 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, ChevronRight, Download, Bell, Share, Plus, X } from "lucide-react";
+import { Check, ChevronRight, Download, Bell, Share, Plus, MapPin } from "lucide-react";
 import { Button } from "@heroui/react";
 import { GAME, GAME_MODE } from "@/lib/game-config";
 import { toast } from "sonner";
+import { LocationModal } from "./location-modal";
 
 /* ── Constants ─────────────────────────────────────── */
 
 const STORAGE_KEY = "setup-wizard-skip-until";
 const COMPLETED_KEY = "setup-wizard-completed";
 const SKIP_DURATION = 7 * 24 * 60 * 60 * 1000; // 1 week
-
-const ICON_DIRS: Record<string, string> = { freefire: "freefire", pes: "pes", mlbb: "mlbb" };
-const PWA_ICON = `/icons/${ICON_DIRS[GAME_MODE] ?? "bgmi"}/icon-192x192.png`;
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -51,7 +50,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 /* ── Step definitions ─────────────────────────────── */
 
-type StepId = "whatsapp" | "pwa" | "notifications";
+type StepId = "whatsapp" | "pwa" | "notifications" | "location";
 
 interface StepDef {
     id: StepId;
@@ -83,19 +82,19 @@ const STEPS: StepDef[] = [
         icon: <Bell className="w-5 h-5 text-white" />,
         color: "bg-amber-500",
     },
+    {
+        id: "location",
+        title: "Add Location",
+        subtitle: "Regional rankings & stats",
+        icon: <MapPin className="w-5 h-5 text-white" />,
+        color: "bg-violet-500",
+    },
 ];
+
+const TOTAL_STEPS = STEPS.length;
 
 /* ── Main Component ───────────────────────────────── */
 
-/**
- * PostOnboardingSetup — Clean 3-step setup wizard shown after onboarding.
- * Step 1: Join WhatsApp main group
- * Step 2: Install PWA
- * Step 3: Enable push notifications
- *
- * Each step can be skipped. If skipped, re-shows after 1 week.
- * Replaces: WhatsAppMainGroupGuard + SkippablePrompts (for new users)
- */
 export function PostOnboardingSetup() {
     const { user, isLoading } = useAuthUser();
     const [hydrated, setHydrated] = useState(false);
@@ -106,14 +105,29 @@ export function PostOnboardingSetup() {
     const [installing, setInstalling] = useState(false);
     const [whatsAppLink, setWhatsAppLink] = useState<string | null>(null);
     const [subscribing, setSubscribing] = useState(false);
+    const [locationModalOpen, setLocationModalOpen] = useState(false);
+
+    // Profile query — check if location already set
+    const { data: profile } = useQuery<{
+        player: { state: string | null; district: string | null; town: string | null } | null;
+    }>({
+        queryKey: ["profile"],
+        queryFn: async () => {
+            const res = await fetch("/api/profile");
+            if (!res.ok) return null;
+            return (await res.json()).data;
+        },
+        staleTime: 5 * 60 * 1000,
+        enabled: !!user?.isOnboarded,
+    });
+
+    const hasLocation = !!profile?.player?.state && !!profile?.player?.district && !!profile?.player?.town;
 
     // ── Hydrate + determine visibility ──
     useEffect(() => {
         if (isLoading || !user?.isOnboarded) return;
-
-        // Legacy users (onboarded before this feature)
-        const isNewUser = !!localStorage.getItem("onboarded-at");
-        if (!isNewUser) { setHydrated(true); return; }
+        // Wait for profile to load
+        if (profile === undefined) return;
 
         // Already completed all steps
         if (localStorage.getItem(COMPLETED_KEY)) { setHydrated(true); return; }
@@ -144,10 +158,15 @@ export function PostOnboardingSetup() {
             done.add("notifications");
         }
 
+        // Location already set?
+        if (hasLocation) {
+            done.add("location");
+        }
+
         setCompletedSteps(done);
 
-        // All done? Mark complete
-        if (done.size >= 3) {
+        // All done? Mark complete permanently
+        if (done.size >= TOTAL_STEPS) {
             localStorage.setItem(COMPLETED_KEY, "true");
             setHydrated(true);
             return;
@@ -158,7 +177,7 @@ export function PostOnboardingSetup() {
         setCurrentStep(firstIncomplete >= 0 ? firstIncomplete : 0);
         setShouldShow(true);
         setHydrated(true);
-    }, [isLoading, user?.isOnboarded]);
+    }, [isLoading, user?.isOnboarded, hasLocation, profile]);
 
     // ── Capture PWA install prompt ──
     useEffect(() => {
@@ -196,8 +215,8 @@ export function PostOnboardingSetup() {
             const next = new Set(prev);
             next.add(id);
 
-            // All done?
-            if (next.size >= 3) {
+            // All done? Permanently dismiss
+            if (next.size >= TOTAL_STEPS) {
                 localStorage.setItem(COMPLETED_KEY, "true");
                 setTimeout(() => setShouldShow(false), 800);
             }
@@ -211,17 +230,21 @@ export function PostOnboardingSetup() {
             const nextIncomplete = STEPS.findIndex((s, i) => i > currentStep && !completedSteps.has(s.id));
             if (nextIncomplete >= 0) {
                 setTimeout(() => setCurrentStep(nextIncomplete), 600);
-            } else if (completedSteps.size >= 3) {
-                // All done
             }
         }
     }, [completedSteps, currentStep]);
+
+    // ── When location is set via profile refetch, mark step done ──
+    useEffect(() => {
+        if (hasLocation && shouldShow) {
+            markStepDone("location");
+        }
+    }, [hasLocation, shouldShow, markStepDone]);
 
     // ── Actions ──
     const handleWhatsApp = useCallback(() => {
         if (!whatsAppLink) return;
         window.open(whatsAppLink, "_blank", "noopener,noreferrer");
-        // Mark as joined
         const groups = ["main-group"];
         localStorage.setItem("whatsapp_joined_groups", JSON.stringify(groups));
         markStepDone("whatsapp");
@@ -252,14 +275,12 @@ export function PostOnboardingSetup() {
         try {
             const permission = await Notification.requestPermission();
             if (permission === "granted") {
-                // Subscribe to push
                 const reg = await navigator.serviceWorker?.ready;
                 if (reg) {
                     const sub = await reg.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: process.env.NEXT_PUBLIC_VAPID_TOKEN,
                     });
-                    // Send subscription to server
                     await fetch("/api/push/subscribe", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -283,25 +304,21 @@ export function PostOnboardingSetup() {
     }, []);
 
     const handleSkipStep = useCallback(() => {
-        // Move to next incomplete step
         const nextIncomplete = STEPS.findIndex((s, i) => i > currentStep && !completedSteps.has(s.id));
         if (nextIncomplete >= 0) {
             setCurrentStep(nextIncomplete);
         } else {
-            // All remaining skipped
             handleSkipAll();
         }
     }, [currentStep, completedSteps, handleSkipAll]);
 
     // Derived
     const activeStep = STEPS[currentStep];
-    const isActiveStepDone = activeStep ? completedSteps.has(activeStep.id) : false;
     const progressCount = completedSteps.size;
 
     // iOS PWA instructions
     const showIOSInstructions = activeStep?.id === "pwa" && isIOS() && !deferredPrompt;
     const showAndroidManual = activeStep?.id === "pwa" && !isIOS() && !deferredPrompt && isMobile();
-    // Notifications not supported (not in PWA or no SW)
     const notifUnsupported = activeStep?.id === "notifications" &&
         (typeof Notification === "undefined" || !("serviceWorker" in navigator));
 
@@ -331,7 +348,7 @@ export function PostOnboardingSetup() {
                         <motion.div
                             className="h-full bg-primary rounded-full"
                             initial={{ width: 0 }}
-                            animate={{ width: `${(progressCount / 3) * 100}%` }}
+                            animate={{ width: `${(progressCount / TOTAL_STEPS) * 100}%` }}
                             transition={{ duration: 0.5, ease: "easeOut" }}
                         />
                     </div>
@@ -342,7 +359,7 @@ export function PostOnboardingSetup() {
                             <div>
                                 <h2 className="text-base font-bold">Quick Setup</h2>
                                 <p className="text-xs text-foreground/40 mt-0.5">
-                                    Step {currentStep + 1} of 3 · {progressCount} done
+                                    Step {currentStep + 1} of {TOTAL_STEPS} · {progressCount} done
                                 </p>
                             </div>
                             <button
@@ -355,12 +372,12 @@ export function PostOnboardingSetup() {
                     </div>
 
                     {/* Step indicators */}
-                    <div className="px-5 pb-4 flex items-center gap-2">
+                    <div className="px-5 pb-4 flex items-center gap-1.5">
                         {STEPS.map((step, i) => {
                             const isDone = completedSteps.has(step.id);
                             const isActive = i === currentStep;
                             return (
-                                <div key={step.id} className="flex items-center gap-2 flex-1">
+                                <div key={step.id} className="flex items-center gap-1.5 flex-1">
                                     <div className={`
                                         flex h-7 w-7 items-center justify-center rounded-full shrink-0 transition-all duration-300
                                         ${isDone ? step.color : isActive ? step.color : "bg-foreground/10"}
@@ -478,7 +495,7 @@ export function PostOnboardingSetup() {
                                     </div>
                                 )}
 
-                                {/* PWA — Desktop (skip) */}
+                                {/* PWA — Desktop (auto-skip message) */}
                                 {activeStep.id === "pwa" && !isMobile() && (
                                     <p className="text-xs text-foreground/40 text-center">Desktop detected — skipping</p>
                                 )}
@@ -500,6 +517,17 @@ export function PostOnboardingSetup() {
                                         Install the app first to enable notifications
                                     </p>
                                 )}
+
+                                {/* Location step — opens LocationModal */}
+                                {activeStep.id === "location" && (
+                                    <Button
+                                        className="w-full font-bold bg-violet-500 text-white"
+                                        startContent={<MapPin className="w-4 h-4" />}
+                                        onPress={() => setLocationModalOpen(true)}
+                                    >
+                                        Add Location
+                                    </Button>
+                                )}
                             </div>
 
                             {/* Skip this step */}
@@ -514,6 +542,16 @@ export function PostOnboardingSetup() {
                     </AnimatePresence>
                 </motion.div>
             </div>
+
+            {/* Location Modal — opens on top of wizard */}
+            <LocationModal
+                isOpen={locationModalOpen}
+                blocking={false}
+                onComplete={() => {
+                    setLocationModalOpen(false);
+                    markStepDone("location");
+                }}
+            />
         </AnimatePresence>
     );
 }
