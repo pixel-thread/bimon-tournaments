@@ -339,7 +339,7 @@ function SquadCard({
             ref={cardRef}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`rounded-xl overflow-hidden ${
+            className={`rounded-xl ${
                 squad.isDefendingChampion
                     ? 'relative'
                     : 'border border-divider bg-default-50 dark:bg-default-100/50'
