@@ -603,17 +603,17 @@ function LeadersList({
             : "";
         const spiritLine = SPIRIT_LINES[(l.teamNumber + Date.now() % 97) % SPIRIT_LINES.length];
 
-        // Build phase-aware message
+        // Build phase-aware message (short & clean)
         let waMessage = "";
         if (isChamp && phase === "HEATS") {
-            const groupLabel = l.group ? ` ha *Group ${l.group}*` : "";
-            waMessage = `Hi ${l.name}! 👋 Phi dei u leader jong ka *${l.teamName}*${groupLabel} haka *${tName}*.\n\nJoin kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:\n${link || ""}\n\nSngewbha share lang ia kane ka link sha kine ki teammates phi, ba kin ioh lang ia ka Room ID. Khublei! 🙏${teammatesList}\n\n${spiritLine}`;
+            const groupLabel = l.group ? ` (Group ${l.group})` : "";
+            waMessage = `Hi ${l.name}! Leader ka *${l.teamName}*${groupLabel} — *${tName}*.\n\nJoin bad sa share ia ki teammates ruh ban ioh Room ID:\n${link || ""}${teammatesList}`;
         } else if (isChamp && phase === "WILDCARD") {
-            waMessage = `Hi ${l.name}! 👋\n\n🎉 *Congratulations!* Ka team phi *${l.teamName}* la qualify sha ka *Wildcard Round* jong ka *${tName}*!\n\nJoin kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:\n${link || ""}\n\nSngewbha share lang ia kane ka link sha kine ki teammates phi. Khublei! 🙏${teammatesList}\n\n${spiritLine}`;
+            waMessage = `Hi ${l.name}! 🎉 *${l.teamName}* la qualify sha *Wildcard* — *${tName}*!\n\nJoin bad sa share ia ki teammates ruh ban ioh Room ID:\n${link || ""}${teammatesList}`;
         } else if (isChamp && phase === "FINALS") {
-            waMessage = `Hi ${l.name}! 👋\n\n🏆 *Congratulations!* Ka team phi *${l.teamName}* la qualify sha ka *FINALS* jong ka *${tName}*!\n\nJoin kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:\n${link || ""}\n\nSngewbha share lang ia kane ka link sha kine ki teammates phi. Khublei! 🙏${teammatesList}\n\n${spiritLine}`;
+            waMessage = `Hi ${l.name}! 🏆 *${l.teamName}* la qualify sha *FINALS* — *${tName}*!\n\nJoin bad sa share ia ki teammates ruh ban ioh Room ID:\n${link || ""}${teammatesList}`;
         } else {
-            waMessage = `Hi ${l.name}! 👋 Phi dei u leader jong ka *${l.teamName}* haka *${tName}*.\n\nJoin kane ka WhatsApp group ban ioh Room ID bad kiwei ki jingpyntip:\n${link || ""}\n\nSngewbha share lang ia kane ka link sha kine ki teammates phi, ba kin ioh lang ia ka Room ID. Khublei! 🙏${teammatesList}\n\n${spiritLine}`;
+            waMessage = `Hi ${l.name}! Leader ka *${l.teamName}* — *${tName}*.\n\nJoin bad sa share ia ki teammates ruh ban ioh Room ID:\n${link || ""}${teammatesList}`;
         }
 
         const waText = encodeURIComponent(waMessage);
