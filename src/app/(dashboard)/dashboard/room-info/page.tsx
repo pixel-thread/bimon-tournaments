@@ -601,7 +601,7 @@ function LeadersList({
         const teammatesList = (!isPreGen && l.teammates.length > 0)
             ? `\nKi teammates phi:\n${l.teammates.map(t => `•  ${t}`).join("\n")}`
             : "";
-        const spiritLine = SPIRIT_LINES[(l.teamNumber + Date.now() % 97) % SPIRIT_LINES.length];
+        const spiritLine = SPIRIT_LINES[(l.teamNumber + Date.now() % 97) % SPIRIT_LINES.length]; // unused, kept for future
 
         // Build phase-aware message (short & clean)
         let waMessage = "";
