@@ -2,6 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useAuthUser } from "@/hooks/use-auth-user";
 import {
     Modal,
     ModalContent,
@@ -32,6 +33,7 @@ import {
 import { CreateSquadModal } from "./create-squad-modal";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import type { PollTheme } from "./pollTheme";
 
 /* ─── Share Button with Auto-Tooltip ──────────────────────── */
@@ -241,6 +243,7 @@ function SquadCard({
     defaultExpanded,
     recentlyRequestedSquadId,
     isRanked,
+    isAdmin: isAdminProp,
 }: {
     squad: SquadDTO;
     currentPlayerId: string;
@@ -265,6 +268,7 @@ function SquadCard({
     defaultExpanded?: boolean;
     recentlyRequestedSquadId?: string | null;
     isRanked?: boolean;
+    isAdmin?: boolean;
 }) {
     const myInvite = squad.myInvite;
     const hasPendingInvite = myInvite?.status === "PENDING" && myInvite?.initiatedBy === "CAPTAIN";
@@ -293,6 +297,7 @@ function SquadCard({
     const bottomRef = useRef<HTMLDivElement>(null);
     const proxyInputRef = useRef<HTMLInputElement>(null);
     const isCaptain = squad.isCaptain || (squad.captain.id ? squad.captain.id === currentPlayerId : false);
+    const canManage = isCaptain || !!isAdminProp;
     const isCreating = squad.id.startsWith("temp-");
 
     // Invite hooks (only active when captain opens invite)
@@ -318,7 +323,7 @@ function SquadCard({
             const json = await res.json();
             return json.data ?? [];
         },
-        enabled: (showInvite || showQuickAdd) && isCaptain && !!squad.clanTag,
+        enabled: (showInvite || showQuickAdd) && canManage && !!squad.clanTag,
         staleTime: 15_000,
     });
 
@@ -414,7 +419,7 @@ function SquadCard({
                         <Shield className={`w-4 h-4 shrink-0 ${squad.isDefendingChampion ? 'text-amber-700 dark:text-amber-400' : 'text-primary'}`} />
                     )}
                     <h4 className={`font-semibold text-sm truncate ${squad.isDefendingChampion ? 'text-amber-900 dark:text-amber-100' : ''}`}>{squad.fullName || squad.name}</h4>
-                    {isCaptain && (
+                    {canManage && (
                         <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     )}
                 </div>
@@ -422,7 +427,7 @@ function SquadCard({
                     {hasPendingInvite && (
                         <span className="h-2.5 w-2.5 rounded-full bg-danger animate-pulse" />
                     )}
-                    {pendingRequests.length > 0 && isCaptain && (
+                    {pendingRequests.length > 0 && canManage && (
                         <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-bold text-blue-500">
                             {pendingRequests.length} req
                         </span>
@@ -436,7 +441,7 @@ function SquadCard({
                             {squad.acceptedCount}/{squad.totalSlots}
                         </Chip>
                     )}
-                    {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && !isCreating && (
+                    {canManage && !squad.isFull && squad.status === "FORMING" && pollIsActive && !isCreating && (
                         <ShareButtonWithTooltip squad={squad} />
                     )}
                     <motion.div
@@ -462,7 +467,7 @@ function SquadCard({
                         <div className="px-4 py-3 space-y-2 border-t border-divider/50">
                             {squad.members.map((member) => {
                                 const isMemberCaptain = member.playerId === squad.captain.id;
-                                const showRemove = isCaptain && !isMemberCaptain && pollIsActive &&
+                                const showRemove = canManage && !isMemberCaptain && pollIsActive &&
                                     (member.status === "ACCEPTED" || (member.status === "PENDING" && member.initiatedBy === "CAPTAIN"));
                                 const canToggleSub = squad.acceptedCount > GAME.squadSize;
                                 return (
@@ -505,7 +510,7 @@ function SquadCard({
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
-                                            {isCaptain && <StatusBadge status={member.status} initiatedBy={member.initiatedBy} />}
+                                            {canManage && <StatusBadge status={member.status} initiatedBy={member.initiatedBy} />}
                                             {/* Show "Waiting" to the requesting player themselves */}
                                             {!isCaptain && member.playerId === currentPlayerId && member.status === "PENDING" && member.initiatedBy === "PLAYER" && (
                                                 <Chip size="sm" variant="flat" className="bg-amber-500/15 text-amber-600 dark:text-amber-400" startContent={<Clock className="w-3 h-3" />}>
@@ -579,7 +584,7 @@ function SquadCard({
 
 
                         {/* Captain: Invite Players + Quick Add + Add Ghost */}
-                        {isCaptain && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
+                        {canManage && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
                             <div className="px-4 py-3 border-t border-divider/50 flex gap-2 flex-wrap">
                                 <Button
                                     size="sm"
@@ -617,7 +622,7 @@ function SquadCard({
                         )}
 
                         {/* Captain: Pending join requests */}
-                        {isCaptain && pendingRequests.length > 0 && (
+                        {canManage && pendingRequests.length > 0 && (
                             <div className="px-4 py-3 border-t border-divider/50 bg-blue-500/5">
                                 <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-2">
                                     📩 Join Requests ({pendingRequests.length})
@@ -742,7 +747,7 @@ function SquadCard({
 
 
                         {/* Cancel squad / Creating indicator */}
-                        {isCaptain && squad.status === "FORMING" && (
+                        {canManage && squad.status === "FORMING" && (
                             <div className="px-4 py-2 border-t border-divider/50">
                                 {isCreating ? (
                                     <Button
@@ -806,15 +811,16 @@ function SquadCard({
                                 const text = `Join my team "${squad.name}"!\n${url}`;
                                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
                             }}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors mb-3"
+                            className="w-full flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors mb-3 cursor-pointer"
                         >
-                            <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                                <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            <div className="w-9 h-9 rounded-full bg-[#25D366]/20 flex items-center justify-center shrink-0">
+                                <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
                             </div>
                             <div className="flex-1 min-w-0 text-left">
                                 <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Share invite on WhatsApp</p>
                                 <p className="text-[11px] text-emerald-600/60 dark:text-emerald-400/60">Send link to your teammates</p>
                             </div>
+                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg bg-emerald-500/15 shrink-0">Share</span>
                         </button>
 
                         {/* Search input */}
@@ -1481,6 +1487,7 @@ export function SquadCenter({
     scheduledDate,
 }: SquadCenterProps) {
     const [showCreate, setShowCreate] = useState(false);
+    const { isAdmin } = useAuthUser();
     const [showVoteWarning, setShowVoteWarning] = useState<{ action: "create" | "join"; squadId?: string } | null>(null);
     const [cancelConfirm, setCancelConfirm] = useState<{ squadId: string; isSameDay: boolean } | null>(null);
     const { data: squadsResult, isLoading, refetch } = useSquads(pollId);
@@ -1738,6 +1745,7 @@ export function SquadCenter({
                                                 recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                 defaultExpanded
                                                 isRanked
+                                                isAdmin={isAdmin}
                                             />
                                         </div>
                                     )}
@@ -1800,6 +1808,7 @@ export function SquadCenter({
                                                                     recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                                     defaultExpanded
                                                                     isRanked
+                                                                    isAdmin={isAdmin}
                                                                 />
                                                             </div>
                                                         )}
@@ -1830,6 +1839,7 @@ export function SquadCenter({
                                                                         isLeaving={leaveMutation.isPending}
                                                                         recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                                         isRanked
+                                                                        isAdmin={isAdmin}
                                                                     />
                                                                 );
                                                             }
@@ -1880,6 +1890,7 @@ export function SquadCenter({
                                                                 isLeaving={leaveMutation.isPending}
                                                                 recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                                 isRanked
+                                                                isAdmin={isAdmin}
                                                             />
                                                         );
                                                     }
