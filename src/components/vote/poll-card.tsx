@@ -1281,7 +1281,9 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             <span>
                                 <SlotText
                                     value={poll.allowSquads
-                                        ? `${estimatedTeams} team${estimatedTeams !== 1 ? "s" : ""}`
+                                        ? (squadsResult
+                                            ? `${estimatedTeams} team${estimatedTeams !== 1 ? "s" : ""}`
+                                            : `${poll.totalVotes} vote${poll.totalVotes !== 1 ? "s" : ""}`)
                                         : `${poll.totalVotes} vote${poll.totalVotes !== 1 ? "s" : ""}`
                                     }
                                     charDelay={0.02}

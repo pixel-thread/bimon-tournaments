@@ -2001,6 +2001,69 @@ export function SquadCenter({
                                         );
                                     })()}
 
+                                    {/* Unconfirmed Squads — collapsible, before confirmed squads */}
+                                    {(() => {
+                                        // Exclude mySquad from unconfirmed section (it's in "Your Squad" already)
+                                        const otherUnconfirmed = unconfirmedList.filter(
+                                            (item) => item.type === "squad" && item.data.id !== mySquad?.id
+                                        );
+                                        if (otherUnconfirmed.length === 0) return null;
+                                        return (
+                                            <div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowUnconfirmed(!showUnconfirmed)}
+                                                    className="flex items-center gap-2 w-full text-left mb-2 cursor-pointer"
+                                                >
+                                                    <ChevronRight className={`w-3.5 h-3.5 text-red-500 transition-transform ${showUnconfirmed ? "rotate-90" : ""}`} />
+                                                    <p className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">
+                                                        Unconfirmed
+                                                    </p>
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400">
+                                                        {otherUnconfirmed.length}
+                                                    </span>
+                                                </button>
+                                                {showUnconfirmed && (
+                                                    <div className="space-y-3 border-l-2 border-red-500/20 pl-3">
+                                                        {otherUnconfirmed.map((item) => {
+                                                            const sq = item.data as SquadDTO;
+                                                            const isMyUnconfirmed = sq.members?.some(m => m.playerId === currentPlayerId);
+                                                            return (
+                                                                <SquadCard
+                                                                    key={sq.id}
+                                                                    squad={sq}
+                                                                    currentPlayerId={currentPlayerId}
+                                                                    pollIsActive={pollIsActive}
+                                                                    pollId={pollId}
+                                                                    onCancel={handleCancel}
+                                                                    onAccept={handleAccept}
+                                                                    onDecline={handleDecline}
+                                                                    onRequestJoin={handleRequestJoin}
+                                                                    onAcceptRequest={handleAcceptRequest}
+                                                                    onDeclineRequest={handleDeclineRequest}
+                                                                    onRemoveMember={handleRemoveMember}
+                                                                    onLeave={handleLeave}
+                                                                    isCancelling={cancelMutation.isPending}
+                                                                    isResponding={respondMutation.isPending}
+                                                                    respondingAction={respondMutation.isPending ? respondAction : null}
+                                                                    isRequesting={requestJoinMutation.isPending}
+                                                                    isRespondingRequest={respondRequestMutation.isPending}
+                                                                    respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
+                                                                    isRemoving={removeMemberMutation.isPending}
+                                                                    isLeaving={leaveMutation.isPending}
+                                                                    recentlyRequestedSquadId={recentlyRequestedSquadId}
+                                                                    defaultExpanded={isMyUnconfirmed}
+                                                                    isRanked
+                                                                    isAdmin={isAdmin}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
+
                                     {/* Other Squads + Random Teams — confirmed */}
                                     {confirmedList.length > 0 && (
                                         <div>
@@ -2050,64 +2113,6 @@ export function SquadCenter({
                                         </div>
                                     )}
 
-                                    {/* Unconfirmed Squads — collapsible, styled like waitlist */}
-                                    {(() => {
-                                        // Exclude mySquad from unconfirmed section (it's in "Your Squad" already)
-                                        const otherUnconfirmed = unconfirmedList.filter(
-                                            (item) => item.type === "squad" && item.data.id !== mySquad?.id
-                                        );
-                                        const totalUnconfirmed = otherUnconfirmed.length + (mySquad?.needsPayment ? 1 : 0);
-                                        if (totalUnconfirmed === 0) return null;
-                                        return (
-                                            <div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowUnconfirmed(!showUnconfirmed)}
-                                                    className="flex items-center gap-2 w-full text-left mb-2 cursor-pointer"
-                                                >
-                                                    <ChevronRight className={`w-3.5 h-3.5 text-red-500 transition-transform ${showUnconfirmed ? "rotate-90" : ""}`} />
-                                                    <p className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">
-                                                        Unconfirmed
-                                                    </p>
-                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400">
-                                                        {totalUnconfirmed}
-                                                    </span>
-                                                </button>
-                                                {showUnconfirmed && (
-                                                    <div className="space-y-3 border-l-2 border-red-500/20 pl-3">
-                                                        {otherUnconfirmed.map((item) => (
-                                                            <SquadCard
-                                                                key={item.data.id}
-                                                                squad={item.data as SquadDTO}
-                                                                currentPlayerId={currentPlayerId}
-                                                                pollIsActive={pollIsActive}
-                                                                pollId={pollId}
-                                                                onCancel={handleCancel}
-                                                                onAccept={handleAccept}
-                                                                onDecline={handleDecline}
-                                                                onRequestJoin={handleRequestJoin}
-                                                                onAcceptRequest={handleAcceptRequest}
-                                                                onDeclineRequest={handleDeclineRequest}
-                                                                onRemoveMember={handleRemoveMember}
-                                                                onLeave={handleLeave}
-                                                                isCancelling={cancelMutation.isPending}
-                                                                isResponding={respondMutation.isPending}
-                                                                respondingAction={respondMutation.isPending ? respondAction : null}
-                                                                isRequesting={requestJoinMutation.isPending}
-                                                                isRespondingRequest={respondRequestMutation.isPending}
-                                                                respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
-                                                                isRemoving={removeMemberMutation.isPending}
-                                                                isLeaving={leaveMutation.isPending}
-                                                                recentlyRequestedSquadId={recentlyRequestedSquadId}
-                                                                isRanked
-                                                                isAdmin={isAdmin}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
 
                                     {/* Empty state */}
                                     {(!squads || squads.length === 0) && (
