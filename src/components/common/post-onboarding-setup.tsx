@@ -4,17 +4,15 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, ChevronRight, Download, Bell, Share, Plus, MapPin } from "lucide-react";
+import { Check, ChevronRight, MapPin } from "lucide-react";
 import { Button } from "@heroui/react";
-import { GAME, GAME_MODE } from "@/lib/game-config";
-import { toast } from "sonner";
 import { LocationModal } from "./location-modal";
 
 /* ── Constants ─────────────────────────────────────── */
 
 const STORAGE_KEY = "setup-wizard-skip-until";
 const COMPLETED_KEY = "setup-wizard-completed";
-const SKIP_DURATION = 7 * 24 * 60 * 60 * 1000; // 1 week
+const SKIP_DURATION = 14 * 24 * 60 * 60 * 1000; // 2 weeks
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -22,35 +20,9 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
-/* ── Detection helpers ────────────────────────────── */
+/* ── Step definitions (only 2 now) ────────────────── */
 
-function isStandalone(): boolean {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(display-mode: standalone)").matches ||
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (navigator as any).standalone === true;
-}
-
-function isIOS(): boolean {
-    if (typeof navigator === "undefined") return false;
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
-
-function isMobile(): boolean {
-    if (typeof navigator === "undefined") return false;
-    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
-
-interface BeforeInstallPromptEvent extends Event {
-    prompt(): Promise<void>;
-    userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-/* ── Step definitions ─────────────────────────────── */
-
-type StepId = "whatsapp" | "pwa" | "notifications" | "location";
+type StepId = "whatsapp" | "location";
 
 interface StepDef {
     id: StepId;
@@ -67,20 +39,6 @@ const STEPS: StepDef[] = [
         subtitle: "Get Room IDs & updates",
         icon: <WhatsAppIcon className="w-5 h-5 text-white" />,
         color: "bg-[#25D366]",
-    },
-    {
-        id: "pwa",
-        title: "Install App",
-        subtitle: "Faster & works offline",
-        icon: <Download className="w-5 h-5 text-white" />,
-        color: "bg-blue-500",
-    },
-    {
-        id: "notifications",
-        title: "Enable Notifications",
-        subtitle: "Never miss Room IDs",
-        icon: <Bell className="w-5 h-5 text-white" />,
-        color: "bg-amber-500",
     },
     {
         id: "location",
@@ -101,10 +59,7 @@ export function PostOnboardingSetup() {
     const [shouldShow, setShouldShow] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     const [completedSteps, setCompletedSteps] = useState<Set<StepId>>(new Set());
-    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-    const [installing, setInstalling] = useState(false);
     const [whatsAppLink, setWhatsAppLink] = useState<string | null>(null);
-    const [subscribing, setSubscribing] = useState(false);
     const [locationModalOpen, setLocationModalOpen] = useState(false);
 
     // Profile query — check if location already set
@@ -156,16 +111,6 @@ export function PostOnboardingSetup() {
             } catch {}
         }
 
-        // PWA already installed?
-        if (isStandalone() || localStorage.getItem("pwa-installed") === "true" || !isMobile()) {
-            done.add("pwa");
-        }
-
-        // Notifications already granted?
-        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-            done.add("notifications");
-        }
-
         // Location already set?
         if (hasLocation) {
             done.add("location");
@@ -186,24 +131,6 @@ export function PostOnboardingSetup() {
         setShouldShow(true);
         setHydrated(true);
     }, [isLoading, user?.isOnboarded, hasLocation, profile]);
-
-    // ── Capture PWA install prompt ──
-    useEffect(() => {
-        const handler = (e: Event) => {
-            e.preventDefault();
-            setDeferredPrompt(e as BeforeInstallPromptEvent);
-        };
-        const installed = () => {
-            localStorage.setItem("pwa-installed", "true");
-            markStepDone("pwa");
-        };
-        window.addEventListener("beforeinstallprompt", handler);
-        window.addEventListener("appinstalled", installed);
-        return () => {
-            window.removeEventListener("beforeinstallprompt", handler);
-            window.removeEventListener("appinstalled", installed);
-        };
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Fetch WhatsApp link ──
     useEffect(() => {
@@ -258,54 +185,6 @@ export function PostOnboardingSetup() {
         markStepDone("whatsapp");
     }, [whatsAppLink, markStepDone]);
 
-    const handleInstallPWA = useCallback(async () => {
-        if (deferredPrompt) {
-            setInstalling(true);
-            try {
-                await deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === "accepted") {
-                    localStorage.setItem("pwa-installed", "true");
-                    markStepDone("pwa");
-                }
-            } catch {}
-            setInstalling(false);
-            setDeferredPrompt(null);
-        }
-    }, [deferredPrompt, markStepDone]);
-
-    const handleEnableNotifications = useCallback(async () => {
-        if (typeof Notification === "undefined") {
-            toast.error("Notifications are not supported in this browser");
-            return;
-        }
-        setSubscribing(true);
-        try {
-            const permission = await Notification.requestPermission();
-            if (permission === "granted") {
-                const reg = await navigator.serviceWorker?.ready;
-                if (reg) {
-                    const sub = await reg.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_TOKEN,
-                    });
-                    await fetch("/api/push/subscribe", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(sub.toJSON()),
-                    });
-                }
-                toast.success("Notifications enabled! 🔔");
-                markStepDone("notifications");
-            } else {
-                toast.error("Permission denied — you can enable later in Settings");
-            }
-        } catch {
-            toast.error("Failed to enable notifications");
-        }
-        setSubscribing(false);
-    }, [markStepDone]);
-
     const handleSkipAll = useCallback(() => {
         localStorage.setItem(STORAGE_KEY, String(Date.now() + SKIP_DURATION));
         setShouldShow(false);
@@ -323,12 +202,6 @@ export function PostOnboardingSetup() {
     // Derived
     const activeStep = STEPS[currentStep];
     const progressCount = completedSteps.size;
-
-    // iOS PWA instructions
-    const showIOSInstructions = activeStep?.id === "pwa" && isIOS() && !deferredPrompt;
-    const showAndroidManual = activeStep?.id === "pwa" && !isIOS() && !deferredPrompt && isMobile();
-    const notifUnsupported = activeStep?.id === "notifications" &&
-        (typeof Notification === "undefined" || !("serviceWorker" in navigator));
 
     if (!hydrated || !shouldShow || !activeStep) return null;
 
@@ -372,7 +245,7 @@ export function PostOnboardingSetup() {
                             </div>
                             <button
                                 onClick={handleSkipAll}
-                                className="text-[11px] text-foreground/30 hover:text-foreground/50 transition-colors"
+                                className={`text-[11px] text-foreground/30 hover:text-foreground/50 transition-colors ${activeStep.id === "whatsapp" ? "invisible" : ""}`}
                             >
                                 Skip all
                             </button>
@@ -434,98 +307,6 @@ export function PostOnboardingSetup() {
                                     </Button>
                                 )}
 
-                                {/* PWA step — Native prompt */}
-                                {activeStep.id === "pwa" && deferredPrompt && (
-                                    <Button
-                                        color="primary"
-                                        className="w-full font-bold"
-                                        startContent={!installing ? <Download className="w-4 h-4" /> : undefined}
-                                        isLoading={installing}
-                                        onPress={handleInstallPWA}
-                                    >
-                                        {installing ? "Installing..." : "Install App"}
-                                    </Button>
-                                )}
-
-                                {/* PWA step — iOS manual */}
-                                {showIOSInstructions && (
-                                    <div className="space-y-3">
-                                        <div className="space-y-2 text-xs text-foreground/60">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-primary/70">1.</span>
-                                                <span>Tap <Share className="w-3.5 h-3.5 inline text-primary" /> <strong>Share</strong></span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-primary/70">2.</span>
-                                                <span>Tap <Plus className="w-3.5 h-3.5 inline text-primary" /> <strong>&quot;Add to Home Screen&quot;</strong></span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-primary/70">3.</span>
-                                                <span>Tap <strong>Add</strong></span>
-                                            </div>
-                                        </div>
-                                        <Button
-                                            variant="flat"
-                                            className="w-full font-semibold"
-                                            onPress={() => {
-                                                localStorage.setItem("pwa-installed", "true");
-                                                markStepDone("pwa");
-                                            }}
-                                        >
-                                            I&apos;ve added it ✓
-                                        </Button>
-                                    </div>
-                                )}
-
-                                {/* PWA step — Android manual (no prompt event) */}
-                                {showAndroidManual && (
-                                    <div className="space-y-3">
-                                        <div className="space-y-2 text-xs text-foreground/60">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-primary/70">1.</span>
-                                                <span>Tap <strong>⋮</strong> menu (top right)</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-primary/70">2.</span>
-                                                <span>Tap <strong>&quot;Install app&quot;</strong> or <strong>&quot;Add to Home screen&quot;</strong></span>
-                                            </div>
-                                        </div>
-                                        <Button
-                                            variant="flat"
-                                            className="w-full font-semibold"
-                                            onPress={() => {
-                                                localStorage.setItem("pwa-installed", "true");
-                                                markStepDone("pwa");
-                                            }}
-                                        >
-                                            I&apos;ve installed it ✓
-                                        </Button>
-                                    </div>
-                                )}
-
-                                {/* PWA — Desktop (auto-skip message) */}
-                                {activeStep.id === "pwa" && !isMobile() && (
-                                    <p className="text-xs text-foreground/40 text-center">Desktop detected — skipping</p>
-                                )}
-
-                                {/* Notifications step */}
-                                {activeStep.id === "notifications" && !notifUnsupported && (
-                                    <Button
-                                        className="w-full font-bold bg-amber-500 text-white"
-                                        startContent={!subscribing ? <Bell className="w-4 h-4" /> : undefined}
-                                        isLoading={subscribing}
-                                        onPress={handleEnableNotifications}
-                                    >
-                                        {subscribing ? "Enabling..." : "Enable Notifications"}
-                                    </Button>
-                                )}
-
-                                {notifUnsupported && (
-                                    <p className="text-xs text-foreground/40 text-center">
-                                        Install the app first to enable notifications
-                                    </p>
-                                )}
-
                                 {/* Location step — opens LocationModal */}
                                 {activeStep.id === "location" && (
                                     <Button
@@ -538,14 +319,16 @@ export function PostOnboardingSetup() {
                                 )}
                             </div>
 
-                            {/* Skip this step */}
-                            <button
-                                onClick={handleSkipStep}
-                                className="w-full mt-3 text-xs text-foreground/30 hover:text-foreground/50 transition-colors flex items-center justify-center gap-1"
-                            >
-                                Skip for now
-                                <ChevronRight className="w-3 h-3" />
-                            </button>
+                            {/* Skip this step — only for location */}
+                            {activeStep.id !== "whatsapp" && (
+                                <button
+                                    onClick={handleSkipStep}
+                                    className="w-full mt-3 text-xs text-foreground/30 hover:text-foreground/50 transition-colors flex items-center justify-center gap-1"
+                                >
+                                    Skip for now
+                                    <ChevronRight className="w-3 h-3" />
+                                </button>
+                            )}
                         </motion.div>
                     </AnimatePresence>
                 </motion.div>

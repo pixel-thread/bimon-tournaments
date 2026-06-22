@@ -8,6 +8,7 @@ import { PhoneGuard } from "@/components/common/phone-guard";
 import { AdSenseScript } from "@/components/common/adsense-script";
 import { WhatsAppSquadGuard } from "@/components/common/whatsapp-squad-guard";
 import { PostOnboardingSetup } from "@/components/common/post-onboarding-setup";
+import { PwaInstallPopup } from "@/components/common/pwa-install-popup";
 import { ActionCenter } from "@/components/common/action-center";
 
 
@@ -44,8 +45,10 @@ export default function AppLayout({
                     </footer>
                     <MobileNav />
 
-                    {/* Post-onboarding: WhatsApp + PWA + Notifications + Location */}
+                    {/* Post-onboarding: WhatsApp (mandatory) + Location (skippable) */}
                     <PostOnboardingSetup />
+                    {/* Delayed: Location + PWA install popup (after 2 weeks) */}
+                    <PwaInstallPopup />
                     <PhoneGuard />
                     <AdSenseScript />
                     <WhatsAppSquadGuard />

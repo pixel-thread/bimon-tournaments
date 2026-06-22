@@ -300,6 +300,17 @@ function SquadCard({
     const canManage = isCaptain || !!isAdminProp;
     const isCreating = squad.id.startsWith("temp-");
 
+    // Admin confirm modal — prevents mis-touch
+    const [adminConfirm, setAdminConfirm] = useState<{ label: string; action: () => void } | null>(null);
+    /** Wraps an action with confirmation if admin (non-captain) */
+    const withAdminConfirm = (label: string, action: () => void) => {
+        if (isAdminProp && !isCaptain) {
+            setAdminConfirm({ label, action });
+        } else {
+            action();
+        }
+    };
+
     // Invite hooks (only active when captain opens invite)
     const {
         data: searchData,
@@ -521,7 +532,7 @@ function SquadCard({
                                                 canToggleSub ? (
                                                     <MemberActions
                                                         member={member}
-                                                        onRemove={() => onRemoveMember(member.inviteId)}
+                                                        onRemove={() => withAdminConfirm(`Remove ${member.displayName}?`, () => onRemoveMember(member.inviteId))}
                                                         isRemoving={isRemoving}
                                                     />
                                                 ) : (
@@ -531,7 +542,7 @@ function SquadCard({
                                                         color="danger"
                                                         isIconOnly
                                                         isLoading={isRemoving}
-                                                        onPress={() => onRemoveMember(member.inviteId)}
+                                                        onPress={() => withAdminConfirm(`Remove ${member.displayName}?`, () => onRemoveMember(member.inviteId))}
                                                         className="min-w-6 w-6 h-6"
                                                     >
                                                         <X className="w-3 h-3" />
@@ -644,7 +655,7 @@ function SquadCard({
                                                     variant="flat"
                                                     isLoading={isRespondingRequest && respondingRequestAction === "accept"}
                                                     isDisabled={isRespondingRequest && respondingRequestAction === "decline"}
-                                                    onPress={() => onAcceptRequest(req.inviteId)}
+                                                    onPress={() => withAdminConfirm(`Accept ${req.displayName}?`, () => onAcceptRequest(req.inviteId))}
                                                     className="min-w-0 px-2 h-7"
                                                 >
                                                     <Check className="w-3.5 h-3.5" />
@@ -655,7 +666,7 @@ function SquadCard({
                                                     variant="flat"
                                                     isLoading={isRespondingRequest && respondingRequestAction === "decline"}
                                                     isDisabled={isRespondingRequest && respondingRequestAction === "accept"}
-                                                    onPress={() => onDeclineRequest(req.inviteId)}
+                                                    onPress={() => withAdminConfirm(`Decline ${req.displayName}?`, () => onDeclineRequest(req.inviteId))}
                                                     className="min-w-0 px-2 h-7"
                                                 >
                                                     <X className="w-3.5 h-3.5" />
@@ -767,7 +778,7 @@ function SquadCard({
                                         className={`w-full ${isCancelling ? "text-foreground/50" : ""}`}
                                         isLoading={isCancelling}
                                         isDisabled={isCancelling}
-                                        onPress={() => onCancel(squad.id)}
+                                        onPress={() => withAdminConfirm(`Cancel squad "${squad.name}"?`, () => onCancel(squad.id))}
                                         startContent={!isCancelling && <Trash2 className="w-3.5 h-3.5" />}
                                     >
                                         {isCancelling ? "Cancelling…" : "Cancel Squad"}
@@ -919,8 +930,10 @@ function SquadCard({
                                                 isLoading={inviteMutation.isPending && invitingPlayerId === player.id}
                                                 isDisabled={inviteMutation.isPending && invitingPlayerId !== player.id}
                                                 onPress={() => {
-                                                    setInvitingPlayerId(player.id);
-                                                    inviteMutation.mutate({ squadId: squad.id, playerId: player.id });
+                                                    withAdminConfirm(`Invite ${player.displayName}?`, () => {
+                                                        setInvitingPlayerId(player.id);
+                                                        inviteMutation.mutate({ squadId: squad.id, playerId: player.id });
+                                                    });
                                                 }}
                                             >
                                                 Invite
@@ -1190,6 +1203,41 @@ function SquadCard({
                             setInvitingPlayerId={setInvitingPlayerId}
                         />
                     </ModalBody>
+                </ModalContent>
+            </Modal>
+
+            {/* ── Admin Confirm Modal ── */}
+            <Modal
+                isOpen={!!adminConfirm}
+                onClose={() => setAdminConfirm(null)}
+                placement="center"
+                size="sm"
+                classNames={{ wrapper: "z-[70]" }}
+            >
+                <ModalContent>
+                    <ModalBody className="py-6 text-center">
+                        <p className="text-sm font-semibold">{adminConfirm?.label}</p>
+                        <p className="text-xs text-foreground/40 mt-1">You&apos;re acting as admin on this squad</p>
+                    </ModalBody>
+                    <ModalFooter className="justify-center gap-3 pt-0 pb-4">
+                        <Button
+                            size="sm"
+                            variant="flat"
+                            onPress={() => setAdminConfirm(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            size="sm"
+                            color="primary"
+                            onPress={() => {
+                                adminConfirm?.action();
+                                setAdminConfirm(null);
+                            }}
+                        >
+                            Confirm
+                        </Button>
+                    </ModalFooter>
                 </ModalContent>
             </Modal>
         </>
