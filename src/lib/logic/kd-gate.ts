@@ -55,26 +55,29 @@ export async function checkKdGate(
         };
     }
 
-    // Fetch player's current season KD
+    // Compute player's KD from TeamPlayerStats (source of truth).
+    // The PlayerStats.kd field is NOT kept up-to-date — the real KD is
+    // kills / matches aggregated from TeamPlayerStats, matching the
+    // computation used in /api/players, /api/profile, etc.
     const seasonId = poll.tournament?.seasonId;
-    let playerKd = 0;
 
+    const tpsWhere: Record<string, unknown> = {
+        playerId,
+        present: true,
+    };
     if (seasonId) {
-        // Use the current season's stats
-        const stats = await prisma.playerStats.findUnique({
-            where: { seasonId_playerId: { seasonId, playerId } },
-            select: { kd: true },
-        });
-        playerKd = stats?.kd ?? 0;
-    } else {
-        // No season linked — fall back to latest stats
-        const stats = await prisma.playerStats.findFirst({
-            where: { playerId },
-            orderBy: { createdAt: "desc" },
-            select: { kd: true },
-        });
-        playerKd = stats?.kd ?? 0;
+        tpsWhere.seasonId = seasonId;
     }
+
+    const agg = await prisma.teamPlayerStats.aggregate({
+        where: tpsWhere,
+        _count: { matchId: true },
+        _sum: { kills: true },
+    });
+
+    const totalKills = agg._sum.kills ?? 0;
+    const totalMatches = agg._count.matchId;
+    const playerKd = totalMatches > 0 ? Number((totalKills / totalMatches).toFixed(2)) : 0;
 
     // Check range
     if (poll.kdMin != null && playerKd < poll.kdMin) {
