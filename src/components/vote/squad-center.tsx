@@ -584,6 +584,17 @@ function SquadCard({
                                             {isRequesting ? "Requesting…" : "Tap to join"}
                                         </span>
                                     </button>
+                                ) : canManage && pollIsActive && !isCreating ? (
+                                    <button
+                                        key={`empty-${i}`}
+                                        className="flex items-center gap-3 w-full text-left rounded-lg py-1.5 -mx-1 px-1 transition-colors hover:bg-purple-500/10 active:bg-purple-500/20"
+                                        onClick={() => setShowGhostAdd(true)}
+                                    >
+                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-purple-400/50 bg-purple-500/10 flex items-center justify-center">
+                                            <Ghost className="w-3.5 h-3.5 text-purple-400" />
+                                        </div>
+                                        <span className="text-sm font-medium text-purple-500 dark:text-purple-400">Add player</span>
+                                    </button>
                                 ) : (
                                     <div key={`empty-${i}`} className="flex items-center gap-3 opacity-40">
                                         <div className="w-8 h-8 rounded-full border-2 border-dashed border-foreground/20 flex items-center justify-center">
