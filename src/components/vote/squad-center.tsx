@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import {
@@ -279,12 +279,12 @@ function SquadCard({
     const [inviteSearch, setInviteSearch] = useState("");
     // Ghost member add state
     const [showGhostAdd, setShowGhostAdd] = useState(false);
-    const [ghostPhone, setGhostPhone] = useState("");
-    const [ghostEmail, setGhostEmail] = useState("");
-    const [ghostName, setGhostName] = useState("");
-    const [ghostAdding, setGhostAdding] = useState(false);
-    const [ghostConfirm, setGhostConfirm] = useState<{ id: string; displayName: string; imageUrl?: string; phone?: string; email?: string } | null>(null);
+    const [ghostAdding, setGhostAdding] = useState<number | null>(null); // which slot index is adding
+    const [ghostConfirm, setGhostConfirm] = useState<{ id: string; displayName: string; imageUrl?: string; phone?: string; email?: string; slotIndex: number } | null>(null);
     const [ghostConfirming, setGhostConfirming] = useState(false);
+    // Per-slot state for roster form
+    const [slotNames, setSlotNames] = useState<Record<number, string>>({});
+    const [slotContacts, setSlotContacts] = useState<Record<number, { phone: string; email: string; expanded: boolean }>>({});
     const [showQuickAdd, setShowQuickAdd] = useState(false);
     // Discord state (disabled — using WhatsApp now, kept for future use)
     // const [discordSkipped, setDiscordSkipped] = useState(() => {
@@ -1001,9 +1001,8 @@ function SquadCard({
                 isOpen={showGhostAdd}
                 onClose={() => {
                     setShowGhostAdd(false);
-                    setGhostPhone("");
-                    setGhostEmail("");
-                    setGhostName("");
+                    setSlotNames({});
+                    setSlotContacts({});
                     setGhostConfirm(null);
                 }}
                 placement="center"
@@ -1016,96 +1015,165 @@ function SquadCard({
             >
                 <ModalContent>
                     <ModalHeader className="flex items-center gap-2 text-base pb-2">
-                        <UserPlus className="w-4 h-4 text-purple-500" />
+                        <Ghost className="w-4 h-4 text-purple-500" />
                         <div className="flex-1 min-w-0">
-                            <span className="truncate block">Add Player</span>
+                            <span className="truncate block">Add Players</span>
                             <span className="text-xs font-normal text-foreground/50">{squad.fullName || squad.name}</span>
                         </div>
                     </ModalHeader>
                     <ModalBody>
                         <p className="text-xs text-foreground/50 mb-3">
-                            Add a teammate by name. Optionally enter their phone or email to link them.
+                            Fill empty slots with player names. Tap ••• to add phone/email.
                         </p>
 
-                        {/* Ghost form */}
-                        <div className="space-y-3">
-                            <Input
-                                label="Phone Number"
-                                placeholder="10-digit phone number"
-                                value={ghostPhone}
-                                onValueChange={setGhostPhone}
-                                size="lg"
-                                startContent={<Phone className="w-4 h-4 text-default-400" />}
-                                classNames={{ input: "text-base" }}
-                                type="tel"
-                                maxLength={10}
-                            />
-                            <Input
-                                label="Email"
-                                description="At least phone or email is required"
-                                placeholder="teammate@email.com"
-                                value={ghostEmail}
-                                onValueChange={setGhostEmail}
-                                size="lg"
-                                type="email"
-                                classNames={{ input: "text-base" }}
-                            />
-                            <Input
-                                label="Player Name"
-                                placeholder="Enter their in-game name"
-                                value={ghostName}
-                                onValueChange={setGhostName}
-                                size="lg"
-                                classNames={{ input: "text-base" }}
-                                maxLength={20}
-                            />
-                            <Button
-                                color="primary"
-                                className="w-full font-semibold"
-                                size="lg"
-                                isLoading={ghostAdding}
-                                isDisabled={!ghostName.trim()}
-                                startContent={!ghostAdding && <UserPlus className="w-4 h-4" />}
-                                onPress={async () => {
-                                    setGhostAdding(true);
-                                    try {
-                                        const res = await fetch(`/api/squads/${squad.id}/add-member`, {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({
-                                                phone: ghostPhone || undefined,
-                                                email: ghostEmail || undefined,
-                                                name: ghostName.trim(),
-                                            }),
-                                        });
-                                        const json = await res.json();
-                                        if (!res.ok) {
-                                            const { toast } = await import("sonner");
-                                            toast.error(json.message || "Failed to add");
-                                            return;
-                                        }
-                                        // If matched a real player, show confirmation
-                                        if (json.data?.matched) {
-                                            setGhostConfirm(json.data.player);
-                                            return;
-                                        }
-                                        // Ghost added successfully
-                                        const { toast } = await import("sonner");
-                                        toast.success(json.message || "Player added!");
-                                        setGhostPhone("");
-                                        setGhostEmail("");
-                                        setGhostName("");
-                                        ghostQueryClient.invalidateQueries({ queryKey: ["squads"] });
-                                    } catch {
-                                        const { toast } = await import("sonner");
-                                        toast.error("Failed to add member");
-                                    } finally {
-                                        setGhostAdding(false);
+                        {/* Roster slots */}
+                        <div className="space-y-2">
+                            {(() => {
+                                const totalSlots = GAME.maxSquadSize - 1; // minus captain
+                                const acceptedMembers = squad.members.filter(m => m.status === "ACCEPTED");
+                                const slots: React.ReactNode[] = [];
+
+                                for (let i = 0; i < totalSlots; i++) {
+                                    const member = acceptedMembers[i];
+                                    const slotLabel = i < GAME.squadSize - 1 ? `Player ${i + 2}` : `Sub ${i - GAME.squadSize + 2}`;
+                                    const isAdding = ghostAdding === i;
+                                    const contact = slotContacts[i] || { phone: "", email: "", expanded: false };
+
+                                    if (member) {
+                                        // ─── Filled slot (disabled) ───
+                                        slots.push(
+                                            <div key={`slot-${i}`} className="flex items-center gap-3 rounded-xl bg-foreground/5 px-3 py-2.5 opacity-60">
+                                                <div className="w-6 h-6 rounded-full bg-foreground/10 flex items-center justify-center text-[10px] font-bold text-foreground/40 shrink-0">
+                                                    {i + 2}
+                                                </div>
+                                                {member.isGhost ? (
+                                                    <div className="w-8 h-8 rounded-full border-2 border-dashed border-purple-400/50 bg-purple-500/10 flex items-center justify-center shrink-0">
+                                                        <Ghost className="w-4 h-4 text-purple-400" />
+                                                    </div>
+                                                ) : (
+                                                    <Avatar src={member.imageUrl} name={member.displayName} size="sm" className="w-8 h-8 shrink-0" />
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium truncate">{member.displayName}</p>
+                                                    <p className="text-[10px] text-foreground/40">{member.isSub ? "Sub" : "Active"}</p>
+                                                </div>
+                                                <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                                            </div>
+                                        );
+                                    } else {
+                                        // ─── Empty slot (input) ───
+                                        const emptyIndex = i;
+                                        slots.push(
+                                            <div key={`slot-${i}`} className="rounded-xl border border-dashed border-foreground/15 px-3 py-2.5">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-purple-500/15 flex items-center justify-center text-[10px] font-bold text-purple-500 shrink-0">
+                                                        {i + 2}
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        placeholder={slotLabel}
+                                                        value={slotNames[emptyIndex] || ""}
+                                                        onChange={(e) => setSlotNames(prev => ({ ...prev, [emptyIndex]: e.target.value }))}
+                                                        maxLength={20}
+                                                        className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-foreground/30"
+                                                        disabled={isAdding}
+                                                    />
+                                                    {/* Three-dot menu for contact */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSlotContacts(prev => ({
+                                                            ...prev,
+                                                            [emptyIndex]: { ...contact, expanded: !contact.expanded },
+                                                        }))}
+                                                        className="w-7 h-7 rounded-full hover:bg-foreground/10 flex items-center justify-center shrink-0 transition-colors"
+                                                        title="Add phone/email"
+                                                    >
+                                                        <MoreVertical className="w-3.5 h-3.5 text-foreground/40" />
+                                                    </button>
+                                                    {/* Add button */}
+                                                    <Button
+                                                        size="sm"
+                                                        color="primary"
+                                                        variant="flat"
+                                                        className="min-w-0 px-3 h-7 font-semibold text-xs"
+                                                        isLoading={isAdding}
+                                                        isDisabled={!slotNames[emptyIndex]?.trim() || ghostAdding !== null}
+                                                        onPress={async () => {
+                                                            setGhostAdding(emptyIndex);
+                                                            try {
+                                                                const res = await fetch(`/api/squads/${squad.id}/add-member`, {
+                                                                    method: "POST",
+                                                                    headers: { "Content-Type": "application/json" },
+                                                                    body: JSON.stringify({
+                                                                        phone: contact.phone || undefined,
+                                                                        email: contact.email || undefined,
+                                                                        name: slotNames[emptyIndex]!.trim(),
+                                                                    }),
+                                                                });
+                                                                const json = await res.json();
+                                                                if (!res.ok) {
+                                                                    const { toast } = await import("sonner");
+                                                                    toast.error(json.message || "Failed to add");
+                                                                    return;
+                                                                }
+                                                                if (json.data?.matched) {
+                                                                    setGhostConfirm({ ...json.data.player, slotIndex: emptyIndex });
+                                                                    return;
+                                                                }
+                                                                const { toast } = await import("sonner");
+                                                                toast.success(json.message || "Player added!");
+                                                                setSlotNames(prev => { const n = { ...prev }; delete n[emptyIndex]; return n; });
+                                                                setSlotContacts(prev => { const n = { ...prev }; delete n[emptyIndex]; return n; });
+                                                                ghostQueryClient.invalidateQueries({ queryKey: ["squads"] });
+                                                            } catch {
+                                                                const { toast } = await import("sonner");
+                                                                toast.error("Failed to add member");
+                                                            } finally {
+                                                                setGhostAdding(null);
+                                                            }
+                                                        }}
+                                                    >
+                                                        Add
+                                                    </Button>
+                                                </div>
+                                                {/* Expandable contact fields */}
+                                                {contact.expanded && (
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: "auto", opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        transition={{ duration: 0.15 }}
+                                                        className="mt-2 pl-8 space-y-2"
+                                                    >
+                                                        <input
+                                                            type="tel"
+                                                            placeholder="Phone (optional)"
+                                                            value={contact.phone}
+                                                            onChange={(e) => setSlotContacts(prev => ({
+                                                                ...prev,
+                                                                [emptyIndex]: { ...contact, phone: e.target.value },
+                                                            }))}
+                                                            maxLength={10}
+                                                            className="w-full text-xs bg-foreground/5 rounded-lg px-3 py-2 outline-none placeholder:text-foreground/30"
+                                                        />
+                                                        <input
+                                                            type="email"
+                                                            placeholder="Email (optional)"
+                                                            value={contact.email}
+                                                            onChange={(e) => setSlotContacts(prev => ({
+                                                                ...prev,
+                                                                [emptyIndex]: { ...contact, email: e.target.value },
+                                                            }))}
+                                                            className="w-full text-xs bg-foreground/5 rounded-lg px-3 py-2 outline-none placeholder:text-foreground/30"
+                                                        />
+                                                    </motion.div>
+                                                )}
+                                            </div>
+                                        );
                                     }
-                                }}
-                            >
-                                Add Player
-                            </Button>
+                                }
+                                return slots;
+                            })()}
                         </div>
 
                         {/* Confirmation for real player match */}
@@ -1154,9 +1222,9 @@ function SquadCard({
                                                 const { toast } = await import("sonner");
                                                 toast.success(json.message || "Added!");
                                                 setGhostConfirm(null);
-                                                setGhostPhone("");
-                                                setGhostEmail("");
-                                                setGhostName("");
+                                                const idx = ghostConfirm.slotIndex;
+                                                setSlotNames(prev => { const n = { ...prev }; delete n[idx]; return n; });
+                                                setSlotContacts(prev => { const n = { ...prev }; delete n[idx]; return n; });
                                                 ghostQueryClient.invalidateQueries({ queryKey: ["squads"] });
                                             } catch {
                                                 const { toast } = await import("sonner");
@@ -1179,7 +1247,7 @@ function SquadCard({
                             </motion.div>
                         )}
 
-                        {/* Previous ghosts quick-add */}
+                        {/* Previous players quick-add */}
                         <PreviousGhostsSection squadId={squad.id} showGhostAdd={showGhostAdd} />
                     </ModalBody>
                 </ModalContent>
@@ -1616,6 +1684,7 @@ export function SquadCenter({
     const { isAdmin } = useAuthUser();
     const [showVoteWarning, setShowVoteWarning] = useState<{ action: "create" | "join"; squadId?: string } | null>(null);
     const [cancelConfirm, setCancelConfirm] = useState<{ squadId: string; isSameDay: boolean } | null>(null);
+    const [showCreateChooser, setShowCreateChooser] = useState(false);
     const { data: squadsResult, isLoading, refetch } = useSquads(pollId);
     const squads = squadsResult?.squads;
     const maxSquads = squadsResult?.maxSquads ?? GAME.maxSquadTeams;
@@ -2143,43 +2212,26 @@ export function SquadCenter({
                                     Sign in to Create Team
                                 </Button>
                             ) : (
-                                <>
-                                    <Button
-                                        className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
-                                        color={theme ? undefined : "primary"}
-                                        startContent={<Plus className="w-4 h-4" />}
-                                        onPress={() => {
+                                <Button
+                                    className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
+                                    color={theme ? undefined : "primary"}
+                                    startContent={<Plus className="w-4 h-4" />}
+                                    onPress={() => {
+                                        // Show chooser only if past roster available
+                                        if (!hasPreviousRoster) {
                                             if (hasVotedIn) {
                                                 setShowVoteWarning({ action: "create" });
                                             } else {
                                                 setImportMode(false);
                                                 setShowCreate(true);
                                             }
-                                        }}
-                                    >
-                                        Create Team
-                                    </Button>
-                                    {hasPreviousRoster && (
-                                        <Button
-                                            className="w-full font-medium"
-                                            variant="flat"
-                                            startContent={<RefreshCw className="w-4 h-4" />}
-                                            onPress={() => {
-                                                if (hasVotedIn) {
-                                                    setShowVoteWarning({ action: "create" });
-                                                } else {
-                                                    setImportMode(true);
-                                                    setShowCreate(true);
-                                                }
-                                            }}
-                                        >
-                                            <span className="inline-flex items-center gap-1.5">
-                                                <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-success text-white rounded-md leading-none">New</span>
-                                                Use Past Team · {previousRoster!.squadName}
-                                            </span>
-                                        </Button>
-                                    )}
-                                </>
+                                        } else {
+                                            setShowCreateChooser(true);
+                                        }
+                                    }}
+                                >
+                                    Create Team
+                                </Button>
                             )}
                         </ModalFooter>
                     )}
@@ -2206,6 +2258,77 @@ export function SquadCenter({
                 } : { id: currentPlayerId, displayName: "You", imageUrl: "" }}
                 importRoster={importMode ? previousRoster ?? undefined : undefined}
             />
+
+            {/* Create Team Chooser Modal */}
+            <Modal
+                isOpen={showCreateChooser}
+                onClose={() => setShowCreateChooser(false)}
+                placement="center"
+                size="sm"
+                classNames={{
+                    base: "bg-background border border-divider",
+                    backdrop: "bg-black/60 backdrop-blur-sm",
+                    wrapper: "z-[60]",
+                }}
+            >
+                <ModalContent>
+                    <ModalHeader className="text-base pb-1">Create Team</ModalHeader>
+                    <ModalBody className="pb-5 space-y-2">
+                        {/* Create New */}
+                        <button
+                            type="button"
+                            className="w-full flex items-center gap-3 rounded-xl border border-foreground/10 bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-colors p-3 text-left cursor-pointer"
+                            onClick={() => {
+                                setShowCreateChooser(false);
+                                if (hasVotedIn) {
+                                    setShowVoteWarning({ action: "create" });
+                                } else {
+                                    setImportMode(false);
+                                    setShowCreate(true);
+                                }
+                            }}
+                        >
+                            <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${theme ? `bg-gradient-to-r ${theme.header}` : 'bg-primary'}`}>
+                                <Plus className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold">Create New Team</p>
+                                <p className="text-[11px] text-foreground/50">Start fresh with a new squad</p>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-foreground/30 shrink-0" />
+                        </button>
+
+                        {/* Use Past Team */}
+                        {hasPreviousRoster && (
+                            <button
+                                type="button"
+                                className="w-full flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors p-3 text-left cursor-pointer"
+                                onClick={() => {
+                                    setShowCreateChooser(false);
+                                    if (hasVotedIn) {
+                                        setShowVoteWarning({ action: "create" });
+                                    } else {
+                                        setImportMode(true);
+                                        setShowCreate(true);
+                                    }
+                                }}
+                            >
+                                <div className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                                    <RefreshCw className="w-4 h-4 text-emerald-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold flex items-center gap-1.5">
+                                        Use Past Team
+                                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-success text-white rounded-md leading-none">New</span>
+                                    </p>
+                                    <p className="text-[11px] text-foreground/50 truncate">Re-use roster from {previousRoster!.squadName}</p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-foreground/30 shrink-0" />
+                            </button>
+                        )}
+                    </ModalBody>
+                </ModalContent>
+            </Modal>
 
             {/* Vote conflict warning modal */}
             <Modal

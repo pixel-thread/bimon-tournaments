@@ -8,6 +8,7 @@ import {
     Vote,
     Settings,
     Swords,
+    Ghost,
     DollarSign,
     Shield,
     Gamepad2,
@@ -55,6 +56,7 @@ const sidebarItems: SidebarSection[] = [
         items: [
             { label: "Dashboard", href: "/dashboard", icon: BarChart3 },
             { label: "Teams", href: "/dashboard/teams", icon: Swords, feature: "hasTeamSizes" },
+            { label: "Squads", href: "/dashboard/squads", icon: Ghost },
             { label: "Players", href: "/dashboard/players", icon: Users, superAdminOnly: true },
             { label: GAME.clanLabel + "s", href: "/dashboard/clan", icon: Shield },
             { label: "Polls", href: "/dashboard/polls", icon: Vote },

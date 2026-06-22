@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
             return ErrorResponse({ message: "pollId is required", status: 400 });
         }
 
-        const currentPlayerId = user.player.id;
+        // Admin can look up any player's past roster
+        const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+        const captainIdParam = request.nextUrl.searchParams.get("captainId");
+        const currentPlayerId = (isAdmin && captainIdParam) ? captainIdParam : user.player.id;
 
         // Find captain's most recent squad from a DIFFERENT poll
         const previousSquad = await prisma.squad.findFirst({

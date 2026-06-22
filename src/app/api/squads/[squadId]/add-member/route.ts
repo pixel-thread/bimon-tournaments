@@ -198,8 +198,8 @@ export async function POST(
 
         // ─── Case A: Real player found ───
         if (foundPlayer && !foundPlayer.isGhost) {
-            // Admin with confirm=true → add directly with ACCEPTED status
-            if (isAdmin && confirm) {
+            // Admin always auto-confirms; regular users need explicit confirm from UI
+            if (isAdmin || (confirm === true)) {
                 // Remove any existing poll vote
                 await prisma.playerPollVote.deleteMany({
                     where: { pollId: squad.pollId, playerId: foundPlayer.id },
