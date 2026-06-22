@@ -1783,13 +1783,17 @@ export function SquadCenter({
         return items;
     }, [otherSquads, randomTeams, myRandomTeam]);
 
-    // Compute confirmed squad IDs (first maxSquads by creation order)
+    // Compute confirmed squad IDs (first maxSquads by confirmedAt order)
+    // confirmedAt = when captain first had enough balance; falls back to createdAt for legacy
     const confirmedIds = useMemo(() => {
         if (!squads) return new Set<string>();
-        const allSquadsSorted = [...squads].sort(
-            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-        return new Set(allSquadsSorted.slice(0, maxSquads).map(s => s.id));
+        const confirmedSquads = squads.filter(s => !s.needsPayment);
+        const sorted = [...confirmedSquads].sort((a, b) => {
+            const aTime = new Date(a.confirmedAt ?? a.createdAt).getTime();
+            const bTime = new Date(b.confirmedAt ?? b.createdAt).getTime();
+            return aTime - bTime;
+        });
+        return new Set(sorted.slice(0, maxSquads).map(s => s.id));
     }, [squads, maxSquads]);
 
     // Split into confirmed, waitlisted, and unconfirmed (needs payment)

@@ -42,8 +42,9 @@ export async function GET(request: NextRequest) {
             return ErrorResponse({ message: "Squad not found", status: 404 });
         }
 
-        // Must be the captain
-        if (squad.captainId !== currentPlayerId) {
+        // Must be the captain or admin
+        const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+        if (squad.captainId !== currentPlayerId && !isAdmin) {
             return ErrorResponse({ message: "Only the squad leader can view this", status: 403 });
         }
 

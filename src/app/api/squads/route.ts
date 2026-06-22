@@ -184,6 +184,7 @@ export async function GET(request: NextRequest) {
                 status: squad.status,
                 entryFee: squad.entryFee,
                 createdAt: squad.createdAt,
+                confirmedAt: squad.confirmedAt ?? null,
                 needsPayment,
                 captain: {
                     id: squad.captain.id,
@@ -365,8 +366,8 @@ export async function POST(request: NextRequest) {
                 select: { isTrusted: true },
             });
             if (!player?.isTrusted) {
-                const { available } = await getAvailableBalance(email);
-                insufficientBalance = available < entryFee;
+                const { balance } = await getAvailableBalance(email);
+                insufficientBalance = balance < entryFee;
             }
         }
 
@@ -428,6 +429,7 @@ export async function POST(request: NextRequest) {
                         entryFee,
                         useClanTreasury: wantClanTreasury,
                         createdAt: new Date(), // Reset so re-registered squad appears as latest
+                        confirmedAt: insufficientBalance ? null : new Date(),
                         invites: {
                             create: {
                                 playerId,
@@ -456,6 +458,7 @@ export async function POST(request: NextRequest) {
                     clanId,
                     entryFee,
                     useClanTreasury: wantClanTreasury,
+                    confirmedAt: insufficientBalance ? null : new Date(),
                     invites: {
                         create: {
                             playerId,

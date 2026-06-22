@@ -51,7 +51,8 @@ export async function POST(
             return ErrorResponse({ message: "Squad not found", status: 404 });
         }
 
-        if (squad.captainId !== user.player.id) {
+        const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+        if (squad.captainId !== user.player.id && !isAdmin) {
             return ErrorResponse({ message: "Only the squad leader can cancel", status: 403 });
         }
 

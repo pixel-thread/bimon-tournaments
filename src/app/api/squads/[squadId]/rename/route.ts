@@ -50,7 +50,8 @@ export async function PATCH(
             return ErrorResponse({ message: "Squad not found", status: 404 });
         }
 
-        if (squad.captainId !== user.player.id) {
+        const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+        if (squad.captainId !== user.player.id && !isAdmin) {
             return ErrorResponse({ message: "Only the team leader can rename", status: 403 });
         }
 

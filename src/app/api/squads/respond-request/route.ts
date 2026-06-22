@@ -57,8 +57,9 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "Request not found", status: 404 });
         }
 
-        // Must be captain of this squad
-        if (invite.squad.captainId !== currentPlayerId) {
+        // Must be captain of this squad or admin
+        const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+        if (invite.squad.captainId !== currentPlayerId && !isAdmin) {
             return ErrorResponse({ message: "Only the squad leader can respond to join requests", status: 403 });
         }
 

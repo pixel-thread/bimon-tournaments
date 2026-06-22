@@ -176,7 +176,49 @@ export async function creditWallet(
             data: { playerId, amount, type: "CREDIT", description },
         }),
     ]);
+    // After crediting, check if this player captains any unconfirmed squads
+    checkAndConfirmSquads(playerId, wallet.balance).catch(() => {});
     return { balance: wallet.balance, transaction: tx };
+}
+
+/**
+ * After a wallet credit, check if this player is a captain of any active squad
+ * that hasn't been confirmed yet. If balance >= entryFee, stamp confirmedAt.
+ */
+async function checkAndConfirmSquads(playerId: string, newBalance: number) {
+    const unconfirmedSquads = await prisma.squad.findMany({
+        where: {
+            captainId: playerId,
+            status: { in: ["FORMING", "FULL", "REGISTERED"] },
+            confirmedAt: null,
+            entryFee: { gt: 0 },
+        },
+        select: { id: true, entryFee: true },
+    });
+    if (unconfirmedSquads.length === 0) return;
+
+    // Check captain isTrusted — trusted captains don't need balance check
+    const captain = await prisma.player.findUnique({
+        where: { id: playerId },
+        select: { isTrusted: true },
+    });
+    if (captain?.isTrusted) {
+        // Trusted captains: confirm all their squads immediately
+        await prisma.squad.updateMany({
+            where: { id: { in: unconfirmedSquads.map(s => s.id) } },
+            data: { confirmedAt: new Date() },
+        });
+        return;
+    }
+
+    // Non-trusted: confirm squads where balance >= entryFee
+    const toConfirm = unconfirmedSquads.filter(s => newBalance >= s.entryFee);
+    if (toConfirm.length > 0) {
+        await prisma.squad.updateMany({
+            where: { id: { in: toConfirm.map(s => s.id) } },
+            data: { confirmedAt: new Date() },
+        });
+    }
 }
 
 /**
@@ -222,7 +264,7 @@ export async function transferWallet(
     if (!fromUser?.player || !toUser?.player) throw new Error("Player not found");
     const fromPlayerId = fromUser.player.id;
     const toPlayerId = toUser.player.id;
-    await prisma.$transaction([
+    const [, toWallet] = await prisma.$transaction([
         prisma.wallet.upsert({
             where: { playerId: fromPlayerId },
             create: { playerId: fromPlayerId, balance: -amount },
@@ -240,6 +282,8 @@ export async function transferWallet(
             data: { playerId: toPlayerId, amount, type: "CREDIT", description: description || "Transfer from player" },
         }),
     ]);
+    // After transfer, check if recipient captains any unconfirmed squads
+    checkAndConfirmSquads(toPlayerId, toWallet.balance).catch(() => {});
 }
 
 // ─── Diamond Currency (MLBB reward-only) ────────────────────

@@ -1309,8 +1309,9 @@ model Squad {
   entryFee  Int         // Per-player fee (snapshot from tournament at creation)
   useClanTreasury Boolean @default(false) // If true, clan treasury pays instead of captain
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?               // Set when captain first has enough balance; null while unconfirmed
+  updatedAt   DateTime  @updatedAt
 
   poll    Poll          @relation(fields: [pollId], references: [id], onDelete: Cascade)
   captain Player        @relation("SquadCaptain", fields: [captainId], references: [id], onDelete: Cascade)

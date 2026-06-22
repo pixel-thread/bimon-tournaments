@@ -29,7 +29,8 @@ export async function GET(
             select: { captainId: true, pollId: true },
         });
 
-        if (!squad || squad.captainId !== currentPlayerId) {
+        const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+        if (!squad || (squad.captainId !== currentPlayerId && !isAdmin)) {
             return ErrorResponse({ message: "Squad not found or not captain", status: 404 });
         }
 

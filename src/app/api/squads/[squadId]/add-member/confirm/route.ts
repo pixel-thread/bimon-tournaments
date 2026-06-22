@@ -46,7 +46,8 @@ export async function POST(
             return ErrorResponse({ message: "Squad not found", status: 404 });
         }
 
-        if (squad.captainId !== currentPlayerId) {
+        const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+        if (squad.captainId !== currentPlayerId && !isAdmin) {
             return ErrorResponse({ message: "Only the captain can add members", status: 403 });
         }
 

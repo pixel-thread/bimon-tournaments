@@ -27,6 +27,7 @@ export interface SquadDTO {
     status: "FORMING" | "FULL" | "CANCELLED" | "REGISTERED";
     entryFee: number;
     createdAt: string;
+    confirmedAt: string | null;
     needsPayment: boolean;
     captain: {
         id: string;
@@ -192,6 +193,7 @@ export function useCreateSquad() {
                         entryFee: 0,
                         needsPayment: false, // real value comes from API refetch
                         createdAt: new Date(0).toISOString(),
+                        confirmedAt: new Date(0).toISOString(),
                         captain: cap,
                         clanLogo: clan?.logo ?? null,
                         clanTag: clan?.tag ?? null,
