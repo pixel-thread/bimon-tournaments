@@ -67,10 +67,10 @@ export interface SearchPlayerResult {
  * Fetch all squads for a specific poll.
  */
 export function useSquads(pollId: string | undefined) {
-    return useQuery<{ squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean; isMangoScrim: boolean }>({
+    return useQuery<{ squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; confirmedSquadCount: number; isChampionship: boolean; isMangoScrim: boolean }>({
         queryKey: ["squads", pollId],
         queryFn: async () => {
-            if (!pollId) return { squads: [], defendingChampion: null, maxSquads: 16, maxSquadWaitlist: 24, squadCount: 0, isChampionship: false, isMangoScrim: false };
+            if (!pollId) return { squads: [], defendingChampion: null, maxSquads: 16, maxSquadWaitlist: 24, squadCount: 0, confirmedSquadCount: 0, isChampionship: false, isMangoScrim: false };
             const res = await fetch(`/api/squads?pollId=${pollId}`); // removed _t cache-buster
             if (!res.ok) throw new Error("Failed to fetch squads");
             const json = await res.json();
@@ -80,6 +80,7 @@ export function useSquads(pollId: string | undefined) {
                 maxSquads: json.meta?.maxSquads ?? 16,
                 maxSquadWaitlist: json.meta?.maxSquadWaitlist ?? 24,
                 squadCount: json.meta?.squadCount ?? 0,
+                confirmedSquadCount: json.meta?.confirmedSquadCount ?? json.meta?.squadCount ?? 0,
                 isChampionship: json.meta?.isChampionship ?? false,
                 isMangoScrim: json.meta?.isMangoScrim ?? false,
             };

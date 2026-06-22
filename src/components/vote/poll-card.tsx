@@ -835,10 +835,10 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const poolFee = poll.prizePoolFee ?? entryFee; // Per-entry amount going to prize pool (org cut deducted)
     const donationTotal = poll.donations?.total ?? 0;
     // Squad polls: fee is per-team → squads + estimated random teams from IN voters
-    // Only confirmed squads contribute to prize pool (waitlisted ones don't)
+    // Only confirmed (paid) squads contribute to prize pool
     const squadCount = poll.squadCount ?? 0;
     const confirmedSquads = poll.allowSquads && GAME.squadSize > 1
-        ? Math.min(squadCount, getConfirmedSquadCap(squadCount, squadsResult?.isMangoScrim))
+        ? Math.min(squadsResult?.confirmedSquadCount ?? squadCount, getConfirmedSquadCap(squadCount, squadsResult?.isMangoScrim))
         : 0;
     const estimatedTeams = poll.allowSquads && GAME.squadSize > 1
         ? confirmedSquads + Math.floor(participantCount / GAME.squadSize)

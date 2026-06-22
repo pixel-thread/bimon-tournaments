@@ -241,8 +241,11 @@ export async function GET(request: NextRequest) {
             })
             .map(({ _isMySquad, _isCaptain, ...rest }) => rest); // strip internal flags
 
+        // Count only confirmed (paid) squads for prize pool calculation
+        const confirmedSquadCount = data.filter((s) => !s.needsPayment).length;
+
         const registrationCap = isMangoScrim ? 20 : 32;
-        return SuccessResponse({ data, meta: { defendingChampion, maxSquads, maxSquadWaitlist: registrationCap, squadCount: data.length, isMangoScrim }, cache: CACHE.NONE });
+        return SuccessResponse({ data, meta: { defendingChampion, maxSquads, maxSquadWaitlist: registrationCap, squadCount: data.length, confirmedSquadCount, isMangoScrim }, cache: CACHE.NONE });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch squads", error });
     }
