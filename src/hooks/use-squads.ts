@@ -146,6 +146,68 @@ export function useRecentTeammates(pollId: string | undefined, enabled = true) {
         staleTime: 30_000,
     });
 }
+/* ─── Previous Roster (Use Past Team) ───────────────────────── */
+
+export interface PreviousRosterMember {
+    playerId: string;
+    displayName: string;
+    imageUrl: string;
+    isGhost: boolean;
+    isSub: boolean;
+    isBanned: boolean;
+    existingTeamName: string | null;
+    available: boolean;
+}
+
+export interface PreviousRoster {
+    squadName: string;
+    fullName: string | null;
+    clanId: string | null;
+    members: PreviousRosterMember[];
+}
+
+/**
+ * Fetch captain's most recent squad roster from a previous tournament.
+ */
+export function usePreviousRoster(pollId: string | undefined, enabled = true) {
+    return useQuery<PreviousRoster | null>({
+        queryKey: ["previous-roster", pollId],
+        queryFn: async () => {
+            if (!pollId) return null;
+            const res = await fetch(`/api/squads/previous-roster?pollId=${pollId}`);
+            if (!res.ok) return null;
+            const json = await res.json();
+            return json.data ?? null;
+        },
+        enabled: !!pollId && enabled,
+        staleTime: 60_000,
+    });
+}
+
+/**
+ * Import members from a previous roster into a squad.
+ */
+export function useImportRoster() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ squadId, memberIds }: { squadId: string; memberIds: string[] }) => {
+            const res = await fetch("/api/squads/import-roster", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ squadId, memberIds }),
+            });
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
+                throw new Error(json.message || "Failed to import roster");
+            }
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["squads"] });
+        },
+    });
+}
 
 /* ─── Mutations ─────────────────────────────────────────────── */
 

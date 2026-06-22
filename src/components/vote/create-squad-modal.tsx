@@ -11,9 +11,9 @@ import {
     Input,
     Switch,
 } from "@heroui/react";
-import { Shield, AlertTriangle } from "lucide-react";
+import { Shield, AlertTriangle, X, Ghost, Users } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useCreateSquad, useRecentTeammates } from "@/hooks/use-squads";
+import { useCreateSquad, useRecentTeammates, useImportRoster, type PreviousRoster } from "@/hooks/use-squads";
 import { useQuery } from "@tanstack/react-query";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
@@ -37,6 +37,8 @@ interface CreateSquadModalProps {
     isRanked?: boolean;
     /** Captain info for optimistic UI */
     captainInfo?: { id: string; displayName: string; imageUrl: string } | null;
+    /** Previous roster to import (Use Past Team mode) */
+    importRoster?: PreviousRoster;
 }
 
 interface MyClan {
@@ -60,6 +62,7 @@ export function CreateSquadModal({
     hasVotedIn,
     isRanked,
     captainInfo,
+    importRoster,
 }: CreateSquadModalProps) {
     const [step, setStep] = useState<"name">("name");
     const [squadName, setSquadName] = useState("");
@@ -101,7 +104,28 @@ export function CreateSquadModal({
     }, [pollId]);
 
     const createMutation = useCreateSquad();
+    const importRosterMutation = useImportRoster();
     // const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal(); // Discord disabled
+
+    // Import mode: track selected member IDs
+    const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+
+    // Initialize selected members when importRoster changes
+    useEffect(() => {
+        if (importRoster && isOpen) {
+            setSelectedMembers(new Set(
+                importRoster.members.filter(m => m.available).map(m => m.playerId)
+            ));
+        }
+    }, [importRoster, isOpen]);
+
+    // Pre-fill team name from previous roster
+    useEffect(() => {
+        if (importRoster && isOpen) {
+            setSquadName(importRoster.squadName);
+            if (importRoster.fullName) setSquadFullName(importRoster.fullName);
+        }
+    }, [importRoster, isOpen]);
 
     // Pre-fetch subscribers (players with auto-accept ON for this captain)
     // Fetched as soon as modal opens so it's ready instantly after creation
@@ -141,6 +165,7 @@ export function CreateSquadModal({
         setUseClan(hasClan); // Reset to clan default for next open
         setUseClanTreasury(false);
         setTreasuryRequested(false);
+        setSelectedMembers(new Set());
         onClose();
     }, [onClose, hasClan]);
 
@@ -159,6 +184,8 @@ export function CreateSquadModal({
         // Close modal immediately — optimistic update in onMutate shows the squad card instantly
         handleClose();
 
+        const memberIdsToImport = importRoster ? Array.from(selectedMembers) : [];
+
         createMutation.mutate(
             {
                 pollId,
@@ -172,9 +199,30 @@ export function CreateSquadModal({
             {
                 onSuccess: async (data) => {
                     const name = data?.data?.name ?? squadName.trim();
+                    const squadId = data?.data?.id;
 
                     const { toast } = await import("sonner");
                     toast.success(`Team "${name}" created! 🎉`);
+
+                    // Import roster if in import mode
+                    if (squadId && memberIdsToImport.length > 0) {
+                        try {
+                            const result = await importRosterMutation.mutateAsync({
+                                squadId,
+                                memberIds: memberIdsToImport,
+                            });
+                            const added = result?.data?.results?.filter((r: { status: string }) => r.status === "added").length ?? 0;
+                            const invited = result?.data?.results?.filter((r: { status: string }) => r.status === "invited").length ?? 0;
+                            if (added > 0 || invited > 0) {
+                                const parts = [];
+                                if (added > 0) parts.push(`${added} auto-added`);
+                                if (invited > 0) parts.push(`${invited} invite${invited > 1 ? 's' : ''} sent`);
+                                toast.success(`Past roster imported: ${parts.join(", ")}`);
+                            }
+                        } catch {
+                            toast.error("Failed to import some teammates");
+                        }
+                    }
 
                     // Persist WhatsApp pending state for global guard
                     if (whatsappGroupLink) {
@@ -188,7 +236,7 @@ export function CreateSquadModal({
                 },
             }
         );
-    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, whatsappGroupLink, tournamentName, handleClose, hasSubscribers, captainInfo, myClan, isLeaderOrCoLeader, useClanTreasury]);
+    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, importRosterMutation, whatsappGroupLink, tournamentName, handleClose, hasSubscribers, captainInfo, myClan, isLeaderOrCoLeader, useClanTreasury, importRoster, selectedMembers]);
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
@@ -218,7 +266,7 @@ export function CreateSquadModal({
                     <div className="flex-1 min-w-0">
                         <span className="truncate block">
                             {step === "name"
-                                ? "Create Team"
+                                ? (importRoster ? "Use Past Team" : "Create Team")
                                 : "Quick Invite"}
                         </span>
                         <span className="text-xs font-normal text-foreground/50">{tournamentName}</span>
@@ -366,12 +414,91 @@ export function CreateSquadModal({
 
 
 
-                                <div className="text-xs text-foreground/50 space-y-1">
-                                    <p>• {useClanTreasury ? 'Clan treasury' : 'Leader'} pays <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
-                                    <p>• Roster: up to <strong>{GAME.maxSquadSize}</strong> players ({GAME.squadSize} active + {GAME.maxSquadSize - GAME.squadSize} subs)</p>
-                                    <p>• Teammates join for free — no fee required</p>
-                                    <p>• {useClanTreasury ? 'Prize goes to clan treasury' : 'Prize goes to leader'} when team wins 🏆</p>
-                                </div>
+                                {/* Import Roster Preview */}
+                                {importRoster && importRoster.members.length > 0 && (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <Users className="w-3.5 h-3.5 text-foreground/50" />
+                                            <span className="text-sm font-medium text-foreground/70">Past Roster</span>
+                                            <span className="text-xs text-foreground/40">({selectedMembers.size} selected)</span>
+                                        </div>
+                                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                                            {importRoster.members.map((m) => {
+                                                const isSelected = selectedMembers.has(m.playerId);
+                                                return (
+                                                    <div
+                                                        key={m.playerId}
+                                                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-colors ${
+                                                            !m.available
+                                                                ? 'bg-danger-50/50 border-danger-100 dark:bg-danger-900/10 dark:border-danger-800/40 opacity-60'
+                                                                : isSelected
+                                                                    ? 'bg-primary-50/50 border-primary-100 dark:bg-primary-900/10 dark:border-primary-800/40'
+                                                                    : 'bg-default-50 border-divider opacity-50'
+                                                        }`}
+                                                    >
+                                                        {m.imageUrl ? (
+                                                            <img src={m.imageUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                                                        ) : (
+                                                            <div className="w-7 h-7 rounded-full bg-default-200 flex items-center justify-center shrink-0">
+                                                                {m.isGhost ? <Ghost className="w-3.5 h-3.5 text-foreground/30" /> : <Users className="w-3.5 h-3.5 text-foreground/30" />}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium truncate">
+                                                                {m.displayName}
+                                                                {m.isGhost && <span className="text-xs text-foreground/40 ml-1">👻</span>}
+                                                                {m.isSub && <span className="text-xs text-foreground/40 ml-1">(sub)</span>}
+                                                            </p>
+                                                            {!m.available && m.existingTeamName && (
+                                                                <p className="text-xs text-danger-500">Already in {m.existingTeamName}</p>
+                                                            )}
+                                                            {!m.available && m.isBanned && (
+                                                                <p className="text-xs text-danger-500">Banned</p>
+                                                            )}
+                                                        </div>
+                                                        {m.available && isSelected && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedMembers(prev => {
+                                                                        const next = new Set(prev);
+                                                                        next.delete(m.playerId);
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                className="w-6 h-6 rounded-full bg-default-200 hover:bg-danger-100 flex items-center justify-center transition-colors shrink-0"
+                                                            >
+                                                                <X className="w-3 h-3 text-foreground/50" />
+                                                            </button>
+                                                        )}
+                                                        {m.available && !isSelected && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedMembers(prev => {
+                                                                        const next = new Set(prev);
+                                                                        next.add(m.playerId);
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                className="text-xs text-primary font-medium px-2 py-1 rounded-md hover:bg-primary-50 transition-colors"
+                                                            >
+                                                                Add
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!importRoster && (
+                                    <div className="text-xs text-foreground/50 space-y-1">
+                                        <p>• {useClanTreasury ? 'Clan treasury' : 'Leader'} pays <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
+                                        <p>• Roster: up to <strong>{GAME.maxSquadSize}</strong> players ({GAME.squadSize} active + {GAME.maxSquadSize - GAME.squadSize} subs)</p>
+                                        <p>• Teammates join for free — no fee required</p>
+                                        <p>• {useClanTreasury ? 'Prize goes to clan treasury' : 'Prize goes to leader'} when team wins 🏆</p>
+                                    </div>
+                                )}
                             </motion.div>
                         )}
 
@@ -393,7 +520,7 @@ export function CreateSquadModal({
                                 onPress={handleCreate}
                                 startContent={!createMutation.isPending && <Shield className="w-4 h-4" />}
                             >
-                                Create Team
+                                {importRoster ? `Create & Import (${selectedMembers.size})` : "Create Team"}
                             </Button>
                         </div>
                     )}

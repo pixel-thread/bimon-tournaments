@@ -29,6 +29,7 @@ import {
     useInvitePlayer,
     useSearchPlayers,
     useRenameSquad,
+    usePreviousRoster,
     type SquadDTO,
 } from "@/hooks/use-squads";
 import { CreateSquadModal } from "./create-squad-modal";
@@ -1653,6 +1654,11 @@ export function SquadCenter({
     const isGuest = !currentPlayerId;
     const canCreateSquad = !mySquad && !isLoading && !!squads;
 
+    // Pre-fetch previous roster for "Use Past Team" button
+    const { data: previousRoster } = usePreviousRoster(pollId, canCreateSquad && !isGuest);
+    const hasPreviousRoster = !!previousRoster && previousRoster.members.some(m => m.available);
+    const [importMode, setImportMode] = useState(false);
+
     const [respondAction, setRespondAction] = useState<"accept" | "decline" | null>(null);
     const [respondRequestAction, setRespondRequestAction] = useState<"accept" | "decline" | null>(null);
     const [recentlyRequestedSquadId, setRecentlyRequestedSquadId] = useState<string | null>(null);
@@ -2138,7 +2144,7 @@ export function SquadCenter({
                     </ModalBody>
 
                     {canCreateSquad && (
-                        <ModalFooter>
+                        <ModalFooter className={hasPreviousRoster ? "flex-col gap-2" : ""}>
                             {isGuest ? (
                                 <Button
                                     className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
@@ -2149,20 +2155,40 @@ export function SquadCenter({
                                     Sign in to Create Team
                                 </Button>
                             ) : (
-                                <Button
-                                    className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
-                                    color={theme ? undefined : "primary"}
-                                    startContent={<Plus className="w-4 h-4" />}
-                                    onPress={() => {
-                                        if (hasVotedIn) {
-                                            setShowVoteWarning({ action: "create" });
-                                        } else {
-                                            setShowCreate(true);
-                                        }
-                                    }}
-                                >
-                                    Create Team
-                                </Button>
+                                <>
+                                    <Button
+                                        className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
+                                        color={theme ? undefined : "primary"}
+                                        startContent={<Plus className="w-4 h-4" />}
+                                        onPress={() => {
+                                            if (hasVotedIn) {
+                                                setShowVoteWarning({ action: "create" });
+                                            } else {
+                                                setImportMode(false);
+                                                setShowCreate(true);
+                                            }
+                                        }}
+                                    >
+                                        Create Team
+                                    </Button>
+                                    {hasPreviousRoster && (
+                                        <Button
+                                            className="w-full font-medium"
+                                            variant="flat"
+                                            startContent={<RefreshCw className="w-4 h-4" />}
+                                            onPress={() => {
+                                                if (hasVotedIn) {
+                                                    setShowVoteWarning({ action: "create" });
+                                                } else {
+                                                    setImportMode(true);
+                                                    setShowCreate(true);
+                                                }
+                                            }}
+                                        >
+                                            Use Past Team · {previousRoster!.squadName}
+                                        </Button>
+                                    )}
+                                </>
                             )}
                         </ModalFooter>
                     )}
@@ -2187,6 +2213,7 @@ export function SquadCenter({
                     displayName: inVoters.find(v => v.playerId === currentPlayerId)!.displayName,
                     imageUrl: inVoters.find(v => v.playerId === currentPlayerId)!.imageUrl,
                 } : { id: currentPlayerId, displayName: "You", imageUrl: "" }}
+                importRoster={importMode ? previousRoster ?? undefined : undefined}
             />
 
             {/* Vote conflict warning modal */}
