@@ -2,6 +2,7 @@ import { prisma } from "@/lib/database";
 import { SuccessResponse, ErrorResponse, CACHE } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth";
 import { ALL_TOURNAMENT_TYPES } from "@/lib/bracket-types";
+import { getBalancesBatch } from "@/lib/wallet-service";
 
 /**
  * GET /api/polls
@@ -105,6 +106,48 @@ export async function GET(request: Request) {
         });
         const couponByPollId = new Map(sponsorCoupons.map(c => [c.pollId, c]));
 
+        // ── Batch compute confirmedSquadCount per poll ──
+        // Fetch all active squads with captain info for polls that have entry fees
+        const squadPollIds = polls
+            .filter(p => p.allowSquads && (p.tournament?.fee ?? 0) > 0)
+            .map(p => p.id);
+        const confirmedCountByPoll = new Map<string, number>();
+        if (squadPollIds.length > 0) {
+            const allSquads = await prisma.squad.findMany({
+                where: { pollId: { in: squadPollIds }, status: { in: ["FORMING", "FULL", "REGISTERED"] } },
+                select: {
+                    id: true,
+                    pollId: true,
+                    entryFee: true,
+                    captainId: true,
+                    captain: {
+                        select: { isTrusted: true, user: { select: { email: true } } },
+                    },
+                },
+            });
+            // Collect emails of non-trusted captains
+            const captainEmails = [...new Set(
+                allSquads
+                    .filter(s => !s.captain.isTrusted && s.captain.user?.email)
+                    .map(s => s.captain.user!.email!)
+            )];
+            const balanceMap = captainEmails.length > 0 ? await getBalancesBatch(captainEmails) : new Map<string, number>();
+
+            // Count confirmed squads per poll
+            for (const sq of allSquads) {
+                if (sq.captain.isTrusted) {
+                    // Trusted captains are always confirmed
+                    confirmedCountByPoll.set(sq.pollId, (confirmedCountByPoll.get(sq.pollId) ?? 0) + 1);
+                } else {
+                    const email = sq.captain.user?.email;
+                    const bal = email ? (balanceMap.get(email) ?? 0) : 0;
+                    if (bal >= sq.entryFee) {
+                        confirmedCountByPoll.set(sq.pollId, (confirmedCountByPoll.get(sq.pollId) ?? 0) + 1);
+                    }
+                }
+            }
+        }
+
         const data = polls.map((poll) => {
             const totalVotes = poll.votes.length;
             // Sum voteCount for multi-entry — each extra entry counts as an additional participant
@@ -159,6 +202,7 @@ export async function GET(request: Request) {
                 userVoteCount,
                 hasVoted: !!userVote,
                 squadCount: (poll as any)._count?.squads ?? 0,
+                confirmedSquadCount: confirmedCountByPoll.get(poll.id) ?? (poll as any)._count?.squads ?? 0,
                 donations: tDonations ?? { total: 0, donations: [] },
                 sponsorCoupon: couponByPollId.get(poll.id) ?? null,
                 playersVotes: poll.votes.map((v: any) => ({

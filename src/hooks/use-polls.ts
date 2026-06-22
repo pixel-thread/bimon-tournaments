@@ -57,6 +57,7 @@ export interface PollDTO {
         donations: { amount: number; playerName: string | null; isAnonymous: boolean }[];
     };
     squadCount?: number;
+    confirmedSquadCount?: number;
     whatsappGroupLink?: string | null;
     sponsorCoupon: {
         sponsorName: string;

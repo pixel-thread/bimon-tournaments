@@ -836,10 +836,10 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const donationTotal = poll.donations?.total ?? 0;
     // Squad polls: fee is per-team → squads + estimated random teams from IN voters
     // Only confirmed (paid) squads contribute to prize pool
-    // Use squadsResult counts (which apply balance filter) once loaded, fall back to poll count
+    // Both polls API and squads API now provide confirmedSquadCount — no flash
     const squadCount = squadsResult?.squadCount ?? poll.squadCount ?? 0;
     const confirmedSquads = poll.allowSquads && GAME.squadSize > 1
-        ? Math.min(squadsResult?.confirmedSquadCount ?? squadCount, getConfirmedSquadCap(squadCount, squadsResult?.isMangoScrim))
+        ? Math.min(squadsResult?.confirmedSquadCount ?? poll.confirmedSquadCount ?? squadCount, getConfirmedSquadCap(squadCount, squadsResult?.isMangoScrim))
         : 0;
     const estimatedTeams = poll.allowSquads && GAME.squadSize > 1
         ? confirmedSquads + Math.floor(participantCount / GAME.squadSize)
@@ -1281,9 +1281,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             <span>
                                 <SlotText
                                     value={poll.allowSquads
-                                        ? (squadsResult
-                                            ? `${estimatedTeams} team${estimatedTeams !== 1 ? "s" : ""}`
-                                            : `${poll.totalVotes} vote${poll.totalVotes !== 1 ? "s" : ""}`)
+                                        ? `${estimatedTeams} team${estimatedTeams !== 1 ? "s" : ""}`
                                         : `${poll.totalVotes} vote${poll.totalVotes !== 1 ? "s" : ""}`
                                     }
                                     charDelay={0.02}
