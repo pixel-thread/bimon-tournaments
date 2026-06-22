@@ -1134,16 +1134,12 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                         </Chip>
                                     </div>
                                 )}
-                                {/* KD range badge */}
+                                {/* KD range badge — placed where ? button sits (bottom-right) */}
                                 {(poll.kdMin != null || poll.kdMax != null) && (
-                                    <div className="absolute top-2 right-2">
-                                        <Chip
-                                            size="sm"
-                                            variant="flat"
-                                            className="font-bold bg-amber-500/25 text-white border border-amber-300/30 backdrop-blur-sm"
-                                        >
+                                    <div className="absolute bottom-2 right-3">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-black/25 text-white border border-white/20 backdrop-blur-sm">
                                             🎯 KD {poll.kdMin ?? 0}–{poll.kdMax ?? "∞"}
-                                        </Chip>
+                                        </span>
                                     </div>
                                 )}
                             </>
