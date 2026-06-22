@@ -1833,11 +1833,15 @@ export function SquadCenter({
                             <span className="truncate block">{tournamentName}</span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-normal text-foreground/50">Squad Center</span>
-                                {squads && squads.length > 0 && (
+                                {squads && squads.length > 0 && (() => {
+                                    const confirmedCount = squads.filter(s => !s.needsPayment).length;
+                                    const totalDisplay = confirmedCount + randomTeams.length;
+                                    return (
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-foreground/50">
-                                        {squads.length + randomTeams.length} squad{(squads.length + randomTeams.length) !== 1 ? "s" : ""}
+                                        {totalDisplay} squad{totalDisplay !== 1 ? "s" : ""}
                                     </span>
-                                )}
+                                    );
+                                })()}
                             </div>
                         </div>
                     </ModalHeader>
