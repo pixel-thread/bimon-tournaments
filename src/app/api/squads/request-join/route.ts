@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
                         tournament: { select: { name: true, fee: true } },
                     },
                 },
-                invites: { select: { playerId: true, status: true } },
+                invites: { select: { id: true, playerId: true, status: true, initiatedBy: true } },
             },
         });
 
@@ -89,7 +89,63 @@ export async function POST(request: NextRequest) {
         // Not already invited or requested
         const existingInvite = squad.invites.find((i) => i.playerId === playerId);
         if (existingInvite && existingInvite.status !== "DECLINED") {
-            return ErrorResponse({ message: "You already have a pending invite or are already in this squad", status: 400 });
+            if (existingInvite.status === "ACCEPTED") {
+                return ErrorResponse({ message: "You're already in this squad", status: 400 });
+            }
+
+            // PENDING invite from CAPTAIN → auto-accept (captain already approved them)
+            if (existingInvite.initiatedBy === "CAPTAIN") {
+                const acceptedCount2 = squad.invites.filter((i) => i.status === "ACCEPTED").length;
+                const isFull = (acceptedCount2 + 1) >= GAME.maxSquadSize;
+                const shouldBeSub = (acceptedCount2 + 1) > GAME.squadSize;
+
+                await prisma.$transaction(async (tx) => {
+                    await tx.squadInvite.update({
+                        where: { id: existingInvite.id },
+                        data: { status: "ACCEPTED", respondedAt: new Date(), isSub: shouldBeSub },
+                    });
+
+                    if (isFull) {
+                        await tx.squad.update({
+                            where: { id: squadId, status: "FORMING" },
+                            data: { status: "FULL" },
+                        });
+                    }
+
+                    // Remove individual poll vote
+                    await tx.playerPollVote.deleteMany({
+                        where: { playerId, pollId: squad.poll.id },
+                    });
+
+                    // Auto-decline other PENDING requests/invites for this poll
+                    const otherPending = await tx.squadInvite.findMany({
+                        where: {
+                            playerId,
+                            status: "PENDING",
+                            squad: { pollId: squad.poll.id, status: { in: ["FORMING", "FULL"] } },
+                        },
+                        select: { id: true, squadId: true },
+                    });
+                    if (otherPending.length > 0) {
+                        await tx.squadInvite.updateMany({
+                            where: { id: { in: otherPending.map(p => p.id) } },
+                            data: { status: "DECLINED", respondedAt: new Date() },
+                        });
+                    }
+
+                    await logSquadEventTx(tx, { squadId, playerId, action: "INVITE_ACCEPTED", actorId: playerId, details: "Accepted from Squad Center" });
+                });
+
+                return SuccessResponse({
+                    message: `You joined "${squad.name}"! 🎉`,
+                });
+            }
+
+            // PENDING request from PLAYER → already waiting
+            return ErrorResponse({
+                message: "You already sent a join request — waiting for the leader to respond",
+                status: 400,
+            });
         }
 
         // Block if already accepted into another squad for this poll

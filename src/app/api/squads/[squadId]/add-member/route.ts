@@ -49,8 +49,8 @@ export async function POST(
         const phone = rawPhone ? normalizePhone(rawPhone) : null;
         const email = rawEmail?.trim().toLowerCase() || null;
 
-        if (!phone && !email) {
-            return ErrorResponse({ message: "Phone or email is required", status: 400 });
+        if (!phone && !email && !name?.trim()) {
+            return ErrorResponse({ message: "Player name is required", status: 400 });
         }
 
         if (phone && (phone.length !== 10 || !/^\d{10}$/.test(phone))) {
@@ -280,7 +280,7 @@ export async function POST(
         }
 
         // ─── Case C: No match → create ghost User + Player ───
-        const contactKey = phone || email!;
+        const contactKey = phone || email || `anon_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const ghostClerkId = `ghost_${contactKey}`;
         const ghostUsername = `ghost_${contactKey}`;
 
