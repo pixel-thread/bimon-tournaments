@@ -7,7 +7,7 @@ import { Input, Button, Spinner, Switch, Modal, ModalContent, ModalHeader, Modal
 import { Shield, Users, Clock, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad } from "@/hooks/use-squads";
-import { useAuthGate } from "@/components/common/auth-gate-provider";
+import { useAuthUser } from "@/hooks/use-auth-user";
 // import { useDiscordCompareModal } from "@/components/common/discord-compare-modal"; // Discord disabled
 
 import { TeamDoneSection } from "@/components/squads/team-done-section";
@@ -55,7 +55,7 @@ export default function JoinPage() {
     const { id: pollId } = useParams<{ id: string }>();
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { requireAuth } = useAuthGate();
+    const { isSignedIn } = useAuthUser();
     // const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal(); // Discord disabled
 
     const [teamName, setTeamName] = useState(searchParams.get("team") ?? "");
@@ -228,13 +228,26 @@ export default function JoinPage() {
             setShowVoteWarning(true);
             return;
         }
-        requireAuth(() => handleCreate());
-    }, [teamName, useClan, hasClan, requireAuth, handleCreate, data?.hasVotedIn]);
+        if (!isSignedIn) {
+            // Guest → save team name in URL and redirect to sign-in
+            const effectiveName = (useClan && hasClan) ? "_clan_" : teamName.trim();
+            localStorage.setItem("pending-join-poll", pollId);
+            window.location.href = `/sign-in?redirect_url=${encodeURIComponent(`/join/${pollId}?team=${encodeURIComponent(effectiveName)}`)}`;
+            return;
+        }
+        handleCreate();
+    }, [teamName, useClan, hasClan, isSignedIn, pollId, handleCreate, data?.hasVotedIn]);
 
     const handleConfirmWithVote = useCallback(() => {
         setShowVoteWarning(false);
-        requireAuth(() => handleCreate());
-    }, [requireAuth, handleCreate]);
+        if (!isSignedIn) {
+            const effectiveName = (useClan && hasClan) ? "_clan_" : teamName.trim();
+            localStorage.setItem("pending-join-poll", pollId);
+            window.location.href = `/sign-in?redirect_url=${encodeURIComponent(`/join/${pollId}?team=${encodeURIComponent(effectiveName)}`)}`;
+            return;
+        }
+        handleCreate();
+    }, [isSignedIn, useClan, hasClan, teamName, pollId, handleCreate]);
 
     // ── Loading ──
     if (isLoading) {

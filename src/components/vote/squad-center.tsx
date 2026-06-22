@@ -16,7 +16,7 @@ import {
     Input,
 } from "@heroui/react";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
-import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, ChevronRight, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle, Phone, Ghost, Zap } from "lucide-react";
+import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, ChevronRight, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle, Phone, Ghost, Zap, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     useSquads,
@@ -474,6 +474,11 @@ function SquadCard({
                         transition={{ duration: 0.2, ease: "easeInOut" }}
                         className="overflow-hidden"
                     >
+                        {/* Needs payment banner */}
+                        {squad.needsPayment && isCaptain && (
+                            <PaymentBanner pollId={pollId} entryFee={squad.entryFee} />
+                        )}
+
                         {/* Members */}
                         <div className="px-4 py-3 space-y-2 border-t border-divider/50">
                             {squad.members.map((member) => {
@@ -2123,5 +2128,36 @@ export function SquadCenter({
                 </ModalContent>
             </Modal>
         </>
+    );
+}
+
+/* ── Payment Banner ──────────────────────────────────────── */
+
+function PaymentBanner({ pollId, entryFee }: { pollId: string; entryFee: number }) {
+    const queryClient = useQueryClient();
+    const [refreshing, setRefreshing] = useState(false);
+
+    const handleRefresh = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setRefreshing(true);
+        await queryClient.invalidateQueries({ queryKey: ["squads", pollId] });
+        setRefreshing(false);
+    };
+
+    return (
+        <div className="mx-4 mt-3 flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <p className="text-xs text-amber-600 dark:text-amber-400 flex-1">
+                Team not confirmed — need {entryFee} {GAME.currency}
+            </p>
+            <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="shrink-0 p-1 rounded-md hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                title="Re-check balance"
+            >
+                <RefreshCw className={`w-3.5 h-3.5 text-amber-500 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
+        </div>
     );
 }

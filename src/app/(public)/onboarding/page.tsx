@@ -187,6 +187,15 @@ export default function OnboardingPage() {
                 }
             }
 
+            // Pending team creation from join page (if any)
+            const pendingJoinPoll = localStorage.getItem("pending-join-poll");
+            if (pendingJoinPoll) {
+                localStorage.removeItem("pending-join-poll");
+                router.push(`/join/${pendingJoinPoll}`);
+                router.refresh();
+                return;
+            }
+
             // Discord linking disabled — redirect to vote directly
             // setShowDiscord(true); // ← Discord disabled, kept for future
             router.push("/vote");

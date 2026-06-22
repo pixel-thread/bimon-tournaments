@@ -122,12 +122,40 @@ export async function GET(request: NextRequest) {
             };
         }
 
+        // ── Compute needsPayment for the current user's own captain squads ──
+        // Check balance once if the user captains any squad with entryFee > 0
+        let captainBalance: number | null = null;
+        let captainIsTrusted = false;
+        const userEmail = await getAuthEmail();
+        if (currentPlayerId && userEmail) {
+            const hasCaptainSquadWithFee = squads.some(
+                (s) => s.captainId === currentPlayerId && s.entryFee > 0 && s.status !== "CANCELLED"
+            );
+            if (hasCaptainSquadWithFee) {
+                const playerInfo = await prisma.player.findUnique({
+                    where: { id: currentPlayerId },
+                    select: { isTrusted: true },
+                });
+                captainIsTrusted = playerInfo?.isTrusted ?? false;
+                if (!captainIsTrusted) {
+                    const { available } = await getAvailableBalance(userEmail);
+                    captainBalance = available;
+                }
+            }
+        }
+
         const data = squads.map((squad) => {
             const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
             const activeCount = squad.invites.filter((i) => i.status === "ACCEPTED" && !i.isSub).length;
             const isCaptain = currentPlayerId ? squad.captainId === currentPlayerId : false;
             const myInvite = currentPlayerId ? squad.invites.find((i) => i.playerId === currentPlayerId) : undefined;
             const isMySquad = !!myInvite;
+
+            // needsPayment: only for captain's own squads with entryFee > 0
+            let needsPayment = false;
+            if (isCaptain && squad.entryFee > 0 && !captainIsTrusted && captainBalance !== null) {
+                needsPayment = captainBalance < squad.entryFee;
+            }
 
             return {
                 id: squad.id,
@@ -136,6 +164,7 @@ export async function GET(request: NextRequest) {
                 status: squad.status,
                 entryFee: squad.entryFee,
                 createdAt: squad.createdAt,
+                needsPayment,
                 captain: {
                     id: squad.captain.id,
                     displayName: squad.captain.displayName ?? squad.captain.user.username,
@@ -300,6 +329,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Check captain's personal balance (skip if using clan treasury)
+        // Instead of blocking, flag insufficientBalance so squad still gets created
+        let insufficientBalance = false;
         if (entryFee > 0 && !wantClanTreasury) {
             const player = await prisma.player.findUnique({
                 where: { id: playerId },
@@ -307,12 +338,7 @@ export async function POST(request: NextRequest) {
             });
             if (!player?.isTrusted) {
                 const { available } = await getAvailableBalance(email);
-                if (available < entryFee) {
-                    return ErrorResponse({
-                        message: `${GAME.currencyEmoji} Not enough ${GAME.currency} — you need ${entryFee} ${GAME.currency} available to create a squad`,
-                        status: 403,
-                    });
-                }
+                insufficientBalance = available < entryFee;
             }
         }
 
@@ -445,8 +471,11 @@ export async function POST(request: NextRequest) {
                 status: squad.status,
                 entryFee: squad.entryFee,
                 isWaitlisted,
+                insufficientBalance,
             },
-            message: isWaitlisted
+            message: insufficientBalance
+                ? `Squad "${trimmedName}" created! ⚠️ Add ${GAME.currency} to confirm your spot.`
+                : isWaitlisted
                 ? `⏳ Squad "${trimmedName}" is on the WAITLIST (#${activeSquadCount + 1 - maxSquads} in queue). You'll be moved to confirmed if a team cancels.`
                 : `Squad "${trimmedName}" created! Invite up to ${GAME.maxSquadSize - 1} players to complete your team.`,
         });

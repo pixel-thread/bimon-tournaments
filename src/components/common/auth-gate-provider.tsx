@@ -47,10 +47,10 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
 
     // Show welcome modal once for guests (persisted via sessionStorage)
-    // Skip on /invite/ pages — they have their own join flow
+    // Skip on /invite/ and /join/ pages — they have their own join flow
     useEffect(() => {
         if (isLoading) return;
-        if (!isSignedIn && !sessionStorage.getItem("bimon-welcomed") && !pathname.startsWith("/invite/")) {
+        if (!isSignedIn && !sessionStorage.getItem("bimon-welcomed") && !pathname.startsWith("/invite/") && !pathname.startsWith("/join/")) {
             setShowWelcome(true);
             sessionStorage.setItem("bimon-welcomed", "1");
         }
