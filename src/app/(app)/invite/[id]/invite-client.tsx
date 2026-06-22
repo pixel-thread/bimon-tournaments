@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Spinner, Avatar, Checkbox } from "@heroui/react";
-import { Shield, Users, Clock, Check, X } from "lucide-react";
+import { Shield, Users, Clock, Check, X, ChevronRight, Trophy } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useAuthUser } from "@/hooks/use-auth-user";
@@ -220,43 +220,39 @@ export default function InviteClient() {
     // ── Squad full ──
     if (data.isFull) {
         return (
-            <div className="mx-auto max-w-lg px-4 py-20 text-center">
-                <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-4">
-                    <Users className="w-7 h-7 text-warning" />
+            <div className="mx-auto max-w-lg px-4 py-12 text-center space-y-6">
+                <div className="space-y-2">
+                    <div className="w-14 h-14 rounded-full bg-warning/10 flex items-center justify-center mx-auto">
+                        <Users className="w-6 h-6 text-warning" />
+                    </div>
+                    <h1 className="text-lg font-bold">Squad is Full</h1>
+                    <p className="text-sm text-foreground/50">
+                        <strong>{data.squadName}</strong> already has all {data.totalSlots} members.
+                    </p>
                 </div>
-                <h1 className="text-xl font-bold mb-2">Squad is Full</h1>
-                <p className="text-foreground/50 mb-6">
-                    <strong>{data.squadName}</strong> already has all {data.totalSlots} members.
-                </p>
-                <Button
-                    color="primary"
-                    variant="flat"
-                    onPress={() => router.push("/vote")}
-                >
-                    Browse Tournaments
-                </Button>
+
+                {/* Available polls */}
+                <AvailablePolls />
             </div>
         );
     }
 
-    // ── Poll closed ──
+    // ── Poll closed — show available polls ──
     if (!data.pollIsActive) {
         return (
-            <div className="mx-auto max-w-lg px-4 py-20 text-center">
-                <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-4">
-                    <Clock className="w-7 h-7 text-warning" />
+            <div className="mx-auto max-w-lg px-4 py-12 text-center space-y-6">
+                <div className="space-y-2">
+                    <div className="w-14 h-14 rounded-full bg-warning/10 flex items-center justify-center mx-auto">
+                        <Clock className="w-6 h-6 text-warning" />
+                    </div>
+                    <h1 className="text-lg font-bold">Registration Closed</h1>
+                    <p className="text-sm text-foreground/50">
+                        <strong>{data.tournamentName}</strong> is no longer open.
+                    </p>
                 </div>
-                <h1 className="text-xl font-bold mb-2">Registration Closed</h1>
-                <p className="text-foreground/50 mb-6">
-                    Registration for <strong>{data.tournamentName}</strong> is no longer open.
-                </p>
-                <Button
-                    color="primary"
-                    variant="flat"
-                    onPress={() => router.push("/vote")}
-                >
-                    Browse Tournaments
-                </Button>
+
+                {/* Available polls */}
+                <AvailablePolls />
             </div>
         );
     }
@@ -407,6 +403,151 @@ export default function InviteClient() {
                     </Button>
                 </div>
             </motion.div>
+        </div>
+    );
+}
+
+
+/* ─── Available Polls (shown when invite is closed/full) ───── */
+
+interface ActivePoll {
+    id: string;
+    tournament: { name: string; fee: number } | null;
+    scheduledDate: string | null;
+    scheduledTime: string;
+    days: string;
+    inVotes: number;
+    squadCount: number;
+    allowSquads: boolean;
+    isActive: boolean;
+}
+
+function getDateLabel(scheduledDate: string | null, days: string): string {
+    if (scheduledDate) {
+        const d = new Date(scheduledDate);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const diff = Math.round((target.getTime() - today.getTime()) / 86400000);
+        if (diff === 0) return "Today";
+        if (diff === 1) return "Tomorrow";
+        return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+    }
+    if (days) {
+        // e.g. "Monday" → check if it's today/tomorrow
+        const DAY_NAMES: Record<string, number> = {
+            sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tuesday: 2,
+            wed: 3, wednesday: 3, thu: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6,
+        };
+        const lower = days.toLowerCase().trim();
+        const idx = DAY_NAMES[lower];
+        if (idx !== undefined) {
+            const now = new Date();
+            const diff = (idx - now.getDay() + 7) % 7;
+            if (diff === 0) return "Today";
+            if (diff === 1) return "Tomorrow";
+            return days;
+        }
+        return days;
+    }
+    return "";
+}
+
+function AvailablePolls() {
+    const router = useRouter();
+
+    const { data, isLoading } = useQuery<{ polls: ActivePoll[] }>({
+        queryKey: ["available-polls-invite"],
+        queryFn: async () => {
+            const res = await fetch("/api/polls");
+            if (!res.ok) return { polls: [] };
+            const json = await res.json();
+            return json.data ?? { polls: [] };
+        },
+        staleTime: 30_000,
+    });
+
+    const polls = data?.polls?.filter(p => p.isActive) ?? [];
+
+    if (isLoading) {
+        return (
+            <div className="space-y-2 animate-pulse">
+                {[1, 2].map(i => (
+                    <div key={i} className="h-16 rounded-xl bg-default-100" />
+                ))}
+            </div>
+        );
+    }
+
+    if (polls.length === 0) {
+        return (
+            <div className="space-y-3">
+                <p className="text-xs text-foreground/30">No active tournaments right now</p>
+                <Button
+                    color="primary"
+                    variant="flat"
+                    size="sm"
+                    onPress={() => router.push("/vote")}
+                >
+                    Browse Tournaments
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-3 text-left">
+            <p className="text-xs font-semibold text-foreground/40 text-center">Open Tournaments</p>
+            <div className="space-y-2">
+                {polls.map(poll => {
+                    const label = getDateLabel(poll.scheduledDate, poll.days);
+                    const isToday = label === "Today";
+                    const isTomorrow = label === "Tomorrow";
+                    const fee = poll.tournament?.fee ?? 0;
+
+                    return (
+                        <motion.button
+                            key={poll.id}
+                            type="button"
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={() => router.push("/vote")}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-divider bg-default-50 hover:bg-default-100 transition-colors cursor-pointer text-left"
+                        >
+                            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                <Trophy className="w-4 h-4 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate">
+                                    {poll.tournament?.name ?? "Tournament"}
+                                </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    {label && (
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                            isToday
+                                                ? "bg-emerald-500/15 text-emerald-500"
+                                                : isTomorrow
+                                                    ? "bg-blue-500/15 text-blue-500"
+                                                    : "bg-foreground/5 text-foreground/40"
+                                        }`}>
+                                            {label}
+                                        </span>
+                                    )}
+                                    {fee > 0 && (
+                                        <span className="text-[10px] text-foreground/30">
+                                            {fee} UC
+                                        </span>
+                                    )}
+                                    <span className="text-[10px] text-foreground/30">
+                                        ⏰ {poll.scheduledTime}
+                                    </span>
+                                </div>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-foreground/20 shrink-0" />
+                        </motion.button>
+                    );
+                })}
+            </div>
         </div>
     );
 }
