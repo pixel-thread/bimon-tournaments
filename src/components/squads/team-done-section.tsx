@@ -79,7 +79,7 @@ export function TeamDoneSection({
 
             {/* Hint to use squad card buttons */}
             <p className="text-xs text-foreground/40 text-center">
-                Use the buttons on your squad card below to invite players, add ghosts, or quick-add subscribers
+                Use the buttons on your squad card below to invite players, add members, or quick-add subscribers
             </p>
         </div>
     );

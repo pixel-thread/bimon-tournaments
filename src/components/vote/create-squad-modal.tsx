@@ -446,7 +446,6 @@ export function CreateSquadModal({
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm font-medium truncate">
                                                                 {m.displayName}
-                                                                {m.isGhost && <span className="text-xs text-foreground/40 ml-1">👻</span>}
                                                                 {m.isSub && <span className="text-xs text-foreground/40 ml-1">(sub)</span>}
                                                             </p>
                                                             {!m.available && m.existingTeamName && (

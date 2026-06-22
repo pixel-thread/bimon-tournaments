@@ -85,7 +85,7 @@ export async function POST(
             return ErrorResponse({ message: "Only the captain can add members", status: 403 });
         }
 
-        if (squad.status !== "FORMING") {
+        if (!['FORMING', 'FULL'].includes(squad.status)) {
             return ErrorResponse({ message: "Squad is not accepting members", status: 400 });
         }
 
@@ -335,7 +335,7 @@ export async function POST(
                     isGhost: true,
                 },
             },
-            message: `👻 ${trimmedName} added to squad`,
+            message: `${trimmedName} added to squad`,
         });
     } catch (error) {
         console.error("Failed to add member:", error);
