@@ -836,7 +836,8 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
     const donationTotal = poll.donations?.total ?? 0;
     // Squad polls: fee is per-team → squads + estimated random teams from IN voters
     // Only confirmed (paid) squads contribute to prize pool
-    const squadCount = poll.squadCount ?? 0;
+    // Use squadsResult counts (which apply balance filter) once loaded, fall back to poll count
+    const squadCount = squadsResult?.squadCount ?? poll.squadCount ?? 0;
     const confirmedSquads = poll.allowSquads && GAME.squadSize > 1
         ? Math.min(squadsResult?.confirmedSquadCount ?? squadCount, getConfirmedSquadCap(squadCount, squadsResult?.isMangoScrim))
         : 0;

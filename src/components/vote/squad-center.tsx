@@ -481,9 +481,46 @@ function SquadCard({
                         transition={{ duration: 0.2, ease: "easeInOut" }}
                         className="overflow-hidden"
                     >
-                        {/* Needs payment banner */}
+                        {/* Needs payment banner — shown to captain, members, and admins */}
                         {squad.needsPayment && isCaptain && (
                             <PaymentBanner pollId={pollId} entryFee={squad.entryFee} />
+                        )}
+                        {squad.needsPayment && !isCaptain && !isAdminProp && (
+                            <div className="mx-4 mt-3 mb-1 rounded-xl border border-amber-400/25 bg-gradient-to-r from-amber-500/8 to-amber-600/5 p-3 space-y-1.5">
+                                <div className="flex items-start gap-2.5">
+                                    <div className="mt-0.5 w-5 h-5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+                                        <AlertTriangle className="w-3 h-3 text-amber-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] font-semibold text-amber-600 dark:text-amber-400 leading-tight">
+                                            Team not confirmed
+                                        </p>
+                                        <p className="text-[11px] text-foreground/50 mt-0.5">
+                                            Waiting for captain to add {squad.entryFee} {GAME.currency}
+                                        </p>
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-foreground/30 leading-tight pl-[30px]">
+                                    Only visible to you and your team
+                                </p>
+                            </div>
+                        )}
+                        {squad.needsPayment && isAdminProp && !isCaptain && (
+                            <div className="mx-4 mt-3 mb-1 rounded-xl border border-red-400/25 bg-gradient-to-r from-red-500/8 to-red-600/5 p-3">
+                                <div className="flex items-start gap-2.5">
+                                    <div className="mt-0.5 w-5 h-5 rounded-full bg-red-500/15 flex items-center justify-center shrink-0">
+                                        <AlertTriangle className="w-3 h-3 text-red-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] font-semibold text-red-600 dark:text-red-400 leading-tight">
+                                            Unconfirmed — captain hasn&apos;t paid
+                                        </p>
+                                        <p className="text-[11px] text-foreground/50 mt-0.5">
+                                            {squad.captain.displayName} needs {squad.entryFee} {GAME.currency} · hidden from others
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         )}
 
                         {/* Members */}
