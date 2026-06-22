@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
-import { Gift, Shield, ChevronUp, X, Loader2, Check } from "lucide-react";
+import { Gift, Shield, ChevronUp, X, Loader2, Check, Crown, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
@@ -53,17 +53,34 @@ export function ActionCenter() {
         } catch { return new Set(); }
     });
 
-    // Read from the same cache the header populates
+    // Subscribe to the same "notification-count" cache that the header populates.
+    // Both share queryKey + staleTime:Infinity so only one network call fires.
+    // queryFn must produce the same shape as header.tsx so the cache is consistent.
     const { data: notifData } = useQuery<NotifData>({
         queryKey: ["notification-count"],
-        queryFn: () => ({ }), // Never actually fetches — relies on header's fetch
-        enabled: false, // Disabled — only reads cache
+        queryFn: async () => {
+            const res = await fetch("/api/notifications");
+            if (!res.ok) return {};
+            const json = await res.json();
+            return {
+                unreadCount: json.data?.unreadCount ?? 0,
+                unclaimedRewardCount: json.data?.unclaimedRewards?.length ?? 0,
+                unclaimedRewards: json.data?.unclaimedRewards ?? [],
+                hasUnclaimedStreak: json.data?.hasUnclaimedStreakReward ?? false,
+                pendingSquadInviteCount: json.data?.pendingSquadInviteCount ?? 0,
+                pendingSquadInvites: json.data?.pendingSquadInvites ?? [],
+                pendingSquadRequests: json.data?.pendingSquadRequests ?? [],
+            };
+        },
+        enabled: !!session?.user,
+        staleTime: Infinity,
     });
 
     const rewards = (notifData?.unclaimedRewards ?? []).filter(r => !completedIds.has(r.id));
     const squadInvites = (notifData?.pendingSquadInvites ?? []).filter(r => !completedIds.has(r.id));
+    const hasUnclaimedStreak = !!(notifData?.hasUnclaimedStreak) && !completedIds.has("streak");
 
-    const totalActions = rewards.length + squadInvites.length;
+    const totalActions = rewards.length + squadInvites.length + (hasUnclaimedStreak ? 1 : 0);
 
     // Auto-expand when there are actions (once per session)
     useEffect(() => {
@@ -261,6 +278,29 @@ export function ActionCenter() {
                                     </div>
                                 );
                             })}
+
+                            {/* Battle Pass / Royal Pass unclaimed streak */}
+                            {hasUnclaimedStreak && (
+                                <div className="flex items-center gap-3 px-4 py-3">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/10 shrink-0">
+                                        <Crown className="h-4 w-4 text-amber-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold truncate">👑 Royal Pass Reward</p>
+                                        <p className="text-[11px] text-foreground/40 truncate">Unclaimed streak reward available</p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            markCompleted("streak");
+                                            window.location.assign("/royal-pass");
+                                        }}
+                                        disabled={!!processingId}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition-colors disabled:opacity-40 shrink-0"
+                                    >
+                                        Claim
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Collapse */}
