@@ -624,7 +624,7 @@ function SquadCard({
                                     size="sm"
                                     variant="flat"
                                     className="flex-1 font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 min-w-[90px]"
-                                    startContent={<UserPlus className="w-3.5 h-3.5" />}
+                                    startContent={<Ghost className="w-3.5 h-3.5" />}
                                     isDisabled={isCreating}
                                     onPress={() => setShowGhostAdd(true)}
                                 >

@@ -103,14 +103,16 @@ export async function POST(
         const maxActive = GAME.squadSize;
         const maxTotal = GAME.maxSquadSize;
 
-        if (isSub) {
-            if (subs >= maxTotal - maxActive) {
-                return ErrorResponse({ message: "All sub slots are filled", status: 400 });
-            }
-        } else {
-            if (activeMembers >= maxActive) {
-                return ErrorResponse({ message: "All active slots are filled", status: 400 });
-            }
+        // Auto-assign as sub if active slots are full
+        if (!isSub && activeMembers >= maxActive) {
+            isSub = true; // auto-promote to sub
+        }
+
+        if (isSub && subs >= maxTotal - maxActive) {
+            return ErrorResponse({ message: "All slots are filled (active + subs)", status: 400 });
+        }
+        if (!isSub && activeMembers >= maxActive) {
+            return ErrorResponse({ message: "All active slots are filled", status: 400 });
         }
 
         // Check if contact already in this squad
