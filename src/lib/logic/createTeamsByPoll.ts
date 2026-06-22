@@ -11,7 +11,7 @@ import { computeWeightedScore, PlayerWithWins, SeasonScoringConfig } from "./sco
 import { PlayerWithWeightT } from "@/types/models";
 import { getPreviousTournamentTeammates } from "./previousTeammates";
 import { isBirthdayWithinWindow } from "./birthdayCheck";
-import { debitWallet, getEmailByPlayerId } from "@/lib/wallet-service";
+import { debitWallet, getEmailByPlayerId, getAvailableBalance } from "@/lib/wallet-service";
 import { getActiveCoupon, redeemCoupon } from "@/lib/logic/welcomeBack";
 import { GAME } from "@/lib/game-config";
 import { assignGroups, getConfirmedSquadCap } from "./championship";
@@ -213,9 +213,45 @@ export async function createTeamsByPoll({
 
         const maxSquads = getConfirmedSquadCap(squads.length, isMangoScrim);
 
+        // ── Filter out unconfirmed squads (captain has insufficient balance) ──
+        // Trusted captains bypass this check
+        let paidSquads = squads;
+        if (entryFee > 0) {
+            const unpaidSquadIds: string[] = [];
+            for (const squad of squads) {
+                if (squad.captain.isTrusted) continue; // trusted captains always pass
+                const captainEmail = squad.captain.user?.email;
+                if (!captainEmail) { unpaidSquadIds.push(squad.id); continue; }
+                try {
+                    const { available } = await getAvailableBalance(captainEmail);
+                    if (available < entryFee) {
+                        unpaidSquadIds.push(squad.id);
+                        console.log(`[createTeamsByPoll] Squad "${squad.name}" excluded — captain ${squad.captain.displayName} has ${available} but needs ${entryFee}`);
+                    }
+                } catch {
+                    unpaidSquadIds.push(squad.id);
+                }
+            }
+            if (unpaidSquadIds.length > 0) {
+                // Cancel unpaid squads
+                if (!dryRun) {
+                    for (const squadId of unpaidSquadIds) {
+                        await prisma.squad.update({
+                            where: { id: squadId },
+                            data: { status: "CANCELLED" },
+                        });
+                    }
+                }
+                const unpaidSet = new Set(unpaidSquadIds);
+                paidSquads = squads.filter((s) => !unpaidSet.has(s.id));
+                squadsCancelled += unpaidSquadIds.length;
+                console.log(`[createTeamsByPoll] ${unpaidSquadIds.length} squad(s) cancelled due to insufficient balance`);
+            }
+        }
+
         // Split into confirmed (first maxSquads) and waitlisted (rest)
-        const confirmedSquads = squads.slice(0, maxSquads);
-        const waitlistedSquads = squads.slice(maxSquads);
+        const confirmedSquads = paidSquads.slice(0, maxSquads);
+        const waitlistedSquads = paidSquads.slice(maxSquads);
 
         for (const squad of confirmedSquads) {
             const members = squad.invites.map((inv) => inv.player);

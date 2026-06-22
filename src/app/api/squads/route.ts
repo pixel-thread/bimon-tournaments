@@ -122,39 +122,56 @@ export async function GET(request: NextRequest) {
             };
         }
 
-        // ── Compute needsPayment for the current user's own captain squads ──
-        // Check balance once if the user captains any squad with entryFee > 0
-        let captainBalance: number | null = null;
-        let captainIsTrusted = false;
-        const userEmail = await getAuthEmail();
-        if (currentPlayerId && userEmail) {
-            const hasCaptainSquadWithFee = squads.some(
-                (s) => s.captainId === currentPlayerId && s.entryFee > 0 && s.status !== "CANCELLED"
-            );
-            if (hasCaptainSquadWithFee) {
-                const playerInfo = await prisma.player.findUnique({
-                    where: { id: currentPlayerId },
-                    select: { isTrusted: true },
-                });
-                captainIsTrusted = playerInfo?.isTrusted ?? false;
-                if (!captainIsTrusted) {
-                    const { available } = await getAvailableBalance(userEmail);
-                    captainBalance = available;
+        // ── Compute needsPayment for ALL squads with entryFee > 0 ──
+        // Build set of captain emails for balance lookups
+        const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+
+        // Collect unique captain IDs with entry fees > 0
+        const captainIdsWithFees = [...new Set(
+            squads.filter((s) => s.entryFee > 0 && s.status !== "CANCELLED").map((s) => s.captainId)
+        )];
+
+        // Batch lookup: captain isTrusted + email for balance check
+        const captainInfos = captainIdsWithFees.length > 0
+            ? await prisma.player.findMany({
+                where: { id: { in: captainIdsWithFees } },
+                select: { id: true, isTrusted: true, user: { select: { email: true } } },
+            })
+            : [];
+
+        // Build map: captainId → { isTrusted, email }
+        const captainMap = new Map(
+            captainInfos.map((c) => [c.id, { isTrusted: c.isTrusted, email: c.user.email }])
+        );
+
+        // Fetch balances for non-trusted captains
+        const balanceMap = new Map<string, number>();
+        for (const [captainId, info] of captainMap) {
+            if (!info.isTrusted && info.email) {
+                try {
+                    const { available } = await getAvailableBalance(info.email);
+                    balanceMap.set(captainId, available);
+                } catch {
+                    balanceMap.set(captainId, 0);
                 }
             }
         }
 
-        const data = squads.map((squad) => {
+        const allData = squads.map((squad) => {
             const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
             const activeCount = squad.invites.filter((i) => i.status === "ACCEPTED" && !i.isSub).length;
             const isCaptain = currentPlayerId ? squad.captainId === currentPlayerId : false;
             const myInvite = currentPlayerId ? squad.invites.find((i) => i.playerId === currentPlayerId) : undefined;
             const isMySquad = !!myInvite;
 
-            // needsPayment: only for captain's own squads with entryFee > 0
+            // needsPayment: captain has entryFee but insufficient balance
             let needsPayment = false;
-            if (isCaptain && squad.entryFee > 0 && !captainIsTrusted && captainBalance !== null) {
-                needsPayment = captainBalance < squad.entryFee;
+            if (squad.entryFee > 0 && squad.status !== "CANCELLED") {
+                const capInfo = captainMap.get(squad.captainId);
+                if (capInfo && !capInfo.isTrusted) {
+                    const bal = balanceMap.get(squad.captainId) ?? 0;
+                    needsPayment = bal < squad.entryFee;
+                }
             }
 
             return {
@@ -207,8 +224,22 @@ export async function GET(request: NextRequest) {
                 activeCount,
                 totalSlots: GAME.maxSquadSize,
                 isFull: acceptedCount >= GAME.maxSquadSize,
+                _isMySquad: isMySquad,
+                _isCaptain: isCaptain,
             };
         });
+
+        // ── Hide unconfirmed squads from other players ──
+        // Only captain, squad members, and admins can see squads where needsPayment is true
+        const data = allData
+            .filter((s) => {
+                if (!s.needsPayment) return true; // confirmed — show to everyone
+                if (isAdmin) return true;          // admins see all
+                if (s._isCaptain) return true;     // captain sees own
+                if (s._isMySquad) return true;     // members see their squad
+                return false;                      // hide from everyone else
+            })
+            .map(({ _isMySquad, _isCaptain, ...rest }) => rest); // strip internal flags
 
         const registrationCap = isMangoScrim ? 20 : 32;
         return SuccessResponse({ data, meta: { defendingChampion, maxSquads, maxSquadWaitlist: registrationCap, squadCount: data.length, isMangoScrim }, cache: CACHE.NONE });

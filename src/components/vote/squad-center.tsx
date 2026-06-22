@@ -2229,23 +2229,30 @@ function PaymentBanner({ pollId, entryFee }: { pollId: string; entryFee: number 
     };
 
     return (
-        <div className="mx-4 mt-3 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-            <div className="flex items-center gap-2">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <p className="text-xs text-amber-600 dark:text-amber-400 flex-1 font-medium">
-                    Team not confirmed — need {entryFee} {GAME.currency}
-                </p>
+        <div className="mx-4 mt-3 mb-1 rounded-xl border border-amber-400/25 bg-gradient-to-r from-amber-500/8 to-amber-600/5 p-3 space-y-2">
+            <div className="flex items-start gap-2.5">
+                <div className="mt-0.5 w-5 h-5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-3 h-3 text-amber-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-amber-600 dark:text-amber-400 leading-tight">
+                        Team not confirmed
+                    </p>
+                    <p className="text-[11px] text-foreground/50 mt-0.5">
+                        Add {entryFee} {GAME.currency} to secure your spot
+                    </p>
+                </div>
                 <button
                     onClick={handleRefresh}
                     disabled={refreshing}
-                    className="shrink-0 p-1 rounded-md hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                    className="shrink-0 w-7 h-7 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 flex items-center justify-center transition-colors disabled:opacity-50"
                     title="Re-check balance"
                 >
                     <RefreshCw className={`w-3.5 h-3.5 text-amber-500 ${refreshing ? "animate-spin" : ""}`} />
                 </button>
             </div>
-            <p className="text-[10px] text-amber-500/60 mt-1 ml-5">
-                Only visible to you • add {GAME.currency} and tap ↻ to confirm
+            <p className="text-[10px] text-foreground/30 leading-tight pl-[30px]">
+                Only visible to you · tap ↻ after adding {GAME.currency}
             </p>
         </div>
     );
