@@ -36,7 +36,7 @@ export async function POST(
 
         const { squadId } = await params;
         const body = await request.json();
-        const { phone: rawPhone, email: rawEmail, name, isSub, confirm } = body as {
+        const { phone: rawPhone, email: rawEmail, name, isSub: isSubInput, confirm } = body as {
             phone?: string;
             email?: string;
             name: string;
@@ -104,6 +104,7 @@ export async function POST(
         const maxTotal = GAME.maxSquadSize;
 
         // Auto-assign as sub if active slots are full
+        let isSub = isSubInput ?? false;
         if (!isSub && activeMembers >= maxActive) {
             isSub = true; // auto-promote to sub
         }
