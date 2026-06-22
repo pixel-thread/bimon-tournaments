@@ -460,7 +460,7 @@ function SquadCard({
                             {squad.acceptedCount}/{squad.totalSlots}
                         </Chip>
                     )}
-                    {canManage && !squad.isFull && squad.status === "FORMING" && pollIsActive && !isCreating && (
+                    {canManage && !squad.isFull && ['FORMING', 'FULL'].includes(squad.status) && pollIsActive && !isCreating && (
                         <ShareButtonWithTooltip squad={squad} />
                     )}
                     <motion.div
@@ -597,7 +597,7 @@ function SquadCard({
 
 
                         {/* Captain: Invite Players + Quick Add + Add Ghost */}
-                        {canManage && !squad.isFull && squad.status === "FORMING" && pollIsActive && (
+                        {canManage && !squad.isFull && ['FORMING', 'FULL'].includes(squad.status) && pollIsActive && (
                             <div className="px-4 py-3 border-t border-divider/50 flex gap-2 flex-wrap">
                                 <Button
                                     size="sm"
@@ -759,7 +759,7 @@ function SquadCard({
 
 
                         {/* Rename + Cancel squad */}
-                        {canManage && squad.status === "FORMING" && (
+                        {canManage && ['FORMING', 'FULL'].includes(squad.status) && (
                             <div className="px-4 py-2 border-t border-divider/50">
                                 {isCreating ? (
                                     <Button
