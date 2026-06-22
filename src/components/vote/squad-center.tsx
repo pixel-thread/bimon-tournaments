@@ -481,46 +481,9 @@ function SquadCard({
                         transition={{ duration: 0.2, ease: "easeInOut" }}
                         className="overflow-hidden"
                     >
-                        {/* Needs payment banner — shown to captain, members, and admins */}
+                        {/* Captain-only payment banner with refresh */}
                         {squad.needsPayment && isCaptain && (
                             <PaymentBanner pollId={pollId} entryFee={squad.entryFee} />
-                        )}
-                        {squad.needsPayment && !isCaptain && !isAdminProp && (
-                            <div className="mx-4 mt-3 mb-1 rounded-xl border border-amber-400/25 bg-gradient-to-r from-amber-500/8 to-amber-600/5 p-3 space-y-1.5">
-                                <div className="flex items-start gap-2.5">
-                                    <div className="mt-0.5 w-5 h-5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
-                                        <AlertTriangle className="w-3 h-3 text-amber-500" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[13px] font-semibold text-amber-600 dark:text-amber-400 leading-tight">
-                                            Team not confirmed
-                                        </p>
-                                        <p className="text-[11px] text-foreground/50 mt-0.5">
-                                            Waiting for captain to add {squad.entryFee} {GAME.currency}
-                                        </p>
-                                    </div>
-                                </div>
-                                <p className="text-[10px] text-foreground/30 leading-tight pl-[30px]">
-                                    Only visible to you and your team
-                                </p>
-                            </div>
-                        )}
-                        {squad.needsPayment && isAdminProp && !isCaptain && (
-                            <div className="mx-4 mt-3 mb-1 rounded-xl border border-red-400/25 bg-gradient-to-r from-red-500/8 to-red-600/5 p-3">
-                                <div className="flex items-start gap-2.5">
-                                    <div className="mt-0.5 w-5 h-5 rounded-full bg-red-500/15 flex items-center justify-center shrink-0">
-                                        <AlertTriangle className="w-3 h-3 text-red-500" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[13px] font-semibold text-red-600 dark:text-red-400 leading-tight">
-                                            Unconfirmed — captain hasn&apos;t paid
-                                        </p>
-                                        <p className="text-[11px] text-foreground/50 mt-0.5">
-                                            {squad.captain.displayName} needs {squad.entryFee} {GAME.currency} · hidden from others
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
                         )}
 
                         {/* Members */}
@@ -1671,6 +1634,7 @@ export function SquadCenter({
     // Mango Scrim: flat 20 cap, no waitlist. Regular: gap to championship threshold.
     const maxWaitlistSlots = isMangoScrim ? 0 : (maxSquads < 20 ? (20 - maxSquads) : 2);
     const [showWaitlist, setShowWaitlist] = useState(false);
+    const [showUnconfirmed, setShowUnconfirmed] = useState(true);
 
     // Always refetch when the squad center opens to prevent stale data
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1828,20 +1792,23 @@ export function SquadCenter({
         return new Set(allSquadsSorted.slice(0, maxSquads).map(s => s.id));
     }, [squads, maxSquads]);
 
-    // Split into confirmed and waitlisted
-    const { confirmedList, waitlistedList } = useMemo(() => {
-        if (!squads) return { confirmedList: unifiedList, waitlistedList: [] as ListItem[] };
+    // Split into confirmed, waitlisted, and unconfirmed (needs payment)
+    const { confirmedList, waitlistedList, unconfirmedList } = useMemo(() => {
+        if (!squads) return { confirmedList: unifiedList, waitlistedList: [] as ListItem[], unconfirmedList: [] as ListItem[] };
         const confirmed: ListItem[] = [];
         const waitlisted: ListItem[] = [];
+        const unconfirmed: ListItem[] = [];
         for (const item of unifiedList) {
             const id = item.data.id;
-            if (item.type === "random" || confirmedIds.has(id)) {
+            if (item.type === "squad" && item.data.needsPayment) {
+                unconfirmed.push(item);
+            } else if (item.type === "random" || confirmedIds.has(id)) {
                 confirmed.push(item);
             } else {
                 waitlisted.push(item);
             }
         }
-        return { confirmedList: confirmed, waitlistedList: waitlisted };
+        return { confirmedList: confirmed, waitlistedList: waitlisted, unconfirmedList: unconfirmed };
     }, [unifiedList, squads, confirmedIds]);
 
     return (
@@ -1889,8 +1856,8 @@ export function SquadCenter({
                                     animate={{ opacity: 1 }}
                                     className="space-y-4"
                                 >
-                                    {/* Your Squad — only if CONFIRMED */}
-                                    {mySquad && confirmedIds.has(mySquad.id) && (
+                                    {/* Your Squad — confirmed or unconfirmed (needs payment) */}
+                                    {mySquad && (confirmedIds.has(mySquad.id) || mySquad.needsPayment) && (
                                         <div>
                                             <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
                                                 Your Squad
@@ -2078,6 +2045,65 @@ export function SquadCenter({
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Unconfirmed Squads — collapsible, styled like waitlist */}
+                                    {(() => {
+                                        // Exclude mySquad from unconfirmed section (it's in "Your Squad" already)
+                                        const otherUnconfirmed = unconfirmedList.filter(
+                                            (item) => item.type === "squad" && item.data.id !== mySquad?.id
+                                        );
+                                        const totalUnconfirmed = otherUnconfirmed.length + (mySquad?.needsPayment ? 1 : 0);
+                                        if (totalUnconfirmed === 0) return null;
+                                        return (
+                                            <div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowUnconfirmed(!showUnconfirmed)}
+                                                    className="flex items-center gap-2 w-full text-left mb-2 cursor-pointer"
+                                                >
+                                                    <ChevronRight className={`w-3.5 h-3.5 text-red-500 transition-transform ${showUnconfirmed ? "rotate-90" : ""}`} />
+                                                    <p className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">
+                                                        Unconfirmed
+                                                    </p>
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400">
+                                                        {totalUnconfirmed}
+                                                    </span>
+                                                </button>
+                                                {showUnconfirmed && (
+                                                    <div className="space-y-3 border-l-2 border-red-500/20 pl-3">
+                                                        {otherUnconfirmed.map((item) => (
+                                                            <SquadCard
+                                                                key={item.data.id}
+                                                                squad={item.data as SquadDTO}
+                                                                currentPlayerId={currentPlayerId}
+                                                                pollIsActive={pollIsActive}
+                                                                pollId={pollId}
+                                                                onCancel={handleCancel}
+                                                                onAccept={handleAccept}
+                                                                onDecline={handleDecline}
+                                                                onRequestJoin={handleRequestJoin}
+                                                                onAcceptRequest={handleAcceptRequest}
+                                                                onDeclineRequest={handleDeclineRequest}
+                                                                onRemoveMember={handleRemoveMember}
+                                                                onLeave={handleLeave}
+                                                                isCancelling={cancelMutation.isPending}
+                                                                isResponding={respondMutation.isPending}
+                                                                respondingAction={respondMutation.isPending ? respondAction : null}
+                                                                isRequesting={requestJoinMutation.isPending}
+                                                                isRespondingRequest={respondRequestMutation.isPending}
+                                                                respondingRequestAction={respondRequestMutation.isPending ? respondRequestAction : null}
+                                                                isRemoving={removeMemberMutation.isPending}
+                                                                isLeaving={leaveMutation.isPending}
+                                                                recentlyRequestedSquadId={recentlyRequestedSquadId}
+                                                                isRanked
+                                                                isAdmin={isAdmin}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Empty state */}
                                     {(!squads || squads.length === 0) && (

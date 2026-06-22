@@ -145,12 +145,15 @@ export async function GET(request: NextRequest) {
         );
 
         // Fetch balances for non-trusted captains
+        // Use total balance (not available) — available subtracts reserved amounts which
+        // includes THIS squad's own entry fee, causing false "needs payment" for captains
+        // who actually have enough. Captain just needs balance >= entryFee.
         const balanceMap = new Map<string, number>();
         for (const [captainId, info] of captainMap) {
             if (!info.isTrusted && info.email) {
                 try {
-                    const { available } = await getAvailableBalance(info.email);
-                    balanceMap.set(captainId, available);
+                    const { balance } = await getAvailableBalance(info.email);
+                    balanceMap.set(captainId, balance);
                 } catch {
                     balanceMap.set(captainId, 0);
                 }
@@ -229,17 +232,8 @@ export async function GET(request: NextRequest) {
             };
         });
 
-        // ── Hide unconfirmed squads from other players ──
-        // Only captain, squad members, and admins can see squads where needsPayment is true
-        const data = allData
-            .filter((s) => {
-                if (!s.needsPayment) return true; // confirmed — show to everyone
-                if (isAdmin) return true;          // admins see all
-                if (s._isCaptain) return true;     // captain sees own
-                if (s._isMySquad) return true;     // members see their squad
-                return false;                      // hide from everyone else
-            })
-            .map(({ _isMySquad, _isCaptain, ...rest }) => rest); // strip internal flags
+        // All squads visible to everyone — unconfirmed squads shown in a separate UI section
+        const data = allData.map(({ _isMySquad, _isCaptain, ...rest }) => rest);
 
         // Count only confirmed (paid) squads for prize pool calculation
         const confirmedSquadCount = data.filter((s) => !s.needsPayment).length;

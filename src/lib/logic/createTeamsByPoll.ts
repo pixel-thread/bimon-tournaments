@@ -223,10 +223,10 @@ export async function createTeamsByPoll({
                 const captainEmail = squad.captain.user?.email;
                 if (!captainEmail) { unpaidSquadIds.push(squad.id); continue; }
                 try {
-                    const { available } = await getAvailableBalance(captainEmail);
-                    if (available < entryFee) {
+                    const { balance } = await getAvailableBalance(captainEmail);
+                    if (balance < entryFee) {
                         unpaidSquadIds.push(squad.id);
-                        console.log(`[createTeamsByPoll] Squad "${squad.name}" excluded — captain ${squad.captain.displayName} has ${available} but needs ${entryFee}`);
+                        console.log(`[createTeamsByPoll] Squad "${squad.name}" excluded — captain ${squad.captain.displayName} has ${balance} but needs ${entryFee}`);
                     }
                 } catch {
                     unpaidSquadIds.push(squad.id);
