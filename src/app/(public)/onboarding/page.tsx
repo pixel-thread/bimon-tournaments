@@ -190,8 +190,11 @@ export default function OnboardingPage() {
             // Pending team creation from join page (if any)
             const pendingJoinPoll = localStorage.getItem("pending-join-poll");
             if (pendingJoinPoll) {
+                const pendingTeamName = localStorage.getItem("pending-join-team") || "";
                 localStorage.removeItem("pending-join-poll");
-                router.push(`/join/${pendingJoinPoll}`);
+                localStorage.removeItem("pending-join-team");
+                const teamParam = pendingTeamName ? `?team=${encodeURIComponent(pendingTeamName)}` : "";
+                router.push(`/join/${pendingJoinPoll}${teamParam}`);
                 router.refresh();
                 return;
             }

@@ -552,3 +552,32 @@ export function useRemoveMember() {
         },
     });
 }
+
+/**
+ * Rename a squad (tag + optional full name). Captain only.
+ */
+export function useRenameSquad() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ squadId, name, fullName }: { squadId: string; name: string; fullName?: string }) => {
+            const res = await fetch(`/api/squads/${squadId}/rename`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, fullName }),
+            });
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
+                throw new Error(json.message || "Failed to rename");
+            }
+            return res.json();
+        },
+        onSuccess: (data) => {
+            toast.success(data.message || "Team renamed");
+            queryClient.invalidateQueries({ queryKey: ["squads"] });
+        },
+        onError: (err) => {
+            toast.error(err instanceof Error ? err.message : "Failed to rename");
+        },
+    });
+}

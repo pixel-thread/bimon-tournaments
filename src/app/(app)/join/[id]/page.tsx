@@ -229,9 +229,10 @@ export default function JoinPage() {
             return;
         }
         if (!isSignedIn) {
-            // Guest → save team name in URL and redirect to sign-in
+            // Guest → save team name + poll and redirect to sign-in
             const effectiveName = (useClan && hasClan) ? "_clan_" : teamName.trim();
             localStorage.setItem("pending-join-poll", pollId);
+            localStorage.setItem("pending-join-team", effectiveName);
             window.location.href = `/sign-in?redirect_url=${encodeURIComponent(`/join/${pollId}?team=${encodeURIComponent(effectiveName)}`)}`;
             return;
         }
@@ -243,6 +244,7 @@ export default function JoinPage() {
         if (!isSignedIn) {
             const effectiveName = (useClan && hasClan) ? "_clan_" : teamName.trim();
             localStorage.setItem("pending-join-poll", pollId);
+            localStorage.setItem("pending-join-team", effectiveName);
             window.location.href = `/sign-in?redirect_url=${encodeURIComponent(`/join/${pollId}?team=${encodeURIComponent(effectiveName)}`)}`;
             return;
         }
@@ -464,7 +466,31 @@ export default function JoinPage() {
                                     </div>
                                 ) : null}
 
-                                {/* Team name input — show when NOT using clan (or no clan) AND clan data loaded */}
+                                {/* Full Team Name — optional, shown first */}
+                                {myClan !== undefined && (!useClan || !hasClan) && (
+                                    <Input
+                                        label="Team Name (optional)"
+                                        placeholder="e.g. Alpha Warriors"
+                                        value={teamFullName}
+                                        onValueChange={(v) => {
+                                            const val = v.slice(0, 30);
+                                            setTeamFullName(val);
+                                            // Auto-fill tag if name fits (≤7 chars)
+                                            if (val.trim().length <= 7) {
+                                                setTeamName(val.trim());
+                                            }
+                                        }}
+                                        maxLength={30}
+                                        size="lg"
+                                        description="Shown in slot views • leave blank to use tag only"
+                                        classNames={{
+                                            input: "text-base",
+                                            inputWrapper: "shadow-sm",
+                                        }}
+                                    />
+                                )}
+
+                                {/* Team Tag — mandatory */}
                                 {myClan !== undefined && (!useClan || !hasClan) && (
                                     <Input
                                         ref={inputRef}
@@ -474,6 +500,7 @@ export default function JoinPage() {
                                         onValueChange={(v) => setTeamName(v.slice(0, 7))}
                                         maxLength={7}
                                         size="lg"
+                                        isRequired
                                         description={`${teamName.length}/7 characters • shown in standings`}
                                         classNames={{
                                             input: "text-base",
@@ -481,23 +508,6 @@ export default function JoinPage() {
                                         }}
                                         onKeyDown={(e) => {
                                             if (e.key === "Enter" && canSubmit) handleSubmit();
-                                        }}
-                                    />
-                                )}
-
-                                {/* Optional Full Name */}
-                                {myClan !== undefined && (!useClan || !hasClan) && teamName.trim().length > 0 && (
-                                    <Input
-                                        label="Full Team Name (optional)"
-                                        placeholder="e.g. Alpha Warriors"
-                                        value={teamFullName}
-                                        onValueChange={(v) => setTeamFullName(v.slice(0, 30))}
-                                        maxLength={30}
-                                        size="lg"
-                                        description="Shown in slot views • leave blank to use tag only"
-                                        classNames={{
-                                            input: "text-base",
-                                            inputWrapper: "shadow-sm",
                                         }}
                                     />
                                 )}

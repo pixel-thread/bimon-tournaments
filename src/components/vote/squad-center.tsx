@@ -16,7 +16,7 @@ import {
     Input,
 } from "@heroui/react";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
-import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, ChevronRight, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle, Phone, Ghost, Zap, RefreshCw } from "lucide-react";
+import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, ChevronRight, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle, Phone, Ghost, Zap, RefreshCw, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     useSquads,
@@ -28,6 +28,7 @@ import {
     useLeaveSquad,
     useInvitePlayer,
     useSearchPlayers,
+    useRenameSquad,
     type SquadDTO,
 } from "@/hooks/use-squads";
 import { CreateSquadModal } from "./create-squad-modal";
@@ -299,6 +300,12 @@ function SquadCard({
     const isCaptain = squad.isCaptain || (squad.captain.id ? squad.captain.id === currentPlayerId : false);
     const canManage = isCaptain || !!isAdminProp;
     const isCreating = squad.id.startsWith("temp-");
+
+    // Rename state
+    const [showRename, setShowRename] = useState(false);
+    const [renameTag, setRenameTag] = useState(squad.name);
+    const [renameFullName, setRenameFullName] = useState(squad.fullName || "");
+    const renameMutation = useRenameSquad();
 
     // Admin confirm modal — prevents mis-touch
     const [adminConfirm, setAdminConfirm] = useState<{ label: string; action: () => void } | null>(null);
@@ -762,7 +769,7 @@ function SquadCard({
 
 
 
-                        {/* Cancel squad / Creating indicator */}
+                        {/* Rename + Cancel squad */}
                         {canManage && squad.status === "FORMING" && (
                             <div className="px-4 py-2 border-t border-divider/50">
                                 {isCreating ? (
@@ -776,18 +783,33 @@ function SquadCard({
                                         Creating…
                                     </Button>
                                 ) : (
-                                    <Button
-                                        size="sm"
-                                        variant="light"
-                                        color={isCancelling ? "default" : "danger"}
-                                        className={`w-full ${isCancelling ? "text-foreground/50" : ""}`}
-                                        isLoading={isCancelling}
-                                        isDisabled={isCancelling}
-                                        onPress={() => withAdminConfirm(`Cancel squad "${squad.name}"?`, () => onCancel(squad.id))}
-                                        startContent={!isCancelling && <Trash2 className="w-3.5 h-3.5" />}
-                                    >
-                                        {isCancelling ? "Cancelling…" : "Cancel Squad"}
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="flat"
+                                            className="flex-1 font-medium"
+                                            onPress={() => {
+                                                setRenameTag(squad.name);
+                                                setRenameFullName(squad.fullName || "");
+                                                setShowRename(true);
+                                            }}
+                                            startContent={<Pencil className="w-3.5 h-3.5" />}
+                                        >
+                                            Rename
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="light"
+                                            color={isCancelling ? "default" : "danger"}
+                                            className={`flex-1 ${isCancelling ? "text-foreground/50" : ""}`}
+                                            isLoading={isCancelling}
+                                            isDisabled={isCancelling}
+                                            onPress={() => withAdminConfirm(`Cancel squad "${squad.name}"?`, () => onCancel(squad.id))}
+                                            startContent={!isCancelling && <Trash2 className="w-3.5 h-3.5" />}
+                                        >
+                                            {isCancelling ? "Cancelling…" : "Cancel"}
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -1208,6 +1230,68 @@ function SquadCard({
                             setInvitingPlayerId={setInvitingPlayerId}
                         />
                     </ModalBody>
+                </ModalContent>
+            </Modal>
+
+            {/* ── Rename Squad Modal ── */}
+            <Modal
+                isOpen={showRename}
+                onClose={() => setShowRename(false)}
+                placement="center"
+                size="sm"
+                classNames={{ wrapper: "z-[70]" }}
+            >
+                <ModalContent>
+                    <ModalHeader className="flex items-center gap-2 text-base">
+                        <Pencil className="w-4 h-4 text-primary" />
+                        Rename Team
+                    </ModalHeader>
+                    <ModalBody className="pt-0 space-y-3">
+                        <Input
+                            label="Team Name (optional)"
+                            placeholder="e.g. Alpha Warriors"
+                            value={renameFullName}
+                            onValueChange={(v) => {
+                                const val = v.slice(0, 30);
+                                setRenameFullName(val);
+                                if (val.trim().length <= 7) {
+                                    setRenameTag(val.trim());
+                                }
+                            }}
+                            maxLength={30}
+                            size="sm"
+                            description="Shown in slot views"
+                        />
+                        <Input
+                            label="Team Tag"
+                            placeholder="e.g. ALPHA"
+                            value={renameTag}
+                            onValueChange={(v) => setRenameTag(v.slice(0, 7))}
+                            maxLength={7}
+                            size="sm"
+                            isRequired
+                            description={`${renameTag.length}/7 • shown in standings`}
+                        />
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button size="sm" variant="flat" onPress={() => setShowRename(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            size="sm"
+                            color="primary"
+                            isDisabled={!renameTag.trim()}
+                            isLoading={renameMutation.isPending}
+                            onPress={() => {
+                                renameMutation.mutate(
+                                    { squadId: squad.id, name: renameTag.trim(), fullName: renameFullName.trim() || undefined },
+                                    { onSuccess: () => setShowRename(false) }
+                                );
+                            }}
+                        >
+                            Save
+                        </Button>
+                    </ModalFooter>
                 </ModalContent>
             </Modal>
 
@@ -2145,19 +2229,24 @@ function PaymentBanner({ pollId, entryFee }: { pollId: string; entryFee: number 
     };
 
     return (
-        <div className="mx-4 mt-3 flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <p className="text-xs text-amber-600 dark:text-amber-400 flex-1">
-                Team not confirmed — need {entryFee} {GAME.currency}
+        <div className="mx-4 mt-3 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+            <div className="flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <p className="text-xs text-amber-600 dark:text-amber-400 flex-1 font-medium">
+                    Team not confirmed — need {entryFee} {GAME.currency}
+                </p>
+                <button
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="shrink-0 p-1 rounded-md hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                    title="Re-check balance"
+                >
+                    <RefreshCw className={`w-3.5 h-3.5 text-amber-500 ${refreshing ? "animate-spin" : ""}`} />
+                </button>
+            </div>
+            <p className="text-[10px] text-amber-500/60 mt-1 ml-5">
+                Only visible to you • add {GAME.currency} and tap ↻ to confirm
             </p>
-            <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="shrink-0 p-1 rounded-md hover:bg-amber-500/20 transition-colors disabled:opacity-50"
-                title="Re-check balance"
-            >
-                <RefreshCw className={`w-3.5 h-3.5 text-amber-500 ${refreshing ? "animate-spin" : ""}`} />
-            </button>
         </div>
     );
 }

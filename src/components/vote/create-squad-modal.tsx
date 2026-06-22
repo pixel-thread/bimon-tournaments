@@ -276,7 +276,28 @@ export function CreateSquadModal({
                                     </div>
                                 ) : null}
 
-                                {/* Squad Name Input — show when NOT using clan identity AND clan data loaded */}
+                                {/* Full Team Name — optional, shown first */}
+                                {myClan !== undefined && (!useClan || !hasClan) && (
+                                    <Input
+                                        label="Team Name (optional)"
+                                        placeholder="e.g. Alpha Warriors"
+                                        value={squadFullName}
+                                        onValueChange={(v) => {
+                                            const val = v.slice(0, 30);
+                                            setSquadFullName(val);
+                                            // Auto-fill tag if name fits (≤7 chars)
+                                            if (val.trim().length <= 7) {
+                                                setSquadName(val.trim());
+                                            }
+                                        }}
+                                        maxLength={30}
+                                        autoFocus
+                                        description="Shown in slot views • leave blank to use tag only"
+                                        classNames={{ input: "text-base" }}
+                                    />
+                                )}
+
+                                {/* Team Tag — mandatory */}
                                 {myClan !== undefined && (!useClan || !hasClan) && (
                                     <Input
                                         label="Team Tag"
@@ -284,21 +305,8 @@ export function CreateSquadModal({
                                         value={squadName}
                                         onValueChange={(v) => setSquadName(v.slice(0, 7))}
                                         maxLength={7}
-                                        autoFocus
+                                        isRequired
                                         description={`${squadName.length}/7 characters • shown in standings`}
-                                        classNames={{ input: "text-base" }}
-                                    />
-                                )}
-
-                                {/* Optional Full Name — shown when not using clan AND short name is entered */}
-                                {myClan !== undefined && (!useClan || !hasClan) && squadName.trim().length > 0 && (
-                                    <Input
-                                        label="Full Team Name (optional)"
-                                        placeholder="e.g. Alpha Warriors"
-                                        value={squadFullName}
-                                        onValueChange={(v) => setSquadFullName(v.slice(0, 30))}
-                                        maxLength={30}
-                                        description="Shown in slot views • leave blank to use tag only"
                                         classNames={{ input: "text-base" }}
                                     />
                                 )}
