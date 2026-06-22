@@ -2185,7 +2185,10 @@ export function SquadCenter({
                                                 }
                                             }}
                                         >
-                                            Use Past Team · {previousRoster!.squadName}
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-success text-white rounded-md leading-none">New</span>
+                                                Use Past Team · {previousRoster!.squadName}
+                                            </span>
                                         </Button>
                                     )}
                                 </>
