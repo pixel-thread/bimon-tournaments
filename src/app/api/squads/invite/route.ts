@@ -5,6 +5,7 @@ import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
 import { logSquadEvent, logSquadEventTx } from "@/lib/squad-audit";
+import { checkKdGate } from "@/lib/logic/kd-gate";
 
 /**
  * POST /api/squads/invite
@@ -116,6 +117,12 @@ export async function POST(request: NextRequest) {
 
         if (!invitedPlayer) {
             return ErrorResponse({ message: "Player not found", status: 404 });
+        }
+
+        // KD range gate — block invite if invited player's KD is out of range
+        const kdResult = await checkKdGate(playerId, squad.pollId, { isAdmin });
+        if (!kdResult.allowed) {
+            return ErrorResponse({ message: `Can't invite — ${kdResult.message}`, status: 403 });
         }
 
         const playerName = invitedPlayer.displayName ?? invitedPlayer.user.username;

@@ -39,6 +39,8 @@ interface PollDTO {
     expectedPrizePool?: number | null;
     whatsappGroupLink?: string | null;
     orgCutFixed?: number | null;
+    kdMin?: number | null;
+    kdMax?: number | null;
     isActive: boolean;
     options?: PollOptionDTO[];
     tournament?: { id: string; name: string; fee: number; type?: string };
@@ -88,6 +90,8 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
     const [linkCopied, setLinkCopied] = useState(false);
     const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
     const [orgCutFixed, setOrgCutFixed] = useState<string>("");
+    const [kdMin, setKdMin] = useState<string>("");
+    const [kdMax, setKdMax] = useState<string>("");
     // Per-day match schedule: { "Friday": ["20:00", "20:45"], "Saturday": ["20:00", "21:00"] }
     const [matchSchedule, setMatchSchedule] = useState<Record<string, string[]>>({});
 
@@ -123,6 +127,8 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setOptions(poll.options?.map(o => ({ ...o })) ?? []);
             setWhatsappGroupLink(poll.whatsappGroupLink ?? "");
             setOrgCutFixed(poll.orgCutFixed != null ? String(poll.orgCutFixed) : "");
+            setKdMin(poll.kdMin != null ? String(poll.kdMin) : "");
+            setKdMax(poll.kdMax != null ? String(poll.kdMax) : "");
             setMatchSchedule((poll.matchSchedule as Record<string, string[]>) ?? {});
         } else {
             setQuestion("");
@@ -141,6 +147,8 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
             setArenaMode("none");
             setWhatsappGroupLink("");
             setOrgCutFixed("");
+            setKdMin("");
+            setKdMax("");
             setMatchSchedule({});
             // Pre-populate default options for create
             const defaultOpts: PollOptionDTO[] = GAME.features.hasTeamSizes
@@ -200,6 +208,8 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     options: options.map(o => ({ id: o.id, name: o.name })),
                     whatsappGroupLink: whatsappGroupLink.trim() || null,
                     orgCutFixed: orgCutFixed !== "" ? Number(orgCutFixed) : null,
+                    kdMin: kdMin !== "" ? Number(kdMin) : null,
+                    kdMax: kdMax !== "" ? Number(kdMax) : null,
                     // Send tournament format on edit too (PES)
                     ...(!GAME.features.hasTeamSizes && { tournamentType: tournamentFormat }),
                 }
@@ -218,6 +228,9 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                     // Send custom option names
                     options: options.map(o => ({ name: o.name, vote: o.vote })),
                     whatsappGroupLink: whatsappGroupLink.trim() || null,
+                    orgCutFixed: orgCutFixed !== "" ? Number(orgCutFixed) : null,
+                    kdMin: kdMin !== "" ? Number(kdMin) : null,
+                    kdMax: kdMax !== "" ? Number(kdMax) : null,
                 };
 
             const res = await fetch("/api/polls", {
@@ -237,7 +250,7 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
         } finally {
             setSaving(false);
         }
-    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, arenaMode, options, whatsappGroupLink, orgCutFixed, onSaved, onClose]);
+    }, [isEdit, poll, question, days, teamType, tournamentId, tournamentFormat, isActive, allowSquads, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, arenaMode, options, whatsappGroupLink, orgCutFixed, kdMin, kdMax, onSaved, onClose]);
 
     const handleOptionNameChange = useCallback((optionId: string, newName: string) => {
         setOptions(prev => prev.map(o => o.id === optionId ? { ...o, name: newName } : o));
@@ -655,6 +668,41 @@ export function PollFormModal({ isOpen, onClose, poll, onSaved }: PollFormModalP
                             type="number"
                             inputMode="numeric"
                         />
+                    )}
+
+                    {/* KD Range Filter — shown for BR games */}
+                    {GAME.features.hasBR && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-medium text-foreground/50">🎯 KD Range Filter</p>
+                            <div className="flex gap-2 items-center">
+                                <Input
+                                    label="Min KD"
+                                    placeholder="e.g. 0.1"
+                                    value={kdMin}
+                                    onValueChange={setKdMin}
+                                    size="sm"
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.01"
+                                />
+                                <span className="text-foreground/30 text-sm">to</span>
+                                <Input
+                                    label="Max KD"
+                                    placeholder="e.g. 1.99"
+                                    value={kdMax}
+                                    onValueChange={setKdMax}
+                                    size="sm"
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.01"
+                                />
+                            </div>
+                            {(kdMin || kdMax) && (
+                                <p className="text-[11px] text-amber-500 dark:text-amber-400">
+                                    ⚠️ Only players with KD {kdMin || "0"}–{kdMax || "∞"} can participate. Ghost players blocked.
+                                </p>
+                            )}
+                        </div>
                     )}
 
                     {/* Editable poll options */}

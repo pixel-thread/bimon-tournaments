@@ -5,6 +5,7 @@ import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
 import { logSquadEventTx } from "@/lib/squad-audit";
+import { checkKdGate } from "@/lib/logic/kd-gate";
 
 /**
  * POST /api/squads/respond-request
@@ -87,6 +88,12 @@ export async function POST(request: NextRequest) {
         const tournamentName = invite.squad.poll.tournament?.name ?? "tournament";
 
         if (action === "ACCEPT") {
+            // KD range gate — block accept if the joining player's KD is out of range
+            const kdResult = await checkKdGate(invite.playerId, invite.squad.poll.id);
+            if (!kdResult.allowed) {
+                return ErrorResponse({ message: `Can't accept — ${kdResult.message}`, status: 403 });
+            }
+
             // Check if squad is now full
             const acceptedCount = invite.squad.invites.filter((i) => i.status === "ACCEPTED").length + 1;
             const isFull = acceptedCount >= GAME.maxSquadSize;

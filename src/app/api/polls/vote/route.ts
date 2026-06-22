@@ -6,6 +6,7 @@ import { getSettings } from "@/lib/settings";
 import { GAME } from "@/lib/game-config";
 import { getAvailableBalance } from "@/lib/wallet-service";
 import { checkAndGrantWelcomeBack } from "@/lib/logic/welcomeBack";
+import { checkKdGate } from "@/lib/logic/kd-gate";
 
 /**
  * POST /api/polls/vote
@@ -176,6 +177,14 @@ export async function POST(request: NextRequest) {
                         status: 403,
                     });
                 }
+            }
+        }
+
+        // KD range gate — block IN/SOLO if player's KD is out of the poll's range
+        if (vote === "IN" || vote === "SOLO") {
+            const kdResult = await checkKdGate(user.player.id, pollId);
+            if (!kdResult.allowed) {
+                return ErrorResponse({ message: kdResult.message!, status: 403 });
             }
         }
 

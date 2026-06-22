@@ -177,6 +177,8 @@ export async function GET(request: Request) {
                 whatsappGroupLink: poll.whatsappGroupLink,
                 orgCutFixed: poll.orgCutFixed,
                 fixedPrizes: poll.fixedPrizes ?? null,
+                kdMin: poll.kdMin,
+                kdMax: poll.kdMax,
                 isChampionship: poll.isChampionship,
                 tournament: poll.tournament ? {
                     id: poll.tournament.id,
@@ -273,7 +275,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, enableFund, prizePoolFee, scheduledDate, scheduledTime, matchSchedule, isTDM: tdmFlag, isWoW: wowFlag, whatsappGroupLink, orgCutFixed } = body;
+        const { question, days, teamType, tournamentId, tournamentType, options: customOptions, allowSquads, enableFund, prizePoolFee, scheduledDate, scheduledTime, matchSchedule, isTDM: tdmFlag, isWoW: wowFlag, whatsappGroupLink, orgCutFixed, kdMin, kdMax } = body;
 
         if (!question || !tournamentId) {
             return ErrorResponse({ message: "question and tournamentId are required", status: 400 });
@@ -344,6 +346,8 @@ export async function POST(request: Request) {
                 prizePoolFee: prizePoolFee != null ? Number(prizePoolFee) : null,
                 whatsappGroupLink: whatsappGroupLink?.trim() || null,
                 orgCutFixed: orgCutFixed != null ? Number(orgCutFixed) : null,
+                kdMin: kdMin != null ? Number(kdMin) : null,
+                kdMax: kdMax != null ? Number(kdMax) : null,
                 tournamentId,
                 options: {
                     create: pollOptions,
@@ -373,7 +377,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, whatsappGroupLink, orgCutFixed, fixedPrizes } = body;
+        const { id, question, days, teamType, isActive, options, tournamentType, allowSquads, enableFund, prizePoolFee, expectedPrizePool, scheduledDate, scheduledTime, matchSchedule, whatsappGroupLink, orgCutFixed, fixedPrizes, kdMin, kdMax } = body;
 
         if (!id) {
             return ErrorResponse({ message: "id is required", status: 400 });
@@ -401,6 +405,8 @@ export async function PATCH(request: Request) {
                 updateData.fixedPrizes = fixedPrizes.map(Number).filter(n => !isNaN(n) && n > 0);
             }
         }
+        if (kdMin !== undefined) updateData.kdMin = kdMin != null ? Number(kdMin) : null;
+        if (kdMax !== undefined) updateData.kdMax = kdMax != null ? Number(kdMax) : null;
 
         // If tournamentType is provided, update the linked tournament's type
         if (tournamentType && (ALL_TOURNAMENT_TYPES as readonly string[]).includes(tournamentType)) {

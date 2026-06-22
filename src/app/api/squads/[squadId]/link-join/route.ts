@@ -5,6 +5,7 @@ import { GAME } from "@/lib/game-config";
 import { type NextRequest, NextResponse } from "next/server";
 import { sendPush } from "@/lib/push";
 import { logSquadEventTx } from "@/lib/squad-audit";
+import { checkKdGate } from "@/lib/logic/kd-gate";
 
 /**
  * GET /api/squads/[squadId]/link-join
@@ -192,6 +193,12 @@ export async function POST(
 
         if (squad.captainId === playerId) {
             return ErrorResponse({ message: "You're the captain of this squad", status: 400 });
+        }
+
+        // KD range gate — block join via link if player's KD is out of range
+        const kdResult = await checkKdGate(playerId, squad.poll.id);
+        if (!kdResult.allowed) {
+            return ErrorResponse({ message: kdResult.message!, status: 403 });
         }
 
         // Check if already in ANOTHER squad for this poll

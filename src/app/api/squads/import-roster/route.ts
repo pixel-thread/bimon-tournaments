@@ -5,6 +5,7 @@ import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { sendPush } from "@/lib/push";
 import { logSquadEventTx } from "@/lib/squad-audit";
+import { checkKdGate } from "@/lib/logic/kd-gate";
 
 /**
  * POST /api/squads/import-roster
@@ -137,6 +138,20 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Determine slot type
+                const playerName = player.displayName ?? player.user.username ?? "Player";
+
+                // KD range gate — skip players whose KD is out of range (and ghosts on KD-restricted polls)
+                const kdResult = await checkKdGate(memberId, squad.pollId, { isGhost: player.isGhost });
+                if (!kdResult.allowed) {
+                    results.push({
+                        playerId: memberId,
+                        name: playerName,
+                        status: "skipped",
+                        reason: player.isGhost ? "Ghost players not allowed (KD-restricted)" : "KD out of range",
+                    });
+                    continue;
+                }
+
                 const isSub = activeSlots >= GAME.squadSize;
                 if (isSub && subSlots >= GAME.maxSquadSize - GAME.squadSize) {
                     results.push({

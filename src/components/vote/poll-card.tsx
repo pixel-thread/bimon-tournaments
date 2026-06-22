@@ -1134,6 +1134,18 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                                         </Chip>
                                     </div>
                                 )}
+                                {/* KD range badge */}
+                                {(poll.kdMin != null || poll.kdMax != null) && (
+                                    <div className="absolute top-2 right-2">
+                                        <Chip
+                                            size="sm"
+                                            variant="flat"
+                                            className="font-bold bg-amber-500/25 text-white border border-amber-300/30 backdrop-blur-sm"
+                                        >
+                                            🎯 KD {poll.kdMin ?? 0}–{poll.kdMax ?? "∞"}
+                                        </Chip>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>

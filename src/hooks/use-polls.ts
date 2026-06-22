@@ -58,6 +58,8 @@ export interface PollDTO {
     };
     squadCount?: number;
     confirmedSquadCount?: number;
+    kdMin?: number | null;
+    kdMax?: number | null;
     whatsappGroupLink?: string | null;
     sponsorCoupon: {
         sponsorName: string;

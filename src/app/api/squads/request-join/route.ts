@@ -4,6 +4,7 @@ import { getCurrentUser, getAuthEmail } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
 import { logSquadEventTx } from "@/lib/squad-audit";
+import { checkKdGate } from "@/lib/logic/kd-gate";
 
 /**
  * POST /api/squads/request-join
@@ -84,6 +85,12 @@ export async function POST(request: NextRequest) {
         const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
         if (acceptedCount >= GAME.maxSquadSize) {
             return ErrorResponse({ message: "Squad is already full", status: 400 });
+        }
+
+        // KD range gate — block join request if player's KD is out of range
+        const kdResult = await checkKdGate(playerId, squad.poll.id);
+        if (!kdResult.allowed) {
+            return ErrorResponse({ message: kdResult.message!, status: 403 });
         }
 
         // Not already invited or requested

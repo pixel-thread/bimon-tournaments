@@ -831,6 +831,8 @@ model Poll {
   whatsappGroupLink String?  // WhatsApp group invite link for squad captains
   orgCutFixed      Int?      // Per-tournament fixed org cut override (null = use global setting)
   fixedPrizes      Json?     // Fixed prize amounts per position: [250,120,50,50] — bypasses tier calculation, no org cut
+  kdMin            Float?    // Minimum KD to participate (null = no limit)
+  kdMax            Float?    // Maximum KD to participate (null = no limit)
   startDate    DateTime  @default(now())
   endDate      DateTime?
   tournamentId String    @unique

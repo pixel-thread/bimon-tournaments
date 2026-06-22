@@ -3,6 +3,7 @@ import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { containsProfanity } from "@/lib/profanity";
+import { checkKdGate } from "@/lib/logic/kd-gate";
 import { type NextRequest } from "next/server";
 
 /**
@@ -83,6 +84,12 @@ export async function POST(request: NextRequest) {
 
         if (!poll || !poll.isActive) return ErrorResponse({ message: "Poll is not active", status: 400 });
         if (!poll.allowSquads) return ErrorResponse({ message: "Squads are not enabled", status: 400 });
+
+        // Block ghost team creation on KD-restricted tournaments
+        const ghostKdResult = await checkKdGate("ghost", pollId, { isGhost: true });
+        if (!ghostKdResult.allowed) {
+            return ErrorResponse({ message: "Ghost teams cannot be created for KD-restricted tournaments. All players must have verifiable stats.", status: 403 });
+        }
 
         const entryFee = poll.tournament?.fee ?? 0;
 

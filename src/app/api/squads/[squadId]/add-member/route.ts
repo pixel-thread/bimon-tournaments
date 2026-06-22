@@ -3,6 +3,7 @@ import { SuccessResponse, ErrorResponse } from "@/lib/api-response";
 import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { type NextRequest } from "next/server";
+import { checkKdGate } from "@/lib/logic/kd-gate";
 
 /**
  * Normalize phone number to 10 digits.
@@ -198,6 +199,12 @@ export async function POST(
 
         // ─── Case A: Real player found ───
         if (foundPlayer && !foundPlayer.isGhost) {
+            // KD range gate — check the real player's KD
+            const kdResult = await checkKdGate(foundPlayer.id, squad.pollId, { isAdmin });
+            if (!kdResult.allowed) {
+                return ErrorResponse({ message: `Can't add — ${kdResult.message}`, status: 403 });
+            }
+
             // Admin always auto-confirms; regular users need explicit confirm from UI
             if (isAdmin || (confirm === true)) {
                 // Remove any existing poll vote
@@ -248,6 +255,12 @@ export async function POST(
 
         // ─── Case B: Ghost player found → update name, add to squad ───
         if (foundPlayer && foundPlayer.isGhost) {
+            // KD range gate — block ghosts on KD-restricted tournaments
+            const kdResult = await checkKdGate(foundPlayer.id, squad.pollId, { isAdmin, isGhost: true });
+            if (!kdResult.allowed) {
+                return ErrorResponse({ message: kdResult.message!, status: 403 });
+            }
+
             // Update display name (latest wins)
             await prisma.player.update({
                 where: { id: foundPlayer.id },
@@ -283,6 +296,12 @@ export async function POST(
         }
 
         // ─── Case C: No match → create ghost User + Player ───
+        // KD range gate — block ghost creation on KD-restricted tournaments
+        const ghostKdResult = await checkKdGate("ghost", squad.pollId, { isAdmin, isGhost: true });
+        if (!ghostKdResult.allowed) {
+            return ErrorResponse({ message: ghostKdResult.message!, status: 403 });
+        }
+
         const contactKey = phone || email || `anon_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const ghostClerkId = `ghost_${contactKey}`;
         const ghostUsername = `ghost_${contactKey}`;

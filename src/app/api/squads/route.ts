@@ -6,6 +6,7 @@ import { getConfirmedSquadCap } from "@/lib/logic/championship";
 import { getAvailableBalance } from "@/lib/wallet-service";
 import { grantRole } from "@/lib/discord-service";
 import { containsProfanity } from "@/lib/profanity";
+import { checkKdGate } from "@/lib/logic/kd-gate";
 import { type NextRequest } from "next/server";
 
 /**
@@ -337,6 +338,12 @@ export async function POST(request: NextRequest) {
 
         if (!poll.allowSquads) {
             return ErrorResponse({ message: "Squads are not enabled for this tournament", status: 400 });
+        }
+
+        // KD range gate — block captain from creating squad if KD is out of range
+        const kdResult = await checkKdGate(playerId, pollId);
+        if (!kdResult.allowed) {
+            return ErrorResponse({ message: kdResult.message!, status: 403 });
         }
 
         const entryFee = poll.tournament?.fee ?? 0;
