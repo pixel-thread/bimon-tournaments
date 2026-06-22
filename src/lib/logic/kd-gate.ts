@@ -27,12 +27,13 @@ export async function checkKdGate(
         return { allowed: true };
     }
 
-    // Fetch poll's KD range
+    // Fetch poll's KD range + mode
     const poll = await prisma.poll.findUnique({
         where: { id: pollId },
         select: {
             kdMin: true,
             kdMax: true,
+            allowSquads: true,
             tournament: { select: { seasonId: true } },
         },
     });
@@ -56,9 +57,8 @@ export async function checkKdGate(
     }
 
     // Compute player's KD from TeamPlayerStats (source of truth).
-    // The PlayerStats.kd field is NOT kept up-to-date — the real KD is
-    // kills / matches aggregated from TeamPlayerStats, matching the
-    // computation used in /api/players, /api/profile, etc.
+    // For ranked (allowSquads) polls → use only ranked match stats.
+    // For casual polls → use only casual match stats.
     const seasonId = poll.tournament?.seasonId;
 
     const tpsWhere: Record<string, unknown> = {
@@ -67,6 +67,15 @@ export async function checkKdGate(
     };
     if (seasonId) {
         tpsWhere.seasonId = seasonId;
+    }
+
+    // Filter by match type to get the correct KD category
+    if (poll.allowSquads) {
+        // Ranked: only count matches from squad/ranked tournaments
+        tpsWhere.match = { tournament: { poll: { allowSquads: true } } };
+    } else {
+        // Casual: only count matches from casual (non-squad, non-TDM, non-WoW)
+        tpsWhere.match = { tournament: { isTDM: false, isWoW: false, poll: { allowSquads: false } } };
     }
 
     const agg = await prisma.teamPlayerStats.aggregate({
