@@ -36,12 +36,15 @@ export async function POST(
 
         const { squadId } = await params;
         const body = await request.json();
-        const { phone: rawPhone, email: rawEmail, name, isSub } = body as {
+        const { phone: rawPhone, email: rawEmail, name, isSub, confirm } = body as {
             phone?: string;
             email?: string;
             name: string;
             isSub?: boolean;
+            confirm?: boolean; // admin: skip confirmation, add directly
         };
+
+        const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
 
         const phone = rawPhone ? normalizePhone(rawPhone) : null;
         const email = rawEmail?.trim().toLowerCase() || null;
@@ -78,7 +81,7 @@ export async function POST(
             return ErrorResponse({ message: "Squad not found", status: 404 });
         }
 
-        if (squad.captainId !== currentPlayerId) {
+        if (squad.captainId !== currentPlayerId && !isAdmin) {
             return ErrorResponse({ message: "Only the captain can add members", status: 403 });
         }
 
@@ -190,8 +193,42 @@ export async function POST(
             }
         }
 
-        // ─── Case A: Real player found → return for confirmation ───
+        // ─── Case A: Real player found ───
         if (foundPlayer && !foundPlayer.isGhost) {
+            // Admin with confirm=true → add directly with ACCEPTED status
+            if (isAdmin && confirm) {
+                // Remove any existing poll vote
+                await prisma.playerPollVote.deleteMany({
+                    where: { pollId: squad.pollId, playerId: foundPlayer.id },
+                });
+
+                await prisma.squadInvite.create({
+                    data: {
+                        squadId,
+                        playerId: foundPlayer.id,
+                        status: "ACCEPTED",
+                        initiatedBy: "CAPTAIN",
+                        isSub: isSub ?? false,
+                        respondedAt: new Date(),
+                    },
+                });
+
+                await updateSquadStatus(squadId);
+
+                return SuccessResponse({
+                    data: {
+                        added: true,
+                        player: {
+                            id: foundPlayer.id,
+                            displayName: foundPlayer.displayName ?? foundPlayer.user.username,
+                            isGhost: false,
+                        },
+                    },
+                    message: `✅ ${foundPlayer.displayName} added to squad`,
+                });
+            }
+
+            // Non-admin or no confirm → return for confirmation
             return SuccessResponse({
                 data: {
                     matched: true,
