@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuthUser } from "@/hooks/use-auth-user";
+
 import {
     Modal,
     ModalContent,
@@ -245,7 +245,6 @@ function SquadCard({
     defaultExpanded,
     recentlyRequestedSquadId,
     isRanked,
-    isAdmin: isAdminProp,
 }: {
     squad: SquadDTO;
     currentPlayerId: string;
@@ -270,7 +269,6 @@ function SquadCard({
     defaultExpanded?: boolean;
     recentlyRequestedSquadId?: string | null;
     isRanked?: boolean;
-    isAdmin?: boolean;
 }) {
     const myInvite = squad.myInvite;
     const hasPendingInvite = myInvite?.status === "PENDING" && myInvite?.initiatedBy === "CAPTAIN";
@@ -299,7 +297,7 @@ function SquadCard({
     const bottomRef = useRef<HTMLDivElement>(null);
     const proxyInputRef = useRef<HTMLInputElement>(null);
     const isCaptain = squad.isCaptain || (squad.captain.id ? squad.captain.id === currentPlayerId : false);
-    const canManage = isCaptain || !!isAdminProp;
+
     const isCreating = squad.id.startsWith("temp-");
 
     // Rename state
@@ -308,16 +306,7 @@ function SquadCard({
     const [renameFullName, setRenameFullName] = useState(squad.fullName || "");
     const renameMutation = useRenameSquad();
 
-    // Admin confirm modal — prevents mis-touch
-    const [adminConfirm, setAdminConfirm] = useState<{ label: string; action: () => void } | null>(null);
-    /** Wraps an action with confirmation if admin (non-captain) */
-    const withAdminConfirm = (label: string, action: () => void) => {
-        if (isAdminProp && !isCaptain) {
-            setAdminConfirm({ label, action });
-        } else {
-            action();
-        }
-    };
+
 
     // Invite hooks (only active when captain opens invite)
     const {
@@ -342,7 +331,7 @@ function SquadCard({
             const json = await res.json();
             return json.data ?? [];
         },
-        enabled: (showInvite || showQuickAdd) && canManage && !!squad.clanTag,
+        enabled: (showInvite || showQuickAdd) && isCaptain && !!squad.clanTag,
         staleTime: 15_000,
     });
 
@@ -438,7 +427,7 @@ function SquadCard({
                         <Shield className={`w-4 h-4 shrink-0 ${squad.isDefendingChampion ? 'text-amber-700 dark:text-amber-400' : 'text-primary'}`} />
                     )}
                     <h4 className={`font-semibold text-sm truncate ${squad.isDefendingChampion ? 'text-amber-900 dark:text-amber-100' : ''}`}>{squad.fullName || squad.name}</h4>
-                    {canManage && (
+                    {isCaptain && (
                         <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     )}
                 </div>
@@ -446,7 +435,7 @@ function SquadCard({
                     {hasPendingInvite && (
                         <span className="h-2.5 w-2.5 rounded-full bg-danger animate-pulse" />
                     )}
-                    {pendingRequests.length > 0 && canManage && (
+                    {pendingRequests.length > 0 && isCaptain && (
                         <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-bold text-blue-500">
                             {pendingRequests.length} req
                         </span>
@@ -460,7 +449,7 @@ function SquadCard({
                             {squad.acceptedCount}/{squad.totalSlots}
                         </Chip>
                     )}
-                    {canManage && !squad.isFull && ['FORMING', 'FULL'].includes(squad.status) && pollIsActive && !isCreating && (
+                    {isCaptain && !squad.isFull && ['FORMING', 'FULL'].includes(squad.status) && pollIsActive && !isCreating && (
                         <ShareButtonWithTooltip squad={squad} />
                     )}
                     <motion.div
@@ -491,7 +480,7 @@ function SquadCard({
                         <div className="px-4 py-3 space-y-2 border-t border-divider/50">
                             {squad.members.map((member) => {
                                 const isMemberCaptain = member.playerId === squad.captain.id;
-                                const showRemove = canManage && !isMemberCaptain && pollIsActive &&
+                                const showRemove = isCaptain && !isMemberCaptain && pollIsActive &&
                                     (member.status === "ACCEPTED" || (member.status === "PENDING" && member.initiatedBy === "CAPTAIN"));
                                 const canToggleSub = squad.acceptedCount > GAME.squadSize;
                                 return (
@@ -523,7 +512,7 @@ function SquadCard({
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
-                                            {canManage && <StatusBadge status={member.status} initiatedBy={member.initiatedBy} />}
+                                            {isCaptain && <StatusBadge status={member.status} initiatedBy={member.initiatedBy} />}
                                             {/* Show "Waiting" to the requesting player themselves */}
                                             {!isCaptain && member.playerId === currentPlayerId && member.status === "PENDING" && member.initiatedBy === "PLAYER" && (
                                                 <Chip size="sm" variant="flat" className="bg-amber-500/15 text-amber-600 dark:text-amber-400" startContent={<Clock className="w-3 h-3" />}>
@@ -534,7 +523,7 @@ function SquadCard({
                                                 canToggleSub ? (
                                                     <MemberActions
                                                         member={member}
-                                                        onRemove={() => withAdminConfirm(`Remove ${member.displayName}?`, () => onRemoveMember(member.inviteId))}
+                                                        onRemove={() => onRemoveMember(member.inviteId)}
                                                         isRemoving={isRemoving}
                                                     />
                                                 ) : (
@@ -544,7 +533,7 @@ function SquadCard({
                                                         color="danger"
                                                         isIconOnly
                                                         isLoading={isRemoving}
-                                                        onPress={() => withAdminConfirm(`Remove ${member.displayName}?`, () => onRemoveMember(member.inviteId))}
+                                                        onPress={() => onRemoveMember(member.inviteId)}
                                                         className="min-w-6 w-6 h-6"
                                                     >
                                                         <X className="w-3 h-3" />
@@ -584,7 +573,7 @@ function SquadCard({
                                             {isRequesting ? "Requesting…" : "Tap to join"}
                                         </span>
                                     </button>
-                                ) : canManage && pollIsActive && !isCreating ? (
+                                ) : isCaptain && pollIsActive && !isCreating ? (
                                     <button
                                         key={`empty-${i}`}
                                         className="flex items-center gap-3 w-full text-left rounded-lg py-1.5 -mx-1 px-1 transition-colors hover:bg-purple-500/10 active:bg-purple-500/20"
@@ -608,7 +597,7 @@ function SquadCard({
 
 
                         {/* Captain: Invite Players + Quick Add + Add Ghost */}
-                        {canManage && !squad.isFull && ['FORMING', 'FULL'].includes(squad.status) && pollIsActive && (
+                        {isCaptain && !squad.isFull && ['FORMING', 'FULL'].includes(squad.status) && pollIsActive && (
                             <div className="px-4 py-3 border-t border-divider/50 flex gap-2 flex-wrap">
                                 <Button
                                     size="sm"
@@ -645,7 +634,7 @@ function SquadCard({
                         )}
 
                         {/* Captain: Pending join requests */}
-                        {canManage && pendingRequests.length > 0 && (
+                        {isCaptain && pendingRequests.length > 0 && (
                             <div className="px-4 py-3 border-t border-divider/50 bg-blue-500/5">
                                 <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-2">
                                     📩 Join Requests ({pendingRequests.length})
@@ -667,7 +656,7 @@ function SquadCard({
                                                     variant="flat"
                                                     isLoading={isRespondingRequest && respondingRequestAction === "accept"}
                                                     isDisabled={isRespondingRequest && respondingRequestAction === "decline"}
-                                                    onPress={() => withAdminConfirm(`Accept ${req.displayName}?`, () => onAcceptRequest(req.inviteId))}
+                                                    onPress={() => onAcceptRequest(req.inviteId)}
                                                     className="min-w-0 px-2 h-7"
                                                 >
                                                     <Check className="w-3.5 h-3.5" />
@@ -678,7 +667,7 @@ function SquadCard({
                                                     variant="flat"
                                                     isLoading={isRespondingRequest && respondingRequestAction === "decline"}
                                                     isDisabled={isRespondingRequest && respondingRequestAction === "accept"}
-                                                    onPress={() => withAdminConfirm(`Decline ${req.displayName}?`, () => onDeclineRequest(req.inviteId))}
+                                                    onPress={() => onDeclineRequest(req.inviteId)}
                                                     className="min-w-0 px-2 h-7"
                                                 >
                                                     <X className="w-3.5 h-3.5" />
@@ -770,7 +759,7 @@ function SquadCard({
 
 
                         {/* Rename + Cancel squad */}
-                        {canManage && ['FORMING', 'FULL'].includes(squad.status) && (
+                        {isCaptain && ['FORMING', 'FULL'].includes(squad.status) && (
                             <div className="px-4 py-2 border-t border-divider/50">
                                 {isCreating ? (
                                     <Button
@@ -804,7 +793,7 @@ function SquadCard({
                                             className={`flex-1 ${isCancelling ? "text-foreground/50" : ""}`}
                                             isLoading={isCancelling}
                                             isDisabled={isCancelling}
-                                            onPress={() => withAdminConfirm(`Cancel squad "${squad.name}"?`, () => onCancel(squad.id))}
+                                            onPress={() => onCancel(squad.id)}
                                             startContent={!isCancelling && <Trash2 className="w-3.5 h-3.5" />}
                                         >
                                             {isCancelling ? "Cancelling…" : "Cancel"}
@@ -957,11 +946,15 @@ function SquadCard({
                                                 isLoading={inviteMutation.isPending && invitingPlayerId === player.id}
                                                 isDisabled={inviteMutation.isPending && invitingPlayerId !== player.id}
                                                 onPress={() => {
-                                                    withAdminConfirm(`Invite ${player.displayName}?`, () => {
-                                                        setInvitingPlayerId(player.id);
-                                                        inviteMutation.mutate({ squadId: squad.id, playerId: player.id });
-                                                    });
+                                                    setInvitingPlayerId(player.id);
+                                                    inviteMutation.mutate({ squadId: squad.id, playerId: player.id });
                                                 }}
+
+
+
+
+
+
                                             >
                                                 Invite
                                             </Button>
@@ -1363,40 +1356,6 @@ function SquadCard({
                 </ModalContent>
             </Modal>
 
-            {/* ── Admin Confirm Modal ── */}
-            <Modal
-                isOpen={!!adminConfirm}
-                onClose={() => setAdminConfirm(null)}
-                placement="center"
-                size="sm"
-                classNames={{ wrapper: "z-[70]" }}
-            >
-                <ModalContent>
-                    <ModalBody className="py-6 text-center">
-                        <p className="text-sm font-semibold">{adminConfirm?.label}</p>
-                        <p className="text-xs text-foreground/40 mt-1">You&apos;re acting as admin on this squad</p>
-                    </ModalBody>
-                    <ModalFooter className="justify-center gap-3 pt-0 pb-4">
-                        <Button
-                            size="sm"
-                            variant="flat"
-                            onPress={() => setAdminConfirm(null)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            size="sm"
-                            color="primary"
-                            onPress={() => {
-                                adminConfirm?.action();
-                                setAdminConfirm(null);
-                            }}
-                        >
-                            Confirm
-                        </Button>
-                    </ModalFooter>
-                </ModalContent>
-            </Modal>
         </>
     );
 }
@@ -1692,7 +1651,6 @@ export function SquadCenter({
     scheduledDate,
 }: SquadCenterProps) {
     const [showCreate, setShowCreate] = useState(false);
-    const { isAdmin } = useAuthUser();
     const [showVoteWarning, setShowVoteWarning] = useState<{ action: "create" | "join"; squadId?: string } | null>(null);
     const [cancelConfirm, setCancelConfirm] = useState<{ squadId: string; isSameDay: boolean } | null>(null);
     const [showCreateChooser, setShowCreateChooser] = useState(false);
