@@ -37,6 +37,7 @@ import {
     Pencil,
     Trash2,
     X,
+    Share2,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -707,6 +708,17 @@ export default function AdminSquadsPage() {
                                                             </button>
                                                         </DropdownTrigger>
                                                         <DropdownMenu aria-label="Squad actions">
+                                                            <DropdownItem
+                                                                key="share"
+                                                                startContent={<Share2 className="w-3.5 h-3.5" />}
+                                                                onPress={() => {
+                                                                    const url = `${window.location.origin}/invite/${squad.id}`;
+                                                                    const text = `Join my team "${squad.name}"!\n${url}`;
+                                                                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                                                                }}
+                                                            >
+                                                                Share Invite Link
+                                                            </DropdownItem>
                                                             <DropdownItem
                                                                 key="rename"
                                                                 startContent={<Pencil className="w-3.5 h-3.5" />}

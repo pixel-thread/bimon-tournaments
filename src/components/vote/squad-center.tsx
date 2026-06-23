@@ -1968,7 +1968,7 @@ export function SquadCenter({
                                                 recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                 defaultExpanded
                                                 isRanked
-                                                isAdmin={isAdmin}
+
                                             />
                                         </div>
                                     )}
@@ -2031,7 +2031,7 @@ export function SquadCenter({
                                                                     recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                                     defaultExpanded
                                                                     isRanked
-                                                                    isAdmin={isAdmin}
+                    
                                                                 />
                                                             </div>
                                                         )}
@@ -2062,7 +2062,7 @@ export function SquadCenter({
                                                                         isLeaving={leaveMutation.isPending}
                                                                         recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                                         isRanked
-                                                                        isAdmin={isAdmin}
+                        
                                                                     />
                                                                 );
                                                             }
@@ -2132,7 +2132,7 @@ export function SquadCenter({
                                                                     recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                                     defaultExpanded={isMyUnconfirmed}
                                                                     isRanked
-                                                                    isAdmin={isAdmin}
+                    
                                                                 />
                                                             );
                                                         })}
@@ -2176,7 +2176,7 @@ export function SquadCenter({
                                                                 isLeaving={leaveMutation.isPending}
                                                                 recentlyRequestedSquadId={recentlyRequestedSquadId}
                                                                 isRanked
-                                                                isAdmin={isAdmin}
+                
                                                             />
                                                         );
                                                     }
