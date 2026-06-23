@@ -37,12 +37,13 @@ export async function POST(
 
         const { squadId } = await params;
         const body = await request.json();
-        const { phone: rawPhone, email: rawEmail, name, isSub: isSubInput, confirm } = body as {
+        const { phone: rawPhone, email: rawEmail, name, isSub: isSubInput, confirm, playerId: directPlayerId } = body as {
             phone?: string;
             email?: string;
             name: string;
             isSub?: boolean;
             confirm?: boolean; // admin: skip confirmation, add directly
+            playerId?: string; // direct player ID from search/select
         };
 
         const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
@@ -122,10 +123,25 @@ export async function POST(
             return i.status === "ACCEPTED" || i.status === "PENDING";
         });
 
-        // Search for existing player by phone or email
+        // Search for existing player — by direct ID, phone, or email
         let foundPlayer = null;
 
-        if (phone) {
+        if (directPlayerId) {
+            // Direct player ID from admin search — skip phone/email lookup
+            foundPlayer = await prisma.player.findUnique({
+                where: { id: directPlayerId },
+                select: {
+                    id: true,
+                    displayName: true,
+                    isGhost: true,
+                    phoneNumber: true,
+                    customProfileImageUrl: true,
+                    user: { select: { email: true, username: true, imageUrl: true } },
+                },
+            });
+        }
+
+        if (!foundPlayer && phone) {
             foundPlayer = await prisma.player.findFirst({
                 where: { phoneNumber: phone },
                 select: {

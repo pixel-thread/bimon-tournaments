@@ -471,8 +471,8 @@ export default function AdminSquadsPage() {
                 body: JSON.stringify({
                     name: addPlayerName.trim(),
                     phone: addPlayerPhone.trim() || undefined,
-                    // If a DB player was selected, pass confirm to auto-add
-                    ...(selectedPlayerId ? { confirm: true } : {}),
+                    // If a DB player was selected, pass their ID + confirm to auto-add
+                    ...(selectedPlayerId ? { playerId: selectedPlayerId, confirm: true } : {}),
                 }),
             });
             const json = await res.json();
