@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Input, Button, Spinner, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
-import { Shield, Users, Clock, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Shield, Users, Clock, ChevronRight, CheckCircle2, AlertTriangle, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad } from "@/hooks/use-squads";
 import { useAuthUser } from "@/hooks/use-auth-user";
@@ -202,7 +202,6 @@ export default function JoinPage() {
             {
                 onSuccess: (result) => {
                     setCreatedSquadId(result?.data?.id ?? null);
-                    setStep("done");
                     // Persist WhatsApp pending for global guard
                     if (data?.whatsappGroupLink) {
                         markWhatsAppPending({
@@ -212,6 +211,8 @@ export default function JoinPage() {
                             whatsappGroupLink: data.whatsappGroupLink,
                         });
                     }
+                    toast.success(`Team "${result?.data?.name ?? name}" created! 🎉`);
+                    router.push(`/vote?tab=${data?.allowSquads ? "ranked" : "casual"}&poll=${pollId}`);
                 },
                 onError: () => {
                     setStep("form");
@@ -466,31 +467,7 @@ export default function JoinPage() {
                                     </div>
                                 ) : null}
 
-                                {/* Full Team Name — optional, shown first */}
-                                {myClan !== undefined && (!useClan || !hasClan) && (
-                                    <Input
-                                        label="Team Name (optional)"
-                                        placeholder="e.g. Alpha Warriors"
-                                        value={teamFullName}
-                                        onValueChange={(v) => {
-                                            const val = v.slice(0, 30);
-                                            setTeamFullName(val);
-                                            // Auto-fill tag if name fits (≤7 chars)
-                                            if (val.trim().length <= 7) {
-                                                setTeamName(val.trim());
-                                            }
-                                        }}
-                                        maxLength={30}
-                                        size="lg"
-                                        description="Shown in slot views • leave blank to use tag only"
-                                        classNames={{
-                                            input: "text-base",
-                                            inputWrapper: "shadow-sm",
-                                        }}
-                                    />
-                                )}
-
-                                {/* Team Tag — mandatory */}
+                                {/* Team Tag — mandatory, shown first */}
                                 {myClan !== undefined && (!useClan || !hasClan) && (
                                     <Input
                                         ref={inputRef}
@@ -510,6 +487,43 @@ export default function JoinPage() {
                                             if (e.key === "Enter" && canSubmit) handleSubmit();
                                         }}
                                     />
+                                )}
+
+                                {/* Full Team Name — optional, collapsed by default */}
+                                {myClan !== undefined && (!useClan || !hasClan) && (
+                                    teamFullName ? (
+                                        <Input
+                                            label="Full Name (optional)"
+                                            placeholder="e.g. Alpha Warriors"
+                                            value={teamFullName.trim() ? teamFullName : ""}
+                                            onValueChange={(v) => setTeamFullName(v.slice(0, 30))}
+                                            maxLength={30}
+                                            size="lg"
+                                            autoFocus
+                                            description="Shown in slot views • leave blank to use tag only"
+                                            classNames={{
+                                                input: "text-base",
+                                                inputWrapper: "shadow-sm",
+                                            }}
+                                            endContent={
+                                                <button
+                                                    type="button"
+                                                    className="p-0.5 rounded hover:bg-foreground/10 transition-colors cursor-pointer"
+                                                    onClick={() => setTeamFullName("")}
+                                                >
+                                                    <X className="w-3.5 h-3.5 text-foreground/40" />
+                                                </button>
+                                            }
+                                        />
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="text-xs text-primary font-medium hover:underline cursor-pointer text-left"
+                                            onClick={() => setTeamFullName(" ")}
+                                        >
+                                            + Add full team name (optional)
+                                        </button>
+                                    )
                                 )}
 
                                 {/* Clan confirmation hint */}

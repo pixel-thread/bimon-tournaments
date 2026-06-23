@@ -324,28 +324,7 @@ export function CreateSquadModal({
                                     </div>
                                 ) : null}
 
-                                {/* Full Team Name — optional, shown first */}
-                                {myClan !== undefined && (!useClan || !hasClan) && (
-                                    <Input
-                                        label="Team Name (optional)"
-                                        placeholder="e.g. Alpha Warriors"
-                                        value={squadFullName}
-                                        onValueChange={(v) => {
-                                            const val = v.slice(0, 30);
-                                            setSquadFullName(val);
-                                            // Auto-fill tag if name fits (≤7 chars)
-                                            if (val.trim().length <= 7) {
-                                                setSquadName(val.trim());
-                                            }
-                                        }}
-                                        maxLength={30}
-                                        autoFocus
-                                        description="Shown in slot views • leave blank to use tag only"
-                                        classNames={{ input: "text-base" }}
-                                    />
-                                )}
-
-                                {/* Team Tag — mandatory */}
+                                {/* Team Tag — mandatory, shown first */}
                                 {myClan !== undefined && (!useClan || !hasClan) && (
                                     <Input
                                         label="Team Tag"
@@ -354,9 +333,51 @@ export function CreateSquadModal({
                                         onValueChange={(v) => setSquadName(v.slice(0, 7))}
                                         maxLength={7}
                                         isRequired
+                                        autoFocus
                                         description={`${squadName.length}/7 characters • shown in standings`}
                                         classNames={{ input: "text-base" }}
                                     />
+                                )}
+
+                                {/* Full Team Name — optional, collapsed by default */}
+                                {myClan !== undefined && (!useClan || !hasClan) && (
+                                    squadFullName || step === "name" ? (
+                                        <div className="space-y-1">
+                                            {!squadFullName && (
+                                                <button
+                                                    type="button"
+                                                    className="text-xs text-primary font-medium hover:underline cursor-pointer"
+                                                    onClick={() => setSquadFullName(" ")}
+                                                >
+                                                    + Add full team name (optional)
+                                                </button>
+                                            )}
+                                            {squadFullName && (
+                                                <Input
+                                                    label="Full Name (optional)"
+                                                    placeholder="e.g. Alpha Warriors"
+                                                    value={squadFullName.trim() ? squadFullName : ""}
+                                                    onValueChange={(v) => {
+                                                        const val = v.slice(0, 30);
+                                                        setSquadFullName(val);
+                                                    }}
+                                                    maxLength={30}
+                                                    autoFocus
+                                                    description="Shown in slot views • leave blank to use tag only"
+                                                    classNames={{ input: "text-base" }}
+                                                    endContent={
+                                                        <button
+                                                            type="button"
+                                                            className="p-0.5 rounded hover:bg-foreground/10 transition-colors cursor-pointer"
+                                                            onClick={() => setSquadFullName("")}
+                                                        >
+                                                            <X className="w-3.5 h-3.5 text-foreground/40" />
+                                                        </button>
+                                                    }
+                                                />
+                                            )}
+                                        </div>
+                                    ) : null
                                 )}
 
                                 {useClan && hasClan && myClan && (

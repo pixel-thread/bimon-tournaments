@@ -87,7 +87,8 @@ export function useSquads(pollId: string | undefined) {
             };
         },
         enabled: !!pollId && GAME.features.hasSquads,
-        staleTime: 15_000,
+        staleTime: 5_000,
+        refetchOnMount: "always",
     });
 }
 
@@ -254,8 +255,8 @@ export function useCreateSquad() {
                         status: "FORMING",
                         entryFee: 0,
                         needsPayment: false, // real value comes from API refetch
-                        createdAt: new Date(0).toISOString(),
-                        confirmedAt: new Date(0).toISOString(),
+                        createdAt: new Date().toISOString(),
+                        confirmedAt: new Date().toISOString(),
                         captain: cap,
                         clanLogo: clan?.logo ?? null,
                         clanTag: clan?.tag ?? null,

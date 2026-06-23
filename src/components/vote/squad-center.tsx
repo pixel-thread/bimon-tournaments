@@ -1309,21 +1309,6 @@ function SquadCard({
                     </ModalHeader>
                     <ModalBody className="pt-0 space-y-3">
                         <Input
-                            label="Team Name (optional)"
-                            placeholder="e.g. Alpha Warriors"
-                            value={renameFullName}
-                            onValueChange={(v) => {
-                                const val = v.slice(0, 30);
-                                setRenameFullName(val);
-                                if (val.trim().length <= 7) {
-                                    setRenameTag(val.trim());
-                                }
-                            }}
-                            maxLength={30}
-                            size="sm"
-                            description="Shown in slot views"
-                        />
-                        <Input
                             label="Team Tag"
                             placeholder="e.g. ALPHA"
                             value={renameTag}
@@ -1331,8 +1316,37 @@ function SquadCard({
                             maxLength={7}
                             size="sm"
                             isRequired
+                            autoFocus
                             description={`${renameTag.length}/7 • shown in standings`}
                         />
+                        {renameFullName ? (
+                            <Input
+                                label="Full Name (optional)"
+                                placeholder="e.g. Alpha Warriors"
+                                value={renameFullName}
+                                onValueChange={(v) => setRenameFullName(v.slice(0, 30))}
+                                maxLength={30}
+                                size="sm"
+                                description="Shown in slot views"
+                                endContent={
+                                    <button
+                                        type="button"
+                                        className="p-0.5 rounded hover:bg-foreground/10 transition-colors cursor-pointer"
+                                        onClick={() => setRenameFullName("")}
+                                    >
+                                        <X className="w-3.5 h-3.5 text-foreground/40" />
+                                    </button>
+                                }
+                            />
+                        ) : (
+                            <button
+                                type="button"
+                                className="text-xs text-primary font-medium hover:underline cursor-pointer text-left"
+                                onClick={() => setRenameFullName(" ")}
+                            >
+                                + Add full team name (optional)
+                            </button>
+                        )}
                     </ModalBody>
                     <ModalFooter>
                         <Button size="sm" variant="flat" onPress={() => setShowRename(false)}>
@@ -1896,8 +1910,8 @@ export function SquadCenter({
                                     animate={{ opacity: 1 }}
                                     className="space-y-4"
                                 >
-                                    {/* Your Squad — confirmed or unconfirmed (needs payment) */}
-                                    {mySquad && (confirmedIds.has(mySquad.id) || mySquad.needsPayment) && (
+                                    {/* Your Squad — always shown at top when you're in one */}
+                                    {mySquad && (
                                         <div>
                                             <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-2">
                                                 Your Squad
