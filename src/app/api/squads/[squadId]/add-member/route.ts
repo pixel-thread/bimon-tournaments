@@ -71,6 +71,7 @@ export async function POST(
             where: { id: squadId },
             select: {
                 id: true,
+                name: true,
                 captainId: true,
                 status: true,
                 pollId: true,
@@ -118,10 +119,6 @@ export async function POST(
             return ErrorResponse({ message: "All active slots are filled", status: 400 });
         }
 
-        // Check if contact already in this squad
-        const existingInSquad = squad.invites.find((i) => {
-            return i.status === "ACCEPTED" || i.status === "PENDING";
-        });
 
         // Search for existing player — by direct ID, phone, or email
         let foundPlayer = null;
@@ -180,17 +177,32 @@ export async function POST(
         }
 
         // If found player is the captain themselves, reject
-        if (foundPlayer?.id === currentPlayerId) {
-            return ErrorResponse({ message: "You're already in this squad!", status: 400 });
+        if (foundPlayer?.id === squad.captainId) {
+            return ErrorResponse({ message: `This player is already the captain of ${squad.name}`, status: 400 });
         }
 
         // If found player is already in this squad
         if (foundPlayer) {
-            const alreadyInSquad = squad.invites.some(
+            const existingInvite = squad.invites.find(
                 (i) => i.playerId === foundPlayer!.id && (i.status === "ACCEPTED" || i.status === "PENDING")
             );
-            if (alreadyInSquad) {
-                return ErrorResponse({ message: "This player is already in your squad", status: 400 });
+            if (existingInvite) {
+                if (existingInvite.status === "ACCEPTED") {
+                    return ErrorResponse({ message: `This player is already in ${squad.name}`, status: 400 });
+                }
+                // PENDING invite — admin can auto-accept it
+                if (isAdmin || squad.captainId === currentPlayerId) {
+                    await prisma.squadInvite.updateMany({
+                        where: { squadId, playerId: foundPlayer.id, status: "PENDING" },
+                        data: { status: "ACCEPTED", respondedAt: new Date() },
+                    });
+                    await updateSquadStatus(squadId);
+                    return SuccessResponse({
+                        data: { added: true, player: { id: foundPlayer.id, displayName: foundPlayer.displayName, isGhost: foundPlayer.isGhost } },
+                        message: `✅ ${foundPlayer.displayName} accepted into ${squad.name}`,
+                    });
+                }
+                return ErrorResponse({ message: `This player already has a pending invite for ${squad.name}`, status: 400 });
             }
 
             // Check if player is in another squad for this tournament
