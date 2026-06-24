@@ -82,7 +82,9 @@ export function usePolls() {
             const json = await res.json();
             return json.data;
         },
-        staleTime: 30_000,
+        staleTime: 10_000,
+        refetchOnMount: "always",
+        refetchOnWindowFocus: true,
     });
 }
 

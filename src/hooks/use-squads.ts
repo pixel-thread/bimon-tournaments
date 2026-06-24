@@ -89,6 +89,7 @@ export function useSquads(pollId: string | undefined) {
         enabled: !!pollId && GAME.features.hasSquads,
         staleTime: 5_000,
         refetchOnMount: "always",
+        refetchOnWindowFocus: true,
     });
 }
 
