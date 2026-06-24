@@ -1,7 +1,8 @@
 "use client";
 
 import { Avatar, type AvatarProps } from "@heroui/react";
-import Avatar2 from "boring-avatars";
+import NiceAvatar, { genConfig } from "react-nice-avatar";
+import { useMemo } from "react";
 
 interface PlayerAvatarProps extends Omit<AvatarProps, "fallback" | "showFallback"> {
     /** Player ID for deterministic avatar assignment */
@@ -10,22 +11,21 @@ interface PlayerAvatarProps extends Omit<AvatarProps, "fallback" | "showFallback
     playerName?: string;
 }
 
-/** Color palette for generated avatars — vibrant game-themed */
-const AVATAR_COLORS = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#FF9FF3", "#54A0FF", "#5F27CD", "#01A3A4"];
-
 /**
  * Avatar component for players.
  * - If `src` (image URL) is provided → shows the image
- * - Otherwise → shows a colorful generated "beam" avatar (modern character face)
+ * - Otherwise → shows a react-nice-avatar character based on playerId
  *
  * Usage: <PlayerAvatar src={p.imageUrl} playerId={p.id} playerName={p.displayName} size="sm" />
  */
 export function PlayerAvatar({ playerId, playerName, src, className, size, ...props }: PlayerAvatarProps) {
     const seed = playerId || playerName || "default";
 
-    // Map HeroUI sizes to pixel values for boring-avatars
-    const sizeMap: Record<string, number> = { sm: 32, md: 40, lg: 56 };
-    const pxSize = sizeMap[size as string] || 32;
+    const config = useMemo(() => genConfig(seed), [seed]);
+
+    // Map HeroUI sizes to pixel values
+    const sizeMap: Record<string, string> = { sm: "2rem", md: "2.5rem", lg: "3.5rem" };
+    const cssSize = sizeMap[size as string] || "2rem";
 
     // If there's an actual image URL, just use the normal Avatar
     if (src) {
@@ -40,21 +40,12 @@ export function PlayerAvatar({ playerId, playerName, src, className, size, ...pr
         );
     }
 
-    // No image — show boring-avatars "beam" character
+    // No image — show react-nice-avatar character
     return (
-        <Avatar
-            showFallback
+        <NiceAvatar
+            style={{ width: cssSize, height: cssSize }}
             className={className}
-            size={size}
-            {...props}
-            fallback={
-                <Avatar2
-                    size={pxSize}
-                    name={seed}
-                    variant="beam"
-                    colors={AVATAR_COLORS}
-                />
-            }
+            {...config}
         />
     );
 }
