@@ -121,22 +121,22 @@ export async function GET(request: Request) {
                     entryFee: true,
                     captainId: true,
                     captain: {
-                        select: { isTrusted: true, user: { select: { email: true } } },
+                        select: { isTrusted: true, isGhost: true, user: { select: { email: true } } },
                     },
                 },
             });
-            // Collect emails of non-trusted captains
+            // Collect emails of non-trusted, non-ghost captains
             const captainEmails = [...new Set(
                 allSquads
-                    .filter(s => !s.captain.isTrusted && s.captain.user?.email)
+                    .filter(s => !s.captain.isTrusted && !s.captain.isGhost && s.captain.user?.email)
                     .map(s => s.captain.user!.email!)
             )];
             const balanceMap = captainEmails.length > 0 ? await getBalancesBatch(captainEmails) : new Map<string, number>();
 
             // Count confirmed squads per poll
             for (const sq of allSquads) {
-                if (sq.captain.isTrusted) {
-                    // Trusted captains are always confirmed
+                if (sq.captain.isTrusted || sq.captain.isGhost) {
+                    // Trusted captains and ghost captains (admin-created) are always confirmed
                     confirmedCountByPoll.set(sq.pollId, (confirmedCountByPoll.get(sq.pollId) ?? 0) + 1);
                 } else {
                     const email = sq.captain.user?.email;
