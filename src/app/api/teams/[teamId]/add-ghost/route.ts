@@ -39,6 +39,11 @@ export async function POST(
         if (!team) {
             return ErrorResponse({ message: "Team not found", status: 404 });
         }
+        if (!team.tournamentId || !team.seasonId) {
+            return ErrorResponse({ message: "Team missing tournament/season", status: 400 });
+        }
+
+        const { tournamentId, seasonId } = team;
 
         const result = await prisma.$transaction(async (tx) => {
             // Create ghost user + player
@@ -76,8 +81,8 @@ export async function POST(
                     data: {
                         matchId: match.id,
                         playerId: ghostPlayer.id,
-                        tournamentId: team.tournamentId,
-                        seasonId: team.seasonId,
+                        tournamentId,
+                        seasonId,
                         teamId,
                     },
                 });
@@ -88,12 +93,12 @@ export async function POST(
                 where: {
                     seasonId_playerId: {
                         playerId: ghostPlayer.id,
-                        seasonId: team.seasonId,
+                        seasonId,
                     },
                 },
                 create: {
                     playerId: ghostPlayer.id,
-                    seasonId: team.seasonId,
+                    seasonId,
                     kills: 0,
                     matches: 0,
                     kd: 0,
