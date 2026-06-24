@@ -46,6 +46,7 @@ import { SlotsModal } from "@/components/dashboard/teams/slots-modal";
 import { EditTeamModal } from "@/components/dashboard/teams/edit-team-modal";
 import { ChampionshipPanel } from "@/components/dashboard/teams/championship-panel";
 import { CreateGhostTeamModal } from "@/components/dashboard/teams/create-ghost-team-modal";
+import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { GAME } from "@/lib/game-config";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -729,9 +730,10 @@ export default function TeamsPage() {
                                                 key={player.id}
                                                 className="flex items-center gap-2 min-w-0"
                                             >
-                                                <Avatar
+                                                <PlayerAvatar
                                                     src={player.imageUrl || undefined}
-                                                    name={player.displayName || player.username}
+                                                    playerId={player.id}
+                                                    playerName={player.displayName || player.username}
                                                     size="sm"
                                                     className="h-7 w-7"
                                                 />

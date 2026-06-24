@@ -10,11 +10,11 @@ import {
     ModalBody,
     ModalFooter,
     Button,
-    Avatar,
     Chip,
     Spinner,
     Input,
 } from "@heroui/react";
+import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
 import { Shield, Plus, Users, Crown, Check, Clock, X, Trash2, UserPlus, LogIn, ChevronDown, ChevronRight, Search, MoreVertical, Swords, Share2, CheckCheck, Copy, AlertTriangle, Phone, Ghost, Zap, RefreshCw, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -487,18 +487,13 @@ function SquadCard({
                                 const canToggleSub = squad.acceptedCount > GAME.squadSize;
                                 return (
                                     <div key={member.inviteId} className={`flex items-center gap-3 ${member.isGhost ? 'opacity-70' : ''}`}>
-                                        {member.isGhost ? (
-                                            <div className="w-8 h-8 rounded-full border-2 border-dashed border-purple-400/50 bg-purple-500/10 flex items-center justify-center shrink-0">
-                                                <Ghost className="w-4 h-4 text-purple-400" />
-                                            </div>
-                                        ) : (
-                                            <Avatar
-                                                src={member.imageUrl}
-                                                name={member.displayName}
-                                                size="sm"
-                                                className="w-8 h-8 shrink-0"
-                                            />
-                                        )}
+                                        <PlayerAvatar
+                                            src={member.imageUrl}
+                                            playerId={member.playerId}
+                                            playerName={member.displayName}
+                                            size="sm"
+                                            className="w-8 h-8 shrink-0"
+                                        />
                                         <div className="flex-1 min-w-0">
                                             <div className={`flex items-center gap-1.5 min-w-0 ${isMemberCaptain ? 'flex-wrap' : ''}`}>
                                                 <span className={`text-sm font-medium ${isMemberCaptain ? 'break-all' : 'truncate'}`}>{member.displayName}</span>
@@ -644,9 +639,10 @@ function SquadCard({
                                 <div className="space-y-2">
                                     {pendingRequests.map((req) => (
                                         <div key={req.inviteId} className="flex items-center gap-3">
-                                            <Avatar
+                                            <PlayerAvatar
                                                 src={req.imageUrl}
-                                                name={req.displayName}
+                                                playerId={req.playerId}
+                                                playerName={req.displayName}
                                                 size="sm"
                                                 className="w-8 h-8 shrink-0"
                                             />
@@ -890,9 +886,10 @@ function SquadCard({
                                         .filter(p => !squad.members.some(m => m.playerId === p.id))
                                         .map((player) => (
                                         <div key={player.id} className="flex items-center gap-3 py-2 px-1">
-                                            <Avatar
+                                            <PlayerAvatar
                                                 src={player.imageUrl}
-                                                name={player.displayName}
+                                                playerId={player.id}
+                                                playerName={player.displayName}
                                                 size="sm"
                                                 className="w-8 h-8 shrink-0"
                                             />
@@ -933,9 +930,10 @@ function SquadCard({
                                         .filter(p => !squad.members.some(m => m.playerId === p.id))
                                         .map((player) => (
                                         <div key={player.id} className="flex items-center gap-3 py-2.5 px-1">
-                                            <Avatar
+                                            <PlayerAvatar
                                                 src={player.imageUrl}
-                                                name={player.displayName}
+                                                playerId={player.id}
+                                                playerName={player.displayName}
                                                 size="sm"
                                                 className="w-8 h-8 shrink-0"
                                             />
@@ -1052,13 +1050,7 @@ function SquadCard({
                                                 <div className="w-6 h-6 rounded-full bg-foreground/10 flex items-center justify-center text-[10px] font-bold text-foreground/40 shrink-0">
                                                     {i + 2}
                                                 </div>
-                                                {member.isGhost ? (
-                                                    <div className="w-8 h-8 rounded-full border-2 border-dashed border-purple-400/50 bg-purple-500/10 flex items-center justify-center shrink-0">
-                                                        <Ghost className="w-4 h-4 text-purple-400" />
-                                                    </div>
-                                                ) : (
-                                                    <Avatar src={member.imageUrl} name={member.displayName} size="sm" className="w-8 h-8 shrink-0" />
-                                                )}
+                                                <PlayerAvatar src={member.imageUrl} playerId={member.playerId} playerName={member.displayName} size="sm" className="w-8 h-8 shrink-0" />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-medium truncate">{member.displayName}</p>
                                                     <p className="text-[10px] text-foreground/40">{member.isSub ? "Sub" : "Active"}</p>
@@ -1193,9 +1185,10 @@ function SquadCard({
                                     Found an existing player!
                                 </p>
                                 <div className="flex items-center gap-3 mb-3">
-                                    <Avatar
+                                    <PlayerAvatar
                                         src={ghostConfirm.imageUrl}
-                                        name={ghostConfirm.displayName}
+                                        playerId={ghostConfirm.id}
+                                        playerName={ghostConfirm.displayName}
                                         size="md"
                                         className="shrink-0"
                                     />
@@ -1447,9 +1440,10 @@ function QuickAddSubscribersList({
                         key={player.id}
                         className={`flex items-center gap-3 py-2.5 px-1 rounded-lg ${isOnOtherTeam ? "opacity-50" : ""}`}
                     >
-                        <Avatar
+                        <PlayerAvatar
                             src={player.imageUrl}
-                            name={player.displayName}
+                            playerId={player.id}
+                            playerName={player.displayName}
                             size="sm"
                             className="w-8 h-8 shrink-0"
                         />
@@ -1635,9 +1629,10 @@ function RandomTeamCard({ team, defaultExpanded = false }: { team: RandomTeam; d
                         <div className="px-4 py-3 space-y-2 border-t border-amber-500/15">
                             {team.members.map((voter) => (
                                 <div key={voter.playerId} className="flex items-center gap-3">
-                                    <Avatar
+                                    <PlayerAvatar
                                         src={voter.imageUrl}
-                                        name={voter.displayName}
+                                        playerId={voter.playerId}
+                                        playerName={voter.displayName}
                                         size="sm"
                                         className="w-8 h-8 shrink-0"
                                     />
@@ -2320,7 +2315,7 @@ export function SquadCenter({
                                                 : 'opacity-40 line-through'
                                         }`}
                                     >
-                                        <Avatar src={m.imageUrl} name={m.displayName} size="sm" className="w-7 h-7 shrink-0" />
+                                        <PlayerAvatar src={m.imageUrl} playerId={m.playerId} playerName={m.displayName} size="sm" className="w-7 h-7 shrink-0" />
                                         <span className="text-sm font-medium flex-1 truncate">{m.displayName}</span>
                                         {m.available ? (
                                             <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />

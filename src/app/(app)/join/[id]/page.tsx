@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Input, Button, Spinner, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Avatar } from "@heroui/react";
+import { Input, Button, Spinner, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
+import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { Shield, Users, Clock, ChevronRight, CheckCircle2, AlertTriangle, X, Check, RefreshCw, Plus, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad, usePreviousRoster, useImportRoster } from "@/hooks/use-squads";
@@ -506,7 +507,7 @@ export default function JoinPage() {
                                                     : 'opacity-40 line-through'
                                             }`}
                                         >
-                                            <Avatar src={m.imageUrl} name={m.displayName} size="sm" className="w-7 h-7 shrink-0" />
+                                            <PlayerAvatar src={m.imageUrl} playerId={m.playerId} playerName={m.displayName} size="sm" className="w-7 h-7 shrink-0" />
                                             <span className="text-sm font-medium flex-1 truncate">{m.displayName}</span>
                                             {m.available ? (
                                                 <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
