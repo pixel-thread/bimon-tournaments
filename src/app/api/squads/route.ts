@@ -136,13 +136,13 @@ export async function GET(request: NextRequest) {
         const captainInfos = captainIdsWithFees.length > 0
             ? await prisma.player.findMany({
                 where: { id: { in: captainIdsWithFees } },
-                select: { id: true, isTrusted: true, user: { select: { email: true } } },
+                select: { id: true, isTrusted: true, isGhost: true, user: { select: { email: true } } },
             })
             : [];
 
         // Build map: captainId → { isTrusted, email }
         const captainMap = new Map(
-            captainInfos.map((c) => [c.id, { isTrusted: c.isTrusted, email: c.user.email }])
+            captainInfos.map((c) => [c.id, { isTrusted: c.isTrusted, isGhost: c.isGhost, email: c.user.email }])
         );
 
         // Fetch balances for non-trusted captains
@@ -169,10 +169,11 @@ export async function GET(request: NextRequest) {
             const isMySquad = !!myInvite;
 
             // needsPayment: captain has entryFee but insufficient balance
+            // Ghost captains (admin-created teams) are always confirmed
             let needsPayment = false;
             if (squad.entryFee > 0 && squad.status !== "CANCELLED") {
                 const capInfo = captainMap.get(squad.captainId);
-                if (capInfo && !capInfo.isTrusted) {
+                if (capInfo && !capInfo.isTrusted && !capInfo.isGhost) {
                     const bal = balanceMap.get(squad.captainId) ?? 0;
                     needsPayment = bal < squad.entryFee;
                 }
