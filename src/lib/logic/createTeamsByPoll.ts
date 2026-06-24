@@ -219,7 +219,7 @@ export async function createTeamsByPoll({
         if (entryFee > 0) {
             const unpaidSquadIds: string[] = [];
             for (const squad of squads) {
-                if (squad.captain.isTrusted) continue; // trusted captains always pass
+                if (squad.captain.isTrusted || squad.captain.isGhost) continue; // trusted/ghost captains always pass
                 const captainEmail = squad.captain.user?.email;
                 if (!captainEmail) { unpaidSquadIds.push(squad.id); continue; }
                 try {
@@ -286,7 +286,8 @@ export async function createTeamsByPoll({
                         amount: entryFee,
                         squadName: squad.name,
                     });
-                } else {
+                } else if (!squad.captain.isGhost) {
+                    // Ghost captains (admin-created) have no wallet — skip charging
                     squadPlayersToCharge.push({
                         id: squad.captain.id,
                         email: squad.captain.user?.email ?? undefined,

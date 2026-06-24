@@ -30,6 +30,8 @@ import {
     useSearchPlayers,
     useRenameSquad,
     usePreviousRoster,
+    useCreateSquad,
+    useImportRoster,
     type SquadDTO,
 } from "@/hooks/use-squads";
 import { CreateSquadModal } from "./create-squad-modal";
@@ -1698,6 +1700,42 @@ export function SquadCenter({
     const { data: previousRoster } = usePreviousRoster(pollId, canCreateSquad && !isGuest);
     const hasPreviousRoster = !!previousRoster && previousRoster.members.some(m => m.available);
     const [importMode, setImportMode] = useState(false);
+    const [quickCreating, setQuickCreating] = useState(false);
+    const createMutation = useCreateSquad();
+    const importRosterMutation = useImportRoster();
+
+    // One-click "Use This Team" handler
+    async function handleQuickCreate() {
+        if (!previousRoster || quickCreating) return;
+        setQuickCreating(true);
+        try {
+            const result = await createMutation.mutateAsync({
+                pollId,
+                name: previousRoster.squadName,
+                fullName: previousRoster.fullName || undefined,
+                useClan: !!previousRoster.clanId,
+            });
+            const newSquadId = result.data?.id;
+            if (!newSquadId) throw new Error("Failed to create squad");
+
+            const availableIds = previousRoster.members.filter(m => m.available).map(m => m.playerId);
+            if (availableIds.length > 0) {
+                await importRosterMutation.mutateAsync({
+                    squadId: newSquadId,
+                    memberIds: availableIds,
+                    autoAcceptAll: true,
+                });
+            }
+
+            setShowCreateChooser(false);
+            refetch();
+        } catch (err: any) {
+            const toast = (await import("sonner")).toast;
+            toast.error(err?.message || "Failed to create team");
+        } finally {
+            setQuickCreating(false);
+        }
+    }
 
     const [respondAction, setRespondAction] = useState<"accept" | "decline" | null>(null);
     const [respondRequestAction, setRespondRequestAction] = useState<"accept" | "decline" | null>(null);
@@ -2242,12 +2280,12 @@ export function SquadCenter({
                 importRoster={importMode ? previousRoster ?? undefined : undefined}
             />
 
-            {/* Create Team Chooser Modal */}
+            {/* Past Roster Preview / Create Chooser Modal */}
             <Modal
                 isOpen={showCreateChooser}
                 onClose={() => setShowCreateChooser(false)}
                 placement="center"
-                size="sm"
+                size="md"
                 classNames={{
                     base: "bg-background border border-divider",
                     backdrop: "bg-black/60 backdrop-blur-sm",
@@ -2255,13 +2293,62 @@ export function SquadCenter({
                 }}
             >
                 <ModalContent>
-                    <ModalHeader className="text-base pb-1">Create Team</ModalHeader>
-                    <ModalBody className="pb-5 space-y-2">
-                        {/* Create New */}
-                        <button
-                            type="button"
-                            className="w-full flex items-center gap-3 rounded-xl border border-foreground/10 bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-colors p-3 text-left cursor-pointer"
-                            onClick={() => {
+                    <ModalHeader className="text-base pb-1 flex items-center gap-2">
+                        <RefreshCw className="w-4 h-4 text-emerald-500" />
+                        Your Previous Team
+                    </ModalHeader>
+                    <ModalBody className="pb-2 space-y-3">
+                        {/* Past team name */}
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                            <Shield className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span className="text-sm font-bold text-emerald-400 truncate">{previousRoster?.squadName}</span>
+                            {previousRoster?.fullName && (
+                                <span className="text-xs text-foreground/40 truncate">({previousRoster.fullName})</span>
+                            )}
+                        </div>
+
+                        {/* Members list */}
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-foreground/50 px-1">Roster ({previousRoster?.members.filter(m => m.available).length ?? 0} available)</p>
+                            <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                                {previousRoster?.members.map((m) => (
+                                    <div
+                                        key={m.playerId}
+                                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
+                                            m.available
+                                                ? 'bg-foreground/[0.03] border border-foreground/5'
+                                                : 'opacity-40 line-through'
+                                        }`}
+                                    >
+                                        <Avatar src={m.imageUrl} name={m.displayName} size="sm" className="w-7 h-7 shrink-0" />
+                                        <span className="text-sm font-medium flex-1 truncate">{m.displayName}</span>
+                                        {m.available ? (
+                                            <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                        ) : (
+                                            <X className="w-3.5 h-3.5 text-foreground/30 shrink-0" />
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </ModalBody>
+                    <ModalFooter className="flex-col gap-2">
+                        {/* Use This Team — primary action */}
+                        <Button
+                            className="w-full font-semibold text-white bg-gradient-to-r from-emerald-600 to-emerald-500"
+                            isLoading={quickCreating}
+                            startContent={!quickCreating && <CheckCheck className="w-4 h-4" />}
+                            onPress={handleQuickCreate}
+                        >
+                            Use This Team
+                        </Button>
+                        {/* Create New — secondary */}
+                        <Button
+                            variant="flat"
+                            className="w-full font-semibold"
+                            startContent={<Plus className="w-4 h-4" />}
+                            isDisabled={quickCreating}
+                            onPress={() => {
                                 setShowCreateChooser(false);
                                 if (hasVotedIn) {
                                     setShowVoteWarning({ action: "create" });
@@ -2271,45 +2358,9 @@ export function SquadCenter({
                                 }
                             }}
                         >
-                            <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${theme ? `bg-gradient-to-r ${theme.header}` : 'bg-primary'}`}>
-                                <Plus className="w-4 h-4 text-white" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold">Create New Team</p>
-                                <p className="text-[11px] text-foreground/50">Start fresh with a new squad</p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-foreground/30 shrink-0" />
-                        </button>
-
-                        {/* Use Past Team */}
-                        {hasPreviousRoster && (
-                            <button
-                                type="button"
-                                className="w-full flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors p-3 text-left cursor-pointer"
-                                onClick={() => {
-                                    setShowCreateChooser(false);
-                                    if (hasVotedIn) {
-                                        setShowVoteWarning({ action: "create" });
-                                    } else {
-                                        setImportMode(true);
-                                        setShowCreate(true);
-                                    }
-                                }}
-                            >
-                                <div className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
-                                    <RefreshCw className="w-4 h-4 text-emerald-500" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold flex items-center gap-1.5">
-                                        Use Past Team
-                                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-success text-white rounded-md leading-none">New</span>
-                                    </p>
-                                    <p className="text-[11px] text-foreground/50 truncate">Re-use roster from {previousRoster!.squadName}</p>
-                                </div>
-                                <ChevronRight className="w-4 h-4 text-foreground/30 shrink-0" />
-                            </button>
-                        )}
-                    </ModalBody>
+                            Create New Team
+                        </Button>
+                    </ModalFooter>
                 </ModalContent>
             </Modal>
 

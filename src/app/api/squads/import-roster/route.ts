@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { squadId, memberIds } = body as { squadId: string; memberIds: string[] };
+        const { squadId, memberIds, autoAcceptAll } = body as { squadId: string; memberIds: string[]; autoAcceptAll?: boolean };
 
         if (!squadId || !memberIds?.length) {
             return ErrorResponse({ message: "squadId and memberIds are required", status: 400 });
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
                     // Will be added as sub
                 }
 
-                const shouldAutoAccept = player.isGhost || autoAcceptSet.has(memberId) || clanAutoAcceptSet.has(memberId);
+                const shouldAutoAccept = autoAcceptAll || player.isGhost || autoAcceptSet.has(memberId) || clanAutoAcceptSet.has(memberId);
                 const inviteStatus = shouldAutoAccept ? "ACCEPTED" : "PENDING";
 
                 await tx.squadInvite.create({

@@ -96,6 +96,11 @@ export async function GET(
         const maxSquads = (await import("@/lib/logic/championship")).getConfirmedSquadCap(poll._count.squads, isMangoScrim);
         const registrationCap = isMangoScrim ? 20 : 32;
 
+        // Participant count for theme
+        const participantCount = await prisma.playerPollVote.count({
+            where: { pollId, vote: { in: ["IN", "SOLO"] } },
+        });
+
         return SuccessResponse({
             data: {
                 id: poll.id,
@@ -122,6 +127,7 @@ export async function GET(
                 mySquadName,
                 hasVotedIn,
                 whatsappGroupLink: poll.whatsappGroupLink ?? null,
+                participantCount,
             },
             cache: CACHE.NONE,
         });

@@ -3,15 +3,16 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Input, Button, Spinner, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
-import { Shield, Users, Clock, ChevronRight, CheckCircle2, AlertTriangle, X } from "lucide-react";
+import { Input, Button, Spinner, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Avatar } from "@heroui/react";
+import { Shield, Users, Clock, ChevronRight, CheckCircle2, AlertTriangle, X, Check, RefreshCw, Plus, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useCreateSquad } from "@/hooks/use-squads";
+import { useCreateSquad, usePreviousRoster, useImportRoster } from "@/hooks/use-squads";
 import { useAuthUser } from "@/hooks/use-auth-user";
 // import { useDiscordCompareModal } from "@/components/common/discord-compare-modal"; // Discord disabled
 
 import { TeamDoneSection } from "@/components/squads/team-done-section";
 import { markWhatsAppPending, markWhatsAppJoined } from "@/components/common/whatsapp-squad-guard";
+import { getPollTheme } from "@/components/vote/pollTheme";
 import { toast } from "sonner";
 
 /* ─── Types ─────────────────────────────────────────────────── */
@@ -40,6 +41,7 @@ interface PollPublicData {
     mySquadName: string | null;
     hasVotedIn: boolean;
     whatsappGroupLink: string | null;
+    participantCount: number;
 }
 
 interface MyClan {
@@ -73,7 +75,10 @@ export default function JoinPage() {
     //     return false;
     // });
     const createMutation = useCreateSquad();
+    const importRosterMutation = useImportRoster();
     const inputRef = useRef<HTMLInputElement>(null);
+    const [showNewForm, setShowNewForm] = useState(false);
+    const [quickCreating, setQuickCreating] = useState(false);
 
     // Fetch tournament info
     const { data, isLoading, error } = useQuery<PollPublicData>({
@@ -101,6 +106,42 @@ export default function JoinPage() {
     });
 
     const hasClan = !!myClan?.name;
+
+    // Past roster — show as landing when available
+    const { data: previousRoster } = usePreviousRoster(pollId, isSignedIn && !!data && !data.hasSquad);
+    const hasPreviousRoster = !!previousRoster && previousRoster.members.some(m => m.available);
+
+    // One-click "Use This Team" handler
+    async function handleQuickCreateFromRoster() {
+        if (!previousRoster || quickCreating || !pollId) return;
+        setQuickCreating(true);
+        try {
+            const result = await createMutation.mutateAsync({
+                pollId,
+                name: previousRoster.squadName,
+                fullName: previousRoster.fullName || undefined,
+                useClan: !!previousRoster.clanId,
+            });
+            const newSquadId = result.data?.id;
+            if (!newSquadId) throw new Error("Failed to create squad");
+
+            const availableIds = previousRoster.members.filter(m => m.available).map(m => m.playerId);
+            if (availableIds.length > 0) {
+                await importRosterMutation.mutateAsync({
+                    squadId: newSquadId,
+                    memberIds: availableIds,
+                    autoAcceptAll: true,
+                });
+            }
+
+            toast.success(`Team "${previousRoster.squadName}" created with full roster! 🎉`);
+            router.push(`/vote?tab=${data?.allowSquads ? "ranked" : "casual"}&poll=${pollId}`);
+        } catch (err: any) {
+            toast.error(err?.message || "Failed to create team");
+        } finally {
+            setQuickCreating(false);
+        }
+    }
 
     // Auto-enable clan toggle when valid clan data loads, but only if user hasn't started typing
     useEffect(() => {
@@ -395,7 +436,7 @@ export default function JoinPage() {
                         className="space-y-5"
                     >
                         {/* ── Header ── */}
-                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-violet-600 to-purple-700 p-6 text-white">
+                        <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${data.participantCount >= 1 && getPollTheme(data.participantCount)?.header ? getPollTheme(data.participantCount)!.header : 'from-blue-600 via-violet-600 to-purple-700'} p-6 text-white`}>
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
                             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
                             <div className="relative">
@@ -433,8 +474,76 @@ export default function JoinPage() {
                             </Button>
                         </div>
 
+                        {/* ── Past Roster Preview ── */}
+                        {hasPreviousRoster && !showNewForm && !isFull && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="space-y-3"
+                            >
+                                {/* Roster header */}
+                                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                                    <RefreshCw className="w-4 h-4 text-emerald-500 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-emerald-400 truncate">{previousRoster!.squadName}</p>
+                                        {previousRoster!.fullName && (
+                                            <p className="text-[11px] text-foreground/40 truncate">{previousRoster!.fullName}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Members */}
+                                <div className="space-y-1.5">
+                                    <p className="text-xs font-medium text-foreground/50 px-1">
+                                        Roster ({previousRoster!.members.filter(m => m.available).length} available)
+                                    </p>
+                                    {previousRoster!.members.map((m) => (
+                                        <div
+                                            key={m.playerId}
+                                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
+                                                m.available
+                                                    ? 'bg-foreground/[0.03] border border-foreground/5'
+                                                    : 'opacity-40 line-through'
+                                            }`}
+                                        >
+                                            <Avatar src={m.imageUrl} name={m.displayName} size="sm" className="w-7 h-7 shrink-0" />
+                                            <span className="text-sm font-medium flex-1 truncate">{m.displayName}</span>
+                                            {m.available ? (
+                                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                            ) : (
+                                                <X className="w-3.5 h-3.5 text-foreground/30 shrink-0" />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Actions */}
+                                <div className="space-y-2 pt-1">
+                                    <Button
+                                        className="w-full font-semibold text-white bg-gradient-to-r from-emerald-600 to-emerald-500 shadow-lg shadow-emerald-500/20"
+                                        size="lg"
+                                        isLoading={quickCreating}
+                                        startContent={!quickCreating && <CheckCheck className="w-4 h-4" />}
+                                        onPress={handleQuickCreateFromRoster}
+                                    >
+                                        Use This Team
+                                    </Button>
+                                    <Button
+                                        variant="flat"
+                                        className="w-full font-semibold"
+                                        size="lg"
+                                        startContent={<Plus className="w-4 h-4" />}
+                                        isDisabled={quickCreating}
+                                        onPress={() => setShowNewForm(true)}
+                                    >
+                                        Create New Team
+                                    </Button>
+                                </div>
+                            </motion.div>
+                        )}
+
                         {/* ── Team Name / Clan Toggle ── */}
-                        {!isFull && (
+                        {!isFull && (!hasPreviousRoster || showNewForm) && (
                             <div className="space-y-3">
                                 {/* Clan Toggle — reserve space while loading */}
                                 {myClan === undefined ? (

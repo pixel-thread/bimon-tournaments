@@ -193,11 +193,11 @@ export function useImportRoster() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ squadId, memberIds }: { squadId: string; memberIds: string[] }) => {
+        mutationFn: async ({ squadId, memberIds, autoAcceptAll }: { squadId: string; memberIds: string[]; autoAcceptAll?: boolean }) => {
             const res = await fetch("/api/squads/import-roster", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ squadId, memberIds }),
+                body: JSON.stringify({ squadId, memberIds, autoAcceptAll }),
             });
             if (!res.ok) {
                 const json = await res.json().catch(() => ({}));
