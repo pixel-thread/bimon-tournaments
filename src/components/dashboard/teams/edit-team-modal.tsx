@@ -14,7 +14,7 @@ import {
     Spinner,
     Switch,
 } from "@heroui/react";
-import { Search, Plus, X, Pencil, Trash2, Ban, MinusCircle } from "lucide-react";
+import { Search, Plus, X, Pencil, Trash2, Ban, MinusCircle, Ghost, UserPlus } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -57,6 +57,8 @@ export function EditTeamModal({
     const [showDeductPoints, setShowDeductPoints] = useState(false);
     const [deductPointsValue, setDeductPointsValue] = useState("");
     const [refundRemoved, setRefundRemoved] = useState(false);
+    const [ghostName, setGhostName] = useState("");
+    const [isAddingGhost, setIsAddingGhost] = useState(false);
     const queryClient = useQueryClient();
 
     // Initialize on open
@@ -225,6 +227,7 @@ export function EditTeamModal({
         setRefundOnDelete(false);
         setDeductUC(false);
         setRefundRemoved(false);
+        setGhostName("");
         setShowDeductPoints(false);
         setDeductPointsValue("");
         onClose();
@@ -413,6 +416,71 @@ export function EditTeamModal({
                                 No available players found
                             </p>
                         )}
+
+                        {/* Add ghost player inline */}
+                        <div className="pt-2 border-t border-divider">
+                            <p className="text-xs text-foreground/50 mb-2 flex items-center gap-1">
+                                <Ghost className="h-3 w-3" /> Add Ghost Player
+                            </p>
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="Player name"
+                                    value={ghostName}
+                                    onValueChange={v => setGhostName(v.slice(0, 20))}
+                                    size="sm"
+                                    className="flex-1"
+                                />
+                                <Button
+                                    size="sm"
+                                    color="secondary"
+                                    variant="flat"
+                                    isDisabled={!ghostName.trim() || isAddingGhost}
+                                    isLoading={isAddingGhost}
+                                    onPress={async () => {
+                                        if (!ghostName.trim()) return;
+                                        setIsAddingGhost(true);
+                                        try {
+                                            const res = await fetch(`/api/teams/${teamId}/add-ghost`, {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ name: ghostName.trim() }),
+                                            });
+                                            const json = await res.json();
+                                            if (!res.ok) throw new Error(json.message || "Failed");
+                                            // Add the created ghost to current players list
+                                            const created = json.data;
+                                            if (created) {
+                                                setCurrentPlayers(prev => [...prev, {
+                                                    id: created.playerId,
+                                                    displayName: created.displayName,
+                                                    username: created.displayName || "ghost",
+                                                    imageUrl: null,
+                                                    category: "BOT",
+                                                }]);
+                                                // Re-sync initialPlayers so the new ghost doesn't show as "added"
+                                                initialPlayers.push({
+                                                    id: created.playerId,
+                                                    displayName: created.displayName,
+                                                    username: created.displayName || "ghost",
+                                                    imageUrl: null,
+                                                    category: "BOT",
+                                                });
+                                            }
+                                            toast.success(json.message || "Ghost added");
+                                            setGhostName("");
+                                            queryClient.invalidateQueries({ queryKey: ["teams"] });
+                                        } catch (err: any) {
+                                            toast.error(err.message);
+                                        } finally {
+                                            setIsAddingGhost(false);
+                                        }
+                                    }}
+                                    startContent={<UserPlus className="h-3.5 w-3.5" />}
+                                >
+                                    Add
+                                </Button>
+                            </div>
+                        </div>
 
                         {/* UC toggles for add/remove */}
                         {(addedIds.length > 0 || removedIds.length > 0) && (

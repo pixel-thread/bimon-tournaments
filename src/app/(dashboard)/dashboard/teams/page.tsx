@@ -33,6 +33,7 @@ import {
     Trash2,
     BarChart3,
     TableProperties,
+    Ghost,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "motion/react";
@@ -44,6 +45,7 @@ import { StandingsModal } from "@/components/dashboard/teams/standings-modal";
 import { SlotsModal } from "@/components/dashboard/teams/slots-modal";
 import { EditTeamModal } from "@/components/dashboard/teams/edit-team-modal";
 import { ChampionshipPanel } from "@/components/dashboard/teams/championship-panel";
+import { CreateGhostTeamModal } from "@/components/dashboard/teams/create-ghost-team-modal";
 import { GAME } from "@/lib/game-config";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -143,6 +145,7 @@ export default function TeamsPage() {
     const [showStandings, setShowStandings] = useState(false);
     const [showSlots, setShowSlots] = useState(false);
     const [showChampionship, setShowChampionship] = useState(false);
+    const [showGhostTeam, setShowGhostTeam] = useState(false);
     const [editTeam, setEditTeam] = useState<TeamDTO | null>(null);
 
     const queryClient = useQueryClient();
@@ -579,6 +582,9 @@ export default function TeamsPage() {
                         <Button size="sm" color="primary" variant="flat" isIconOnly onPress={() => setShowCreateTeam(true)} isDisabled={!matchId || matchId === "all"} className="h-8 w-8 min-w-8 shrink-0">
                             <Plus className="h-3.5 w-3.5" />
                         </Button>
+                        <Button size="sm" variant="flat" isIconOnly onPress={() => setShowGhostTeam(true)} isDisabled={!matchId || matchId === "all"} className="h-8 w-8 min-w-8 shrink-0" title="Add Ghost Team">
+                            <Ghost className="h-3.5 w-3.5" />
+                        </Button>
                         <Button size="sm" variant="flat" isIconOnly onPress={() => setShowSwapPlayers(true)} className="h-8 w-8 min-w-8 shrink-0">
                             <ArrowLeftRight className="h-3.5 w-3.5" />
                         </Button>
@@ -772,6 +778,14 @@ export default function TeamsPage() {
                 tournamentId={tournamentId}
                 matchId={matchId}
                 existingPlayerIds={existingPlayerIds}
+            />
+
+            {/* Ghost Team */}
+            <CreateGhostTeamModal
+                isOpen={showGhostTeam}
+                onClose={() => setShowGhostTeam(false)}
+                tournamentId={tournamentId}
+                matchId={matchId}
             />
 
             {/* Swap Players */}
