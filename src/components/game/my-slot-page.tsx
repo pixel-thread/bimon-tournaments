@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { PlayerAvatar } from "@/components/ui/player-avatar";
 
 /* ─── WhatsApp icon ─────────────────────────────────── */
 
@@ -193,13 +194,13 @@ export function MySlotPage() {
                                 key={player.id}
                                 className={`flex items-center gap-3 p-2.5 rounded-lg ${player.isMe ? "bg-primary/10 border border-primary/20" : "bg-default-100"}`}
                             >
-                                <div className="w-8 h-8 rounded-full bg-default-200 flex items-center justify-center text-xs font-bold overflow-hidden">
-                                    {player.imageUrl ? (
-                                        <img src={player.imageUrl} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                        player.displayName.charAt(0).toUpperCase()
-                                    )}
-                                </div>
+                                <PlayerAvatar
+                                    src={player.imageUrl || undefined}
+                                    playerId={player.id}
+                                    playerName={player.displayName}
+                                    size="sm"
+                                    className="w-8 h-8 shrink-0"
+                                />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-semibold truncate">
                                         {player.displayName}
@@ -212,25 +213,23 @@ export function MySlotPage() {
                 </motion.div>
             )}
 
-            {/* ── Room Info (Live) ───────────────────────── */}
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="rounded-xl border border-divider bg-content1 overflow-hidden"
-            >
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-divider">
-                    <Lock className="w-4 h-4 text-danger" />
-                    <h2 className="text-sm font-bold">Room Info</h2>
-                    {roomInfo && (
+            {/* ── Room Info (Live) — only shown when room is available ───── */}
+            {roomInfo && (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="rounded-xl border border-divider bg-content1 overflow-hidden"
+                >
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-divider">
+                        <Lock className="w-4 h-4 text-danger" />
+                        <h2 className="text-sm font-bold">Room Info</h2>
                         <span className="ml-auto flex items-center gap-1 text-[10px] text-success">
                             <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
                             Live
                         </span>
-                    )}
-                </div>
-                <div className="p-4">
-                    {roomInfo ? (
+                    </div>
+                    <div className="p-4">
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <span className="text-xs text-foreground/40">Match {roomInfo.matchNumber} — {roomInfo.map}</span>
@@ -250,17 +249,9 @@ export function MySlotPage() {
                                 </div>
                             </div>
                         </div>
-                    ) : (
-                        <div className="text-center py-4">
-                            <div className="w-10 h-10 mx-auto rounded-full bg-default-100 flex items-center justify-center mb-2">
-                                <Lock className="w-5 h-5 text-foreground/20" />
-                            </div>
-                            <p className="text-sm text-foreground/30">Waiting for Room ID...</p>
-                            <p className="text-[11px] text-foreground/20 mt-0.5">Auto-refreshes every 15 seconds</p>
-                        </div>
-                    )}
-                </div>
-            </motion.div>
+                    </div>
+                </motion.div>
+            )}
 
             {/* ── Highlighted Rules ──────────────────────── */}
             <motion.div
@@ -327,6 +318,7 @@ export function MySlotPage() {
                                     <th className="text-center px-2 py-2.5">
                                         <Crosshair className="w-3 h-3 mx-auto" />
                                     </th>
+                                    <th className="text-center px-2 py-2.5" title="Chicken Dinners">🐔</th>
                                     <th className="text-center px-2 py-2.5">Pts</th>
                                     <th className="text-center px-3 py-2.5">Total</th>
                                 </tr>
@@ -360,6 +352,7 @@ export function MySlotPage() {
                                             </p>
                                         </td>
                                         <td className="text-center px-2 py-2.5 text-foreground/50">{row.totalKills}</td>
+                                        <td className="text-center px-2 py-2.5 text-foreground/50">{row.wins}</td>
                                         <td className="text-center px-2 py-2.5 text-foreground/50">{row.placementPts}</td>
                                         <td className="text-center px-3 py-2.5 font-bold">{row.totalPoints}</td>
                                     </tr>

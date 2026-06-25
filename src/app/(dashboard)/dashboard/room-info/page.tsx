@@ -484,7 +484,7 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
                                 <CopyBtn text={groupTitle} label="Group Title" />
                                 <CopyBtn text={groupDesc} label="Group Desc" />
                                 <GroupIconCopy />
-                                <RulesCopyBtn />
+                                <RulesCopyBtn tournamentId={tournament.id} />
                             </div>
                         );
                     })()}
@@ -519,10 +519,14 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
 }
 
 
-/* ─── Rules Copy Button ────────────────────────────────────────── */
-
-function RulesCopyBtn() {
+function RulesCopyBtn({ tournamentId }: { tournamentId: string }) {
     const [copied, setCopied] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editText, setEditText] = useState("");
+    const [saving, setSaving] = useState(false);
+    const [loadingRules, setLoadingRules] = useState(false);
+    const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const didLongPress = useRef(false);
 
     const { data: rules = [] } = useQuery<{ id: string; text: string }[]>({
         queryKey: ["tournament-rules"],
@@ -535,29 +539,153 @@ function RulesCopyBtn() {
         staleTime: 5 * 60_000,
     });
 
-    if (rules.length === 0) return null;
+    // Long press handlers
+    const startPress = useCallback(() => {
+        didLongPress.current = false;
+        pressTimer.current = setTimeout(async () => {
+            didLongPress.current = true;
+            // Load current highlighted rules for this tournament
+            setLoadingRules(true);
+            try {
+                const res = await fetch(`/api/tournaments/${tournamentId}/highlighted-rules`);
+                if (res.ok) {
+                    const json = await res.json();
+                    const highlighted = json.highlightedRules || [];
+                    setEditText(highlighted.join("\n"));
+                } else {
+                    // Fallback: use global rules
+                    setEditText(rules.map(r => r.text).join("\n"));
+                }
+            } catch {
+                setEditText(rules.map(r => r.text).join("\n"));
+            }
+            setLoadingRules(false);
+            setShowEditModal(true);
+        }, 3000);
+    }, [tournamentId, rules]);
 
-    const handleCopy = () => {
+    const cancelPress = useCallback(() => {
+        if (pressTimer.current) {
+            clearTimeout(pressTimer.current);
+            pressTimer.current = null;
+        }
+    }, []);
+
+    const handleClick = useCallback(() => {
+        if (didLongPress.current) return; // long press already handled
+        if (rules.length === 0) return;
         const formatted = rules.map((r, i) => `*${i + 1}.* ${r.text}`).join("\n\n");
         const message = `📋 *Tournament Rules*\n\n${formatted}\n\n⚠️ *Breaking any rule = disqualification*`;
         navigator.clipboard.writeText(message);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
+    }, [rules]);
+
+    const handleSaveRules = async () => {
+        const rulesArray = editText.split("\n").map(l => l.trim()).filter(Boolean);
+        if (rulesArray.length === 0) {
+            toast.error("Add at least one rule");
+            return;
+        }
+        setSaving(true);
+        try {
+            const res = await fetch("/api/whatsapp/send-rules", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tournamentId, rules: rulesArray }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || "Failed");
+            toast.success(json.message || "Rules saved!");
+            setShowEditModal(false);
+        } catch (err: any) {
+            toast.error(err.message || "Failed to save rules");
+        } finally {
+            setSaving(false);
+        }
     };
 
+    if (rules.length === 0 && !showEditModal) return null;
+
     return (
-        <button
-            type="button"
-            onClick={handleCopy}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                copied
-                    ? "bg-green-500/10 border-green-500/20 text-green-500"
-                    : "bg-default-50 border-divider text-foreground/50 hover:bg-default-100 hover:text-foreground/70"
-            }`}
-        >
-            {copied ? <Check className="w-3 h-3" /> : <BookOpen className="w-3 h-3" />}
-            {copied ? "Copied ✓" : "Rules"}
-        </button>
+        <>
+            <button
+                type="button"
+                onClick={handleClick}
+                onMouseDown={startPress}
+                onMouseUp={cancelPress}
+                onMouseLeave={cancelPress}
+                onTouchStart={startPress}
+                onTouchEnd={cancelPress}
+                onTouchCancel={cancelPress}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer select-none ${
+                    copied
+                        ? "bg-green-500/10 border-green-500/20 text-green-500"
+                        : "bg-default-50 border-divider text-foreground/50 hover:bg-default-100 hover:text-foreground/70"
+                }`}
+            >
+                {copied ? <Check className="w-3 h-3" /> : <BookOpen className="w-3 h-3" />}
+                {copied ? "Copied ✓" : "Rules"}
+            </button>
+
+            {/* Edit Rules Modal — triggered by long press */}
+            {showEditModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                     onClick={(e) => { if (e.target === e.currentTarget) setShowEditModal(false); }}
+                >
+                    <div className="w-full max-w-md rounded-2xl bg-content1 border border-divider shadow-2xl overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-divider">
+                            <div className="flex items-center gap-2">
+                                <BookOpen className="w-4 h-4 text-warning" />
+                                <h3 className="text-sm font-bold">Edit Highlighted Rules</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowEditModal(false)}
+                                className="text-foreground/30 hover:text-foreground/60 transition-colors cursor-pointer"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            <p className="text-[11px] text-foreground/40">
+                                One rule per line. These appear on the player&apos;s My Slot page and are sent to WhatsApp.
+                            </p>
+                            {loadingRules ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                </div>
+                            ) : (
+                                <textarea
+                                    value={editText}
+                                    onChange={(e) => setEditText(e.target.value)}
+                                    rows={8}
+                                    placeholder={"🚫 No emulators, triggers, or hacks\n⏰ Join lobby within 5 minutes\n📵 No team killing"}
+                                    className="w-full px-3 py-2.5 rounded-xl bg-default-100 border border-divider text-xs leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-warning placeholder:text-foreground/20"
+                                />
+                            )}
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowEditModal(false)}
+                                    className="flex-1 py-2.5 rounded-xl border border-divider text-xs font-semibold text-foreground/50 hover:bg-default-100 transition-colors cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveRules}
+                                    disabled={saving || loadingRules}
+                                    className="flex-1 py-2.5 rounded-xl bg-warning/15 text-warning text-xs font-bold hover:bg-warning/25 transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                    {saving ? "Saving..." : "Save & Send to WA"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 
