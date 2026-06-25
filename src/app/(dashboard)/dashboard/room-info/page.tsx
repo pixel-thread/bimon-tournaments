@@ -589,20 +589,29 @@ function RulesCopyBtn({ tournamentId }: { tournamentId: string }) {
         }
         setSaving(true);
         try {
-            const res = await fetch("/api/whatsapp/send-rules", {
-                method: "POST",
+            const res = await fetch(`/api/tournaments/${tournamentId}/highlighted-rules`, {
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ tournamentId, rules: rulesArray }),
+                body: JSON.stringify({ rules: rulesArray }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Failed");
-            toast.success(json.message || "Rules saved!");
+            toast.success("Rules saved!");
             setShowEditModal(false);
         } catch (err: any) {
             toast.error(err.message || "Failed to save rules");
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleCopyRules = () => {
+        const rulesArray = editText.split("\n").map(l => l.trim()).filter(Boolean);
+        if (rulesArray.length === 0) return;
+        const formatted = rulesArray.map((r, i) => `*${i + 1}.* ${r}`).join("\n\n");
+        const message = `📋 *Tournament Rules*\n\n${formatted}\n\n⚠️ *Breaking any rule = disqualification*`;
+        navigator.clipboard.writeText(message);
+        toast.success("Rules copied!");
     };
 
     if (rules.length === 0 && !showEditModal) return null;
@@ -649,7 +658,7 @@ function RulesCopyBtn({ tournamentId }: { tournamentId: string }) {
                         </div>
                         <div className="p-4 space-y-3">
                             <p className="text-[11px] text-foreground/40">
-                                One rule per line. These appear on the player&apos;s My Slot page and are sent to WhatsApp.
+                                One rule per line. Players see these on My Slot page.
                             </p>
                             {loadingRules ? (
                                 <div className="flex items-center justify-center py-8">
@@ -667,18 +676,19 @@ function RulesCopyBtn({ tournamentId }: { tournamentId: string }) {
                             <div className="flex gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => setShowEditModal(false)}
-                                    className="flex-1 py-2.5 rounded-xl border border-divider text-xs font-semibold text-foreground/50 hover:bg-default-100 transition-colors cursor-pointer"
+                                    onClick={handleCopyRules}
+                                    disabled={loadingRules || !editText.trim()}
+                                    className="flex-1 py-2.5 rounded-xl border border-divider text-xs font-semibold text-foreground/50 hover:bg-default-100 transition-colors cursor-pointer disabled:opacity-30"
                                 >
-                                    Cancel
+                                    Copy
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleSaveRules}
                                     disabled={saving || loadingRules}
-                                    className="flex-1 py-2.5 rounded-xl bg-warning/15 text-warning text-xs font-bold hover:bg-warning/25 transition-colors cursor-pointer disabled:opacity-50"
+                                    className="flex-1 py-2.5 rounded-xl bg-primary/15 text-primary text-xs font-bold hover:bg-primary/25 transition-colors cursor-pointer disabled:opacity-50"
                                 >
-                                    {saving ? "Saving..." : "Save & Send to WA"}
+                                    {saving ? "Saving..." : "Done"}
                                 </button>
                             </div>
                         </div>
