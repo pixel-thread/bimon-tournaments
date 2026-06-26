@@ -235,6 +235,7 @@ export default function ClanPage() {
     const handleWithdrawRequest = async () => {
         const amount = parseInt(withdrawAmount);
         if (!amount || amount <= 0) return toast.error("Enter a valid amount");
+        if (treasury && amount > treasury.balance) return toast.error("Amount exceeds treasury balance");
         setTreasuryLoading(true);
         try {
             const res = await fetch("/api/clans/treasury/withdraw-request", {
@@ -604,7 +605,7 @@ export default function ClanPage() {
                                         startContent={<ArrowUpFromLine className="h-3 w-3" />}
                                         onPress={() => setShowWithdrawModal(true)}
                                     >
-                                        Request
+                                        {isLeaderOrCoLeader ? "Withdraw" : "Request"}
                                     </Button>
                                 </div>
 
@@ -817,10 +818,10 @@ export default function ClanPage() {
                 </ModalContent>
             </Modal>
 
-            {/* Withdraw Request Modal */}
+            {/* Withdraw Modal */}
             <Modal isOpen={showWithdrawModal} onClose={() => setShowWithdrawModal(false)} size="sm">
                 <ModalContent>
-                    <ModalHeader className="text-sm">Request Withdrawal</ModalHeader>
+                    <ModalHeader className="text-sm">{isLeaderOrCoLeader ? "Withdraw from Treasury" : "Request Withdrawal"}</ModalHeader>
                     <ModalBody>
                         <Input
                             type="number"
@@ -830,22 +831,30 @@ export default function ClanPage() {
                             onValueChange={setWithdrawAmount}
                             variant="bordered"
                             size="sm"
+                            description={treasury ? `Treasury balance: ${treasury.balance} ${GAME.currency}` : undefined}
                         />
-                        <Input
-                            label="Reason (optional)"
-                            placeholder="Why do you need the funds?"
-                            value={withdrawMessage}
-                            onValueChange={setWithdrawMessage}
-                            variant="bordered"
-                            size="sm"
-                        />
+                        {!isLeaderOrCoLeader && (
+                            <Input
+                                label="Reason (optional)"
+                                placeholder="Why do you need the funds?"
+                                value={withdrawMessage}
+                                onValueChange={setWithdrawMessage}
+                                variant="bordered"
+                                size="sm"
+                            />
+                        )}
                         <p className="text-[10px] text-foreground/40">
-                            Your request will be reviewed by the Leader or Co-Leader.
+                            {isLeaderOrCoLeader
+                                ? "Funds will be transferred to your wallet instantly."
+                                : "Your request will be reviewed by the Leader or Co-Leader."
+                            }
                         </p>
                     </ModalBody>
                     <ModalFooter>
                         <Button variant="flat" size="sm" onPress={() => setShowWithdrawModal(false)}>Cancel</Button>
-                        <Button color="warning" size="sm" isLoading={treasuryLoading} onPress={handleWithdrawRequest}>Submit Request</Button>
+                        <Button color="warning" size="sm" isLoading={treasuryLoading} onPress={handleWithdrawRequest}>
+                            {isLeaderOrCoLeader ? "Withdraw" : "Submit Request"}
+                        </Button>
                     </ModalFooter>
                 </ModalContent>
             </Modal>

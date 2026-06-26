@@ -551,9 +551,13 @@ function RulesCopyBtn({ tournamentId }: { tournamentId: string }) {
                 if (res.ok) {
                     const json = await res.json();
                     const highlighted = json.highlightedRules || [];
-                    setEditText(highlighted.join("\n"));
+                    // If highlighted rules exist, use them; otherwise pre-fill with global rules
+                    if (highlighted.length > 0) {
+                        setEditText(highlighted.join("\n"));
+                    } else {
+                        setEditText(rules.map(r => r.text).join("\n"));
+                    }
                 } else {
-                    // Fallback: use global rules
                     setEditText(rules.map(r => r.text).join("\n"));
                 }
             } catch {

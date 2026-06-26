@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "Only the squad leader can invite players", status: 403 });
         }
 
-        // Squad must be FORMING
-        if (squad.status !== "FORMING") {
+        // Squad must be FORMING or FULL (FULL = active roster full, but sub slots may remain)
+        if (!['FORMING', 'FULL'].includes(squad.status)) {
             return ErrorResponse({ message: "Squad is no longer accepting invites", status: 400 });
         }
 

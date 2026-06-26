@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         if (squad.captainId !== currentPlayerId) {
             return ErrorResponse({ message: "Only the captain can import roster", status: 403 });
         }
-        if (squad.status !== "FORMING") {
+        if (!['FORMING', 'FULL'].includes(squad.status)) {
             return ErrorResponse({ message: "Squad is not accepting members", status: 400 });
         }
 
