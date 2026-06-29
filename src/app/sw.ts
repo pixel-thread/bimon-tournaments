@@ -1,6 +1,28 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist } from "serwist";
+import { Serwist, NetworkOnly } from "serwist";
+
+// Override: critical data APIs must NEVER serve stale cached responses.
+// The default cache uses NetworkFirst (24h cache) for /api/* GET requests,
+// which causes users to see outdated squad/poll data until they reload twice.
+// We insert a NetworkOnly rule BEFORE the default /api/* catch-all so these
+// routes always hit the network.
+const FRESH_API_PATTERNS = [
+    /\/api\/polls/,
+    /\/api\/squads/,
+    /\/api\/notifications/,
+    /\/api\/whatsapp/,
+];
+
+const customCache = [
+    // NetworkOnly for critical APIs — inserted before defaultCache's /api/* rule
+    ...FRESH_API_PATTERNS.map(pattern => ({
+        matcher: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
+            sameOrigin && pattern.test(url.pathname),
+        handler: new NetworkOnly() as any,
+    })),
+    ...defaultCache,
+];
 
 declare global {
     interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -15,7 +37,7 @@ const serwist = new Serwist({
     skipWaiting: true,
     clientsClaim: true,
     navigationPreload: true,
-    runtimeCaching: defaultCache,
+    runtimeCaching: customCache,
     fallbacks: {
         entries: [
             {

@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
             select: {
                 name: true,
                 fullName: true,
+                confirmedAt: true,
                 captain: {
                     select: {
                         id: true,
@@ -95,6 +96,7 @@ export async function GET(req: NextRequest) {
                 group: null,
                 phase: null,
                 status: null,
+                isConfirmed: !!sq.confirmedAt,
                 name: sq.captain.displayName || "Unknown",
                 phone: sq.captain.phoneNumber || null,
                 teammates,
@@ -189,6 +191,7 @@ export async function GET(req: NextRequest) {
                 group: entry?.group || null,
                 phase: entry?.phase || null,
                 status: entry?.status || null,
+                isConfirmed: true,
                 name: leader.displayName || "Unknown",
                 phone: leader.phoneNumber || null,
                 teammates,

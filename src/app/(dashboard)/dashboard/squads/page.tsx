@@ -424,7 +424,10 @@ export default function AdminSquadsPage() {
                     name: ghostTeamName.trim(),
                     fullName: ghostTeamFullName.trim() || undefined,
                     captainName: ghostCaptainName.trim(),
-                    captainPhone: ghostCaptainPhone.trim(),
+                    // If admin selected an existing player, send their ID; otherwise send phone
+                    ...(ghostCaptainPlayer
+                        ? { captainPlayerId: ghostCaptainPlayer.id }
+                        : { captainPhone: ghostCaptainPhone.trim() }),
                     members: ghostMembers.filter(m => m.name.trim()).map(m => m.name.trim()),
                 }),
             });

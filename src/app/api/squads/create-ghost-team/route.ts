@@ -36,12 +36,13 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { pollId, name, fullName: rawFullName, captainName, captainPhone, members = [] } = body as {
+        const { pollId, name, fullName: rawFullName, captainName, captainPhone, captainPlayerId, members = [] } = body as {
             pollId: string;
             name: string;
             fullName?: string;
             captainName: string;
-            captainPhone: string;
+            captainPhone?: string;
+            captainPlayerId?: string;
             members: string[];
         };
 
@@ -52,12 +53,17 @@ export async function POST(request: NextRequest) {
 
         if (!trimmedName) return ErrorResponse({ message: "Team tag is required", status: 400 });
         if (!captainName?.trim()) return ErrorResponse({ message: "Captain name is required", status: 400 });
-        if (!captainPhone?.trim()) return ErrorResponse({ message: "Captain phone is required — needed for prize payouts", status: 400 });
 
         const cleanCaptainName = captainName.trim().slice(0, 20);
-        const cleanPhone = captainPhone.replace(/\D/g, "").slice(-10);
-        if (cleanPhone.length !== 10) {
-            return ErrorResponse({ message: "Captain phone must be 10 digits", status: 400 });
+
+        // Phone is only required when no existing player is selected
+        let cleanPhone = "";
+        if (!captainPlayerId) {
+            if (!captainPhone?.trim()) return ErrorResponse({ message: "Captain phone is required — needed for prize payouts", status: 400 });
+            cleanPhone = captainPhone.replace(/\D/g, "").slice(-10);
+            if (cleanPhone.length !== 10) {
+                return ErrorResponse({ message: "Captain phone must be 10 digits", status: 400 });
+            }
         }
 
         const totalPlayers = 1 + members.length; // captain + members
@@ -93,11 +99,18 @@ export async function POST(request: NextRequest) {
 
         const entryFee = poll.tournament?.fee ?? 0;
 
-        // Try to find existing player by phone
-        const existingPlayer = await prisma.player.findFirst({
-            where: { phoneNumber: cleanPhone, isGhost: false },
-            select: { id: true, displayName: true },
-        });
+        // Try to find existing player by ID (admin-selected) or by phone
+        const existingPlayer = captainPlayerId
+            ? await prisma.player.findUnique({
+                where: { id: captainPlayerId },
+                select: { id: true, displayName: true },
+            })
+            : cleanPhone
+                ? await prisma.player.findFirst({
+                    where: { phoneNumber: cleanPhone, isGhost: false },
+                    select: { id: true, displayName: true },
+                })
+                : null;
 
         // Check if captain is already in a squad for this poll
         if (existingPlayer) {

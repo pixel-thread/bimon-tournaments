@@ -845,8 +845,20 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
             getConfirmedSquadCap(squadCount, squadsResult?.isMangoScrim)
           )
         : 0;
+    // For squad polls, subtract players already in squads from random team estimation
+    const playersInSquads = useMemo(() => {
+        if (!squadsData || !poll.allowSquads) return 0;
+        const ids = new Set<string>();
+        for (const s of squadsData) {
+            ids.add(s.captain.id);
+            for (const m of s.members) {
+                if (m.status === "ACCEPTED") ids.add(m.playerId);
+            }
+        }
+        return ids.size;
+    }, [squadsData, poll.allowSquads]);
     const estimatedTeams = poll.allowSquads && GAME.squadSize > 1
-        ? confirmedSquads + Math.floor(participantCount / GAME.squadSize)
+        ? confirmedSquads + Math.floor(Math.max(0, participantCount - playersInSquads) / GAME.squadSize)
         : participantCount; // Regular: fee × players
     const prizePool = poll.fixedPrizes && Array.isArray(poll.fixedPrizes) && poll.fixedPrizes.length > 0
         ? (poll.fixedPrizes as number[]).reduce((s, n) => s + n, 0) + donationTotal

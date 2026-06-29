@@ -217,6 +217,7 @@ interface LeaderData {
     group: string | null;
     phase: string | null;
     status: string | null;
+    isConfirmed?: boolean;
     name: string;
     phone: string | null;
     teammates: string[];
@@ -795,6 +796,11 @@ function LeadersList({
     const withPhone = leaders.filter(l => l.phone);
     const sentCount = withPhone.filter(l => sentLeaders.has(l.teamNumber)).length;
 
+    // Split into confirmed / unconfirmed
+    const confirmedLeaders = leaders.filter(l => l.isConfirmed !== false);
+    const unconfirmedLeaders = leaders.filter(l => l.isConfirmed === false);
+    const [unconfirmedOpen, setUnconfirmedOpen] = useState(false);
+
     return (
         <div className="space-y-2">
             {/* Header */}
@@ -831,10 +837,32 @@ function LeadersList({
                 </div>
             )}
 
-            {/* Leader rows */}
-            {leaders.length > 0 && (
+            {/* Confirmed leader rows */}
+            {confirmedLeaders.length > 0 && (
                 <div className="space-y-1">
-                    {leaders.map(l => renderLeader(l))}
+                    {confirmedLeaders.map(l => renderLeader(l))}
+                </div>
+            )}
+
+            {/* Unconfirmed — collapsed by default */}
+            {unconfirmedLeaders.length > 0 && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setUnconfirmedOpen(prev => !prev)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left cursor-pointer hover:bg-amber-500/10 transition-colors"
+                    >
+                        <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex-1">
+                            ⚠ Unconfirmed ({unconfirmedLeaders.length})
+                        </span>
+                        <span className="text-[9px] text-amber-500/60">Not paid</span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-amber-500/50 transition-transform ${unconfirmedOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {unconfirmedOpen && (
+                        <div className="space-y-1 px-1 pb-1.5">
+                            {unconfirmedLeaders.map(l => renderLeader(l))}
+                        </div>
+                    )}
                 </div>
             )}
 
