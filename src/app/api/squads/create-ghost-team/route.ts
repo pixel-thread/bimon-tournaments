@@ -82,11 +82,11 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        if (!poll || !poll.isActive) return ErrorResponse({ message: "Poll is not active", status: 400 });
+        if (!poll) return ErrorResponse({ message: "Poll not found", status: 400 });
         if (!poll.allowSquads) return ErrorResponse({ message: "Squads are not enabled", status: 400 });
 
-        // Block ghost team creation on KD-restricted tournaments
-        const ghostKdResult = await checkKdGate("ghost", pollId, { isGhost: true });
+        // KD gate — admins bypass, so ghosts are allowed
+        const ghostKdResult = await checkKdGate("ghost", pollId, { isGhost: true, isAdmin: true });
         if (!ghostKdResult.allowed) {
             return ErrorResponse({ message: "Ghost teams cannot be created for KD-restricted tournaments. All players must have verifiable stats.", status: 403 });
         }

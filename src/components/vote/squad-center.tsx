@@ -1034,7 +1034,7 @@ function SquadCard({
                         <div className="space-y-2">
                             {(() => {
                                 const totalSlots = GAME.maxSquadSize - 1; // minus captain
-                                const acceptedMembers = squad.members.filter(m => m.status === "ACCEPTED");
+                                const acceptedMembers = squad.members.filter(m => m.status === "ACCEPTED" && m.playerId !== squad.captain.id);
                                 const slots: React.ReactNode[] = [];
 
                                 for (let i = 0; i < totalSlots; i++) {
@@ -1698,6 +1698,7 @@ export function SquadCenter({
     const [quickCreating, setQuickCreating] = useState(false);
     const createMutation = useCreateSquad();
     const importRosterMutation = useImportRoster();
+    const [showGuestCreate, setShowGuestCreate] = useState(false);
 
     // One-click "Use This Team" handler
     async function handleQuickCreate() {
@@ -2222,10 +2223,10 @@ export function SquadCenter({
                                 <Button
                                     className={`w-full font-semibold text-white ${theme ? `bg-gradient-to-r ${theme.header}` : ''}`}
                                     color={theme ? undefined : "primary"}
-                                    startContent={<LogIn className="w-4 h-4" />}
-                                    onPress={() => { window.location.href = "/sign-in"; }}
+                                    startContent={<Plus className="w-4 h-4" />}
+                                    onPress={() => setShowGuestCreate(true)}
                                 >
-                                    Sign in to Create Team
+                                    Create Team
                                 </Button>
                             ) : (
                                 <Button
@@ -2457,6 +2458,463 @@ export function SquadCenter({
                     </ModalFooter>
                 </ModalContent>
             </Modal>
+
+            {/* Guest Squad Creation Modal */}
+            {isGuest && (
+                <GuestSquadModal
+                    isOpen={showGuestCreate}
+                    onClose={() => { setShowGuestCreate(false); refetch(); }}
+                    pollId={pollId}
+                    tournamentName={tournamentName}
+                    entryFee={entryFee}
+                />
+            )}
+        </>
+    );
+}
+
+/* ── Guest Squad Creation Modal ─────────────────────────── */
+
+interface PhoneCheckResult {
+    found: boolean;
+    displayName?: string;
+    imageUrl?: string | null;
+    previousRoster?: {
+        squadName: string;
+        fullName?: string | null;
+        members: {
+            playerId: string;
+            displayName: string;
+            imageUrl: string;
+            isGhost: boolean;
+            isSub: boolean;
+            phone: string | null;
+            available: boolean;
+        }[];
+    } | null;
+}
+
+function GuestSquadModal({
+    isOpen,
+    onClose,
+    pollId,
+    tournamentName,
+    entryFee,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    pollId: string;
+    tournamentName: string;
+    entryFee: number;
+}) {
+    const queryClient = useQueryClient();
+
+    // Captain info
+    const [captainName, setCaptainName] = useState("");
+    const [captainPhone, setCaptainPhone] = useState("");
+    const [teamName, setTeamName] = useState("");
+    const [teamFullName, setTeamFullName] = useState("");
+
+    // Phone check state
+    const [phoneCheckResult, setPhoneCheckResult] = useState<PhoneCheckResult | null>(null);
+    const [phoneChecking, setPhoneChecking] = useState(false);
+    const [phoneChecked, setPhoneChecked] = useState("");
+    const [showIdentityPrompt, setShowIdentityPrompt] = useState(false);
+    const [identityConfirmed, setIdentityConfirmed] = useState(false);
+
+    // Teammate slots (index → name)
+    const totalSlots = GAME.maxSquadSize - 1;
+    const [slotNames, setSlotNames] = useState<Record<number, string>>({});
+    const [slotPhones, setSlotPhones] = useState<Record<number, string>>({});
+
+    // Submission
+    const [submitting, setSubmitting] = useState(false);
+
+    // Reset on close
+    const handleClose = () => {
+        setCaptainName("");
+        setCaptainPhone("");
+        setTeamName("");
+        setTeamFullName("");
+        setPhoneCheckResult(null);
+        setPhoneChecking(false);
+        setPhoneChecked("");
+        setShowIdentityPrompt(false);
+        setIdentityConfirmed(false);
+        setSlotNames({});
+        setSlotPhones({});
+        setSubmitting(false);
+        onClose();
+    };
+
+    // Background phone check — fires when 10 digits entered
+    useEffect(() => {
+        const normalized = captainPhone.replace(/\D/g, "");
+        if (normalized.length !== 10 || normalized === phoneChecked) return;
+
+        const timer = setTimeout(async () => {
+            setPhoneChecking(true);
+            try {
+                const res = await fetch("/api/auth/check-phone", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ phone: normalized, pollId }),
+                });
+                const json = await res.json();
+                if (res.ok && json.data) {
+                    setPhoneCheckResult(json.data);
+                    setPhoneChecked(normalized);
+                    if (json.data.found) {
+                        setShowIdentityPrompt(true);
+                    }
+                }
+            } catch { /* silent */ }
+            setPhoneChecking(false);
+        }, 400);
+
+        return () => clearTimeout(timer);
+    }, [captainPhone, phoneChecked, pollId]);
+
+    // When user confirms identity → prefill roster
+    const handleIdentityYes = () => {
+        setShowIdentityPrompt(false);
+        setIdentityConfirmed(true);
+        if (phoneCheckResult?.displayName) {
+            setCaptainName(phoneCheckResult.displayName);
+        }
+        if (phoneCheckResult?.previousRoster) {
+            const roster = phoneCheckResult.previousRoster;
+            setTeamName(roster.squadName || "");
+            if (roster.fullName) setTeamFullName(roster.fullName);
+            const newNames: Record<number, string> = {};
+            const newPhones: Record<number, string> = {};
+            roster.members.filter(m => m.available).forEach((m, i) => {
+                if (i < totalSlots) {
+                    newNames[i] = m.displayName;
+                    if (m.phone) newPhones[i] = m.phone;
+                }
+            });
+            setSlotNames(newNames);
+            setSlotPhones(newPhones);
+        }
+    };
+
+    const handleIdentityNo = () => {
+        setShowIdentityPrompt(false);
+        setIdentityConfirmed(false);
+    };
+
+    // Submit guest squad
+    const handleSubmit = async () => {
+        if (!captainName.trim() || !captainPhone.trim() || !teamName.trim()) return;
+        setSubmitting(true);
+        try {
+            const members = Object.entries(slotNames)
+                .filter(([, name]) => name.trim())
+                .map(([idx, name]) => ({
+                    name: name.trim(),
+                    phone: slotPhones[Number(idx)] || undefined,
+                }));
+
+            const res = await fetch("/api/squads/guest-create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    pollId,
+                    captainName: captainName.trim(),
+                    captainPhone: captainPhone.trim(),
+                    teamName: teamName.trim(),
+                    teamFullName: teamFullName.trim() || undefined,
+                    members,
+                }),
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                const { toast } = await import("sonner");
+                toast.error(json.message || "Failed to create team");
+                return;
+            }
+            const { toast } = await import("sonner");
+            toast.success(json.message || "Team created! 🎉");
+            queryClient.invalidateQueries({ queryKey: ["squads"] });
+            handleClose();
+        } catch {
+            const { toast } = await import("sonner");
+            toast.error("Failed to create team");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const filledCount = Object.values(slotNames).filter(n => n.trim()).length;
+    const canSubmit = captainName.trim() && captainPhone.replace(/\D/g, "").length === 10 && teamName.trim();
+
+    return (
+        <>
+        <Modal
+            isOpen={isOpen && !showIdentityPrompt}
+            onClose={handleClose}
+            placement="center"
+            size="full"
+            scrollBehavior="inside"
+            classNames={{
+                wrapper: "z-[60]",
+                body: "px-4 py-0",
+            }}
+        >
+            <ModalContent>
+                <ModalHeader className="flex items-center gap-2 text-base pb-2">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                        <Shield className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <span className="truncate block">Create Team</span>
+                        <span className="text-xs font-normal text-foreground/50">{tournamentName}</span>
+                    </div>
+                </ModalHeader>
+
+                <ModalBody>
+                    <div className="space-y-4">
+                        {/* Entry fee info */}
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                            <CurrencyIcon size={16} />
+                            <div className="text-sm">
+                                <span className="font-medium">{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</span>
+                                <span className="text-foreground/60"> per team • {GAME.maxSquadSize} players ({GAME.maxSquadSize - GAME.squadSize} subs)</span>
+                            </div>
+                        </div>
+
+                        {/* Captain Info */}
+                        <div className="space-y-3">
+                            <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide">Your Info (Leader)</p>
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="Your name"
+                                    value={captainName}
+                                    onValueChange={(v) => setCaptainName(v.slice(0, 20))}
+                                    maxLength={20}
+                                    size="sm"
+                                    classNames={{ input: "text-sm" }}
+                                    startContent={<Users className="w-3.5 h-3.5 text-foreground/40" />}
+                                />
+                                <Input
+                                    placeholder="Phone (10 digits)"
+                                    value={captainPhone}
+                                    onValueChange={(v) => setCaptainPhone(v.replace(/\D/g, "").slice(0, 10))}
+                                    maxLength={10}
+                                    type="tel"
+                                    size="sm"
+                                    classNames={{ input: "text-sm", base: "min-w-[140px]" }}
+                                    startContent={<Phone className="w-3.5 h-3.5 text-foreground/40" />}
+                                    endContent={phoneChecking ? <Spinner size="sm" /> : null}
+                                />
+                            </div>
+                            {/* Identity match hint */}
+                            {identityConfirmed && phoneCheckResult?.found && (
+                                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                                    {phoneCheckResult.imageUrl && (
+                                        <img src={phoneCheckResult.imageUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                            ✅ Playing as {phoneCheckResult.displayName}
+                                        </p>
+                                        <p className="text-[10px] text-foreground/40">
+                                            Sign in to track KD, earn rewards & more
+                                        </p>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="flat"
+                                        className="min-w-0 px-2.5 h-6 text-[10px] font-semibold bg-primary/10 text-primary"
+                                        onPress={() => { window.location.href = "/sign-in"; }}
+                                    >
+                                        Sign in
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Team Name */}
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide">Team</p>
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="Team tag (e.g. ALPHA)"
+                                    value={teamName}
+                                    onValueChange={(v) => setTeamName(v.slice(0, 7))}
+                                    maxLength={7}
+                                    size="sm"
+                                    description={`${teamName.length}/7`}
+                                    classNames={{ input: "text-sm" }}
+                                    startContent={<Shield className="w-3.5 h-3.5 text-foreground/40" />}
+                                />
+                                <Input
+                                    placeholder="Full name (optional)"
+                                    value={teamFullName}
+                                    onValueChange={(v) => setTeamFullName(v.slice(0, 30))}
+                                    maxLength={30}
+                                    size="sm"
+                                    classNames={{ input: "text-sm" }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Teammate Slots */}
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide">
+                                Teammates ({filledCount}/{totalSlots})
+                            </p>
+                            <div className="space-y-1.5">
+                                {Array.from({ length: totalSlots }).map((_, i) => {
+                                    const slotLabel = i < GAME.squadSize - 1 ? `Player ${i + 2}` : `Sub ${i - GAME.squadSize + 2}`;
+                                    const isSub = i >= GAME.squadSize - 1;
+                                    return (
+                                        <div key={`guest-slot-${i}`} className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${
+                                            isSub ? 'border-dashed border-foreground/10' : 'border-foreground/15'
+                                        }`}>
+                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${
+                                                isSub ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'
+                                            }`}>
+                                                {i + 2}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder={slotLabel}
+                                                value={slotNames[i] || ""}
+                                                onChange={(e) => setSlotNames(prev => ({ ...prev, [i]: e.target.value }))}
+                                                maxLength={20}
+                                                className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-foreground/30"
+                                            />
+                                            <input
+                                                type="tel"
+                                                placeholder="Phone"
+                                                value={slotPhones[i] || ""}
+                                                onChange={(e) => setSlotPhones(prev => ({ ...prev, [i]: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                                                maxLength={10}
+                                                className="w-24 bg-transparent text-xs text-foreground/50 outline-none placeholder:text-foreground/20 text-right"
+                                            />
+                                            {slotNames[i]?.trim() && (
+                                                <button
+                                                    onClick={() => {
+                                                        setSlotNames(prev => { const n = { ...prev }; delete n[i]; return n; });
+                                                        setSlotPhones(prev => { const n = { ...prev }; delete n[i]; return n; });
+                                                    }}
+                                                    className="w-5 h-5 rounded-full hover:bg-foreground/10 flex items-center justify-center shrink-0"
+                                                >
+                                                    <X className="w-3 h-3 text-foreground/30" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Sign-in encouragement */}
+                        {!identityConfirmed && (
+                            <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-foreground/5 border border-divider">
+                                <LogIn className="w-4 h-4 text-primary shrink-0" />
+                                <p className="text-[11px] text-foreground/50 flex-1">
+                                    <button
+                                        className="text-primary font-semibold hover:underline"
+                                        onClick={() => { window.location.href = "/sign-in"; }}
+                                    >
+                                        Sign in
+                                    </button>
+                                    {" "}to track KD, earn rewards, and manage your team
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </ModalBody>
+
+                <ModalFooter>
+                    <div className="flex gap-2 w-full">
+                        <Button variant="flat" className="flex-1" onPress={handleClose}>
+                            Cancel
+                        </Button>
+                        <Button
+                            color="primary"
+                            className="flex-1 font-semibold"
+                            isDisabled={!canSubmit}
+                            isLoading={submitting}
+                            onPress={handleSubmit}
+                            startContent={!submitting && <Shield className="w-4 h-4" />}
+                        >
+                            Create Team {filledCount > 0 ? `(+${filledCount})` : ""}
+                        </Button>
+                    </div>
+                </ModalFooter>
+            </ModalContent>
+        </Modal>
+
+        {/* "Are you [Name]?" Identity Confirmation Modal */}
+        <Modal
+            isOpen={showIdentityPrompt}
+            onClose={handleIdentityNo}
+            placement="center"
+            size="sm"
+            classNames={{
+                base: "bg-background border border-divider",
+                backdrop: "bg-black/60 backdrop-blur-sm",
+                wrapper: "z-[70]",
+            }}
+        >
+            <ModalContent>
+                <ModalHeader className="flex items-center gap-3 pb-1">
+                    {phoneCheckResult?.imageUrl && (
+                        <img src={phoneCheckResult.imageUrl} alt="" className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-primary/30" />
+                    )}
+                    <div>
+                        <p className="text-base font-bold">Are you {phoneCheckResult?.displayName}?</p>
+                        <p className="text-xs font-normal text-foreground/50">We found an account linked to this number</p>
+                    </div>
+                </ModalHeader>
+                <ModalBody className="pt-0">
+                    {phoneCheckResult?.previousRoster && phoneCheckResult.previousRoster.members.length > 0 && (
+                        <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/15 p-3 space-y-2">
+                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                🏆 Your last team: {phoneCheckResult.previousRoster.squadName}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {phoneCheckResult.previousRoster.members.filter(m => m.available).map((m) => (
+                                    <span key={m.playerId} className="text-[11px] px-2 py-0.5 rounded-full bg-foreground/5 text-foreground/70">
+                                        {m.displayName}
+                                    </span>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-foreground/40">
+                                Tap Yes to auto-fill your previous roster
+                            </p>
+                        </div>
+                    )}
+                    <div className="rounded-lg bg-primary/5 border border-primary/10 p-3 mt-1">
+                        <p className="text-xs text-foreground/60">
+                            <strong className="text-primary">Tip:</strong> Sign in to track your KD, earn rewards, get auto-invited by captains, and much more!
+                        </p>
+                    </div>
+                </ModalBody>
+                <ModalFooter>
+                    <Button
+                        variant="flat"
+                        size="sm"
+                        className="flex-1"
+                        onPress={handleIdentityNo}
+                    >
+                        No, that&apos;s not me
+                    </Button>
+                    <Button
+                        color="primary"
+                        size="sm"
+                        className="flex-1 font-semibold"
+                        onPress={handleIdentityYes}
+                    >
+                        Yes, that&apos;s me!
+                    </Button>
+                </ModalFooter>
+            </ModalContent>
+        </Modal>
         </>
     );
 }
