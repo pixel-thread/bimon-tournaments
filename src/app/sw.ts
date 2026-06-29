@@ -1,12 +1,12 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist, NetworkOnly } from "serwist";
+import { Serwist, NetworkFirst, ExpirationPlugin } from "serwist";
 
-// Override: critical data APIs must NEVER serve stale cached responses.
-// The default cache uses NetworkFirst (24h cache) for /api/* GET requests,
-// which causes users to see outdated squad/poll data until they reload twice.
-// We insert a NetworkOnly rule BEFORE the default /api/* catch-all so these
-// routes always hit the network.
+// Override: critical data APIs need FRESH data but should still load fast.
+// The default cache uses NetworkFirst with a 24-HOUR cache, which causes
+// outdated squad/poll data. We override with a short cache (60s) and
+// aggressive network timeout (3s) — so data is fresh but loads are still
+// instant on fast revisits.
 const FRESH_API_PATTERNS = [
     /\/api\/polls/,
     /\/api\/squads/,
@@ -15,11 +15,17 @@ const FRESH_API_PATTERNS = [
 ];
 
 const customCache = [
-    // NetworkOnly for critical APIs — inserted before defaultCache's /api/* rule
+    // NetworkFirst with short cache for critical APIs
     ...FRESH_API_PATTERNS.map(pattern => ({
         matcher: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
             sameOrigin && pattern.test(url.pathname),
-        handler: new NetworkOnly() as any,
+        handler: new NetworkFirst({
+            cacheName: "fresh-apis",
+            networkTimeoutSeconds: 3,
+            plugins: [
+                new ExpirationPlugin({ maxEntries: 32, maxAgeSeconds: 60 }),
+            ],
+        }) as any,
     })),
     ...defaultCache,
 ];

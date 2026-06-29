@@ -1543,6 +1543,7 @@ export function PollCard({ poll, onVote, votingPollId, votingVote, currentPlayer
                             hasVotedIn={poll.userVote === "IN" || poll.userVote === "SOLO"}
                             whatsappGroupLink={poll.whatsappGroupLink}
                             scheduledDate={poll.scheduledDate}
+                            initialSquadCount={poll.confirmedSquadCount ?? poll.squadCount ?? 0}
                             inVoters={(votersByVote["IN"] ?? []).map(v => ({
                                 playerId: v.playerId,
                                 displayName: v.displayName,

@@ -113,6 +113,7 @@ interface SquadCenterProps {
     inVoters?: InVoter[];
     whatsappGroupLink?: string | null;
     scheduledDate?: string | null;
+    initialSquadCount?: number;
 }
 
 /* ─── Status Badge ──────────────────────────────────────────── */
@@ -1736,6 +1737,7 @@ export function SquadCenter({
     inVoters = [],
     whatsappGroupLink,
     scheduledDate,
+    initialSquadCount,
 }: SquadCenterProps) {
     const [showCreate, setShowCreate] = useState(false);
     const [showVoteWarning, setShowVoteWarning] = useState<{ action: "create" | "join"; squadId?: string } | null>(null);
@@ -1993,14 +1995,25 @@ export function SquadCenter({
                             <span className="truncate block">{tournamentName}</span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-normal text-foreground/50">Squad Center</span>
-                                {squads && squads.length > 0 && (() => {
-                                    const confirmedCount = squads.filter(s => !s.needsPayment).length;
-                                    const totalDisplay = confirmedCount + randomTeams.length;
-                                    return (
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-foreground/50">
-                                        {totalDisplay} squad{totalDisplay !== 1 ? "s" : ""}
-                                    </span>
-                                    );
+                                {(() => {
+                                    // Show count immediately from poll data, refined once squads load
+                                    if (squads && squads.length > 0) {
+                                        const confirmedCount = squads.filter(s => !s.needsPayment).length;
+                                        const totalDisplay = confirmedCount + randomTeams.length;
+                                        return (
+                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-foreground/50">
+                                                {totalDisplay} squad{totalDisplay !== 1 ? "s" : ""}
+                                            </span>
+                                        );
+                                    }
+                                    if (initialSquadCount != null && initialSquadCount > 0) {
+                                        return (
+                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-foreground/10 text-foreground/50">
+                                                {initialSquadCount} squad{initialSquadCount !== 1 ? "s" : ""}
+                                            </span>
+                                        );
+                                    }
+                                    return null;
                                 })()}
                             </div>
                         </div>
