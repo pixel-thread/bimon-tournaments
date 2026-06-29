@@ -145,19 +145,20 @@ export async function GET(request: NextRequest) {
             captainInfos.map((c) => [c.id, { isTrusted: c.isTrusted, isGhost: c.isGhost, email: c.user.email }])
         );
 
-        // Fetch balances for non-trusted captains
+        // Fetch balances for non-trusted captains — BATCH (single DB query)
         // Use total balance (not available) — available subtracts reserved amounts which
         // includes THIS squad's own entry fee, causing false "needs payment" for captains
         // who actually have enough. Captain just needs balance >= entryFee.
+        const emailsToCheck = [...captainMap.entries()]
+            .filter(([, info]) => !info.isTrusted && !info.isGhost && info.email)
+            .map(([, info]) => info.email!);
+        const batchBalances = emailsToCheck.length > 0
+            ? await (await import("@/lib/wallet-service")).getBalancesBatch(emailsToCheck)
+            : new Map<string, number>();
         const balanceMap = new Map<string, number>();
         for (const [captainId, info] of captainMap) {
-            if (!info.isTrusted && info.email) {
-                try {
-                    const { balance } = await getAvailableBalance(info.email);
-                    balanceMap.set(captainId, balance);
-                } catch {
-                    balanceMap.set(captainId, 0);
-                }
+            if (!info.isTrusted && !info.isGhost && info.email) {
+                balanceMap.set(captainId, batchBalances.get(info.email) ?? 0);
             }
         }
 
