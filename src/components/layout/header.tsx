@@ -215,7 +215,10 @@ export function Header() {
                     <div className="relative lg:hidden">
                         <NavbarMenuToggle aria-label={isMenuOpen ? "Close menu" : "Open menu"} />
                         {totalActionCount > 0 && (
-                            <span className="absolute right-0 top-0 z-10 h-2 w-2 rounded-full bg-danger pointer-events-none" />
+                            <>
+                                {unreadCount > 0 && <span className="absolute right-0 top-0 z-10 h-2 w-2 rounded-full bg-danger pointer-events-none" />}
+                                {unclaimedRewardCount > 0 && !unreadCount && <Gift className="absolute -right-0.5 -top-0.5 z-10 h-3.5 w-3.5 text-amber-500 animate-pulse pointer-events-none" />}
+                            </>
                         )}
                     </div>
                     <NavbarBrand>
@@ -302,8 +305,11 @@ export function Header() {
                                 >
                                     More
                                     <ChevronDown className="h-3.5 w-3.5" />
-                                    {totalActionCount > 0 && (
+                                    {unreadCount > 0 && (
                                         <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-danger" />
+                                    )}
+                                    {unclaimedRewardCount > 0 && !unreadCount && (
+                                        <Gift className="absolute -right-2.5 -top-1.5 h-3.5 w-3.5 text-amber-500 animate-pulse" />
                                     )}
                                 </button>
                             </PopoverTrigger>
@@ -323,9 +329,15 @@ export function Header() {
                                         >
                                             <item.icon className="h-4 w-4" />
                                             {item.label}
-                                            {item.label === "Notifications" && notifActionCount > 0 && (
+                                            {item.label === "Notifications" && unreadCount > 0 && (
                                                 <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-                                                    {notifActionCount}
+                                                    {unreadCount}
+                                                </span>
+                                            )}
+                                            {item.label === "Notifications" && unclaimedRewardCount > 0 && (
+                                                <span className="ml-auto flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-600 dark:text-amber-400">
+                                                    <Gift className="h-2.5 w-2.5" />
+                                                    {unclaimedRewardCount}
                                                 </span>
                                             )}
                                         </Link>
@@ -524,8 +536,11 @@ export function Header() {
                                         >
                                             <span className="text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5">
                                                 {group.section}
-                                                {group.section === "Account" && notifActionCount > 0 && (
+                                                {group.section === "Account" && unreadCount > 0 && (
                                                     <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
+                                                )}
+                                                {group.section === "Account" && unclaimedRewardCount > 0 && !unreadCount && (
+                                                    <Gift className="h-3 w-3 text-amber-500 animate-pulse" />
                                                 )}
                                             </span>
                                             <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`} />
@@ -547,9 +562,15 @@ export function Header() {
                                                                 {balance.toLocaleString()} <CurrencyIcon size={10} />
                                                             </span>
                                                         )}
-                                                        {item.label === "Notifications" && notifActionCount > 0 && (
+                                                        {item.label === "Notifications" && unreadCount > 0 && (
                                                             <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-                                                                {notifActionCount}
+                                                                {unreadCount}
+                                                            </span>
+                                                        )}
+                                                        {item.label === "Notifications" && unclaimedRewardCount > 0 && (
+                                                            <span className="ml-auto flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-600 dark:text-amber-400">
+                                                                <Gift className="h-2.5 w-2.5" />
+                                                                {unclaimedRewardCount}
                                                             </span>
                                                         )}
                                                     </Link>

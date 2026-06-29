@@ -1061,8 +1061,9 @@ function SquadCard({
                                     } else {
                                         // ─── Empty slot (input) ───
                                         const emptyIndex = i;
+                                        const slotRef = React.createRef<HTMLDivElement>();
                                         slots.push(
-                                            <div key={`slot-${i}`} className="rounded-xl border border-dashed border-foreground/15 px-3 py-2.5">
+                                            <div key={`slot-${i}`} ref={slotRef} className="rounded-xl border border-dashed border-foreground/15 px-3 py-2.5">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-6 h-6 rounded-full bg-purple-500/15 flex items-center justify-center text-[10px] font-bold text-purple-500 shrink-0">
                                                         {i + 2}
@@ -1075,6 +1076,12 @@ function SquadCard({
                                                         maxLength={20}
                                                         className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-foreground/30"
                                                         disabled={isAdding}
+                                                        onFocus={() => {
+                                                            // Scroll the slot into view so it's not hidden above the keyboard
+                                                            setTimeout(() => {
+                                                                slotRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                                            }, 300);
+                                                        }}
                                                     />
                                                     {/* Three-dot menu for contact */}
                                                     <button
@@ -1098,6 +1105,7 @@ function SquadCard({
                                                         isDisabled={!slotNames[emptyIndex]?.trim() || ghostAdding !== null}
                                                         onPress={async () => {
                                                             setGhostAdding(emptyIndex);
+                                                            const memberName = slotNames[emptyIndex]!.trim();
                                                             try {
                                                                 const res = await fetch(`/api/squads/${squad.id}/add-member`, {
                                                                     method: "POST",
@@ -1105,7 +1113,7 @@ function SquadCard({
                                                                     body: JSON.stringify({
                                                                         phone: contact.phone || undefined,
                                                                         email: contact.email || undefined,
-                                                                        name: slotNames[emptyIndex]!.trim(),
+                                                                        name: memberName,
                                                                     }),
                                                                 });
                                                                 const json = await res.json();
@@ -1122,6 +1130,40 @@ function SquadCard({
                                                                 toast.success(json.message || "Player added!");
                                                                 setSlotNames(prev => { const n = { ...prev }; delete n[emptyIndex]; return n; });
                                                                 setSlotContacts(prev => { const n = { ...prev }; delete n[emptyIndex]; return n; });
+                                                                // Optimistic update — add the new member to the squad immediately
+                                                                const newMember = json.data?.member;
+                                                                ghostQueryClient.setQueryData(["squads", pollId], (old: any) => {
+                                                                    if (!old?.squads) return old;
+                                                                    return {
+                                                                        ...old,
+                                                                        squads: old.squads.map((s: any) => {
+                                                                            if (s.id !== squad.id) return s;
+                                                                            const optimisticMember = newMember || {
+                                                                                inviteId: `temp-${Date.now()}`,
+                                                                                playerId: `ghost-${Date.now()}`,
+                                                                                displayName: memberName,
+                                                                                imageUrl: "",
+                                                                                hasRoyalPass: false,
+                                                                                hasDiscord: false,
+                                                                                isGhost: true,
+                                                                                status: "ACCEPTED" as const,
+                                                                                initiatedBy: "CAPTAIN" as const,
+                                                                                isSub: emptyIndex >= GAME.squadSize - 1,
+                                                                            };
+                                                                            const updatedMembers = [...s.members, optimisticMember];
+                                                                            const acceptedCount = updatedMembers.filter((m: any) => m.status === "ACCEPTED").length;
+                                                                            return {
+                                                                                ...s,
+                                                                                members: updatedMembers,
+                                                                                acceptedCount,
+                                                                                activeCount: acceptedCount,
+                                                                                isFull: acceptedCount >= s.totalSlots,
+                                                                                status: acceptedCount >= GAME.squadSize ? "FULL" : s.status,
+                                                                            };
+                                                                        }),
+                                                                    };
+                                                                });
+                                                                // Background refetch to sync with server
                                                                 ghostQueryClient.invalidateQueries({ queryKey: ["squads"] });
                                                             } catch {
                                                                 const { toast } = await import("sonner");
@@ -1224,6 +1266,40 @@ function SquadCard({
                                                 const idx = ghostConfirm.slotIndex;
                                                 setSlotNames(prev => { const n = { ...prev }; delete n[idx]; return n; });
                                                 setSlotContacts(prev => { const n = { ...prev }; delete n[idx]; return n; });
+                                                // Optimistic update — add the confirmed player to the squad immediately
+                                                const newMember = json.data?.member;
+                                                ghostQueryClient.setQueryData(["squads", pollId], (old: any) => {
+                                                    if (!old?.squads) return old;
+                                                    return {
+                                                        ...old,
+                                                        squads: old.squads.map((s: any) => {
+                                                            if (s.id !== squad.id) return s;
+                                                            const optimisticMember = newMember || {
+                                                                inviteId: `temp-${Date.now()}`,
+                                                                playerId: ghostConfirm.id,
+                                                                displayName: ghostConfirm.displayName,
+                                                                imageUrl: ghostConfirm.imageUrl || "",
+                                                                hasRoyalPass: false,
+                                                                hasDiscord: false,
+                                                                isGhost: false,
+                                                                status: "ACCEPTED" as const,
+                                                                initiatedBy: "CAPTAIN" as const,
+                                                                isSub: idx >= GAME.squadSize - 1,
+                                                            };
+                                                            const updatedMembers = [...s.members, optimisticMember];
+                                                            const acceptedCount = updatedMembers.filter((m: any) => m.status === "ACCEPTED").length;
+                                                            return {
+                                                                ...s,
+                                                                members: updatedMembers,
+                                                                acceptedCount,
+                                                                activeCount: acceptedCount,
+                                                                isFull: acceptedCount >= s.totalSlots,
+                                                                status: acceptedCount >= GAME.squadSize ? "FULL" : s.status,
+                                                            };
+                                                        }),
+                                                    };
+                                                });
+                                                // Background refetch to sync
                                                 ghostQueryClient.invalidateQueries({ queryKey: ["squads"] });
                                             } catch {
                                                 const { toast } = await import("sonner");
