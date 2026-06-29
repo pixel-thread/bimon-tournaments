@@ -487,7 +487,7 @@ function SquadCard({
                                     (member.status === "ACCEPTED" || (member.status === "PENDING" && member.initiatedBy === "CAPTAIN"));
                                 const canToggleSub = squad.acceptedCount > GAME.squadSize;
                                 return (
-                                    <div key={member.inviteId} className={`flex items-center gap-3 ${member.isGhost ? 'opacity-70' : ''}`}>
+                                    <div key={member.inviteId} className="flex items-center gap-3">
                                         <PlayerAvatar
                                             src={member.imageUrl}
                                             playerId={member.playerId}

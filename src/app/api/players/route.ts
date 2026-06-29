@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
             50
         );
 
-        // Build where clause
-        const where: Record<string, unknown> = {};
+        // Build where clause — exclude ghost players (admin-created squad placeholders)
+        const where: Record<string, unknown> = { isGhost: false };
 
         if (search) {
             where.OR = playerSearchFilter(search, { includeEmail: true });
