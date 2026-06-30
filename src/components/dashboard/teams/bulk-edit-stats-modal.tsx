@@ -15,6 +15,7 @@ import { Pencil, Clipboard, ClipboardPaste, ArrowLeftRight, Send } from "lucide-
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { GAME } from "@/lib/game-config";
 
 /* ═══════ Types ═══════ */
 
@@ -363,6 +364,15 @@ BGMI names use heavy Unicode decoration. Strip these when matching:
 - If a player has "(userName: xxx)" shown, try matching by userName too
 - In output, use the EXACT name from MY list, NOT the scoreboard's version
 
+⚠️ DUPLICATE NAMES: Some players may have the SAME or very similar name but
+play on DIFFERENT teams in our roster. When you find a name that matches
+multiple players from different teams:
+- Look at which OTHER players from the SAME SCOREBOARD POSITION GROUP
+  (same # position block) are visible — those are teammates
+- Match the player to the team whose OTHER members appear in the same group
+- Do NOT just pick the first name match — verify by teammate grouping
+- BGMI has max 4 players per team in a match, so a position group has at most 4 players
+
 ═══════════════════════════════════════
 4. NULL vs 0 — CRITICAL DISTINCTION
 ═══════════════════════════════════════
@@ -558,6 +568,18 @@ Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`}`;
     // ── Save ──
     const { mutate: saveStats, isPending } = useMutation({
         mutationFn: async () => {
+            // Validate: max 4 present players per team per match (BGMI squad limit)
+            for (const matchData of matchDataList) {
+                for (const team of matchData.teams) {
+                    const presentCount = team.players.filter(p => !p.isAbsent).length;
+                    if (presentCount > GAME.squadSize) {
+                        throw new Error(
+                            `M${matchData.matchNumber} "${team.teamName}" has ${presentCount} present players — max ${GAME.squadSize} allowed in BGMI. Remove extras or mark them absent.`
+                        );
+                    }
+                }
+            }
+
             for (const matchData of matchDataList) {
                 const stats = matchData.teams.map((t) => ({
                     teamId: t.teamId,
