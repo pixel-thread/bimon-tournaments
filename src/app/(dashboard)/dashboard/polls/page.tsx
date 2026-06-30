@@ -23,6 +23,7 @@ import {
     Plus,
     Pencil,
     Send,
+    Link2,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useCallback } from "react";
@@ -395,9 +396,21 @@ export default function PollsAdminPage() {
                                                         >
                                                             <Pencil className="h-3 w-3" />
                                                         </Button>
-                                                        {poll.tournament && (
-                                                            <DiscordAnnounceButton pollId={poll.id} />
-                                                        )}
+                                                        <Button
+                                                            size="sm"
+                                                            variant="flat"
+                                                            isIconOnly
+                                                            className="min-w-0 h-7 w-7"
+                                                            title="Copy link with message"
+                                                            onPress={() => {
+                                                                const url = `${window.location.origin}/polls/${poll.id}`;
+                                                                const msg = `Phi lah ban register lane DM ban book slot 🔥🔥🔥\n${url}`;
+                                                                navigator.clipboard.writeText(msg);
+                                                                toast.success("Link copied!", { duration: 1500 });
+                                                            }}
+                                                        >
+                                                            <Link2 className="h-3 w-3" />
+                                                        </Button>
                                                         {poll.tournament && poll.tournament.type === "BR" && (
                                                             <Button
                                                                 size="sm"
