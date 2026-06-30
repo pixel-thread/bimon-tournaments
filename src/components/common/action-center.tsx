@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
 import { Gift, Shield, ChevronUp, X, Loader2, Check, Crown, UserPlus } from "lucide-react";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 
 interface SquadInvite {
     id: string;
@@ -53,6 +54,12 @@ export function ActionCenter() {
         } catch { return new Set(); }
     });
 
+    // Refetch on route change (page navigation) — no polling needed
+    const pathname = usePathname();
+    useEffect(() => {
+        queryClient.invalidateQueries({ queryKey: ["notification-count"] });
+    }, [pathname, queryClient]);
+
     // Subscribe to the same "notification-count" cache that the header populates.
     // Both share queryKey + staleTime:Infinity so only one network call fires.
     // queryFn must produce the same shape as header.tsx so the cache is consistent.
@@ -74,6 +81,7 @@ export function ActionCenter() {
         },
         enabled: !!session?.user,
         staleTime: Infinity,
+        refetchOnWindowFocus: "always", // refetch when user returns to tab
     });
 
     const rewards = (notifData?.unclaimedRewards ?? []).filter(r => !completedIds.has(r.id));
@@ -91,6 +99,16 @@ export function ActionCenter() {
                 sessionStorage.setItem("action-center-shown", "1");
             }
         }
+    }, [totalActions, dismissed]);
+
+    // Re-surface the pill if new actions arrive after a dismiss
+    const prevActionsRef = useRef(totalActions);
+    useEffect(() => {
+        if (totalActions > prevActionsRef.current && dismissed) {
+            setDismissed(false);
+            setExpanded(true);
+        }
+        prevActionsRef.current = totalActions;
     }, [totalActions, dismissed]);
 
     // Mark as completed + auto-remove after animation

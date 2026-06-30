@@ -40,6 +40,7 @@ export type PreviewTeamsByPollsResult = {
     entryFee: number;
     tournamentName: string;
     totalPlayersEligible: number;
+    isMangoScrim?: boolean;
 };
 
 // ─── Service ─────────────────────────────────────────────────
@@ -151,6 +152,12 @@ export async function previewTeamsByPoll({
             username: t.players[0].displayName || t.players[0].username,
         }));
 
+    // Check if tournament is mango scrim
+    const tournament = await prisma.tournament.findUnique({
+        where: { id: tournamentId },
+        select: { isMangoScrim: true },
+    });
+
     return {
         teams: teamPreviews,
         playersWithInsufficientBalance,
@@ -158,5 +165,6 @@ export async function previewTeamsByPoll({
         entryFee,
         tournamentName: tournamentName,
         totalPlayersEligible: allPlayerIds.length,
+        isMangoScrim: tournament?.isMangoScrim ?? false,
     };
 }

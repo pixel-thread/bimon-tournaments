@@ -238,6 +238,7 @@ export function PollTeamsPreviewModal({
                                     teams={previewData.teams}
                                     entryFee={previewData.entryFee}
                                     allowSquads={allowSquads}
+                                    isMangoScrim={previewData.isMangoScrim}
                                 />
                             ) : (
                                 <p className="py-8 text-center text-sm text-foreground/50">
@@ -320,13 +321,15 @@ function ChampionshipGroupedTeams({
     teams,
     entryFee,
     allowSquads = false,
+    isMangoScrim = false,
 }: {
     teams: TeamPreview[];
     entryFee: number;
     allowSquads?: boolean;
+    isMangoScrim?: boolean;
 }) {
-    // Only show championship grouping for ranked/squad polls, never for casual
-    const isChampionship = allowSquads && teams.length > GAME.maxSquadTeams;
+    // Only show championship grouping for ranked/squad polls, never for casual or mango scrim
+    const isChampionship = allowSquads && !isMangoScrim && teams.length > GAME.maxSquadTeams;
     const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
     // Simulate group assignment (same logic as assignGroups but for preview)
