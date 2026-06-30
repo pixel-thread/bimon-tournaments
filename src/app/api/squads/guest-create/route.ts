@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
                         status: "FORMING",
                         entryFee,
                         createdAt: new Date(),
-                        confirmedAt: null, // Ghost captains won't have balance
+                        confirmedAt: new Date(), // Ghost captains auto-confirmed
                         invites: {
                             create: {
                                 playerId: captainPlayer!.id,
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
                         pollId,
                         captainId: captainPlayer!.id,
                         entryFee,
-                        confirmedAt: null,
+                        confirmedAt: new Date(), // Ghost captains auto-confirmed
                         invites: {
                             create: {
                                 playerId: captainPlayer!.id,
