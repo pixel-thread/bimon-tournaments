@@ -22,7 +22,6 @@ import {
     Swords,
     Plus,
     Pencil,
-    Send,
     Link2,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -401,12 +400,11 @@ export default function PollsAdminPage() {
                                                             variant="flat"
                                                             isIconOnly
                                                             className="min-w-0 h-7 w-7"
-                                                            title="Copy link with message"
+                                                            title="Share on WhatsApp"
                                                             onPress={() => {
                                                                 const url = `${window.location.origin}/polls/${poll.id}`;
                                                                 const msg = `Phi lah ban register lane DM ban book slot 🔥🔥🔥\n${url}`;
-                                                                navigator.clipboard.writeText(msg);
-                                                                toast.success("Link copied!", { duration: 1500 });
+                                                                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
                                                             }}
                                                         >
                                                             <Link2 className="h-3 w-3" />
@@ -517,39 +515,3 @@ function BracketButton({
     );
 }
 
-/* ─── Discord Announce Button ─────────────────────────────── */
-function DiscordAnnounceButton({ pollId }: { pollId: string }) {
-    const [loading, setLoading] = useState(false);
-
-    const handleAnnounce = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch("/api/discord/announce-poll", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pollId }),
-            });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.error || "Failed");
-            toast.success("Announced on Discord!");
-        } catch (err: any) {
-            toast.error(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <Button
-            size="sm"
-            variant="flat"
-            isIconOnly
-            className="min-w-0 h-7 w-7"
-            isLoading={loading}
-            onPress={handleAnnounce}
-            title="Announce on Discord"
-        >
-            <Send className="h-3 w-3" />
-        </Button>
-    );
-}
