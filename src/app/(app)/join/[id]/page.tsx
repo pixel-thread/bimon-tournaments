@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Input, Button, Spinner, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { PlayerAvatar } from "@/components/ui/player-avatar";
-import { Shield, Users, Clock, ChevronRight, CheckCircle2, AlertTriangle, X, Check, RefreshCw, Plus, CheckCheck } from "lucide-react";
+import { Shield, Users, Clock, ChevronRight, CheckCircle2, AlertTriangle, X, Check, RefreshCw, Plus, CheckCheck, Phone } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad, usePreviousRoster, useImportRoster } from "@/hooks/use-squads";
 import { useAuthUser } from "@/hooks/use-auth-user";
@@ -15,6 +15,7 @@ import { TeamDoneSection } from "@/components/squads/team-done-section";
 import { markWhatsAppPending, markWhatsAppJoined } from "@/components/common/whatsapp-squad-guard";
 import { getPollTheme } from "@/components/vote/pollTheme";
 import { toast } from "sonner";
+import { GAME } from "@/lib/game-config";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -80,6 +81,20 @@ export default function JoinPage() {
     const inputRef = useRef<HTMLInputElement>(null);
     const [showNewForm, setShowNewForm] = useState(false);
     const [quickCreating, setQuickCreating] = useState(false);
+
+    // Guest form state
+    const [guestMode, setGuestMode] = useState(!isSignedIn);
+    const [captainName, setCaptainName] = useState("");
+    const [captainPhone, setCaptainPhone] = useState("");
+    const totalSlots = GAME.maxSquadSize - 1; // 5 for BGMI
+    const [slotNames, setSlotNames] = useState<Record<number, string>>({});
+    const [guestSubmitting, setGuestSubmitting] = useState(false);
+    const [showGhostPrompt, setShowGhostPrompt] = useState(false);
+
+    // Auto-enable guest mode when not signed in
+    useEffect(() => {
+        if (!isSignedIn) setGuestMode(true);
+    }, [isSignedIn]);
 
     // Fetch tournament info
     const { data, isLoading, error } = useQuery<PollPublicData>({
@@ -272,15 +287,47 @@ export default function JoinPage() {
             return;
         }
         if (!isSignedIn) {
-            // Guest → save team name + poll and redirect to sign-in
-            const effectiveName = (useClan && hasClan) ? "_clan_" : teamName.trim();
-            localStorage.setItem("pending-join-poll", pollId);
-            localStorage.setItem("pending-join-team", effectiveName);
-            window.location.href = `/sign-in?redirect_url=${encodeURIComponent(`/join/${pollId}?team=${encodeURIComponent(effectiveName)}`)}`;
+            // Show guest form instead of redirecting to sign-in
+            setGuestMode(true);
             return;
         }
         handleCreate();
     }, [teamName, useClan, hasClan, isSignedIn, pollId, handleCreate, data?.hasVotedIn]);
+
+    // Guest form submission
+    const handleGuestSubmit = async () => {
+        if (!captainName.trim() || captainPhone.replace(/\D/g, "").length !== 10 || !teamName.trim()) return;
+        setGuestSubmitting(true);
+        try {
+            const members = Object.entries(slotNames)
+                .filter(([, name]) => name.trim())
+                .map(([, name]) => ({ name: name.trim() }));
+
+            const res = await fetch("/api/squads/guest-create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    pollId,
+                    captainName: captainName.trim(),
+                    captainPhone: captainPhone.trim(),
+                    teamName: teamName.trim(),
+                    teamFullName: teamFullName.trim() || undefined,
+                    members,
+                }),
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                toast.error(json.message || "Failed to create team");
+                return;
+            }
+            toast.success(json.message || "Team created! 🎉");
+            setStep("done");
+        } catch {
+            toast.error("Failed to create team");
+        } finally {
+            setGuestSubmitting(false);
+        }
+    };
 
     const handleConfirmWithVote = useCallback(() => {
         setShowVoteWarning(false);
@@ -369,7 +416,10 @@ export default function JoinPage() {
     }
 
     const isFull = data.squadCount >= data.maxSquadWaitlist;
-    const canSubmit = ((useClan && hasClan) || teamName.trim().length > 0) && !isFull && step === "form"; // Discord requirement removed
+    const guestCanSubmit = captainName.trim() && captainPhone.replace(/\D/g, "").length === 10 && teamName.trim();
+    const canSubmit = guestMode
+        ? !!guestCanSubmit && !isFull && step === "form"
+        : ((useClan && hasClan) || teamName.trim().length > 0) && !isFull && step === "form";
 
     return (
         <>
@@ -437,17 +487,52 @@ export default function JoinPage() {
                         className="space-y-5"
                     >
                         {/* ── Header ── */}
-                        <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${data.participantCount >= 1 && getPollTheme(data.participantCount)?.header ? getPollTheme(data.participantCount)!.header : 'from-blue-600 via-violet-600 to-purple-700'} p-6 text-white`}>
+                        {(() => {
+                            // Match vote page: squad polls use teams × squadSize for theme tier
+                            const themeCount = data.allowSquads
+                                ? data.squadCount * GAME.squadSize
+                                : data.participantCount;
+                            const theme = getPollTheme(themeCount);
+                            const headerGradient = theme?.header || 'from-blue-600 via-violet-600 to-purple-700';
+                            return (
+                        <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${headerGradient} p-6 pb-10 text-white`}>
+                            {/* Decorative circles */}
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
                             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-                            <div className="relative">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center backdrop-blur-sm">
-                                        <Shield className="w-4 h-4" />
+                            {/* Sparkles */}
+                            <div className="absolute top-3 left-6 w-1 h-1 bg-white rounded-full animate-ping opacity-75" style={{ zIndex: 2 }} />
+                            <div className={`absolute top-4 right-8 w-1.5 h-1.5 ${theme?.sparkle || 'bg-white'} rounded-full animate-ping opacity-60`} style={{ animationDelay: "0.5s", zIndex: 2 }} />
+                            {/* Waves */}
+                            <div className="absolute bottom-0 left-0 right-0 h-12 overflow-hidden" style={{ zIndex: 2 }}>
+                                <svg className="absolute bottom-0 w-[200%] h-12 animate-[wave_3s_ease-in-out_infinite]" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                                    <path d="M0,60 C200,100 400,20 600,60 C800,100 1000,20 1200,60 L1200,120 L0,120 Z" fill={theme?.wave1 || "rgba(255,255,255,0.15)"} />
+                                </svg>
+                                <svg className="absolute bottom-0 w-[200%] h-10 animate-[wave_4s_ease-in-out_infinite_reverse]" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                                    <path d="M0,60 C200,20 400,100 600,60 C800,20 1000,100 1200,60 L1200,120 L0,120 Z" fill={theme?.wave2 || "rgba(255,255,255,0.1)"} />
+                                </svg>
+                            </div>
+                            <style jsx>{`
+                                @keyframes wave {
+                                    0%, 100% { transform: translateX(0); }
+                                    50% { transform: translateX(-25%); }
+                                }
+                            `}</style>
+                            <div className="relative" style={{ zIndex: 3 }}>
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center backdrop-blur-sm">
+                                            <Shield className="w-4 h-4" />
+                                        </div>
+                                        <span className="text-xs font-medium text-white/70 uppercase tracking-wider">
+                                            Team Registration
+                                        </span>
                                     </div>
-                                    <span className="text-xs font-medium text-white/70 uppercase tracking-wider">
-                                        Team Registration
-                                    </span>
+                                    <button
+                                        onClick={() => router.push(`/vote?tab=${data.allowSquads ? "ranked" : "casual"}&poll=${pollId}`)}
+                                        className="text-[11px] font-medium text-white/70 hover:text-white bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm transition-colors cursor-pointer"
+                                    >
+                                        📋 Vote Page →
+                                    </button>
                                 </div>
                                 <h1 className="text-2xl font-bold leading-tight">
                                     {data.tournamentName}
@@ -455,6 +540,19 @@ export default function JoinPage() {
                                 {data.seasonName && (
                                     <p className="text-sm text-white/60 mt-1">{data.seasonName}</p>
                                 )}
+                                {/* Stats row */}
+                                <div className="flex items-center gap-3 mt-3 text-[11px] text-white/60">
+                                    <span className="flex items-center gap-1">
+                                        <Users className="w-3 h-3" />
+                                        {data.squadCount}/{data.maxSquads} teams
+                                    </span>
+                                    {data.entryFee > 0 && (
+                                        <span>💰 {data.entryFee} entry</span>
+                                    )}
+                                    {data.scheduledDate && (
+                                        <span>📅 {new Date(data.scheduledDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                                    )}
+                                </div>
                                 {data.isChampionship && (
                                     <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-200 text-xs font-bold">
                                         🏆 Championship
@@ -462,18 +560,8 @@ export default function JoinPage() {
                                 )}
                             </div>
                         </div>
-
-                        {/* Quick nav — Vote or Create Team */}
-                        <div className="flex gap-2">
-                            <Button
-                                variant="flat"
-                                size="sm"
-                                className="flex-1"
-                                onPress={() => router.push(`/vote?tab=${data.allowSquads ? "ranked" : "casual"}&poll=${pollId}`)}
-                            >
-                                📋 Go to Vote
-                            </Button>
-                        </div>
+                            );
+                        })()}
 
                         {/* ── Past Roster Preview ── */}
                         {hasPreviousRoster && !showNewForm && !isFull && (
@@ -647,17 +735,111 @@ export default function JoinPage() {
                                 {/* Discord UI code kept as comment for future re-enablement */}
 
                                 {/* ── Submit Button ── */}
-                                <Button
-                                    color="primary"
-                                    size="lg"
-                                    className="w-full font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 shadow-lg shadow-blue-500/20"
-                                    isDisabled={!canSubmit}
-                                    isLoading={step === "creating"}
-                                    startContent={step !== "creating" ? <Shield className="w-4 h-4" /> : undefined}
-                                    onPress={handleSubmit}
-                                >
-                                    {step === "creating" ? "Creating Team..." : "Register Team"}
-                                </Button>
+                                {!guestMode ? (
+                                    <Button
+                                        color="primary"
+                                        size="lg"
+                                        className="w-full font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 shadow-lg shadow-blue-500/20"
+                                        isDisabled={!canSubmit}
+                                        isLoading={step === "creating"}
+                                        startContent={step !== "creating" ? <Shield className="w-4 h-4" /> : undefined}
+                                        onPress={handleSubmit}
+                                    >
+                                        {step === "creating" ? "Creating Team..." : "Register Team"}
+                                    </Button>
+                                ) : (
+                                    /* ── Guest Form ── */
+                                    <div className="space-y-3 pt-1">
+                                        <div className="h-px bg-divider" />
+                                        <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide">
+                                            Players ({1 + Object.values(slotNames).filter(n => n.trim()).length}/{GAME.maxSquadSize})
+                                        </p>
+                                        <div className="space-y-2">
+                                            {/* Player 1 / Leader */}
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 bg-primary/15 text-primary">
+                                                        1
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Player 1 / Leader *"
+                                                        value={captainName}
+                                                        onChange={(e) => setCaptainName(e.target.value.slice(0, 20))}
+                                                        maxLength={20}
+                                                        className="flex-1 min-w-0 rounded-lg bg-default-100 px-3 py-2.5 text-sm outline-none placeholder:text-foreground/40 font-medium focus:ring-2 focus:ring-primary/40 transition-shadow"
+                                                    />
+                                                    <span className="text-[9px] text-primary font-bold uppercase shrink-0 bg-primary/10 px-1.5 py-0.5 rounded">Leader</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 ml-8">
+                                                    <Phone className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
+                                                    <input
+                                                        type="tel"
+                                                        placeholder="Leader phone (10 digits) *"
+                                                        value={captainPhone}
+                                                        onChange={(e) => setCaptainPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                                                        maxLength={10}
+                                                        className="flex-1 min-w-0 rounded-lg bg-default-100 px-3 py-2 text-sm outline-none placeholder:text-foreground/40 focus:ring-2 focus:ring-primary/40 transition-shadow"
+                                                    />
+                                                    {captainPhone.replace(/\D/g, "").length === 10 && (
+                                                        <Check className="w-4 h-4 text-success shrink-0" />
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Player 2–6 */}
+                                            {Array.from({ length: totalSlots }).map((_, i) => {
+                                                const slotLabel = i < GAME.squadSize - 1 ? `Player ${i + 2}` : `Sub ${i - GAME.squadSize + 2}`;
+                                                const isSub = i >= GAME.squadSize - 1;
+                                                return (
+                                                    <div key={`guest-slot-${i}`} className="flex items-center gap-2">
+                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${isSub ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}`}>
+                                                            {i + 2}
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            placeholder={slotLabel}
+                                                            value={slotNames[i] || ""}
+                                                            onChange={(e) => setSlotNames(prev => ({ ...prev, [i]: e.target.value }))}
+                                                            maxLength={20}
+                                                            className={`flex-1 min-w-0 rounded-lg bg-default-100 px-3 py-2.5 text-sm outline-none placeholder:text-foreground/40 focus:ring-2 focus:ring-primary/40 transition-shadow ${isSub ? 'border border-dashed border-foreground/10' : ''}`}
+                                                        />
+                                                        {slotNames[i]?.trim() && (
+                                                            <button
+                                                                onClick={() => setSlotNames(prev => { const n = { ...prev }; delete n[i]; return n; })}
+                                                                className="w-6 h-6 rounded-full hover:bg-foreground/10 flex items-center justify-center shrink-0"
+                                                            >
+                                                                <X className="w-3.5 h-3.5 text-foreground/30" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <Button
+                                            color="primary"
+                                            size="lg"
+                                            className="w-full font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 shadow-lg shadow-blue-500/20"
+                                            isDisabled={!canSubmit}
+                                            isLoading={guestSubmitting}
+                                            startContent={!guestSubmitting ? <Shield className="w-4 h-4" /> : undefined}
+                                            onPress={() => setShowGhostPrompt(true)}
+                                        >
+                                            {guestSubmitting ? "Creating Team..." : "Register Team"}
+                                        </Button>
+
+                                        <p className="text-[11px] text-center text-danger">
+                                            Team tag, leader name & phone are required • teammates are optional
+                                        </p>
+                                        <p className="text-[11px] text-center text-foreground/40">
+                                            Already a player?{" "}
+                                            <a href={`/sign-in?redirect_url=${encodeURIComponent(`/join/${pollId}`)}`} className="text-primary font-medium hover:underline">
+                                                Sign in
+                                            </a>
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -713,6 +895,68 @@ export default function JoinPage() {
                             Create Team Instead
                         </Button>
                     </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            {/* Ghost vs Sign-in prompt modal */}
+            <Modal
+                isOpen={showGhostPrompt}
+                onClose={() => setShowGhostPrompt(false)}
+                placement="center"
+                size="sm"
+                classNames={{
+                    base: "bg-background border border-divider",
+                    backdrop: "bg-black/60 backdrop-blur-sm",
+                }}
+            >
+                <ModalContent>
+                    <ModalHeader className="flex items-center gap-2 text-base">
+                        <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                            <Users className="w-4 h-4 text-primary" />
+                        </div>
+                        <span>Create your team</span>
+                    </ModalHeader>
+                    <ModalBody className="pt-0 space-y-3">
+                        <Button
+                            color="primary"
+                            size="lg"
+                            className="w-full font-semibold"
+                            onPress={() => {
+                                // Save form data to localStorage before redirecting
+                                localStorage.setItem("pending-join-form", JSON.stringify({
+                                    pollId,
+                                    teamName,
+                                    teamFullName,
+                                    captainName,
+                                    captainPhone,
+                                    slotNames,
+                                }));
+                                window.location.href = `/sign-in?redirect_url=${encodeURIComponent(`/join/${pollId}`)}`;
+                            }}
+                        >
+                            🔐 Sign In & Register
+                        </Button>
+                        <p className="text-[11px] text-center text-foreground/50">
+                            Your team info is saved — no need to fill it again
+                        </p>
+                        <div className="h-px bg-divider" />
+                        <Button
+                            variant="flat"
+                            size="lg"
+                            className="w-full font-semibold"
+                            isLoading={guestSubmitting}
+                            onPress={() => {
+                                setShowGhostPrompt(false);
+                                handleGuestSubmit();
+                            }}
+                        >
+                            👻 Continue as Guest
+                        </Button>
+                        <p className="text-[11px] text-center text-foreground/40">
+                            No account needed • team created instantly
+                        </p>
+                    </ModalBody>
+                    <ModalFooter />
                 </ModalContent>
             </Modal>
             {/* <DiscordCompareModal /> */}{/* Discord disabled */}
