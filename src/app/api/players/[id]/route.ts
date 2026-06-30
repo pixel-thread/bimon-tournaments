@@ -183,15 +183,57 @@ export async function PATCH(
             updateData.displayName = censorProfanity(trimmed);
         }
 
-        if (Object.keys(updateData).length === 0) {
+        // Phone number
+        let phoneUpdate: string | null | undefined = undefined;
+        if (typeof body.phoneNumber === "string" || body.phoneNumber === null) {
+            phoneUpdate = body.phoneNumber ? body.phoneNumber.replace(/\D/g, "").slice(-10) : null;
+            if (phoneUpdate && phoneUpdate.length !== 10) {
+                return NextResponse.json({ error: "Phone must be 10 digits" }, { status: 400 });
+            }
+            updateData.phoneNumber = phoneUpdate;
+        }
+
+        // Email (lives on user model, not player)
+        let emailUpdate: string | null | undefined = undefined;
+        if (typeof body.email === "string" || body.email === null) {
+            emailUpdate = body.email ? body.email.trim() : null;
+            if (emailUpdate && !emailUpdate.includes("@")) {
+                return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+            }
+        }
+
+        if (Object.keys(updateData).length === 0 && emailUpdate === undefined) {
             return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
         }
 
-        const updated = await prisma.player.update({
+        // Get player to find userId for email update
+        const playerRecord = await prisma.player.findUnique({
             where: { id },
-            data: updateData,
-            select: { id: true, displayName: true, category: true, isTrusted: true, isUCExempt: true, discordId: true },
+            select: { userId: true },
         });
+        if (!playerRecord) {
+            return NextResponse.json({ error: "Player not found" }, { status: 404 });
+        }
+
+        // Update player fields
+        const updated = Object.keys(updateData).length > 0
+            ? await prisma.player.update({
+                where: { id },
+                data: updateData,
+                select: { id: true, displayName: true, category: true, isTrusted: true, isUCExempt: true, discordId: true, phoneNumber: true },
+            })
+            : await prisma.player.findUnique({
+                where: { id },
+                select: { id: true, displayName: true, category: true, isTrusted: true, isUCExempt: true, discordId: true, phoneNumber: true },
+            });
+
+        // Update email on user model
+        if (emailUpdate !== undefined) {
+            await prisma.user.update({
+                where: { id: playerRecord.userId },
+                data: { email: emailUpdate },
+            });
+        }
 
         // Auto-grant/revoke Discord UC Exempt role
         if (typeof body.isUCExempt === "boolean" && updated.discordId) {

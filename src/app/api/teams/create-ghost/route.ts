@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
             matchId: string;
             name: string;
             captainName: string;
-            captainPhone: string;
+            captainPhone?: string;
             members: string[];
         };
 
@@ -36,12 +36,11 @@ export async function POST(request: NextRequest) {
         if (!matchId) return ErrorResponse({ message: "matchId required", status: 400 });
         if (!name?.trim()) return ErrorResponse({ message: "Team name required", status: 400 });
         if (!captainName?.trim()) return ErrorResponse({ message: "Captain name required", status: 400 });
-        if (!captainPhone?.trim()) return ErrorResponse({ message: "Captain phone required", status: 400 });
 
         const cleanName = name.trim().slice(0, 7);
         const cleanCaptainName = captainName.trim().slice(0, 20);
-        const cleanPhone = captainPhone.replace(/\D/g, "").slice(-10);
-        if (cleanPhone.length !== 10) {
+        const cleanPhone = captainPhone ? captainPhone.replace(/\D/g, "").slice(-10) : "";
+        if (cleanPhone && cleanPhone.length !== 10) {
             return ErrorResponse({ message: "Captain phone must be 10 digits", status: 400 });
         }
 
@@ -70,33 +69,46 @@ export async function POST(request: NextRequest) {
             // ─── Create ghost captain ───
             let captainPlayerId: string;
 
-            // Check for existing player by phone
-            const existingPlayer = await tx.player.findFirst({
-                where: { phoneNumber: cleanPhone, isGhost: false },
-                select: { id: true, displayName: true },
-            });
+            if (cleanPhone) {
+                // Phone provided: check for existing player by phone
+                const existingPlayer = await tx.player.findFirst({
+                    where: { phoneNumber: cleanPhone, isGhost: false },
+                    select: { id: true, displayName: true },
+                });
 
-            if (existingPlayer) {
-                captainPlayerId = existingPlayer.id;
-            } else {
-                const ghostClerkId = `ghost_phone_${cleanPhone}`;
-                let ghostUser = await tx.user.findFirst({ where: { clerkId: ghostClerkId } });
-                if (!ghostUser) {
-                    ghostUser = await tx.user.create({
-                        data: { clerkId: ghostClerkId, username: ghostClerkId, email: null },
-                    });
-                }
-                let ghostPlayer = await tx.player.findFirst({ where: { userId: ghostUser.id } });
-                if (!ghostPlayer) {
-                    ghostPlayer = await tx.player.create({
-                        data: { userId: ghostUser.id, displayName: cleanCaptainName, phoneNumber: cleanPhone, isGhost: true },
-                    });
+                if (existingPlayer) {
+                    captainPlayerId = existingPlayer.id;
                 } else {
-                    await tx.player.update({
-                        where: { id: ghostPlayer.id },
-                        data: { displayName: cleanCaptainName, phoneNumber: cleanPhone },
-                    });
+                    const ghostClerkId = `ghost_phone_${cleanPhone}`;
+                    let ghostUser = await tx.user.findFirst({ where: { clerkId: ghostClerkId } });
+                    if (!ghostUser) {
+                        ghostUser = await tx.user.create({
+                            data: { clerkId: ghostClerkId, username: ghostClerkId, email: null },
+                        });
+                    }
+                    let ghostPlayer = await tx.player.findFirst({ where: { userId: ghostUser.id } });
+                    if (!ghostPlayer) {
+                        ghostPlayer = await tx.player.create({
+                            data: { userId: ghostUser.id, displayName: cleanCaptainName, phoneNumber: cleanPhone, isGhost: true },
+                        });
+                    } else {
+                        await tx.player.update({
+                            where: { id: ghostPlayer.id },
+                            data: { displayName: cleanCaptainName, phoneNumber: cleanPhone },
+                        });
+                    }
+                    captainPlayerId = ghostPlayer.id;
                 }
+            } else {
+                // No phone: create anonymous ghost captain (same as members)
+                const contactKey = `anon_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                const ghostClerkId = `ghost_${contactKey}`;
+                const ghostUser = await tx.user.create({
+                    data: { clerkId: ghostClerkId, username: ghostClerkId, email: null },
+                });
+                const ghostPlayer = await tx.player.create({
+                    data: { userId: ghostUser.id, displayName: cleanCaptainName, isGhost: true },
+                });
                 captainPlayerId = ghostPlayer.id;
             }
 
@@ -159,7 +171,7 @@ export async function POST(request: NextRequest) {
                 });
             }
 
-            return { team, captainIsReal: !!existingPlayer };
+            return { team, captainIsReal: false };
         });
 
         return SuccessResponse({

@@ -107,6 +107,10 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
     const [editingSecondary, setEditingSecondary] = useState(false);
     const [editingName, setEditingName] = useState(false);
     const [nameInput, setNameInput] = useState("");
+    const [editingEmail, setEditingEmail] = useState(false);
+    const [emailInput, setEmailInput] = useState("");
+    const [editingPhone, setEditingPhone] = useState(false);
+    const [phoneInput, setPhoneInput] = useState("");
 
     // Debounced search for merge autocomplete
     useEffect(() => {
@@ -273,6 +277,30 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
         },
     });
 
+    // Edit player mutation (name, email, phone — uses same PATCH endpoint)
+    const fieldEditMutation = useMutation({
+        mutationFn: async (data: { displayName?: string; email?: string | null; phoneNumber?: string | null }) => {
+            const res = await fetch(`/api/players/${playerId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || "Failed to update");
+            return json;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["admin-player", playerId] });
+            queryClient.invalidateQueries({ queryKey: ["admin-players"] });
+            setEditingName(false);
+            setNameInput("");
+            setEmailInput("");
+            setPhoneInput("");
+            toast.success("Player updated");
+        },
+        onError: (err: Error) => toast.error(err.message),
+    });
+
     const handleUcSubmit = () => {
         const amt = parseInt(ucAmount);
         if (!amt || amt <= 0 || !ucDescription.trim()) return;
@@ -359,10 +387,12 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                                             <button
                                                 onClick={() => {
                                                     setNameInput(player?.displayName || player?.username || "");
+                                                    setEmailInput(player?.email || "");
+                                                    setPhoneInput(player?.phoneNumber || "");
                                                     setEditingName(true);
                                                 }}
                                                 className="p-1 rounded-md text-foreground/25 hover:text-primary hover:bg-primary/10 transition-colors mt-0.5 cursor-pointer"
-                                                title="Rename player"
+                                                title="Edit player"
                                             >
                                                 <Pencil className="h-3 w-3" />
                                             </button>
@@ -376,20 +406,16 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                                             <span className="text-xs text-foreground/50">@{player?.username}</span>
                                             {player?.category && <CategoryBadge category={player.category} size="sm" />}
                                         </div>
-                                        {/* Contact row — always visible */}
+                                        {/* Contact row */}
                                         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                                            {player?.email && (
-                                                <span className="flex items-center gap-1 text-[11px] text-foreground/40">
-                                                    <Mail className="h-3 w-3 shrink-0" />
-                                                    <span className="break-all">{player.email}</span>
-                                                </span>
-                                            )}
-                                            {player?.phoneNumber && (
-                                                <span className="flex items-center gap-1 text-[11px] text-foreground/40">
-                                                    <Phone className="h-3 w-3 shrink-0" />
-                                                    {player.phoneNumber}
-                                                </span>
-                                            )}
+                                            <span className="flex items-center gap-1 text-[11px] text-foreground/40">
+                                                <Mail className="h-3 w-3 shrink-0" />
+                                                <span className="break-all">{player?.email || "—"}</span>
+                                            </span>
+                                            <span className="flex items-center gap-1 text-[11px] text-foreground/40">
+                                                <Phone className="h-3 w-3 shrink-0" />
+                                                {player?.phoneNumber || "—"}
+                                            </span>
                                         </div>
                                         {/* Expandable details toggle */}
                                         <button
@@ -941,22 +967,22 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
             </ModalContent>
         </Modal>
 
-            {/* Rename Modal */}
+            {/* Edit Player Modal */}
             <Modal
                 isOpen={editingName}
                 onClose={() => setEditingName(false)}
-                size="xs"
+                size="sm"
                 placement="center"
-                classNames={{ base: "max-w-[320px]" }}
+                classNames={{ base: "max-w-[380px]" }}
             >
                 <ModalContent>
                     <ModalHeader className="pb-2">
                         <div className="flex items-center gap-2">
                             <Pencil className="h-4 w-4 text-primary" />
-                            <span>Rename Player</span>
+                            <span>Edit Player</span>
                         </div>
                     </ModalHeader>
-                    <ModalBody className="pb-5">
+                    <ModalBody className="pb-5 space-y-3">
                         <Input
                             autoFocus
                             size="sm"
@@ -965,22 +991,49 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                             value={nameInput}
                             onValueChange={setNameInput}
                             maxLength={20}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && nameInput.trim().length >= 2) {
-                                    renameMutation.mutate(nameInput.trim());
-                                }
-                            }}
+                        />
+                        <Input
+                            size="sm"
+                            label="Email"
+                            placeholder="player@email.com"
+                            value={emailInput}
+                            onValueChange={setEmailInput}
+                            startContent={<Mail className="h-3 w-3 text-default-400" />}
+                        />
+                        <Input
+                            size="sm"
+                            label="Phone"
+                            placeholder="10 digit number"
+                            value={phoneInput}
+                            onValueChange={v => setPhoneInput(v.replace(/\D/g, "").slice(0, 10))}
+                            maxLength={10}
+                            startContent={<Phone className="h-3 w-3 text-default-400" />}
                         />
                         <Button
                             size="sm"
                             color="primary"
                             variant="flat"
-                            onPress={() => nameInput.trim().length >= 2 && renameMutation.mutate(nameInput.trim())}
-                            isLoading={renameMutation.isPending}
-                            isDisabled={nameInput.trim().length < 2}
+                            onPress={() => {
+                                const updates: Record<string, unknown> = {};
+                                if (nameInput.trim().length >= 2 && nameInput.trim() !== (player?.displayName || "")) {
+                                    updates.displayName = nameInput.trim();
+                                }
+                                if (emailInput.trim() !== (player?.email || "")) {
+                                    updates.email = emailInput.trim() || null;
+                                }
+                                if (phoneInput.trim() !== (player?.phoneNumber || "")) {
+                                    updates.phoneNumber = phoneInput.trim() || null;
+                                }
+                                if (Object.keys(updates).length === 0) {
+                                    toast.error("No changes to save");
+                                    return;
+                                }
+                                fieldEditMutation.mutate(updates as any);
+                            }}
+                            isLoading={fieldEditMutation.isPending}
                             className="w-full"
                         >
-                            Rename
+                            Save Changes
                         </Button>
                     </ModalBody>
                 </ModalContent>
