@@ -59,7 +59,7 @@ export async function POST(
         const { id } = await params;
         const body = await req.json();
         const { placements, dryRun } = body as {
-            placements?: { position: number; amount: number; diamondAmount?: number; teamId?: string; players?: { playerId: string; amount: number }[] }[];
+            placements?: { position: number; amount: number; diamondAmount?: number; teamId?: string; players?: { playerId: string; amount: number; skipReward?: boolean }[] }[];
             dryRun?: boolean;
         };
 
@@ -333,6 +333,7 @@ export async function POST(
             details: Prisma.InputJsonValue;
             taxResult: TaxResult;
             soloTaxResult: SoloTaxResult;
+            skipReward?: boolean;
         }
 
         interface WinnerTeamData {
@@ -357,9 +358,11 @@ export async function POST(
 
             // Build a map of pre-computed per-player amounts (from preview)
             const precomputedAmounts = new Map<string, number>();
+            const skipRewardSet = new Set<string>();
             if (placement.players && placement.players.length > 0) {
                 for (const pp of placement.players) {
                     precomputedAmounts.set(pp.playerId, pp.amount);
+                    if (pp.skipReward) skipRewardSet.add(pp.playerId);
                 }
             }
 
@@ -397,6 +400,7 @@ export async function POST(
                             } as Prisma.InputJsonValue,
                             taxResult: noTax,
                             soloTaxResult: noSoloTax,
+                            skipReward: skipRewardSet.has(captain.playerId),
                         });
 
                         allTaxResults.push(noTax);
@@ -476,6 +480,7 @@ export async function POST(
                         } as Prisma.InputJsonValue,
                         taxResult,
                         soloTaxResult,
+                        skipReward: skipRewardSet.has(player.playerId),
                     });
 
                     allTaxResults.push(taxResult);
@@ -570,6 +575,9 @@ export async function POST(
 
                 // Create PendingReward + Notification for each player
                 for (const p of teamData.players) {
+                    // Skip reward: player is marked to not receive prize
+                    if (p.skipReward) continue;
+
                     // Clan treasury: if this captain's squad used clan treasury,
                     // credit the prize to the clan balance instead of creating a PendingReward
                     const clanTreasuryInfo = squadClanTreasuryMap.get(p.playerId);

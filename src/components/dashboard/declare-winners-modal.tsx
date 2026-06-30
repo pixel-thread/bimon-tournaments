@@ -14,7 +14,7 @@ import {
     Tabs,
     Tab,
 } from "@heroui/react";
-import { Trophy, Plus, Trash2, Coins, ChevronDown, Undo2 } from "lucide-react";
+import { Trophy, Plus, Trash2, Coins, ChevronDown, Undo2, Ban } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -109,6 +109,16 @@ export function DeclareWinnersModal({
     const [poolOpen, setPoolOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<string>("simple");
     const [diamondAmounts, setDiamondAmounts] = useState<Record<number, number>>({});
+    const [skipRewardPlayers, setSkipRewardPlayers] = useState<Set<string>>(new Set());
+
+    const toggleSkipReward = (playerId: string) => {
+        setSkipRewardPlayers(prev => {
+            const next = new Set(prev);
+            if (next.has(playerId)) next.delete(playerId);
+            else next.add(playerId);
+            return next;
+        });
+    };
 
     // Fetch org/fund percentages from settings (always fresh when modal opens)
     const { data: publicSettings } = useQuery({
@@ -561,7 +571,7 @@ export function DeclareWinnersModal({
                     const teamAmount = baseDist?.prizes.get(pos)?.amount ?? 0;
                     const captain = captainMap[team.teamId];
                     const captainId = captain?.id || team.players?.[0]?.id || "";
-                    return { position: pos, amount: teamAmount, teamId: team.teamId, players: [{ playerId: captainId, amount: teamAmount }] };
+                    return { position: pos, amount: teamAmount, teamId: team.teamId, players: [{ playerId: captainId, amount: teamAmount, ...(skipRewardPlayers.has(captainId) ? { skipReward: true } : {}) }] };
                 });
             } else {
                 // BGMI: build placements with exact per-player amounts from preview
@@ -574,7 +584,7 @@ export function DeclareWinnersModal({
                     const players = (team.players || []).map(p => {
                         const adjusted = pa.get(p.id)?.adjusted ?? perPlayer;
                         const final = getTaxedAmount(p.id, adjusted);
-                        return { playerId: p.id, amount: final };
+                        return { playerId: p.id, amount: final, ...(skipRewardPlayers.has(p.id) ? { skipReward: true } : {}) };
                     });
                     return { position: pos, amount: teamAmount, teamId: team.teamId, players };
                 });
@@ -697,12 +707,27 @@ export function DeclareWinnersModal({
                                 const tax = taxPreview[p.id];
                                 const isCaptain = captain?.id === p.id;
                                 return (
-                                    <div key={p.id} className="text-xs">
+                                    <div key={p.id} className={`text-xs ${isCaptain && skipRewardPlayers.has(p.id) ? "opacity-40 line-through" : ""}`}>
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                 <span className={`font-medium ${isCaptain ? "text-warning" : ""}`}>
                                                     {p.name}{isCaptain ? " 👑" : ""}
                                                 </span>
+                                                {isCaptain && !isWinnerDeclared && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleSkipReward(p.id)}
+                                                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                                                            skipRewardPlayers.has(p.id)
+                                                                ? "bg-danger/20 text-danger"
+                                                                : "bg-foreground/5 text-foreground/30 hover:bg-danger/10 hover:text-danger/60"
+                                                        }`}
+                                                        title={skipRewardPlayers.has(p.id) ? "Click to restore reward" : "Click to skip reward"}
+                                                    >
+                                                        <Ban className="h-2.5 w-2.5" />
+                                                        {skipRewardPlayers.has(p.id) ? "No pay" : "Skip"}
+                                                    </button>
+                                                )}
                                                 {tax && tax.totalMatches > 0 && (
                                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                                                         tax.participationRate >= 1 ? "bg-success/10 text-success" :
@@ -717,7 +742,7 @@ export function DeclareWinnersModal({
                                                 )}
                                             </div>
                                             {isCaptain && (
-                                                <span className="text-[10px] text-success font-medium">₹{teamPrize}</span>
+                                                <span className={`text-[10px] font-medium ${skipRewardPlayers.has(p.id) ? "text-danger line-through" : "text-success"}`}>₹{teamPrize}</span>
                                             )}
                                         </div>
                                     </div>
