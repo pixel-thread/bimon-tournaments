@@ -236,15 +236,15 @@ export async function PATCH(
         }
 
         // Auto-grant/revoke Discord UC Exempt role
-        if (typeof body.isUCExempt === "boolean" && updated.discordId) {
+        if (typeof body.isUCExempt === "boolean" && updated?.discordId) {
             const ucExemptRoleId = process.env.DISCORD_UC_EXEMPT_ROLE_ID;
             if (ucExemptRoleId) {
                 try {
                     const { grantRole, revokeRole } = await import("@/lib/discord-service");
                     if (body.isUCExempt) {
-                        await grantRole(updated.discordId, ucExemptRoleId);
+                        await grantRole(updated!.discordId, ucExemptRoleId);
                     } else {
-                        await revokeRole(updated.discordId, ucExemptRoleId);
+                        await revokeRole(updated!.discordId, ucExemptRoleId);
                     }
                 } catch (err) {
                     console.error("[UC Exempt] Discord role update failed:", err);
