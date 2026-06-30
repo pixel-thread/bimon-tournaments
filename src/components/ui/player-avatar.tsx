@@ -12,12 +12,11 @@ interface PlayerAvatarProps extends Omit<AvatarProps, "fallback" | "showFallback
 }
 
 /**
- * Check if an image URL is a Google/Clerk default avatar (just initials, not a real photo).
+ * Check if an image URL is a Clerk default avatar (just initials, not a real photo).
  * These are boring colored circles — we replace them with nice avatars.
+ * Google profile photos (lh3.googleusercontent.com) are kept as-is.
  */
 function isDefaultAvatar(url: string): boolean {
-    // Google default avatars
-    if (url.includes("lh3.googleusercontent.com/a/")) return true;
     // Clerk default avatars (initials)
     if (url.includes("img.clerk.com") && !url.includes("oauth_google")) return true;
     // Gravatar default
