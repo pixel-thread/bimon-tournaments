@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Send, Check, ChevronDown, Phone, RefreshCw, Link, Copy, ImagePlus, BookOpen } from "lucide-react";
+import { Send, Check, ChevronDown, Phone, RefreshCw, Link, Copy, ImagePlus, BookOpen, Pencil } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { toast } from "sonner";
 import { SPIRIT_LINES } from "@/lib/spirit-lines";
@@ -234,6 +234,7 @@ interface LeadersResponse {
 }
 
 function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
+    const [pageTab, setPageTab] = useState<"send" | "rules">("send");
     const [inviteInput, setInviteInput] = useState("");
     const [saving, setSaving] = useState(false);
     const [copyToolsOpen, setCopyToolsOpen] = useState(false);
@@ -367,6 +368,42 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
 
     return (
         <div className="space-y-3">
+            {/* ── Page-level tabs: Send / Rules ─── */}
+            <div className="flex gap-1 bg-default-100 rounded-xl p-1">
+                <button
+                    type="button"
+                    onClick={() => setPageTab("send")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        pageTab === "send"
+                            ? "bg-content1 text-foreground shadow-sm"
+                            : "text-foreground/40 hover:text-foreground/60"
+                    }`}
+                >
+                    <WhatsAppIcon className="w-3.5 h-3.5" />
+                    Send
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setPageTab("rules")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        pageTab === "rules"
+                            ? "bg-content1 text-foreground shadow-sm"
+                            : "text-foreground/40 hover:text-foreground/60"
+                    }`}
+                >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Rules
+                </button>
+            </div>
+
+            {/* ── Rules Tab ─── */}
+            {pageTab === "rules" && (
+                <RulesEditorTab tournamentId={tournament.id} tournamentName={tournament.name} />
+            )}
+
+            {/* ── Send Tab (existing content) ─── */}
+            {pageTab === "send" && (
+                <>
             {/* Championship tabs — right below tournament selector */}
             {isChamp && champTabs.length > 1 && (
                 <div className="flex gap-1 overflow-x-auto pb-0.5 -mx-1 px-1">
@@ -515,6 +552,8 @@ function TournamentCard({ tournament }: { tournament: InPlayTournament }) {
                     onSetSent={(teamNum) => setSentLeaders(prev => new Set([...prev, teamNum]))}
                 />
             )}
+                </>
+            )}
         </div>
     );
 }
@@ -580,7 +619,7 @@ function RulesCopyBtn({ tournamentId }: { tournamentId: string }) {
         if (didLongPress.current) return; // long press already handled
         if (rules.length === 0) return;
         const formatted = rules.map((r, i) => `*${i + 1}.* ${r.text}`).join("\n\n");
-        const message = `📋 *Tournament Rules*\n\n${formatted}\n\n⚠️ *Breaking any rule = disqualification*`;
+        const message = `📋 *Tournament Rules*\n\n${formatted}\n\n⚠️ *Breaking any rule may result in disqualification*`;
         navigator.clipboard.writeText(message);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
@@ -611,10 +650,17 @@ function RulesCopyBtn({ tournamentId }: { tournamentId: string }) {
     };
 
     const handleCopyRules = () => {
-        const rulesArray = editText.split("\n").map(l => l.trim()).filter(Boolean);
-        if (rulesArray.length === 0) return;
-        const formatted = rulesArray.map((r, i) => `*${i + 1}.* ${r}`).join("\n\n");
-        const message = `📋 *Tournament Rules*\n\n${formatted}\n\n⚠️ *Breaking any rule = disqualification*`;
+        const lines = editText.split("\n").filter(l => l.trim());
+        if (lines.length === 0) return;
+        let ruleNum = 0;
+        const formatted = lines.map(line => {
+            if (line.startsWith("\t") || line.startsWith("  ")) {
+                return `    ${line.trim()}`;
+            }
+            ruleNum++;
+            return `*${ruleNum}.* ${line.trim()}`;
+        }).join("\n\n");
+        const message = `📋 *Tournament Rules*\n\n${formatted}\n\n⚠️ *Breaking any rule may result in disqualification*`;
         navigator.clipboard.writeText(message);
         toast.success("Rules copied!");
     };
@@ -701,6 +747,198 @@ function RulesCopyBtn({ tournamentId }: { tournamentId: string }) {
                 </div>
             )}
         </>
+    );
+}
+
+
+/* ─── Inline Rules Editor Tab ──────────────────────────────────── */
+
+function RulesEditorTab({ tournamentId, tournamentName }: { tournamentId: string; tournamentName: string }) {
+    const [editText, setEditText] = useState("");
+    const [saving, setSaving] = useState(false);
+    const [loadingRules, setLoadingRules] = useState(true);
+    const [copied, setCopied] = useState(false);
+    const [hasHighlighted, setHasHighlighted] = useState(false);
+
+    // Fetch global rules
+    const { data: globalRules = [] } = useQuery<{ id: string; text: string }[]>({
+        queryKey: ["tournament-rules"],
+        queryFn: async () => {
+            const res = await fetch("/api/settings/tournament-rules");
+            if (!res.ok) return [];
+            const json = await res.json();
+            return json.data ?? [];
+        },
+        staleTime: 5 * 60_000,
+    });
+
+    // Load highlighted rules for this tournament on mount
+    useEffect(() => {
+        (async () => {
+            setLoadingRules(true);
+            try {
+                const res = await fetch(`/api/tournaments/${tournamentId}/highlighted-rules`);
+                if (res.ok) {
+                    const json = await res.json();
+                    const highlighted = json.highlightedRules || [];
+                    if (highlighted.length > 0) {
+                        setEditText(highlighted.join("\n"));
+                        setHasHighlighted(true);
+                    } else {
+                        setEditText(globalRules.map(r => r.text).join("\n"));
+                    }
+                } else {
+                    setEditText(globalRules.map(r => r.text).join("\n"));
+                }
+            } catch {
+                setEditText(globalRules.map(r => r.text).join("\n"));
+            }
+            setLoadingRules(false);
+        })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tournamentId]);
+
+    // Fill in global rules once they load (handles race condition where
+    // the above effect runs before useQuery resolves)
+    useEffect(() => {
+        if (!loadingRules && !hasHighlighted && !editText && globalRules.length > 0) {
+            setEditText(globalRules.map(r => r.text).join("\n"));
+        }
+    }, [globalRules, loadingRules, hasHighlighted, editText]);
+
+    const handleSave = async () => {
+        const rulesArray = editText.split("\n").map(l => l.trim()).filter(Boolean);
+        if (rulesArray.length === 0) {
+            toast.error("Add at least one rule");
+            return;
+        }
+        setSaving(true);
+        try {
+            const res = await fetch(`/api/tournaments/${tournamentId}/highlighted-rules`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rules: rulesArray }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || "Failed");
+            toast.success("Rules saved!");
+            setHasHighlighted(true);
+        } catch (err: any) {
+            toast.error(err.message || "Failed to save rules");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleCopy = () => {
+        const lines = editText.split("\n").filter(l => l.trim());
+        if (lines.length === 0) return;
+        let ruleNum = 0;
+        const formatted = lines.map(line => {
+            if (line.startsWith("\t") || line.startsWith("  ")) {
+                return `    ${line.trim()}`;
+            }
+            ruleNum++;
+            return `*${ruleNum}.* ${line.trim()}`;
+        }).join("\n\n");
+        const message = `Ngi pdiang sngewbha ia phi baroh 😊 — *${tournamentName}*\n\n📋 *Tournament Rules*\n\n${formatted}\n\n⚠️ *Breaking any rule may result in disqualification*`;
+        navigator.clipboard.writeText(message);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
+
+    const handleReset = () => {
+        setEditText(globalRules.map(r => r.text).join("\n"));
+        toast.success("Reset to global rules");
+    };
+
+    return (
+        <div className="space-y-3">
+            {/* Greeting */}
+            <div className="rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 px-4 py-3">
+                <p className="text-sm font-bold">Ngi pdiang sngewbha ia phi baroh 😊</p>
+                <p className="text-xs text-foreground/50 mt-0.5">{tournamentName}</p>
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-warning" />
+                    <h3 className="text-sm font-bold">Highlighted Rules</h3>
+                    {hasHighlighted && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-500 font-bold">Custom</span>
+                    )}
+                </div>
+                {hasHighlighted && (
+                    <button
+                        type="button"
+                        onClick={handleReset}
+                        className="text-[10px] font-semibold text-foreground/30 hover:text-foreground/60 cursor-pointer transition-colors"
+                    >
+                        Reset to Global
+                    </button>
+                )}
+            </div>
+
+            {/* Description */}
+            <p className="text-[11px] text-foreground/40">
+                One rule per line. Players see these on My Slot page. Edit freely and save.
+            </p>
+
+            {/* Editor */}
+            {loadingRules ? (
+                <div className="flex items-center justify-center py-12">
+                    <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                </div>
+            ) : (
+                <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Tab") {
+                            e.preventDefault();
+                            const target = e.currentTarget;
+                            const start = target.selectionStart;
+                            const end = target.selectionEnd;
+                            const newText = editText.substring(0, start) + "\t" + editText.substring(end);
+                            setEditText(newText);
+                            requestAnimationFrame(() => {
+                                target.selectionStart = target.selectionEnd = start + 1;
+                            });
+                        }
+                    }}
+                    rows={12}
+                    placeholder={"🚫 No emulators, triggers, or hacks\n⏰ Join lobby within 5 minutes\n📵 No team killing"}
+                    className="w-full px-3 py-2.5 rounded-xl bg-default-100 border border-divider text-xs leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-warning placeholder:text-foreground/20"
+                    style={{ tabSize: 4 }}
+                />
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
+                <button
+                    type="button"
+                    onClick={handleCopy}
+                    disabled={loadingRules || !editText.trim()}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer disabled:opacity-30 ${
+                        copied
+                            ? "bg-green-500/10 border-green-500/20 text-green-500"
+                            : "border-divider text-foreground/50 hover:bg-default-100 hover:text-foreground/70"
+                    }`}
+                >
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    {copied ? "Copied ✓" : "Copy Rules"}
+                </button>
+                <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving || loadingRules}
+                    className="flex-1 py-2.5 rounded-xl bg-primary/15 text-primary text-xs font-bold hover:bg-primary/25 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                    {saving ? "Saving..." : "Save"}
+                </button>
+            </div>
+        </div>
     );
 }
 
