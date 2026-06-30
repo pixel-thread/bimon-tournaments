@@ -403,7 +403,7 @@ export default function PollsAdminPage() {
                                                             title="Share on WhatsApp"
                                                             onPress={() => {
                                                                 const url = `${window.location.origin}/join/${poll.id}`;
-                                                                const msg = `Phi lah ban register lane DM ban book slot 🔥🔥🔥\n${url}`;
+                                                                const msg = `${url}\nPhi lah ban register lane DM ban book slot 🔥🔥🔥`;
                                                                 window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
                                                             }}
                                                         >
