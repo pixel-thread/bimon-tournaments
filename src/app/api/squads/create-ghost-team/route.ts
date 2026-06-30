@@ -198,6 +198,7 @@ export async function POST(request: NextRequest) {
                     fullName,
                     entryFee,
                     status: allCount >= GAME.squadSize ? "FULL" : "FORMING",
+                    confirmedAt: new Date(), // Admin-created ghost teams are auto-confirmed
                 },
             });
 
