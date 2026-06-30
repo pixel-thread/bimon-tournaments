@@ -515,7 +515,8 @@ export async function createTeamsByPoll({
     let playersToChargeList: any[] = [];
 
     // Pre-detect championship — skip creating a default match if groups will be created
-    const willBeChampionship = pollAllowSquads && teams.length > GAME.maxSquadTeams;
+    // Mango Scrim never triggers championship — all teams play in one lobby (max 20)
+    const willBeChampionship = pollAllowSquads && !isMangoScrim && teams.length > GAME.maxSquadTeams;
 
     // Persist in transaction
     const result = await prisma.$transaction(
@@ -790,7 +791,7 @@ export async function createTeamsByPoll({
     // ── Championship: auto-detect by team count ──────────────────
     // If total teams exceed a single match lobby (maxSquadTeams), auto-setup championship
     const totalTeamsCreated = teams.length;
-    const shouldChampionship = pollAllowSquads && totalTeamsCreated > GAME.maxSquadTeams;
+    const shouldChampionship = pollAllowSquads && !isMangoScrim && totalTeamsCreated > GAME.maxSquadTeams;
 
     if (shouldChampionship && !dryRun) {
         // Get all team IDs created in the main transaction
