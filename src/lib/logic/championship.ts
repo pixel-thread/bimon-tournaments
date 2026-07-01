@@ -29,10 +29,10 @@ export interface PhaseRanking {
  * - 17-19: 16 confirmed (waiting to reach 20 for championship)
  * - ≥20: floor to nearest even (championship groups must be equal)
  *
- * Mango Scrim: always 20 — flat cap, no championship.
+ * Mango Scrim: always 18 — flat cap, no championship.
  */
 export function getConfirmedSquadCap(totalSquads: number, isMangoScrim = false): number {
-    if (isMangoScrim) return 20;
+    if (isMangoScrim) return 18;
     if (totalSquads <= 16) return 16;
     if (totalSquads < 20) return 16;
     return totalSquads - (totalSquads % 2);

@@ -1747,7 +1747,7 @@ export function SquadCenter({
     const squads = squadsResult?.squads;
     const maxSquads = squadsResult?.maxSquads ?? GAME.maxSquadTeams;
     const isMangoScrim = squadsResult?.isMangoScrim ?? false;
-    // Mango Scrim: flat 20 cap, no waitlist. Regular: gap to championship threshold.
+    // Mango Scrim: flat 18 cap, no waitlist. Regular: gap to championship threshold.
     const maxWaitlistSlots = isMangoScrim ? 0 : (maxSquads < 20 ? (20 - maxSquads) : 2);
     const [showWaitlist, setShowWaitlist] = useState(false);
     const [showUnconfirmed, setShowUnconfirmed] = useState(true);

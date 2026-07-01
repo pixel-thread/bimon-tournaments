@@ -12,7 +12,7 @@ import { getPrizeDistribution, getTeamSize, type OrgCutMode } from "@/lib/logic/
 import { GAME } from "@/lib/game-config";
 // Inline version of championship.getConfirmedSquadCap (can't import server module in client)
 function getConfirmedSquadCap(totalSquads: number, isMangoScrim = false): number {
-    if (isMangoScrim) return 20;
+    if (isMangoScrim) return 18;
     if (totalSquads <= 16) return 16;
     if (totalSquads < 20) return 16;
     return totalSquads - (totalSquads % 2);

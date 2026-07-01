@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
             return ErrorResponse({ message: "pollId is required", status: 400 });
         }
 
-        // Fetch isMangoScrim from tournament (Mango Scrim = 20 confirmed slots vs 16)
+        // Fetch isMangoScrim from tournament (Mango Scrim = 18 confirmed slots vs 16)
         const pollForCap = await prisma.poll.findUnique({
             where: { id: pollId },
             select: { tournament: { select: { isMangoScrim: true } } },
@@ -242,7 +242,7 @@ export async function GET(request: NextRequest) {
         // Count only confirmed (paid) squads for prize pool calculation
         const confirmedSquadCount = data.filter((s) => !s.needsPayment).length;
 
-        const registrationCap = isMangoScrim ? 20 : 32;
+        const registrationCap = isMangoScrim ? 18 : 32;
         return SuccessResponse({ data, meta: { defendingChampion, maxSquads, maxSquadWaitlist: registrationCap, squadCount: data.length, confirmedSquadCount, isMangoScrim }, cache: CACHE.NONE });
     } catch (error) {
         return ErrorResponse({ message: "Failed to fetch squads", error });
@@ -380,8 +380,8 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Check: registration cap (Mango Scrim = 20 flat, regular = 32)
-        const registrationCap = isMangoScrim ? 20 : 32;
+        // Check: registration cap (Mango Scrim = 18 flat, regular = 32)
+        const registrationCap = isMangoScrim ? 18 : 32;
         const activeSquadCount = await prisma.squad.count({
             where: {
                 pollId,

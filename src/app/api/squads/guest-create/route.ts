@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         const isMangoScrim = poll.tournament?.isMangoScrim ?? false;
 
         // Check registration cap
-        const registrationCap = isMangoScrim ? 20 : 32;
+        const registrationCap = isMangoScrim ? 18 : 32;
         const activeSquadCount = await prisma.squad.count({
             where: { pollId, status: { in: ["FORMING", "FULL"] } },
         });

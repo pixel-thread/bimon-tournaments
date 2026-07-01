@@ -515,7 +515,7 @@ export async function createTeamsByPoll({
     let playersToChargeList: any[] = [];
 
     // Pre-detect championship — skip creating a default match if groups will be created
-    // Mango Scrim never triggers championship — all teams play in one lobby (max 20)
+    // Mango Scrim never triggers championship — all teams play in one lobby (max 18)
     const willBeChampionship = pollAllowSquads && !isMangoScrim && teams.length > GAME.maxSquadTeams;
 
     // Persist in transaction

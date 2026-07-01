@@ -94,7 +94,7 @@ export async function GET(
 
         const isMangoScrim = poll.tournament.isMangoScrim ?? false;
         const maxSquads = (await import("@/lib/logic/championship")).getConfirmedSquadCap(poll._count.squads, isMangoScrim);
-        const registrationCap = isMangoScrim ? 20 : 32;
+        const registrationCap = isMangoScrim ? 18 : 32;
 
         // Participant count for theme
         const participantCount = await prisma.playerPollVote.count({
