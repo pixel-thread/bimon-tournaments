@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth-config";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // Routes that require authentication (hard redirect to sign-in)
 // Only truly server-gated routes go here. User-facing pages use
@@ -58,7 +58,10 @@ function detectGameMode(hostname: string): string {
     return process.env.NEXT_PUBLIC_GAME_MODE || "bgmi";
 }
 
-export default auth((req) => {
+// Wrap the auth middleware to gracefully handle corrupted session cookies
+// (e.g. after AUTH_SECRET rotation). Instead of showing "Server error",
+// we clear the bad cookie and redirect to sign-in.
+const authMiddleware = auth((req) => {
     const { pathname } = req.nextUrl;
     const hostname = req.headers.get("host") || "";
 
@@ -101,6 +104,22 @@ export default auth((req) => {
     response.cookies.set("game-mode", gameMode, { path: "/", sameSite: "lax" });
     return response;
 });
+
+export default async function middleware(req: NextRequest) {
+    try {
+        return await (authMiddleware as (req: NextRequest) => Promise<NextResponse>)(req);
+    } catch (error) {
+        // Session cookie is corrupted (e.g. AUTH_SECRET was rotated)
+        // Clear the bad cookie and redirect to sign-in
+        console.error("[middleware] Session error, clearing cookie:", error);
+        const response = NextResponse.redirect(new URL("/sign-in", req.url));
+        response.cookies.delete("authjs.session-token");
+        response.cookies.delete("__Secure-authjs.session-token");
+        response.cookies.delete("authjs.callback-url");
+        response.cookies.delete("authjs.csrf-token");
+        return response;
+    }
+}
 
 export const config = {
     matcher: [
