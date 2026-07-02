@@ -317,12 +317,21 @@ export function StandingsModal({
         const desktopEl = clone.querySelector(".desktop-standings") as HTMLElement | null;
         const twoColEl = clone.querySelector(".desktop-two-col") as HTMLElement | null;
         const singleColEl = clone.querySelector(".desktop-single-col") as HTMLElement | null;
-        if (desktopEl) desktopEl.style.display = "block";
-        if (twoColEl) { twoColEl.style.display = "flex"; twoColEl.style.gap = "1rem"; twoColEl.style.justifyContent = "center"; }
+        if (desktopEl) { desktopEl.style.display = "block"; desktopEl.classList.remove("hidden"); }
+        if (twoColEl) { twoColEl.style.display = "flex"; twoColEl.style.gap = "1rem"; twoColEl.style.justifyContent = "center"; twoColEl.classList.remove("hidden"); }
         if (singleColEl) singleColEl.style.display = "none";
 
         // Remove floating controls from clone
         clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
+
+        // Fix: backdrop-filter doesn't render in html-to-image — replace with solid bg
+        clone.querySelectorAll("[style]").forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            if (htmlEl.style.backdropFilter) {
+                htmlEl.style.backdropFilter = "none";
+                htmlEl.style.backgroundColor = "rgba(0,0,0,0.85)";
+            }
+        });
 
         // Casual = wider layout for long player names, Squad = compact for 5-char names
         const rowsPerCol = Math.ceil(standings.length / 2);
@@ -430,6 +439,15 @@ export function StandingsModal({
         if (singleColEl) singleColEl.style.display = "none";
 
         clone.querySelectorAll(".floating-controls").forEach((el) => el.remove());
+
+        // Fix: backdrop-filter doesn't render in html-to-image — replace with solid bg
+        clone.querySelectorAll("[style]").forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            if (htmlEl.style.backdropFilter) {
+                htmlEl.style.backdropFilter = "none";
+                htmlEl.style.backgroundColor = "rgba(0,0,0,0.85)";
+            }
+        });
 
         // Casual = wider layout for long player names, Squad = compact for 5-char names
         const rowsPerCol = Math.ceil(standings.length / 2);
@@ -1200,7 +1218,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                     </div>
                     <div className="desktop-single-col block lg:hidden">{renderTable(standings, 0)}</div>
                     <div className="column-legend" style={{ textAlign: 'center', marginTop: '6px', fontSize: '9px', color: 'rgba(255,255,255,0.45)', fontWeight: 500, letterSpacing: '0.02em' }}>
-                        M = Matches · P = Placement Points · E = Eliminations · T = P + E
+                        🍗 = Chicken Dinners · M = Matches · P = Placement Points · E = Eliminations · T = P + E
                     </div>
                 </div>
             )}
