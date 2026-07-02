@@ -1025,6 +1025,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                     <tr style={{ backgroundColor: 'rgba(0,0,0,0.4)', borderBottom: '2px solid rgba(251,146,60,0.3)' }}>
                         <th style={{ padding: '7px 4px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>#</th>
                         <th style={{ padding: '7px 4px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'left', color: 'rgba(255,255,255,0.7)' }}>Team</th>
+                        <th style={{ padding: '7px 2px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>🍗</th>
                         <th style={{ padding: '7px 2px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>M</th>
                         <th style={{ padding: '7px 2px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>P</th>
                         <th style={{ padding: '7px 2px', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>E</th>
@@ -1043,7 +1044,7 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                             <>
                                 {isZoneBoundary && (
                                     <tr key={`zone-sep-${rank}`}>
-                                        <td colSpan={6} style={{ padding: '1px 0' }}>
+                                        <td colSpan={7} style={{ padding: '1px 0' }}>
                                             <div className={`w-full ${
                                                 rank === 4 ? "bg-gradient-to-r from-emerald-500/40 via-amber-500/30 to-transparent" :
                                                 "bg-gradient-to-r from-amber-500/40 via-red-500/30 to-transparent"
@@ -1085,10 +1086,10 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                                     {hasSquadTeams ? (row.teamName.length > 7 ? row.teamName.slice(0, 7) : row.teamName) : row.playerNames.join(", ")}
                                                     {row.isDisqualified && <span style={{ marginLeft: '3px', fontSize: '8px', fontWeight: 700, color: '#f87171', backgroundColor: 'rgba(239,68,68,0.2)', padding: '1px 3px', borderRadius: '3px', display: 'inline-block' }}>DQ</span>}
                                                 </span>
-                                                {row.wins > 0 && <span style={{ fontSize: '8px', color: '#facc15', fontWeight: 600, lineHeight: 1 }}>🍗x{row.wins}</span>}
                                             </div>
                                         </div>
                                     </td>
+                                    <td style={{ padding: '6px 2px', textAlign: 'center', verticalAlign: 'middle', fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', color: row.wins > 0 ? '#facc15' : 'rgba(255,255,255,0.3)' }}>{row.wins}</td>
                                     <td style={{ padding: '6px 2px', textAlign: 'center', verticalAlign: 'middle', color: 'rgba(255,255,255,0.85)', fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{row.matchCount}</td>
                                     <td style={{ padding: '6px 2px', textAlign: 'center', verticalAlign: 'middle', color: 'white', fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{row.placementPts}</td>
                                     <td style={{ padding: '6px 2px', textAlign: 'center', verticalAlign: 'middle', color: 'white', fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{row.totalKills}</td>

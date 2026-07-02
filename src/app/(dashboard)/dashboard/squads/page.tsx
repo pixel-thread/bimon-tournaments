@@ -891,25 +891,19 @@ export default function AdminSquadsPage() {
                                             variant="flat"
                                             className="text-[10px] h-6 font-semibold"
                                             onPress={() => {
-                                                // Auto-fill members from past roster
+                                                // Auto-fill members from past roster (use names only — ghost team creates new player records)
                                                 const newMembers = pastRoster.members
-                                                    .filter(m => m.available)
+                                                    .filter(m => !m.isSub) // skip subs, only fill core members
                                                     .map(m => ({
                                                         name: m.displayName,
-                                                        player: m.isGhost ? null : {
-                                                            id: m.playerId,
-                                                            displayName: m.displayName,
-                                                            username: m.displayName,
-                                                            email: "",
-                                                            imageUrl: m.imageUrl,
-                                                        },
+                                                        player: null, // ghost team — always create new ghost players
                                                     }));
                                                 // Pad to minimum squad size
                                                 while (newMembers.length < GAME.squadSize - 1) {
                                                     newMembers.push({ name: "", player: null });
                                                 }
                                                 setGhostMembers(newMembers);
-                                                toast.success(`Filled ${pastRoster.members.filter(m => m.available).length} members from past roster`);
+                                                toast.success(`Filled ${newMembers.filter(m => m.name).length} members from past roster`);
                                             }}
                                         >
                                             Use This Roster

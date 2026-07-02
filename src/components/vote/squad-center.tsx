@@ -1771,7 +1771,7 @@ export function SquadCenter({
 
     // Pre-fetch previous roster for "Use Past Team" button
     const { data: previousRoster } = usePreviousRoster(pollId, canCreateSquad && !isGuest);
-    const hasPreviousRoster = !!previousRoster && previousRoster.members.some(m => m.available);
+    const hasPreviousRoster = !!previousRoster && previousRoster.members.length > 0;
     const [importMode, setImportMode] = useState(false);
     const [quickCreating, setQuickCreating] = useState(false);
     const createMutation = useCreateSquad();
@@ -2425,7 +2425,12 @@ export function SquadCenter({
                             startContent={!quickCreating && <CheckCheck className="w-4 h-4" />}
                             onPress={handleQuickCreate}
                         >
-                            Use This Team
+                            {(() => {
+                                const avail = previousRoster?.members.filter(m => m.available).length ?? 0;
+                                return avail > 0
+                                    ? `Use This Team · ${avail} member${avail > 1 ? 's' : ''}`
+                                    : 'Recreate Team Name';
+                            })()}
                         </Button>
                         {/* Create New — secondary */}
                         <Button
