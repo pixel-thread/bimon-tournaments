@@ -116,6 +116,22 @@ export async function POST(request: NextRequest) {
 
         // Check if captain is already in a squad for this poll
         if (existingPlayer) {
+            // Check if player is captain of an active squad in this poll
+            const existingCaptainSquad = await prisma.squad.findFirst({
+                where: {
+                    pollId,
+                    captainId: existingPlayer.id,
+                    status: { in: ["FORMING", "FULL"] },
+                },
+            });
+            if (existingCaptainSquad) {
+                return ErrorResponse({
+                    message: `${existingPlayer.displayName} is already captain of "${existingCaptainSquad.name}" in this tournament`,
+                    status: 400,
+                });
+            }
+
+            // Check if player is a member of another squad
             const existingSquadInvite = await prisma.squadInvite.findFirst({
                 where: {
                     playerId: existingPlayer.id,
@@ -129,6 +145,15 @@ export async function POST(request: NextRequest) {
                     status: 400,
                 });
             }
+
+            // If there's a CANCELLED squad with this captain+poll combo, delete it to avoid unique constraint
+            await prisma.squad.deleteMany({
+                where: {
+                    pollId,
+                    captainId: existingPlayer.id,
+                    status: "CANCELLED",
+                },
+            });
         }
 
         // Create everything in a transaction
@@ -207,6 +232,11 @@ export async function POST(request: NextRequest) {
             }
 
             // ─── Create Squad ───
+            // Clean up any cancelled/old squads for this captain+poll to avoid unique constraint
+            await tx.squad.deleteMany({
+                where: { pollId, captainId: captainPlayerId, status: "CANCELLED" },
+            });
+
             const allCount = 1 + cleanMembers.length;
             const squad = await tx.squad.create({
                 data: {
@@ -231,6 +261,14 @@ export async function POST(request: NextRequest) {
                     isSub: false,
                 },
             });
+
+            // When charging entry fee with a real player, remove their individual vote
+            // so it behaves exactly like a self-created squad
+            if (chargeEntryFee && existingPlayer) {
+                await tx.playerPollVote.deleteMany({
+                    where: { pollId, playerId: captainPlayerId },
+                });
+            }
 
             // Member invites
             for (let i = 0; i < memberPlayerIds.length; i++) {
