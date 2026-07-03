@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { getCurrentUser } from "@/lib/auth";
 import { ALL_TOURNAMENT_TYPES } from "@/lib/bracket-types";
+import { getAvailableBalance } from "@/lib/wallet-service";
 
 /**
  * PUT /api/tournaments/[id]
  * Update tournament details (admin only).
+ * When entry fee is lowered, re-evaluates unconfirmed squads.
  */
 export async function PUT(
     req: NextRequest,
@@ -25,6 +27,9 @@ export async function PUT(
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
+        const oldFee = tournament.fee ?? 0;
+        const newFee = body.fee !== undefined ? (body.fee !== null ? Number(body.fee) : 0) : oldFee;
+
         const VALID_TYPES: readonly string[] = ALL_TOURNAMENT_TYPES;
         const updated = await prisma.tournament.update({
             where: { id },
@@ -40,7 +45,80 @@ export async function PUT(
             },
         });
 
-        return NextResponse.json({ success: true, data: updated });
+        // ── Re-evaluate unconfirmed squads when fee is lowered ──
+        let confirmedCount = 0;
+        if (body.fee !== undefined && newFee < oldFee) {
+            const unconfirmedSquads = await prisma.squad.findMany({
+                where: {
+                    confirmedAt: null,
+                    status: { in: ["FORMING", "FULL"] },
+                    poll: { tournamentId: id },
+                },
+                select: {
+                    id: true,
+                    captainId: true,
+                    captain: {
+                        select: {
+                            isTrusted: true,
+                            user: { select: { email: true, secondaryEmail: true } },
+                        },
+                    },
+                },
+            });
+
+            for (const squad of unconfirmedSquads) {
+                let canConfirm = false;
+
+                if (newFee <= 0) {
+                    canConfirm = true;
+                } else if (squad.captain?.isTrusted) {
+                    canConfirm = true;
+                } else {
+                    const email = squad.captain?.user?.email || squad.captain?.user?.secondaryEmail;
+                    if (email) {
+                        try {
+                            const { balance } = await getAvailableBalance(email);
+                            canConfirm = balance >= newFee;
+                        } catch {
+                            // Skip on error
+                        }
+                    }
+                }
+
+                if (canConfirm) {
+                    await prisma.squad.update({
+                        where: { id: squad.id },
+                        data: { confirmedAt: new Date(), entryFee: newFee },
+                    });
+                    confirmedCount++;
+                }
+            }
+
+            // Update entryFee snapshot on already-confirmed squads too
+            await prisma.squad.updateMany({
+                where: {
+                    confirmedAt: { not: null },
+                    status: { in: ["FORMING", "FULL"] },
+                    poll: { tournamentId: id },
+                },
+                data: { entryFee: newFee },
+            });
+        } else if (body.fee !== undefined && newFee !== oldFee) {
+            // Fee increased — update entryFee snapshot on all active squads
+            await prisma.squad.updateMany({
+                where: {
+                    status: { in: ["FORMING", "FULL"] },
+                    poll: { tournamentId: id },
+                },
+                data: { entryFee: newFee },
+            });
+        }
+
+        return NextResponse.json({
+            success: true,
+            data: updated,
+            ...(confirmedCount > 0 && { confirmedSquads: confirmedCount }),
+        });
     } catch (error) {
         console.error("Error updating tournament:", error);
         return NextResponse.json({ error: "Failed to update" }, { status: 500 });

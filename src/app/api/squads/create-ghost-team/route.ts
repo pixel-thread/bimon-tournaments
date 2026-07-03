@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { GAME } from "@/lib/game-config";
 import { containsProfanity } from "@/lib/profanity";
 import { checkKdGate } from "@/lib/logic/kd-gate";
+import { getAvailableBalance } from "@/lib/wallet-service";
 import { type NextRequest } from "next/server";
 
 /**
@@ -36,13 +37,14 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { pollId, name, fullName: rawFullName, captainName, captainPhone, captainPlayerId, members = [] } = body as {
+        const { pollId, name, fullName: rawFullName, captainName, captainPhone, captainPlayerId, chargeEntryFee, members = [] } = body as {
             pollId: string;
             name: string;
             fullName?: string;
             captainName: string;
             captainPhone?: string;
             captainPlayerId?: string;
+            chargeEntryFee?: boolean;
             members: string[];
         };
 
@@ -188,6 +190,22 @@ export async function POST(request: NextRequest) {
                 memberPlayerIds.push({ id: ghostPlayer.id, name: memberName });
             }
 
+            // ─── Balance check when chargeEntryFee is on ───
+            let insufficientBalance = false;
+            if (chargeEntryFee && entryFee > 0 && existingPlayer) {
+                const captainUser = await tx.player.findUnique({
+                    where: { id: captainPlayerId },
+                    select: { isTrusted: true, user: { select: { email: true, secondaryEmail: true } } },
+                });
+                if (captainUser && !captainUser.isTrusted) {
+                    const email = captainUser.user?.email || captainUser.user?.secondaryEmail;
+                    if (email) {
+                        const { balance } = await getAvailableBalance(email);
+                        insufficientBalance = balance < entryFee;
+                    }
+                }
+            }
+
             // ─── Create Squad ───
             const allCount = 1 + cleanMembers.length;
             const squad = await tx.squad.create({
@@ -198,7 +216,7 @@ export async function POST(request: NextRequest) {
                     fullName,
                     entryFee,
                     status: allCount >= GAME.squadSize ? "FULL" : "FORMING",
-                    confirmedAt: new Date(), // Admin-created ghost teams are auto-confirmed
+                    confirmedAt: insufficientBalance ? null : new Date(),
                 },
             });
 

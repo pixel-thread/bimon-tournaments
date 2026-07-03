@@ -20,6 +20,7 @@ import {
     DropdownTrigger,
     DropdownMenu,
     DropdownItem,
+    Switch,
 } from "@heroui/react";
 import {
     Ghost,
@@ -235,6 +236,7 @@ export default function AdminSquadsPage() {
         Array(GAME.squadSize - 1).fill(null).map(() => ({ name: "", player: null }))
     );
     const [ghostCreating, setGhostCreating] = useState(false);
+    const [chargeEntryFee, setChargeEntryFee] = useState(false);
 
     // Past roster for selected captain
     interface PastRosterMember {
@@ -424,6 +426,7 @@ export default function AdminSquadsPage() {
                     name: ghostTeamName.trim(),
                     fullName: ghostTeamFullName.trim() || undefined,
                     captainName: ghostCaptainName.trim(),
+                    chargeEntryFee,
                     // If admin selected an existing player, send their ID; otherwise send phone
                     ...(ghostCaptainPlayer
                         ? { captainPlayerId: ghostCaptainPlayer.id }
@@ -451,6 +454,7 @@ export default function AdminSquadsPage() {
         setGhostCaptainPhone("");
         setGhostCaptainPlayer(null);
         setGhostMembers(Array(GAME.squadSize - 1).fill(null).map(() => ({ name: "", player: null })));
+        setChargeEntryFee(false);
     }
 
     // ─── Add member to squad ─────────────────────────────────
@@ -974,6 +978,22 @@ export default function AdminSquadsPage() {
                                     </Button>
                                 )}
                             </div>
+
+                            {/* Charge Entry Fee toggle — only when a real player is captain */}
+                            {ghostCaptainPlayer && (
+                                <div className="flex items-center justify-between rounded-xl border border-warning/30 bg-warning/5 px-4 py-3">
+                                    <div>
+                                        <p className="text-sm font-semibold">Charge Entry Fee</p>
+                                        <p className="text-[11px] text-foreground/40">Check captain balance as usual</p>
+                                    </div>
+                                    <Switch
+                                        size="sm"
+                                        color="warning"
+                                        isSelected={chargeEntryFee}
+                                        onValueChange={setChargeEntryFee}
+                                    />
+                                </div>
+                            )}
 
                             <Button
                                 color="secondary"
