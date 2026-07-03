@@ -51,6 +51,18 @@ export default function GalleryPage() {
         },
     });
 
+    // Standings-specific background state (1:1 ratio)
+    const { data: standingsBg } = useQuery<{ id: string; publicUrl: string; name: string } | null>({
+        queryKey: ["standings-background"],
+        queryFn: async () => {
+            const res = await fetch("/api/gallery/standings-background");
+            if (!res.ok) return null;
+            const json = await res.json();
+            // Only return if it's actually a separate standings bg, not the fallback
+            return json.data ?? null;
+        },
+    });
+
     // Fetch saved overlay settings
     const { data: overlaySaved } = useQuery<{ overlayOpacity: number; cardTint: number; cardBlur: number; rowTint: number }>({
         queryKey: ["overlay-settings"],
@@ -198,6 +210,36 @@ export default function GalleryPage() {
         onError: () => toast.error("Failed to remove background"),
     });
 
+    // Set standings background (1:1)
+    const setStandingsBg = useMutation({
+        mutationFn: async (galleryId: string) => {
+            const res = await fetch("/api/gallery/standings-background", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ galleryId }),
+            });
+            if (!res.ok) throw new Error("Failed");
+        },
+        onSuccess: () => {
+            toast.success("Standings background set!");
+            queryClient.invalidateQueries({ queryKey: ["standings-background"] });
+        },
+        onError: () => toast.error("Failed to set standings background"),
+    });
+
+    // Remove standings background
+    const deleteStandingsBg = useMutation({
+        mutationFn: async () => {
+            const res = await fetch("/api/gallery/standings-background", { method: "DELETE" });
+            if (!res.ok) throw new Error("Failed");
+        },
+        onSuccess: () => {
+            toast.success("Standings background removed (using global)");
+            queryClient.invalidateQueries({ queryKey: ["standings-background"] });
+        },
+        onError: () => toast.error("Failed to remove standings background"),
+    });
+
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -227,11 +269,11 @@ export default function GalleryPage() {
                 </p>
             </div>
 
-            {/* Active Background */}
+            {/* Active Background (Slots) */}
             <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-3">
                 <div className="flex items-center justify-between">
                     <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider">
-                        Standings Background
+                        Slots Background <span className="text-foreground/30 font-normal">(16:9)</span>
                     </h2>
                     {globalBg && (
                         <Button
@@ -381,6 +423,49 @@ export default function GalleryPage() {
                 )}
             </div>
 
+            {/* Standings Background (1:1) */}
+            <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider">
+                        Standings Background <span className="text-foreground/30 font-normal">(1:1)</span>
+                    </h2>
+                    {standingsBg && standingsBg.id !== globalBg?.id && (
+                        <Button
+                            size="sm"
+                            color="danger"
+                            variant="light"
+                            startContent={<Trash2 className="h-3.5 w-3.5" />}
+                            onPress={() => deleteStandingsBg.mutate()}
+                            isLoading={deleteStandingsBg.isPending}
+                        >
+                            Remove
+                        </Button>
+                    )}
+                </div>
+                {standingsBg ? (
+                    <div className="relative rounded-xl overflow-hidden border border-divider" style={{ maxWidth: '280px' }}>
+                        <div className="relative aspect-square">
+                            <Image
+                                src={standingsBg.publicUrl}
+                                alt={standingsBg.name}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                            />
+                            <div className="absolute bottom-2 left-2 z-10">
+                                <Chip size="sm" color={standingsBg.id === globalBg?.id ? "warning" : "success"} variant="flat" startContent={<CheckCircle2 className="h-3 w-3" />}>
+                                    {standingsBg.id === globalBg?.id ? "Using Slots BG" : "Custom"}
+                                </Chip>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-xs text-foreground/40 py-4 text-center">
+                        No standings background set. Using slots background as fallback. Select a 1:1 image from the gallery below.
+                    </p>
+                )}
+            </div>
+
             {/* Upload Section */}
             <div className="rounded-2xl border border-divider bg-foreground/[0.02] p-5 space-y-4">
                 <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider">Add New</h2>
@@ -464,8 +549,9 @@ export default function GalleryPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {images.map((img: any) => {
                             const isActiveBg = globalBg?.id === img.id;
+                            const isActiveStandingsBg = standingsBg?.id === img.id && standingsBg?.id !== globalBg?.id;
                             return (
-                                <div key={img.id} className={`group relative rounded-xl overflow-hidden border-2 bg-black/10 ${isActiveBg ? "border-primary ring-2 ring-primary/20" : "border-divider"}`}>
+                                <div key={img.id} className={`group relative rounded-xl overflow-hidden border-2 bg-black/10 ${isActiveBg ? "border-primary ring-2 ring-primary/20" : isActiveStandingsBg ? "border-amber-500 ring-2 ring-amber-500/20" : "border-divider"}`}>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={img.publicUrl}
@@ -475,11 +561,17 @@ export default function GalleryPage() {
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" />
 
-                                    {/* Active badge */}
                                     {isActiveBg && (
                                         <div className="absolute top-2 left-2">
                                             <Chip size="sm" color="success" variant="flat" startContent={<CheckCircle2 className="h-3 w-3" />}>
                                                 Active BG
+                                            </Chip>
+                                        </div>
+                                    )}
+                                    {isActiveStandingsBg && (
+                                        <div className={`absolute top-2 ${isActiveBg ? 'left-24' : 'left-2'}`}>
+                                            <Chip size="sm" color="warning" variant="flat" startContent={<CheckCircle2 className="h-3 w-3" />}>
+                                                1:1 BG
                                             </Chip>
                                         </div>
                                     )}
@@ -496,7 +588,16 @@ export default function GalleryPage() {
                                                     disabled={setBg.isPending}
                                                     className="p-1.5 rounded-lg bg-primary/80 hover:bg-primary text-white transition-colors text-[10px] font-medium px-2"
                                                 >
-                                                    Set as BG
+                                                    Slots BG
+                                                </button>
+                                            )}
+                                            {!isActiveStandingsBg && (
+                                                <button
+                                                    onClick={() => setStandingsBg.mutate(img.id)}
+                                                    disabled={setStandingsBg.isPending}
+                                                    className="p-1.5 rounded-lg bg-amber-500/80 hover:bg-amber-500 text-white transition-colors text-[10px] font-medium px-2"
+                                                >
+                                                    1:1 BG
                                                 </button>
                                             )}
                                             <button

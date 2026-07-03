@@ -175,6 +175,17 @@ export default function TeamsPage() {
         staleTime: 5 * 60_000,
     });
 
+    const { data: standingsBg } = useQuery<{ publicUrl: string } | null>({
+        queryKey: ["standings-background"],
+        queryFn: async () => {
+            const res = await fetch("/api/gallery/standings-background");
+            if (!res.ok) return null;
+            const json = await res.json();
+            return json.data ?? null;
+        },
+        staleTime: 5 * 60_000,
+    });
+
     // Auto-select current season on load
     useEffect(() => {
         if (seasons.length > 0 && !seasonId) {
@@ -833,7 +844,7 @@ export default function TeamsPage() {
                 backgroundImage={
                     tournaments.find((t) => t.id === tournamentId)?.isMangoScrim
                         ? "/images/mango-scrim-bg.png"
-                        : (globalBg?.publicUrl || "/images/image.webp")
+                        : (standingsBg?.publicUrl || globalBg?.publicUrl || "/images/image.webp")
                 }
                 allowSquads={allowSquads}
                 isChampionship={isChamp}

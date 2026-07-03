@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
-import { Gift, Shield, ChevronUp, X, Loader2, Check, Crown, UserPlus } from "lucide-react";
+import { Gift, Shield, X, Loader2, Check, Crown, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
@@ -20,6 +20,21 @@ interface SquadInvite {
     };
 }
 
+interface SquadJoinRequest {
+    id: string;
+    player: {
+        id: string;
+        displayName: string | null;
+        customProfileImageUrl: string | null;
+        user: { username: string; imageUrl: string | null };
+    };
+    squad: {
+        id: string;
+        name: string;
+        poll: { tournament: { name: string } | null };
+    };
+}
+
 interface UnclaimedReward {
     id: string;
     type: string;
@@ -32,20 +47,18 @@ interface UnclaimedReward {
 interface NotifData {
     unclaimedRewards?: UnclaimedReward[];
     pendingSquadInvites?: SquadInvite[];
-    pendingSquadRequests?: any[];
+    pendingSquadRequests?: SquadJoinRequest[];
     hasUnclaimedStreak?: boolean;
 }
 
 /**
- * ActionCenter — Root-level floating component that surfaces pending actions.
- * Reads from the existing `notification-count` cache (zero extra API calls).
- * Shows one-click actions with loader → auto-dismiss.
+ * ActionCenter — Centered fullscreen overlay that surfaces pending actions.
+ * Blocks the page so users MUST act or dismiss. Big buttons, impossible to miss.
  */
 export function ActionCenter() {
     const { data: session } = useSession();
     const queryClient = useQueryClient();
     const [dismissed, setDismissed] = useState(false);
-    const [expanded, setExpanded] = useState(false);
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [completedIds, setCompletedIds] = useState<Set<string>>(() => {
         try {
@@ -60,9 +73,6 @@ export function ActionCenter() {
         queryClient.invalidateQueries({ queryKey: ["notification-count"] });
     }, [pathname, queryClient]);
 
-    // Subscribe to the same "notification-count" cache that the header populates.
-    // Both share queryKey + staleTime:Infinity so only one network call fires.
-    // queryFn must produce the same shape as header.tsx so the cache is consistent.
     const { data: notifData } = useQuery<NotifData>({
         queryKey: ["notification-count"],
         queryFn: async () => {
@@ -81,43 +91,30 @@ export function ActionCenter() {
         },
         enabled: !!session?.user,
         staleTime: Infinity,
-        refetchOnWindowFocus: "always", // refetch when user returns to tab
+        refetchOnWindowFocus: "always",
     });
 
     const rewards = (notifData?.unclaimedRewards ?? []).filter(r => !completedIds.has(r.id));
     const squadInvites = (notifData?.pendingSquadInvites ?? []).filter(r => !completedIds.has(r.id));
+    const squadRequests = (notifData?.pendingSquadRequests ?? []).filter(r => !completedIds.has(r.id));
     const hasUnclaimedStreak = !!(notifData?.hasUnclaimedStreak) && !completedIds.has("streak");
 
-    const totalActions = rewards.length + squadInvites.length + (hasUnclaimedStreak ? 1 : 0);
+    const totalActions = rewards.length + squadInvites.length + squadRequests.length + (hasUnclaimedStreak ? 1 : 0);
 
-    // Auto-expand when there are actions (once per session)
-    useEffect(() => {
-        if (totalActions > 0 && !dismissed) {
-            const shown = sessionStorage.getItem("action-center-shown");
-            if (!shown) {
-                setExpanded(true);
-                sessionStorage.setItem("action-center-shown", "1");
-            }
-        }
-    }, [totalActions, dismissed]);
-
-    // Re-surface the pill if new actions arrive after a dismiss
+    // Re-surface if new actions arrive after a dismiss
     const prevActionsRef = useRef(totalActions);
     useEffect(() => {
         if (totalActions > prevActionsRef.current && dismissed) {
             setDismissed(false);
-            setExpanded(true);
         }
         prevActionsRef.current = totalActions;
     }, [totalActions, dismissed]);
 
-    // Mark as completed + auto-remove after animation
     const markCompleted = useCallback((id: string) => {
         setCompletedIds(prev => new Set(prev).add(id));
         setProcessingId(null);
     }, []);
 
-    // Invalidate caches after action
     const refreshCaches = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["notification-count"] });
         queryClient.invalidateQueries({ queryKey: ["squads"] });
@@ -142,7 +139,7 @@ export function ActionCenter() {
         }
     }, [markCompleted, refreshCaches]);
 
-    // ── Accept squad invite ──
+    // ── Accept squad invite (player accepting captain's invite) ──
     const handleAcceptInvite = useCallback(async (invite: SquadInvite) => {
         setProcessingId(invite.id);
         try {
@@ -162,175 +159,260 @@ export function ActionCenter() {
         }
     }, [markCompleted, refreshCaches]);
 
-    // ── Skip squad invite (just hide from Action Center — invite stays PENDING) ──
-    const handleSkipInvite = useCallback((invite: SquadInvite) => {
-        markCompleted(invite.id);
-        // Remember skipped invites so they don't reappear in this session
+    // ── Respond to squad join request (captain accepting/declining player's request) ──
+    const handleRespondRequest = useCallback(async (req: SquadJoinRequest, action: "ACCEPT" | "DECLINE") => {
+        setProcessingId(`${req.id}-${action}`);
+        try {
+            const res = await fetch("/api/squads/respond-request", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ inviteId: req.id, action }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.message || "Failed to respond");
+            const playerName = req.player.displayName ?? req.player.user.username;
+            toast.success(action === "ACCEPT"
+                ? `✅ ${playerName} added to ${req.squad.name}!`
+                : `${playerName} declined`
+            );
+            markCompleted(req.id);
+            refreshCaches();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to respond");
+            setProcessingId(null);
+        }
+    }, [markCompleted, refreshCaches]);
+
+    // ── Skip squad invite ──
+    const handleSkipInvite = useCallback((id: string) => {
+        markCompleted(id);
         try {
             const skipped = JSON.parse(sessionStorage.getItem("ac-skipped") || "[]");
-            skipped.push(invite.id);
+            skipped.push(id);
             sessionStorage.setItem("ac-skipped", JSON.stringify(skipped));
         } catch {}
     }, [markCompleted]);
 
-    // Don't render if no session, no actions, or dismissed
     if (!session?.user || totalActions === 0 || dismissed) return null;
 
     return (
-        <div className="fixed bottom-[68px] lg:bottom-4 left-0 right-0 z-[45] flex justify-center px-3 pointer-events-none">
-            <AnimatePresence mode="wait">
-                {!expanded ? (
-                    // ── Floating pill ──
-                    <motion.button
-                        key="pill"
-                        initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        onClick={() => setExpanded(true)}
-                        className="pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-full bg-background/90 backdrop-blur-xl border border-divider shadow-lg shadow-black/10 active:scale-95 transition-transform"
-                    >
-                        <span className="relative flex h-2.5 w-2.5">
-                            <span className="absolute inset-0 rounded-full bg-danger animate-ping opacity-75" />
-                            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-danger" />
-                        </span>
-                        <span className="text-sm font-semibold">
-                            {totalActions} pending {totalActions === 1 ? "action" : "actions"}
-                        </span>
-                        <ChevronUp className="h-3.5 w-3.5 text-foreground/40" />
-                    </motion.button>
-                ) : (
-                    // ── Expanded card ──
-                    <motion.div
-                        key="card"
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
-                        className="pointer-events-auto w-full max-w-md rounded-2xl bg-background/95 backdrop-blur-xl border border-divider shadow-2xl shadow-black/15 overflow-hidden"
-                    >
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-divider">
-                            <span className="text-sm font-bold flex items-center gap-2">
-                                <span className="relative flex h-2 w-2">
+        <AnimatePresence>
+            {/* ── Fullscreen backdrop ── */}
+            <motion.div
+                key="ac-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            >
+                {/* ── Centered card ── */}
+                <motion.div
+                    key="ac-card"
+                    initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                    transition={{ type: "spring", damping: 22, stiffness: 300 }}
+                    className="w-full max-w-sm rounded-3xl bg-background border border-divider shadow-2xl overflow-hidden"
+                >
+                    {/* Header */}
+                    <div className="relative px-5 pt-5 pb-3">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <span className="relative flex h-3 w-3">
                                     <span className="absolute inset-0 rounded-full bg-danger animate-ping opacity-75" />
-                                    <span className="relative inline-flex h-2 w-2 rounded-full bg-danger" />
+                                    <span className="relative inline-flex h-3 w-3 rounded-full bg-danger" />
                                 </span>
-                                Action Center
-                            </span>
+                                <h2 className="text-base font-extrabold tracking-tight">
+                                    ⚡ Action Required
+                                </h2>
+                            </div>
                             <button
-                                onClick={() => { setExpanded(false); setDismissed(true); }}
-                                className="p-1 rounded-lg hover:bg-default-100 transition-colors text-foreground/40 hover:text-foreground/60"
+                                onClick={() => setDismissed(true)}
+                                className="p-2 -mr-1 rounded-xl hover:bg-default-100 transition-colors text-foreground/30 hover:text-foreground/60"
+                                aria-label="Dismiss"
                             >
                                 <X className="h-4 w-4" />
                             </button>
                         </div>
+                        <p className="text-xs text-foreground/40 mt-1">
+                            You have {totalActions} pending {totalActions === 1 ? "item" : "items"}
+                        </p>
+                    </div>
 
-                        {/* Items */}
-                        <div className="max-h-[280px] overflow-y-auto divide-y divide-divider">
-                            {/* Squad invites */}
-                            {squadInvites.map((invite) => (
-                                <div key={invite.id} className="flex items-center gap-3 px-4 py-3">
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 shrink-0">
-                                        <Shield className="h-4 w-4 game-text" />
+                    {/* Action items */}
+                    <div className="px-4 pb-4 space-y-3 max-h-[60vh] overflow-y-auto">
+
+                        {/* ── Squad invites (player got invited to a team) ── */}
+                        {squadInvites.map((invite) => (
+                            <div key={invite.id} className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-4 space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 shrink-0 ring-2 ring-primary/20">
+                                        <UserPlus className="h-6 w-6 text-primary" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold truncate">{invite.squad.name}</p>
-                                        <p className="text-[11px] text-foreground/40 truncate">
-                                            {invite.squad.captain.displayName} invited you · {invite.squad.poll?.tournament?.name}
+                                        <p className="text-base font-bold truncate">{invite.squad.name}</p>
+                                        <p className="text-xs text-foreground/50 truncate">
+                                            {invite.squad.captain.displayName} invited you
+                                        </p>
+                                        <p className="text-[11px] text-foreground/30 truncate">
+                                            {invite.squad.poll?.tournament?.name}
                                         </p>
                                     </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleSkipInvite(invite.id)}
+                                        disabled={!!processingId}
+                                        className="flex-1 py-3 rounded-xl text-sm font-semibold text-foreground/50 bg-foreground/[0.05] hover:bg-foreground/[0.1] active:scale-[0.97] transition-all disabled:opacity-40"
+                                    >
+                                        Later
+                                    </button>
+                                    <button
+                                        onClick={() => handleAcceptInvite(invite)}
+                                        disabled={!!processingId}
+                                        className="flex-[2] py-3 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary/90 active:scale-[0.97] transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-primary/30"
+                                    >
+                                        {processingId === invite.id ? (
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        ) : (
+                                            <Check className="h-5 w-5" />
+                                        )}
+                                        Join Team
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* ── Squad join requests (captain sees player requests) ── */}
+                        {squadRequests.map((req) => {
+                            const playerName = req.player.displayName ?? req.player.user.username;
+                            const playerImg = req.player.customProfileImageUrl ?? req.player.user.imageUrl;
+                            return (
+                                <div key={req.id} className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.04] p-4 space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/15 shrink-0 ring-2 ring-blue-500/20 overflow-hidden">
+                                            {playerImg ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={playerImg} alt={playerName} className="h-full w-full object-cover" />
+                                            ) : (
+                                                <Shield className="h-6 w-6 text-blue-500" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-base font-bold truncate">{playerName}</p>
+                                            <p className="text-xs text-foreground/50 truncate">
+                                                Wants to join <span className="font-semibold">{req.squad.name}</span>
+                                            </p>
+                                            <p className="text-[11px] text-foreground/30 truncate">
+                                                {req.squad.poll?.tournament?.name}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
                                         <button
-                                            onClick={() => handleSkipInvite(invite)}
+                                            onClick={() => handleRespondRequest(req, "DECLINE")}
                                             disabled={!!processingId}
-                                            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-foreground/40 hover:text-foreground/60 hover:bg-default-100 transition-colors disabled:opacity-40"
+                                            className="flex-1 py-3 rounded-xl text-sm font-semibold text-danger bg-danger/10 hover:bg-danger/20 active:scale-[0.97] transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
                                         >
-                                            Later
+                                            {processingId === `${req.id}-DECLINE` ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <X className="h-4 w-4" />
+                                            )}
+                                            Decline
                                         </button>
                                         <button
-                                            onClick={() => handleAcceptInvite(invite)}
+                                            onClick={() => handleRespondRequest(req, "ACCEPT")}
                                             disabled={!!processingId}
-                                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary/15 text-primary hover:bg-primary/25 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                                            className="flex-[2] py-3 rounded-xl text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-[0.97] transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
                                         >
-                                            {processingId === invite.id ? (
-                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            {processingId === `${req.id}-ACCEPT` ? (
+                                                <Loader2 className="h-5 w-5 animate-spin" />
                                             ) : (
-                                                <Check className="h-3.5 w-3.5" />
+                                                <Check className="h-5 w-5" />
                                             )}
-                                            Join
+                                            Accept
                                         </button>
                                     </div>
                                 </div>
-                            ))}
+                            );
+                        })}
 
-                            {/* Unclaimed rewards */}
-                            {rewards.map((reward) => {
-                                const label = reward.type === "WINNER" ? "🏆 Prize"
-                                    : reward.type === "SOLO_SUPPORT" ? "💚 Solo Support"
-                                    : reward.type === "REFERRAL" ? "🎁 Referral"
-                                    : "🎉 Reward";
-                                return (
-                                    <div key={reward.id} className="flex items-center gap-3 px-4 py-3">
-                                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-success/10 shrink-0">
-                                            <Gift className="h-4 w-4 text-success" />
+                        {/* ── Unclaimed rewards ── */}
+                        {rewards.map((reward) => {
+                            const label = reward.type === "WINNER" ? "🏆 Prize"
+                                : reward.type === "SOLO_SUPPORT" ? "💚 Solo Support"
+                                : reward.type === "REFERRAL" ? "🎁 Referral"
+                                : "🎉 Reward";
+                            return (
+                                <div key={reward.id} className="rounded-2xl border border-success/20 bg-success/[0.04] p-4 space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-success/15 shrink-0 ring-2 ring-success/20">
+                                            <Gift className="h-6 w-6 text-success" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold truncate">
-                                                {label} — {reward.amount} <CurrencyIcon size={12} />
+                                            <p className="text-base font-bold truncate">
+                                                {label}
+                                            </p>
+                                            <p className="text-lg font-extrabold text-success flex items-center gap-1">
+                                                {reward.amount} <CurrencyIcon size={18} />
                                             </p>
                                             {reward.message && (
                                                 <p className="text-[11px] text-foreground/40 truncate">{reward.message}</p>
                                             )}
                                         </div>
-                                        <button
-                                            onClick={() => handleClaim(reward)}
-                                            disabled={!!processingId}
-                                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-success/15 text-success hover:bg-success/25 transition-colors disabled:opacity-40 shrink-0 flex items-center gap-1.5"
-                                        >
-                                            {processingId === reward.id ? (
-                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                            ) : (
-                                                <Gift className="h-3.5 w-3.5" />
-                                            )}
-                                            Claim
-                                        </button>
-                                    </div>
-                                );
-                            })}
-
-                            {/* Battle Pass / Royal Pass unclaimed streak */}
-                            {hasUnclaimedStreak && (
-                                <div className="flex items-center gap-3 px-4 py-3">
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/10 shrink-0">
-                                        <Crown className="h-4 w-4 text-amber-500" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold truncate">👑 Royal Pass Reward</p>
-                                        <p className="text-[11px] text-foreground/40 truncate">Unclaimed streak reward available</p>
                                     </div>
                                     <button
-                                        onClick={() => {
-                                            markCompleted("streak");
-                                            window.location.assign("/royal-pass");
-                                        }}
+                                        onClick={() => handleClaim(reward)}
                                         disabled={!!processingId}
-                                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition-colors disabled:opacity-40 shrink-0"
+                                        className="w-full py-3 rounded-xl text-sm font-bold bg-success text-white hover:bg-success/90 active:scale-[0.97] transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-success/30"
                                     >
-                                        Claim
+                                        {processingId === reward.id ? (
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        ) : (
+                                            <Gift className="h-5 w-5" />
+                                        )}
+                                        Claim Reward
                                     </button>
                                 </div>
-                            )}
-                        </div>
+                            );
+                        })}
 
-                        {/* Collapse */}
-                        <button
-                            onClick={() => setExpanded(false)}
-                            className="w-full py-2 text-[11px] text-foreground/30 hover:text-foreground/50 transition-colors border-t border-divider"
-                        >
-                            Minimize
-                        </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+                        {/* ── Royal Pass streak ── */}
+                        {hasUnclaimedStreak && (
+                            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-4 space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 shrink-0 ring-2 ring-amber-500/20">
+                                        <Crown className="h-6 w-6 text-amber-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-base font-bold">👑 Royal Pass Reward</p>
+                                        <p className="text-xs text-foreground/50">Unclaimed streak reward available</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        markCompleted("streak");
+                                        window.location.assign("/royal-pass");
+                                    }}
+                                    disabled={!!processingId}
+                                    className="w-full py-3 rounded-xl text-sm font-bold bg-amber-500 text-white hover:bg-amber-500/90 active:scale-[0.97] transition-all disabled:opacity-40 shadow-lg shadow-amber-500/30"
+                                >
+                                    Claim
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Dismiss footer */}
+                    <button
+                        onClick={() => setDismissed(true)}
+                        className="w-full py-3 text-xs font-medium text-foreground/30 hover:text-foreground/50 transition-colors border-t border-divider"
+                    >
+                        Dismiss all
+                    </button>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
     );
 }

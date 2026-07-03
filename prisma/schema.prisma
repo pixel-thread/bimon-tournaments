@@ -923,6 +923,7 @@ model Gallery {
   status             GalleryStatus @default(ACTIVE)
   isCharacterImg     Boolean       @default(false)
   isGlobalBackground Boolean       @default(false)
+  isStandingsBackground Boolean    @default(false)
   isAnimated         Boolean       @default(false)
   isVideo            Boolean       @default(false)
   thumbnailUrl       String?

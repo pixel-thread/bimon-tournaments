@@ -36,6 +36,7 @@ import {
     Link,
     Unlink,
     Pencil,
+    Gift,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -297,6 +298,35 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
             setEmailInput("");
             setPhoneInput("");
             toast.success("Player updated");
+        },
+        onError: (err: Error) => toast.error(err.message),
+    });
+
+    // Fetch pending (unclaimed) rewards for this player
+    const { data: pendingRewards, isLoading: rewardsLoading } = useQuery<{ id: string; type: string; amount: number; diamondAmount: number; message: string | null; createdAt: string }[]>({
+        queryKey: ["admin-player-rewards", playerId],
+        queryFn: async () => {
+            const res = await fetch(`/api/players/${playerId}/pending-rewards`);
+            if (!res.ok) return [];
+            const json = await res.json();
+            return json.data ?? [];
+        },
+        enabled: !!playerId && isOpen,
+    });
+
+    // Skip (void) a pending reward
+    const skipRewardMutation = useMutation({
+        mutationFn: async (rewardId: string) => {
+            const res = await fetch(`/api/rewards/${rewardId}/skip`, { method: "DELETE" });
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
+                throw new Error(json.message || "Failed to skip");
+            }
+            return res.json();
+        },
+        onSuccess: (data) => {
+            toast.success(data.message || "Reward skipped");
+            queryClient.invalidateQueries({ queryKey: ["admin-player-rewards", playerId] });
         },
         onError: (err: Error) => toast.error(err.message),
     });
@@ -684,6 +714,57 @@ export function PlayerDetailModal({ playerId, isOpen, onClose }: PlayerDetailMod
                                         </p>
                                     )}
                                 </div>
+
+                                {/* Pending Rewards — skip/void */}
+                                {(pendingRewards && pendingRewards.length > 0) && (
+                                    <div className="rounded-xl border border-warning/30 bg-warning/[0.03] p-4 space-y-2">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-warning/10">
+                                                <Gift className="h-3.5 w-3.5 text-warning" />
+                                            </div>
+                                            <h3 className="text-sm font-semibold">Pending Rewards</h3>
+                                            <Chip size="sm" variant="flat" color="warning" className="ml-auto">{pendingRewards.length}</Chip>
+                                        </div>
+                                        {pendingRewards.map((reward) => {
+                                            const typeLabel: Record<string, string> = {
+                                                WINNER: "🏆 Prize",
+                                                SOLO_SUPPORT: "💚 Solo Support",
+                                                REFERRAL: "🎁 Referral",
+                                                STREAK: "👑 Streak",
+                                            };
+                                            return (
+                                                <div key={reward.id} className="flex items-center gap-3 rounded-lg bg-background/50 border border-divider/50 px-3 py-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-semibold">
+                                                            {typeLabel[reward.type] || reward.type} — {reward.amount} {GAME.currency}
+                                                            {reward.diamondAmount > 0 && ` + ${reward.diamondAmount} ${GAME.rewardCurrency}`}
+                                                        </p>
+                                                        {reward.message && (
+                                                            <p className="text-[11px] text-foreground/40 truncate">{reward.message}</p>
+                                                        )}
+                                                        <p className="text-[10px] text-foreground/30">
+                                                            {new Date(reward.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                                        </p>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        color="danger"
+                                                        variant="flat"
+                                                        isLoading={skipRewardMutation.isPending && skipRewardMutation.variables === reward.id}
+                                                        onPress={() => {
+                                                            if (confirm(`Skip this reward? (${reward.amount} ${GAME.currency} will NOT be credited)`)) {
+                                                                skipRewardMutation.mutate(reward.id);
+                                                            }
+                                                        }}
+                                                        className="shrink-0"
+                                                    >
+                                                        Skip
+                                                    </Button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
 
                                 {/* Player Flags — collapsed by default */}
                                 <div className="rounded-xl border border-divider">
