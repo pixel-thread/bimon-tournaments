@@ -59,11 +59,8 @@ export async function POST(request: NextRequest) {
 
         const tournamentName = squad.poll.tournament?.name ?? "tournament";
 
-        // Current roster count
-        const currentAccepted = squad.invites.filter((i) => i.status === "ACCEPTED" && !i.isSub).length;
-        const currentSubs = squad.invites.filter((i) => i.status === "ACCEPTED" && i.isSub).length;
-        let activeSlots = currentAccepted;
-        let subSlots = currentSubs;
+        // Current roster count — all slots are equal
+        let totalAccepted = squad.invites.filter((i) => i.status === "ACCEPTED").length;
 
         // Fetch player info for all requested members
         const players = await prisma.player.findMany({
@@ -152,8 +149,7 @@ export async function POST(request: NextRequest) {
                     continue;
                 }
 
-                const isSub = activeSlots >= GAME.squadSize;
-                if (isSub && subSlots >= GAME.maxSquadSize - GAME.squadSize) {
+                if (totalAccepted >= GAME.maxSquadSize) {
                     results.push({
                         playerId: memberId,
                         name: player.displayName ?? player.user.username ?? "Player",
@@ -161,10 +157,6 @@ export async function POST(request: NextRequest) {
                         reason: "roster full",
                     });
                     continue;
-                }
-                if (!isSub && activeSlots >= GAME.squadSize) {
-                    // Active is full but sub slots still open
-                    // Will be added as sub
                 }
 
                 const shouldAutoAccept = autoAcceptAll || player.isGhost || autoAcceptSet.has(memberId) || clanAutoAcceptSet.has(memberId);
@@ -176,7 +168,7 @@ export async function POST(request: NextRequest) {
                         playerId: memberId,
                         status: inviteStatus,
                         initiatedBy: "CAPTAIN",
-                        isSub,
+                        isSub: false,
                         ...(shouldAutoAccept ? { respondedAt: new Date() } : {}),
                     },
                 });
@@ -195,8 +187,7 @@ export async function POST(request: NextRequest) {
                         details: "Auto-accept (roster import)",
                     });
 
-                    if (isSub) subSlots++;
-                    else activeSlots++;
+                    totalAccepted++;
 
                     results.push({
                         playerId: memberId,
@@ -220,8 +211,8 @@ export async function POST(request: NextRequest) {
                 }
             }
 
-            // Update squad status if full
-            if (activeSlots >= GAME.squadSize) {
+            // Update squad status if all slots filled
+            if (totalAccepted >= GAME.maxSquadSize) {
                 await tx.squad.update({
                     where: { id: squadId, status: "FORMING" },
                     data: { status: "FULL" },

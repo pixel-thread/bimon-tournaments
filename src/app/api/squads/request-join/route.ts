@@ -104,12 +104,11 @@ export async function POST(request: NextRequest) {
             if (existingInvite.initiatedBy === "CAPTAIN") {
                 const acceptedCount2 = squad.invites.filter((i) => i.status === "ACCEPTED").length;
                 const isFull = (acceptedCount2 + 1) >= GAME.maxSquadSize;
-                const shouldBeSub = (acceptedCount2 + 1) > GAME.squadSize;
 
                 await prisma.$transaction(async (tx) => {
                     await tx.squadInvite.update({
                         where: { id: existingInvite.id },
-                        data: { status: "ACCEPTED", respondedAt: new Date(), isSub: shouldBeSub },
+                        data: { status: "ACCEPTED", respondedAt: new Date(), isSub: false },
                     });
 
                     if (isFull) {

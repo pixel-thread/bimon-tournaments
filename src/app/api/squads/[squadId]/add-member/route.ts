@@ -96,28 +96,12 @@ export async function POST(
             return ErrorResponse({ message: "This tournament doesn't support ghost members", status: 400 });
         }
 
-        // Check squad roster size
-        const activeMembers = squad.invites.filter(
-            (i) => i.status === "ACCEPTED" && !i.isSub
-        ).length;
-        const subs = squad.invites.filter(
-            (i) => i.status === "ACCEPTED" && i.isSub
-        ).length;
-        const maxActive = GAME.squadSize;
-        const maxTotal = GAME.maxSquadSize;
-
-        // Auto-assign as sub if active slots are full
-        let isSub = isSubInput ?? false;
-        if (!isSub && activeMembers >= maxActive) {
-            isSub = true; // auto-promote to sub
+        // Check squad roster size — all slots are equal (no active/sub distinction)
+        const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
+        if (acceptedCount >= GAME.maxSquadSize) {
+            return ErrorResponse({ message: "All slots are filled", status: 400 });
         }
-
-        if (isSub && subs >= maxTotal - maxActive) {
-            return ErrorResponse({ message: "All slots are filled (active + subs)", status: 400 });
-        }
-        if (!isSub && activeMembers >= maxActive) {
-            return ErrorResponse({ message: "All active slots are filled", status: 400 });
-        }
+        const isSub = false;
 
 
         // Search for existing player — by direct ID, phone, or email
@@ -402,7 +386,7 @@ async function updateSquadStatus(squadId: string) {
         select: {
             status: true,
             invites: {
-                where: { status: "ACCEPTED", isSub: false },
+                where: { status: "ACCEPTED" },
                 select: { id: true },
             },
         },
@@ -410,8 +394,7 @@ async function updateSquadStatus(squadId: string) {
 
     if (!squad) return;
 
-    const activeCount = squad.invites.length;
-    if (activeCount >= GAME.squadSize && squad.status === "FORMING") {
+    if (squad.invites.length >= GAME.maxSquadSize && squad.status === "FORMING") {
         await prisma.squad.update({
             where: { id: squadId },
             data: { status: "FULL" },

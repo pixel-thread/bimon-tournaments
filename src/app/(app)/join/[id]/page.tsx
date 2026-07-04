@@ -789,11 +789,10 @@ export default function JoinPage() {
 
                                             {/* Player 2–6 */}
                                             {Array.from({ length: totalSlots }).map((_, i) => {
-                                                const slotLabel = i < GAME.squadSize - 1 ? `Player ${i + 2}` : `Sub ${i - GAME.squadSize + 2}`;
-                                                const isSub = i >= GAME.squadSize - 1;
+                                                const slotLabel = `Player ${i + 2}`;
                                                 return (
                                                     <div key={`guest-slot-${i}`} className="flex items-center gap-2">
-                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${isSub ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}`}>
+                                                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 bg-purple-500/10 text-purple-500">
                                                             {i + 2}
                                                         </div>
                                                         <input
@@ -802,7 +801,7 @@ export default function JoinPage() {
                                                             value={slotNames[i] || ""}
                                                             onChange={(e) => setSlotNames(prev => ({ ...prev, [i]: e.target.value }))}
                                                             maxLength={20}
-                                                            className={`flex-1 min-w-0 rounded-lg bg-default-100 px-3 py-2.5 text-sm outline-none placeholder:text-foreground/40 focus:ring-2 focus:ring-primary/40 transition-shadow ${isSub ? 'border border-dashed border-foreground/10' : ''}`}
+                                                            className="flex-1 min-w-0 rounded-lg bg-default-100 px-3 py-2.5 text-sm outline-none placeholder:text-foreground/40 focus:ring-2 focus:ring-primary/40 transition-shadow"
                                                         />
                                                         {slotNames[i]?.trim() && (
                                                             <button

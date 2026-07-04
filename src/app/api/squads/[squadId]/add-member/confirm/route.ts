@@ -22,7 +22,7 @@ export async function POST(
 
         const { squadId } = await params;
         const body = await request.json();
-        const { playerId, isSub } = body as { playerId: string; isSub?: boolean };
+        const { playerId } = body as { playerId: string };
 
         if (!playerId) {
             return ErrorResponse({ message: "playerId is required", status: 400 });
@@ -38,7 +38,7 @@ export async function POST(
                 captainId: true,
                 status: true,
                 pollId: true,
-                invites: { select: { playerId: true, status: true, isSub: true } },
+                invites: { select: { playerId: true, status: true } },
             },
         });
 
@@ -51,26 +51,14 @@ export async function POST(
             return ErrorResponse({ message: "Only the captain can add members", status: 403 });
         }
 
-        if (squad.status !== "FORMING") {
+        if (!['FORMING', 'FULL'].includes(squad.status)) {
             return ErrorResponse({ message: "Squad is not accepting members", status: 400 });
         }
 
-        // Check roster space
-        const activeMembers = squad.invites.filter(
-            (i) => i.status === "ACCEPTED" && !i.isSub
-        ).length;
-        const subs = squad.invites.filter(
-            (i) => i.status === "ACCEPTED" && i.isSub
-        ).length;
-
-        if (isSub) {
-            if (subs >= GAME.maxSquadSize - GAME.squadSize) {
-                return ErrorResponse({ message: "All sub slots are filled", status: 400 });
-            }
-        } else {
-            if (activeMembers >= GAME.squadSize) {
-                return ErrorResponse({ message: "All active slots are filled", status: 400 });
-            }
+        // Check roster space — all slots equal, no active/sub distinction
+        const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
+        if (acceptedCount >= GAME.maxSquadSize) {
+            return ErrorResponse({ message: "All slots are filled", status: 400 });
         }
 
         // Verify player exists and isn't already in this squad
@@ -128,17 +116,17 @@ export async function POST(
                 playerId,
                 status: "ACCEPTED",
                 initiatedBy: "CAPTAIN",
-                isSub: isSub ?? false,
+                isSub: false,
                 respondedAt: new Date(),
             },
         });
 
-        // Update squad status if full
-        const updatedInvites = await prisma.squadInvite.count({
-            where: { squadId, status: "ACCEPTED", isSub: false },
+        // Update squad status if all slots filled
+        const updatedCount = await prisma.squadInvite.count({
+            where: { squadId, status: "ACCEPTED" },
         });
 
-        if (updatedInvites >= GAME.squadSize) {
+        if (updatedCount >= GAME.maxSquadSize) {
             await prisma.squad.update({
                 where: { id: squadId, status: "FORMING" },
                 data: { status: "FULL" },

@@ -203,13 +203,6 @@ function MemberActions({
             </DropdownTrigger>
             <DropdownMenu aria-label="Member actions">
                 <DropdownItem
-                    key="toggle-sub"
-                    startContent={member.isSub ? <Check className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
-                    onPress={() => toggleSub.mutate()}
-                >
-                    {member.isSub ? "Move to Active" : "Mark as Sub"}
-                </DropdownItem>
-                <DropdownItem
                     key="remove"
                     className="text-danger"
                     color="danger"
@@ -504,9 +497,7 @@ function SquadCard({
                                                 {isMemberCaptain && (
                                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0 whitespace-nowrap">Leader</span>
                                                 )}
-                                                {member.isSub && member.status === "ACCEPTED" && (
-                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-500 dark:text-blue-400 shrink-0 whitespace-nowrap">SUB</span>
-                                                )}
+
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
@@ -592,7 +583,6 @@ function SquadCard({
                                 );
                             })}
                         </div>
-
 
                         {/* Captain: Invite Players + Quick Add + Add Ghost */}
                         {isCaptain && !squad.isFull && ['FORMING', 'FULL'].includes(squad.status) && pollIsActive && (
@@ -1040,7 +1030,7 @@ function SquadCard({
 
                                 for (let i = 0; i < totalSlots; i++) {
                                     const member = acceptedMembers[i];
-                                    const slotLabel = i < GAME.squadSize - 1 ? `Player ${i + 2}` : `Sub ${i - GAME.squadSize + 2}`;
+                                    const slotLabel = `Player ${i + 2}`;
                                     const isAdding = ghostAdding === i;
                                     const contact = slotContacts[i] || { phone: "", email: "", expanded: false };
 
@@ -1054,7 +1044,7 @@ function SquadCard({
                                                 <PlayerAvatar src={member.imageUrl} playerId={member.playerId} playerName={member.displayName} size="sm" className="w-8 h-8 shrink-0" />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-medium truncate">{member.displayName}</p>
-                                                    <p className="text-[10px] text-foreground/40">{member.isSub ? "Sub" : "Active"}</p>
+                                                    <p className="text-[10px] text-foreground/40">Slot {i + 2}</p>
                                                 </div>
                                                 <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                                             </div>
@@ -1149,7 +1139,7 @@ function SquadCard({
                                                                                 isGhost: true,
                                                                                 status: "ACCEPTED" as const,
                                                                                 initiatedBy: "CAPTAIN" as const,
-                                                                                isSub: emptyIndex >= GAME.squadSize - 1,
+                                                                                isSub: false,
                                                                             };
                                                                             const updatedMembers = [...s.members, optimisticMember];
                                                                             const acceptedCount = updatedMembers.filter((m: any) => m.status === "ACCEPTED").length;
@@ -1159,7 +1149,7 @@ function SquadCard({
                                                                                 acceptedCount,
                                                                                 activeCount: acceptedCount,
                                                                                 isFull: acceptedCount >= s.totalSlots,
-                                                                                status: acceptedCount >= GAME.squadSize ? "FULL" : s.status,
+                                                                                status: acceptedCount >= GAME.maxSquadSize ? "FULL" : s.status,
                                                                             };
                                                                         }),
                                                                     };
@@ -1285,7 +1275,7 @@ function SquadCard({
                                                                 isGhost: false,
                                                                 status: "ACCEPTED" as const,
                                                                 initiatedBy: "CAPTAIN" as const,
-                                                                isSub: idx >= GAME.squadSize - 1,
+                                                                isSub: false,
                                                             };
                                                             const updatedMembers = [...s.members, optimisticMember];
                                                             const acceptedCount = updatedMembers.filter((m: any) => m.status === "ACCEPTED").length;
@@ -1295,7 +1285,7 @@ function SquadCard({
                                                                 acceptedCount,
                                                                 activeCount: acceptedCount,
                                                                 isFull: acceptedCount >= s.totalSlots,
-                                                                status: acceptedCount >= GAME.squadSize ? "FULL" : s.status,
+                                                                status: acceptedCount >= GAME.maxSquadSize ? "FULL" : s.status,
                                                             };
                                                         }),
                                                     };
@@ -2861,15 +2851,10 @@ function GuestSquadModal({
                             </p>
                             <div className="space-y-1.5">
                                 {Array.from({ length: totalSlots }).map((_, i) => {
-                                    const slotLabel = i < GAME.squadSize - 1 ? `Player ${i + 2}` : `Sub ${i - GAME.squadSize + 2}`;
-                                    const isSub = i >= GAME.squadSize - 1;
+                                    const slotLabel = `Player ${i + 2}`;
                                     return (
-                                        <div key={`guest-slot-${i}`} className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${
-                                            isSub ? 'border-dashed border-foreground/10' : 'border-foreground/15'
-                                        }`}>
-                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${
-                                                isSub ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'
-                                            }`}>
+                                        <div key={`guest-slot-${i}`} className="flex items-center gap-2 rounded-xl border px-3 py-2 border-foreground/15">
+                                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 bg-purple-500/10 text-purple-500">
                                                 {i + 2}
                                             </div>
                                             <input

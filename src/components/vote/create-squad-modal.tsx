@@ -288,7 +288,7 @@ export function CreateSquadModal({
                                     <CurrencyIcon size={16} />
                                     <div className="text-sm">
                                         <span className="font-medium">{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</span>
-                                        <span className="text-foreground/60"> per team • {GAME.maxSquadSize} players ({GAME.maxSquadSize - GAME.squadSize} subs)</span>
+                                        <span className="text-foreground/60"> per team • up to {GAME.maxSquadSize} players</span>
                                     </div>
                                 </div>
 
@@ -467,7 +467,7 @@ export function CreateSquadModal({
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm font-medium truncate">
                                                                 {m.displayName}
-                                                                {m.isSub && <span className="text-xs text-foreground/40 ml-1">(sub)</span>}
+
                                                             </p>
                                                             {!m.available && m.existingTeamName && (
                                                                 <p className="text-xs text-danger-500">Already in {m.existingTeamName}</p>
@@ -514,7 +514,7 @@ export function CreateSquadModal({
                                 {!importRoster && (
                                     <div className="text-xs text-foreground/50 space-y-1">
                                         <p>• {useClanTreasury ? 'Clan treasury' : 'Leader'} pays <strong>{entryFee} {GAME.hasDualCurrency ? GAME.entryCurrency : GAME.currency}</strong> — covers the whole team</p>
-                                        <p>• Roster: up to <strong>{GAME.maxSquadSize}</strong> players ({GAME.squadSize} active + {GAME.maxSquadSize - GAME.squadSize} subs)</p>
+                                        <p>• Roster: up to <strong>{GAME.maxSquadSize}</strong> players</p>
                                         <p>• Teammates join for free — no fee required</p>
                                         <p>• {useClanTreasury ? 'Prize goes to clan treasury' : 'Prize goes to leader'} when team wins 🏆</p>
                                     </div>

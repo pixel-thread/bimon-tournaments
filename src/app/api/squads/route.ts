@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
 
         const allData = squads.map((squad) => {
             const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
-            const activeCount = squad.invites.filter((i) => i.status === "ACCEPTED" && !i.isSub).length;
+            const activeCount = acceptedCount; // No active/sub distinction
             const isCaptain = currentPlayerId ? squad.captainId === currentPlayerId : false;
             const myInvite = currentPlayerId ? squad.invites.find((i) => i.playerId === currentPlayerId) : undefined;
             const isMySquad = !!myInvite;

@@ -258,7 +258,6 @@ export async function POST(
         }
 
         const isFull = (acceptedCount + 1) >= GAME.maxSquadSize;
-        const shouldBeSub = (acceptedCount + 1) > GAME.squadSize;
         const tournamentName = squad.poll.tournament?.name ?? "tournament";
 
         // Auto-join: create ACCEPTED invite + cleanup in one transaction
@@ -270,7 +269,7 @@ export async function POST(
                 // Update existing invite to ACCEPTED
                 await tx.squadInvite.update({
                     where: { id: existingInvite.id },
-                    data: { status: "ACCEPTED", respondedAt: new Date(), initiatedBy: "CAPTAIN", isSub: shouldBeSub },
+                    data: { status: "ACCEPTED", respondedAt: new Date(), initiatedBy: "CAPTAIN", isSub: false },
                 });
             } else {
                 // Create new ACCEPTED invite
@@ -281,7 +280,7 @@ export async function POST(
                         status: "ACCEPTED",
                         respondedAt: new Date(),
                         initiatedBy: "CAPTAIN",
-                        isSub: shouldBeSub,
+                        isSub: false,
                     },
                 });
             }

@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
                     name: trimmedName,
                     fullName,
                     entryFee,
-                    status: allCount >= GAME.squadSize ? "FULL" : "FORMING",
+                    status: allCount >= GAME.maxSquadSize ? "FULL" : "FORMING",
                     confirmedAt: insufficientBalance ? null : new Date(),
                 },
             });
@@ -273,7 +273,6 @@ export async function POST(request: NextRequest) {
             // Member invites
             for (let i = 0; i < memberPlayerIds.length; i++) {
                 const member = memberPlayerIds[i]!;
-                const isSub = (i + 1) >= GAME.squadSize; // captain is slot 0
                 await tx.squadInvite.create({
                     data: {
                         squadId: squad.id,
@@ -281,7 +280,7 @@ export async function POST(request: NextRequest) {
                         status: "ACCEPTED",
                         initiatedBy: "CAPTAIN",
                         respondedAt: new Date(),
-                        isSub,
+                        isSub: false,
                     },
                 });
             }

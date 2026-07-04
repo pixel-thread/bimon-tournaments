@@ -160,7 +160,6 @@ export async function POST(request: NextRequest) {
             // Auto-accept: create as ACCEPTED immediately
             const newAcceptedCount = acceptedCount + 1;
             const isFull = newAcceptedCount >= GAME.maxSquadSize;
-            const shouldBeSub = newAcceptedCount > GAME.squadSize;
 
             await prisma.$transaction(async (tx) => {
                 // Create invite as ACCEPTED
@@ -171,7 +170,7 @@ export async function POST(request: NextRequest) {
                         status: "ACCEPTED",
                         initiatedBy: "CAPTAIN",
                         respondedAt: new Date(),
-                        isSub: shouldBeSub,
+                        isSub: false,
                     },
                 });
 

@@ -216,8 +216,7 @@ export async function POST(request: NextRequest) {
             }
 
             // Add ghost teammates
-            let activeCount = 1; // captain
-            let subCount = 0;
+            let totalCount = 1; // captain
 
             for (const member of members.slice(0, GAME.maxSquadSize - 1)) {
                 if (!member.name?.trim()) continue;
@@ -295,8 +294,7 @@ export async function POST(request: NextRequest) {
                 });
                 if (existing) continue;
 
-                const isSub = activeCount >= GAME.squadSize;
-                if (isSub && subCount >= GAME.maxSquadSize - GAME.squadSize) continue;
+                if (totalCount >= GAME.maxSquadSize) continue;
 
                 await tx.squadInvite.create({
                     data: {
@@ -304,17 +302,16 @@ export async function POST(request: NextRequest) {
                         playerId: memberPlayer.id,
                         status: "ACCEPTED",
                         initiatedBy: "CAPTAIN",
-                        isSub,
+                        isSub: false,
                         respondedAt: new Date(),
                     },
                 });
 
-                if (isSub) subCount++;
-                else activeCount++;
+                totalCount++;
             }
 
             // Update status
-            if (activeCount >= GAME.squadSize) {
+            if (totalCount >= GAME.maxSquadSize) {
                 await tx.squad.update({
                     where: { id: newSquad.id, status: "FORMING" },
                     data: { status: "FULL" },
