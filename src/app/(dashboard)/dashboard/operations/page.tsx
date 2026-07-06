@@ -106,6 +106,7 @@ export default function OperationsPage() {
     const [editIsMangoScrim, setEditIsMangoScrim] = useState(false);
     const [editFixedPrizes, setEditFixedPrizes] = useState(""); // Comma-separated: "250,120,50,50"
     const [editOrgCut, setEditOrgCut] = useState(""); // Org cut for fixed-prize tournaments
+    const [editLoading, setEditLoading] = useState(false);
 
     // Create tournament form
     const [tName, setTName] = useState("");
@@ -211,6 +212,7 @@ export default function OperationsPage() {
             setEditIsMangoScrim(selected.isMangoScrim ?? false);
             // Load fixedPrizes from poll
             if (selected.poll?.id) {
+                setEditLoading(true);
                 fetch("/api/polls?all=true")
                     .then(r => r.json())
                     .then(json => {
@@ -222,10 +224,12 @@ export default function OperationsPage() {
                         }
                         setEditOrgCut(poll?.orgCutFixed != null ? String(poll.orgCutFixed) : "");
                     })
-                    .catch(() => setEditFixedPrizes(""));
+                    .catch(() => setEditFixedPrizes(""))
+                    .finally(() => setEditLoading(false));
             } else {
                 setEditFixedPrizes("");
                 setEditOrgCut("");
+                setEditLoading(false);
             }
         }
     }, [selected?.id]);
@@ -684,6 +688,16 @@ export default function OperationsPage() {
                             Edit Tournament
                         </ModalHeader>
                         <ModalBody className="space-y-3">
+                            {editLoading ? (
+                                <div className="space-y-3">
+                                    <Skeleton className="h-14 w-full rounded-lg" />
+                                    <Skeleton className="h-20 w-full rounded-lg" />
+                                    <Skeleton className="h-14 w-full rounded-lg" />
+                                    <Skeleton className="h-10 w-full rounded-lg" />
+                                    <Skeleton className="h-14 w-full rounded-lg" />
+                                </div>
+                            ) : (
+                                <>
                             <Input
                                 label="Name"
                                 value={editName}
@@ -746,22 +760,59 @@ export default function OperationsPage() {
 
                             {/* Fixed Prizes */}
                             <div className="space-y-1.5">
-                                <Input
-                                    label="Fixed Prizes (comma-separated)"
-                                    placeholder="250,120,50,50"
-                                    value={editFixedPrizes}
-                                    onValueChange={setEditFixedPrizes}
-                                    size="sm"
-                                    description={editFixedPrizes.trim()
-                                        ? (() => {
-                                            const amounts = editFixedPrizes.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
-                                            if (amounts.length === 0) return "No valid amounts";
-                                            const medals = ["🥇", "🥈", "🥉", "🏅"];
-                                            return amounts.map((a, i) => `${medals[Math.min(i, 3)]} ${a}`).join(" · ") + ` = ${amounts.reduce((s, n) => s + n, 0)} total`;
-                                        })()
-                                        : "Leave empty for auto-calculated prizes"
-                                    }
-                                />
+                                <p className="text-xs text-foreground/50 font-medium">Fixed Prizes</p>
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="flat"
+                                        startContent={<ClipboardCheck className="h-3.5 w-3.5" />}
+                                        onPress={async () => {
+                                            try {
+                                                const text = await navigator.clipboard.readText();
+                                                // Parse numbered lines: "1. 300", "2. 200", etc.
+                                                const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+                                                const amounts: number[] = [];
+                                                for (const line of lines) {
+                                                    const match = line.match(/^\d+[\.\)\-:]\s*(\d+)/);
+                                                    if (match) amounts.push(Number(match[1]));
+                                                }
+                                                if (amounts.length === 0) {
+                                                    toast.error("No numbered prizes found in clipboard");
+                                                    return;
+                                                }
+                                                setEditFixedPrizes(amounts.join(","));
+                                                toast.success(`Parsed ${amounts.length} prizes`);
+                                            } catch {
+                                                toast.error("Failed to read clipboard");
+                                            }
+                                        }}
+                                    >
+                                        Paste Prizes
+                                    </Button>
+                                    {editFixedPrizes.trim() && (
+                                        <Button
+                                            size="sm"
+                                            variant="light"
+                                            className="text-danger"
+                                            onPress={() => { setEditFixedPrizes(""); setEditOrgCut(""); }}
+                                        >
+                                            Clear
+                                        </Button>
+                                    )}
+                                </div>
+                                {editFixedPrizes.trim() && (() => {
+                                    const amounts = editFixedPrizes.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
+                                    if (amounts.length === 0) return null;
+                                    const medals = ["🥇", "🥈", "🥉", "🏅"];
+                                    return (
+                                        <p className="text-xs text-foreground/50">
+                                            {amounts.map((a, i) => `${medals[Math.min(i, 3)]} ${a}`).join(" · ")} = {amounts.reduce((s, n) => s + n, 0)} total
+                                        </p>
+                                    );
+                                })()}
+                                {!editFixedPrizes.trim() && (
+                                    <p className="text-xs text-foreground/40">Auto-calculated prizes</p>
+                                )}
                             </div>
 
                             {/* Org Cut — visible when fixed prizes are set */}
@@ -778,6 +829,8 @@ export default function OperationsPage() {
                                         : "No org cut for this tournament"
                                     }
                                 />
+                            )}
+                                </>
                             )}
                         </ModalBody>
                         <ModalFooter>

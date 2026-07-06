@@ -11,7 +11,7 @@ import {
     Spinner,
     Checkbox,
 } from "@heroui/react";
-import { Pencil, Clipboard, ClipboardPaste, ArrowLeftRight, Send } from "lucide-react";
+import { Pencil, Clipboard, ClipboardPaste, ArrowLeftRight } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
