@@ -823,6 +823,9 @@ export default function AdminSquadsPage() {
                                                     {squad.status === "CANCELLED" ? "CANCELLED" :
                                                      squad.confirmedAt ? "CONFIRMED" : "UNCONFIRMED"}
                                                 </Chip>
+                                                <span className="text-[10px] text-foreground/40 font-medium">
+                                                    {squad.acceptedCount}/{squad.totalSlots}
+                                                </span>
                                                 {squad.status !== "CANCELLED" && (
                                                     <Dropdown>
                                                         <DropdownTrigger>

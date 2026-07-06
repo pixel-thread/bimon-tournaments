@@ -74,10 +74,10 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: `This request has already been ${invite.status.toLowerCase()}`, status: 400 });
         }
 
-        // Squad must be FORMING
-        if (invite.squad.status !== "FORMING") {
+        // Squad must be active (FORMING or FULL — FULL squads may still have sub slots)
+        if (!["FORMING", "FULL"].includes(invite.squad.status)) {
             return ErrorResponse({
-                message: invite.squad.status === "FULL" ? "Squad is already full" : "Squad is no longer active",
+                message: "Squad is no longer active",
                 status: 400,
             });
         }
@@ -94,8 +94,14 @@ export async function POST(request: NextRequest) {
                 return ErrorResponse({ message: `Can't accept — ${kdResult.message}`, status: 403 });
             }
 
-            // Check if squad is now full
-            const acceptedCount = invite.squad.invites.filter((i) => i.status === "ACCEPTED").length + 1;
+            // Check actual capacity — block if truly full
+            const currentAccepted = invite.squad.invites.filter((i) => i.status === "ACCEPTED").length;
+            if (currentAccepted >= GAME.maxSquadSize) {
+                return ErrorResponse({ message: "Squad is already at maximum capacity", status: 400 });
+            }
+
+            // Check if squad will be full after accepting
+            const acceptedCount = currentAccepted + 1;
             const isFull = acceptedCount >= GAME.maxSquadSize;
 
             await prisma.$transaction(async (tx) => {

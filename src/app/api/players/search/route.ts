@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
         const q = request.nextUrl.searchParams.get("q")?.trim();
         if (!q || q.length < 2) {
-            return SuccessResponse({ data: [], hasMore: false });
+            return SuccessResponse({ data: [], meta: { hasMore: false } });
         }
 
         const skip = parseInt(request.nextUrl.searchParams.get("skip") || "0", 10);
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
             imageUrl: p.user.imageUrl,
         }));
 
-        return SuccessResponse({ data, hasMore });
+        return SuccessResponse({ data, meta: { hasMore } });
     } catch (error) {
         return ErrorResponse({ message: "Search failed", error });
     }

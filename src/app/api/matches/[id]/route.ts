@@ -47,7 +47,13 @@ export async function DELETE(
                     poll: {
                         select: {
                             id: true,
-                            squads: { where: { status: "REGISTERED" }, select: { id: true } },
+                            squads: {
+                                where: { status: "REGISTERED" },
+                                select: {
+                                    id: true,
+                                    invites: { where: { status: "ACCEPTED" }, select: { id: true } },
+                                },
+                            },
                         },
                     },
                 },
@@ -171,12 +177,16 @@ export async function DELETE(
                         });
                     }
 
-                    // 10. Reset REGISTERED squads back to FULL + clear confirmedAt (fees were refunded)
+                    // 10. Reset REGISTERED squads — set correct status based on actual member count
                     const registeredSquads = tournament.poll?.squads ?? [];
-                    if (registeredSquads.length > 0) {
-                        await tx.squad.updateMany({
-                            where: { id: { in: registeredSquads.map(s => s.id) } },
-                            data: { status: "FULL", confirmedAt: null },
+                    for (const sq of registeredSquads) {
+                        const acceptedCount = sq.invites.length;
+                        await tx.squad.update({
+                            where: { id: sq.id },
+                            data: {
+                                status: acceptedCount >= GAME.maxSquadSize ? "FULL" : "FORMING",
+                                confirmedAt: null,
+                            },
                         });
                     }
                 },
