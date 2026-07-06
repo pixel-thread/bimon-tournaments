@@ -38,6 +38,7 @@ import {
     Youtube,
     Gamepad2,
     Share2,
+    Zap,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useAuthUser } from "@/hooks/use-auth-user";
@@ -123,7 +124,7 @@ export function Header() {
         }
     }, [pathname]);
 
-    const { data: notifData } = useQuery({
+    const { data: notifData, isLoading: isLoadingNotif } = useQuery({
         queryKey: ["notification-count"],
         queryFn: async () => {
             const res = await fetch("/api/notifications");
@@ -146,6 +147,11 @@ export function Header() {
     const unreadCount = notifData?.unreadCount ?? 0;
     const unclaimedRewardCount = notifData?.unclaimedRewardCount ?? 0;
     const hasUnclaimedStreak = notifData?.hasUnclaimedStreak ?? false;
+    // Action count for the ⚡ button badge
+    const actionCount = (notifData?.pendingSquadInvites?.length ?? 0)
+        + (notifData?.pendingSquadRequests?.length ?? 0)
+        + (notifData?.unclaimedRewards?.length ?? 0)
+        + (hasUnclaimedStreak ? 1 : 0);
 
     // Fetch unreviewed duplicate alerts count (admins only)
     const { data: dupData } = useQuery({
@@ -376,6 +382,26 @@ export function Header() {
                 <NavbarContent justify="end">
                     {isSignedIn && (
                         <>
+                            {/* ⚡ Action Center button */}
+                            <NavbarItem>
+                                <button
+                                    onClick={() => window.dispatchEvent(new Event("open-action-center"))}
+                                    className="relative flex items-center justify-center rounded-full p-1.5 transition-opacity hover:opacity-80 text-foreground/60"
+                                    aria-label="Action Center"
+                                >
+                                    {isLoadingNotif ? (
+                                        <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
+                                    ) : (
+                                        <Zap className="h-5 w-5" />
+                                    )}
+                                    {actionCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white ring-2 ring-background px-0.5">
+                                            <span className="absolute inset-0 rounded-full bg-danger animate-ping opacity-50" />
+                                            <span className="relative">{actionCount}</span>
+                                        </span>
+                                    )}
+                                </button>
+                            </NavbarItem>
                             {showRoyalPass && (
                                 <NavbarItem>
                                     <Link

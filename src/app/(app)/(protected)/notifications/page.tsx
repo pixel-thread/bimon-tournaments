@@ -376,7 +376,7 @@ export default function NotificationsPage() {
         return notification.type === "squad_request" && !notification.isRead;
     };
 
-    const hasActionItems = unclaimedRewards.length > 0 || pendingRequests.length > 0 || pendingSquadRequests.length > 0;
+    const hasActionItems = unclaimedRewards.length > 0 || pendingRequests.length > 0;
 
     return (
         <div className="mx-auto max-w-xl px-4 py-6 sm:px-6">
@@ -416,139 +416,26 @@ export default function NotificationsPage() {
                     </Card>
                 )}
 
-                {/* Claimable Rewards Section */}
-                {!isLoading && unclaimedRewards.length > 0 && (
+                {/* Rewards and squad requests are now handled by the ⚡ Action Center */}
+                {!isLoading && hasActionItems && (
                     <motion.div
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                     >
-                        <Card className="border border-divider overflow-hidden">
-                            <div className="flex items-center gap-1.5 px-3 pt-3 pb-1">
-                                <Gift className="h-3.5 w-3.5 text-foreground/40" />
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/40">
-                                    Claimable Rewards
-                                </p>
-                                <span className="ml-auto rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-bold text-success">
-                                    {unclaimedRewards.length}
-                                </span>
+                        <button
+                            onClick={() => window.dispatchEvent(new Event("open-action-center"))}
+                            className="w-full flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-3 text-left transition-colors hover:bg-primary/[0.08] active:scale-[0.98]"
+                        >
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 shrink-0">
+                                <Gift className="h-4 w-4 text-primary" />
                             </div>
-                            <CardBody className="gap-0 p-0">
-                                {unclaimedRewards.map((reward, i) => {
-                                    const Icon = rewardIcons[reward.type] || Gift;
-                                    const colorClass = rewardColors[reward.type] || "text-success bg-success/10";
-                                    const label = rewardLabels[reward.type] || reward.type;
-                                    const details = reward.details as Record<string, unknown> | null;
-
-                                    return (
-                                        <motion.div
-                                            key={reward.id}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: i * 0.04 }}
-                                            onClick={() => openRewardModal(reward)}
-                                            className={`flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors hover:bg-foreground/5 active:bg-foreground/10 ${i > 0 ? "border-t border-divider/50" : ""}`}
-                                        >
-                                            <div
-                                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colorClass}`}
-                                            >
-                                                <Icon className="h-3.5 w-3.5" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-[13px] font-medium">
-                                                    {label}
-                                                    {reward.position ? ` · ${getOrdinal(reward.position)}` : ""}
-                                                </p>
-                                                <p className="text-[11px] text-foreground/40 line-clamp-1">
-                                                    {reward.message || (details?.tournamentName ? String(details.tournamentName) : null) || "Tap to claim"}
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[13px] font-bold text-success">
-                                                    +{reward.amount}
-                                                </span>
-                                                <div className="flex h-6 items-center rounded-md bg-success/15 px-2">
-                                                    <span className="text-[10px] font-semibold text-success">Claim</span>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })}
-                            </CardBody>
-                        </Card>
-                    </motion.div>
-                )}
-
-                {/* Pending Squad Join Requests */}
-                {!isLoading && pendingSquadRequests.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                    >
-                        <Card className="border border-divider overflow-hidden">
-                            <div className="flex items-center gap-1.5 px-3 pt-3 pb-1">
-                                <Shield className="h-3.5 w-3.5 text-foreground/40" />
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/40">
-                                    Squad Join Requests
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold">Action Center</p>
+                                <p className="text-xs text-foreground/50">
+                                    You have pending items — tap ⚡ in the header
                                 </p>
-                                <span className="ml-auto rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-bold text-blue-500">
-                                    {pendingSquadRequests.length}
-                                </span>
                             </div>
-                            <CardBody className="gap-0 p-0">
-                                {pendingSquadRequests.map((req, i) => {
-                                    const playerName = req.player.displayName ?? req.player.user.username;
-                                    const playerImg = req.player.customProfileImageUrl ?? req.player.user.imageUrl ?? "";
-                                    const squadName = req.squad.name;
-                                    const tournamentName = req.squad.poll.tournament?.name ?? "tournament";
-                                    return (
-                                        <div
-                                            key={req.id}
-                                            className={`flex items-center gap-3 px-3 py-2.5 ${i > 0 ? "border-t border-divider/50" : ""}`}
-                                        >
-                                            <img
-                                                src={playerImg}
-                                                alt={playerName}
-                                                className="h-8 w-8 rounded-full object-cover shrink-0"
-                                            />
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-[13px] font-medium truncate">
-                                                    {playerName}
-                                                </p>
-                                                <p className="text-[11px] text-foreground/40 truncate">
-                                                    → {squadName} · {tournamentName}
-                                                </p>
-                                            </div>
-                                            <div className="flex gap-1.5 shrink-0">
-                                                <Button
-                                                    size="sm"
-                                                    color="primary"
-                                                    variant="flat"
-                                                    isIconOnly
-                                                    isLoading={respondSquadRequest.isPending && respondSquadRequest.variables?.inviteId === req.id && respondSquadRequest.variables?.action === "ACCEPT"}
-                                                    isDisabled={respondSquadRequest.isPending && respondSquadRequest.variables?.inviteId === req.id && respondSquadRequest.variables?.action !== "ACCEPT"}
-                                                    onPress={() => respondSquadRequest.mutate({ inviteId: req.id, action: "ACCEPT" })}
-                                                    className="min-w-7 w-7 h-7"
-                                                >
-                                                    <Check className="w-3.5 h-3.5" />
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    color="danger"
-                                                    variant="flat"
-                                                    isIconOnly
-                                                    isLoading={respondSquadRequest.isPending && respondSquadRequest.variables?.inviteId === req.id && respondSquadRequest.variables?.action === "DECLINE"}
-                                                    isDisabled={respondSquadRequest.isPending && respondSquadRequest.variables?.inviteId === req.id && respondSquadRequest.variables?.action !== "DECLINE"}
-                                                    onPress={() => respondSquadRequest.mutate({ inviteId: req.id, action: "DECLINE" })}
-                                                    className="min-w-7 w-7 h-7"
-                                                >
-                                                    <X className="w-3.5 h-3.5" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </CardBody>
-                        </Card>
+                        </button>
                     </motion.div>
                 )}
 

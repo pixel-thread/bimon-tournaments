@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
-import { Gift, Shield, X, Loader2, Check, Crown, UserPlus } from "lucide-react";
+import { Gift, X, Check, Crown, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
@@ -53,16 +53,23 @@ interface NotifData {
 
 /**
  * ActionCenter — Centered fullscreen overlay that surfaces pending actions.
- * Blocks the page so users MUST act or dismiss. Big buttons, impossible to miss.
+ * Triggered by the ⚡ header button or auto-shown on first load if actions exist.
  */
 export function ActionCenter() {
     const { data: session } = useSession();
     const queryClient = useQueryClient();
-    const [dismissed, setDismissed] = useState(false);
-    const [processingId, setProcessingId] = useState<string | null>(null);
+    const [isOpen, setIsOpen] = useState(false);
     const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+    const lastAutoShownPath = useRef<string | null>(null);
 
-    // Refetch on route change (page navigation) — no polling needed
+    // Listen for header button click
+    useEffect(() => {
+        const handler = () => setIsOpen(true);
+        window.addEventListener("open-action-center", handler);
+        return () => window.removeEventListener("open-action-center", handler);
+    }, []);
+
+    // Refetch on route change (page navigation)
     const pathname = usePathname();
     useEffect(() => {
         queryClient.invalidateQueries({ queryKey: ["notification-count"] });
@@ -96,18 +103,16 @@ export function ActionCenter() {
 
     const totalActions = rewards.length + squadInvites.length + squadRequests.length + (hasUnclaimedStreak ? 1 : 0);
 
-    // Re-surface if new actions arrive after a dismiss
-    const prevActionsRef = useRef(totalActions);
+    // Auto-show only on page navigation or first visit — NOT on background refetches
     useEffect(() => {
-        if (totalActions > prevActionsRef.current && dismissed) {
-            setDismissed(false);
+        if (totalActions > 0 && lastAutoShownPath.current !== pathname) {
+            setIsOpen(true);
+            lastAutoShownPath.current = pathname;
         }
-        prevActionsRef.current = totalActions;
-    }, [totalActions, dismissed]);
+    }, [totalActions, pathname]);
 
     const markCompleted = useCallback((id: string) => {
         setCompletedIds(prev => new Set(prev).add(id));
-        setProcessingId(null);
     }, []);
 
     const refreshCaches = useCallback(() => {
@@ -118,7 +123,8 @@ export function ActionCenter() {
 
     // ── Claim reward ──
     const handleClaim = useCallback(async (reward: UnclaimedReward) => {
-        setProcessingId(reward.id);
+        // Optimistic: remove card immediately
+        markCompleted(reward.id);
         try {
             const res = await fetch(`/api/rewards/${reward.id}/claim`, { method: "POST" });
             if (!res.ok) {
@@ -126,11 +132,10 @@ export function ActionCenter() {
                 throw new Error(json.message || "Failed to claim");
             }
             toast.success(`🎉 Claimed ${reward.amount} ${GAME.currencyPlural}!`);
-            markCompleted(reward.id);
             refreshCaches();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to claim reward");
-            setProcessingId(null);
+            setCompletedIds(prev => { const next = new Set(prev); next.delete(reward.id); return next; });
         }
     }, [markCompleted, refreshCaches]);
 
@@ -185,7 +190,12 @@ export function ActionCenter() {
         markCompleted(id);
     }, [markCompleted]);
 
-    if (!session?.user || totalActions === 0 || dismissed) return null;
+    // Close overlay when all actions are completed
+    useEffect(() => {
+        if (totalActions === 0 && isOpen) setIsOpen(false);
+    }, [totalActions, isOpen]);
+
+    if (!session?.user || !isOpen || totalActions === 0) return null;
 
     return (
         <AnimatePresence>
@@ -219,7 +229,7 @@ export function ActionCenter() {
                                 </h2>
                             </div>
                             <button
-                                onClick={() => setDismissed(true)}
+                        onClick={() => setIsOpen(false)}
                                 className="p-2 -mr-1 rounded-xl hover:bg-default-100 transition-colors text-foreground/30 hover:text-foreground/60"
                                 aria-label="Dismiss"
                             >
@@ -254,21 +264,15 @@ export function ActionCenter() {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => handleSkipInvite(invite.id)}
-                                        disabled={!!processingId}
-                                        className="flex-1 py-3 rounded-xl text-sm font-semibold text-foreground/50 bg-foreground/[0.05] hover:bg-foreground/[0.1] active:scale-[0.97] transition-all disabled:opacity-40"
+                                        className="flex-1 py-3 rounded-xl text-sm font-semibold text-foreground/50 bg-foreground/[0.05] hover:bg-foreground/[0.1] active:scale-[0.97] transition-all"
                                     >
                                         Later
                                     </button>
                                     <button
                                         onClick={() => handleAcceptInvite(invite)}
-                                        disabled={!!processingId}
-                                        className="flex-[2] py-3 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary/90 active:scale-[0.97] transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-primary/30"
+                                        className="flex-[2] py-3 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary/90 active:scale-[0.97] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/30"
                                     >
-                                        {processingId === invite.id ? (
-                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                        ) : (
-                                            <Check className="h-5 w-5" />
-                                        )}
+                                        <Check className="h-5 w-5" />
                                         Join Team
                                     </button>
                                 </div>
@@ -305,26 +309,16 @@ export function ActionCenter() {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => handleRespondRequest(req, "DECLINE")}
-                                            disabled={!!processingId}
-                                            className="flex-1 py-3 rounded-xl text-sm font-semibold text-danger bg-danger/10 hover:bg-danger/20 active:scale-[0.97] transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+                                            className="flex-1 py-3 rounded-xl text-sm font-semibold text-danger bg-danger/10 hover:bg-danger/20 active:scale-[0.97] transition-all flex items-center justify-center gap-1.5"
                                         >
-                                            {processingId === `${req.id}-DECLINE` ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <X className="h-4 w-4" />
-                                            )}
+                                            <X className="h-4 w-4" />
                                             Decline
                                         </button>
                                         <button
                                             onClick={() => handleRespondRequest(req, "ACCEPT")}
-                                            disabled={!!processingId}
-                                            className="flex-[2] py-3 rounded-xl text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-[0.97] transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
+                                            className="flex-[2] py-3 rounded-xl text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 active:scale-[0.97] transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
                                         >
-                                            {processingId === `${req.id}-ACCEPT` ? (
-                                                <Loader2 className="h-5 w-5 animate-spin" />
-                                            ) : (
-                                                <Check className="h-5 w-5" />
-                                            )}
+                                            <Check className="h-5 w-5" />
                                             Accept
                                         </button>
                                     </div>
@@ -358,14 +352,9 @@ export function ActionCenter() {
                                     </div>
                                     <button
                                         onClick={() => handleClaim(reward)}
-                                        disabled={!!processingId}
-                                        className="w-full py-3 rounded-xl text-sm font-bold bg-success text-white hover:bg-success/90 active:scale-[0.97] transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-success/30"
+                                        className="w-full py-3 rounded-xl text-sm font-bold bg-success text-white hover:bg-success/90 active:scale-[0.97] transition-all flex items-center justify-center gap-2 shadow-lg shadow-success/30"
                                     >
-                                        {processingId === reward.id ? (
-                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                        ) : (
-                                            <Gift className="h-5 w-5" />
-                                        )}
+                                        <Gift className="h-5 w-5" />
                                         Claim Reward
                                     </button>
                                 </div>
@@ -389,8 +378,7 @@ export function ActionCenter() {
                                         markCompleted("streak");
                                         window.location.assign("/royal-pass");
                                     }}
-                                    disabled={!!processingId}
-                                    className="w-full py-3 rounded-xl text-sm font-bold bg-amber-500 text-white hover:bg-amber-500/90 active:scale-[0.97] transition-all disabled:opacity-40 shadow-lg shadow-amber-500/30"
+                                    className="w-full py-3 rounded-xl text-sm font-bold bg-amber-500 text-white hover:bg-amber-500/90 active:scale-[0.97] transition-all shadow-lg shadow-amber-500/30"
                                 >
                                     Claim
                                 </button>
@@ -400,7 +388,7 @@ export function ActionCenter() {
 
                     {/* Dismiss footer */}
                     <button
-                        onClick={() => setDismissed(true)}
+                        onClick={() => setIsOpen(false)}
                         className="w-full py-3 text-xs font-medium text-foreground/30 hover:text-foreground/50 transition-colors border-t border-divider"
                     >
                         Dismiss all
