@@ -85,7 +85,8 @@ export function ActionCenter() {
             };
         },
         enabled: !!session?.user,
-        staleTime: Infinity,
+        staleTime: 30_000, // Refetch every 30s so new actions appear promptly
+        refetchOnMount: "always",
         refetchOnWindowFocus: "always",
     });
 
@@ -280,12 +281,14 @@ export function ActionCenter() {
                             return (
                                 <div key={req.id} className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.04] p-4 space-y-3">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/15 shrink-0 ring-2 ring-blue-500/20 overflow-hidden">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full shrink-0 ring-2 ring-blue-500/20 overflow-hidden bg-blue-500/15">
                                             {playerImg ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img src={playerImg} alt={playerName} className="h-full w-full object-cover" />
                                             ) : (
-                                                <Shield className="h-6 w-6 text-blue-500" />
+                                                <span className="text-base font-bold text-blue-500">
+                                                    {(playerName || "?").charAt(0).toUpperCase()}
+                                                </span>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
