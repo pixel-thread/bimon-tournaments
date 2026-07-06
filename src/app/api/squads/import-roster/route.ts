@@ -115,6 +115,17 @@ export async function POST(request: NextRequest) {
 
         const results: { playerId: string; name: string; status: "added" | "invited" | "skipped"; reason?: string }[] = [];
 
+        // Pre-check KD gate for all players (read-only, outside transaction)
+        const kdBlockedSet = new Set<string>();
+        for (const memberId of memberIds) {
+            const player = playerMap.get(memberId);
+            if (!player || inPollSet.has(memberId)) continue;
+            const kdResult = await checkKdGate(memberId, squad.pollId, { isGhost: player.isGhost });
+            if (!kdResult.allowed) {
+                kdBlockedSet.add(memberId);
+            }
+        }
+
         await prisma.$transaction(async (tx) => {
             for (const memberId of memberIds) {
                 const player = playerMap.get(memberId);
@@ -134,12 +145,10 @@ export async function POST(request: NextRequest) {
                     continue;
                 }
 
-                // Determine slot type
                 const playerName = player.displayName ?? player.user.username ?? "Player";
 
-                // KD range gate — skip players whose KD is out of range (and ghosts on KD-restricted polls)
-                const kdResult = await checkKdGate(memberId, squad.pollId, { isGhost: player.isGhost });
-                if (!kdResult.allowed) {
+                // KD range gate (pre-computed above)
+                if (kdBlockedSet.has(memberId)) {
                     results.push({
                         playerId: memberId,
                         name: playerName,
@@ -218,7 +227,7 @@ export async function POST(request: NextRequest) {
                     data: { status: "FULL" },
                 });
             }
-        });
+        }, { timeout: 15000 });
 
         // Fire-and-forget push notifications for invited (non-ghost) players
         const invitedPlayers = results.filter((r) => r.status === "invited");
