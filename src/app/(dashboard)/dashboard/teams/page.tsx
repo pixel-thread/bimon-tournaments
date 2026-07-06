@@ -891,7 +891,7 @@ export default function TeamsPage() {
                                 </p>
                                 <ul className="text-sm text-foreground/60 list-disc pl-4 space-y-1">
                                     <li>Delete ALL matches, teams & stats</li>
-                                    <li>Refund entry fees to player wallets</li>
+                                    <li>Refund entry fees to player wallets & clan treasuries</li>
                                     <li>Reactivate the poll for voting</li>
                                     <li>Set tournament back to ACTIVE</li>
                                 </ul>

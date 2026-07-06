@@ -52,14 +52,26 @@ export async function DELETE(
                 return ErrorResponse({ message: "Tournament not found", status: 404 });
             }
 
-            // Find entry fee debit transactions to refund
-            // Use exact match: "Entry fee for <name>" to avoid matching other tournaments
+            // Find ALL entry fee debit transactions to refund
+            // Covers both regular ("Entry fee for ...") and squad ("Squad entry fee for ...") patterns
             const entryFeeTransactions = await prisma.transaction.findMany({
                 where: {
                     type: "DEBIT",
-                    description: { startsWith: `Entry fee for ${tournament.name}` },
+                    OR: [
+                        { description: { startsWith: `Entry fee for ${tournament.name}` } },
+                        { description: { startsWith: `Squad entry fee for ${tournament.name}` } },
+                    ],
                 },
                 select: { id: true, playerId: true, amount: true, description: true },
+            });
+
+            // Find clan treasury debits to refund (squads that used clan treasury)
+            const clanTreasuryDebits = await prisma.clanTransaction.findMany({
+                where: {
+                    type: "DEBIT",
+                    description: { startsWith: `Squad entry fee for ${tournament.name}` },
+                },
+                select: { id: true, clanId: true, amount: true },
             });
 
             await prisma.$transaction(
@@ -114,6 +126,29 @@ export async function DELETE(
                         });
                     }
 
+                    // 7b. Reverse clan treasury debits — restore clan balances
+                    if (clanTreasuryDebits.length > 0) {
+                        const refundsByClan = new Map<string, number>();
+                        for (const ct of clanTreasuryDebits) {
+                            refundsByClan.set(
+                                ct.clanId,
+                                (refundsByClan.get(ct.clanId) || 0) + ct.amount,
+                            );
+                        }
+
+                        for (const [clanId, amount] of refundsByClan) {
+                            await tx.clan.update({
+                                where: { id: clanId },
+                                data: { balance: { increment: amount } },
+                            });
+                        }
+
+                        // Delete original clan debit transactions
+                        await tx.clanTransaction.deleteMany({
+                            where: { id: { in: clanTreasuryDebits.map((t) => t.id) } },
+                        });
+                    }
+
                     // 8. Reset tournament flags
                     await tx.tournament.update({
                         where: { id: tournamentId },
@@ -135,8 +170,12 @@ export async function DELETE(
             );
 
             const refundTotal = entryFeeTransactions.reduce((s, t) => s + t.amount, 0);
+            const clanRefundTotal = clanTreasuryDebits.reduce((s, t) => s + t.amount, 0);
+            const refundParts: string[] = [];
+            if (refundTotal > 0) refundParts.push(`Refunded ${refundTotal} ${GAME.currency} to wallets.`);
+            if (clanRefundTotal > 0) refundParts.push(`Refunded ${clanRefundTotal} ${GAME.currency} to clan treasuries.`);
             return SuccessResponse({
-                message: `Tournament fully reset! Deleted ${tournament.matches.length} match(es), all teams & stats.${refundTotal > 0 ? ` Refunded ${refundTotal} ${GAME.currency}.` : ""} Poll reactivated.`,
+                message: `Tournament fully reset! Deleted ${tournament.matches.length} match(es), all teams & stats.${refundParts.length > 0 ? ` ${refundParts.join(" ")}` : ""} Poll reactivated.`,
             });
         }
 
