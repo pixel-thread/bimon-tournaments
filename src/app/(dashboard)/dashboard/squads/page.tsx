@@ -883,10 +883,15 @@ export default function AdminSquadsPage() {
                                         placeholder="10-digit phone"
                                         description="Required — for GPay payouts"
                                         value={ghostCaptainPhone}
-                                        onValueChange={setGhostCaptainPhone}
+                                        onValueChange={v => {
+                                            // Strip country code, spaces, dashes — keep only last 10 digits
+                                            const digits = v.replace(/\D/g, "");
+                                            const cleaned = digits.length > 10 ? digits.slice(-10) : digits;
+                                            setGhostCaptainPhone(cleaned);
+                                        }}
                                         size="sm"
                                         type="tel"
-                                        maxLength={10}
+                                        maxLength={15}
                                         startContent={<Phone className="w-4 h-4 text-default-400" />}
                                     />
                                 )}
