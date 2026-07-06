@@ -1542,12 +1542,21 @@ function QuickAddSubscribersList({
                                 isDisabled={inviteMutation.isPending && invitingPlayerId !== player.id}
                                 onPress={() => {
                                     setInvitingPlayerId(player.id);
+                                    // Optimistically mark as added immediately
+                                    setAddedIds((prev) => new Set(prev).add(player.id));
                                     inviteMutation.mutate(
                                         { squadId, playerId: player.id },
                                         {
                                             onSuccess: () => {
-                                                setAddedIds((prev) => new Set(prev).add(player.id));
                                                 queryClient.invalidateQueries({ queryKey: ["squads"] });
+                                            },
+                                            onError: () => {
+                                                // Revert on failure
+                                                setAddedIds((prev) => {
+                                                    const next = new Set(prev);
+                                                    next.delete(player.id);
+                                                    return next;
+                                                });
                                             },
                                         },
                                     );

@@ -760,59 +760,52 @@ export default function OperationsPage() {
 
                             {/* Fixed Prizes */}
                             <div className="space-y-1.5">
-                                <p className="text-xs text-foreground/50 font-medium">Fixed Prizes</p>
-                                <div className="flex gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="flat"
-                                        startContent={<ClipboardCheck className="h-3.5 w-3.5" />}
-                                        onPress={async () => {
-                                            try {
-                                                const text = await navigator.clipboard.readText();
-                                                // Parse numbered lines: "1. 300", "2. 200", etc.
-                                                const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
-                                                const amounts: number[] = [];
-                                                for (const line of lines) {
-                                                    const match = line.match(/^\d+[\.\)\-:]\s*(\d+)/);
-                                                    if (match) amounts.push(Number(match[1]));
-                                                }
-                                                if (amounts.length === 0) {
-                                                    toast.error("No numbered prizes found in clipboard");
-                                                    return;
-                                                }
-                                                setEditFixedPrizes(amounts.join(","));
-                                                toast.success(`Parsed ${amounts.length} prizes`);
-                                            } catch {
-                                                toast.error("Failed to read clipboard");
-                                            }
-                                        }}
-                                    >
-                                        Paste Prizes
-                                    </Button>
-                                    {editFixedPrizes.trim() && (
+                                <Input
+                                    label="Fixed Prizes (comma-separated)"
+                                    placeholder="250,120,50,50"
+                                    value={editFixedPrizes}
+                                    onValueChange={setEditFixedPrizes}
+                                    size="sm"
+                                    description={editFixedPrizes.trim()
+                                        ? (() => {
+                                            const amounts = editFixedPrizes.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
+                                            if (amounts.length === 0) return "No valid amounts";
+                                            const medals = ["🥇", "🥈", "🥉", "🏅"];
+                                            return amounts.map((a, i) => `${medals[Math.min(i, 3)]} ${a}`).join(" · ") + ` = ${amounts.reduce((s, n) => s + n, 0)} total`;
+                                        })()
+                                        : "Leave empty for auto-calculated prizes"
+                                    }
+                                    endContent={
                                         <Button
+                                            isIconOnly
                                             size="sm"
                                             variant="light"
-                                            className="text-danger"
-                                            onPress={() => { setEditFixedPrizes(""); setEditOrgCut(""); }}
+                                            className="min-w-6 w-6 h-6"
+                                            onPress={async () => {
+                                                try {
+                                                    const text = await navigator.clipboard.readText();
+                                                    const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+                                                    const amounts: number[] = [];
+                                                    for (const line of lines) {
+                                                        const match = line.match(/^\d+[\.)\-:]\s*(\d+)/);
+                                                        if (match) amounts.push(Number(match[1]));
+                                                    }
+                                                    if (amounts.length === 0) {
+                                                        toast.error("No numbered prizes found in clipboard");
+                                                        return;
+                                                    }
+                                                    setEditFixedPrizes(amounts.join(","));
+                                                    toast.success(`Parsed ${amounts.length} prizes`);
+                                                } catch {
+                                                    toast.error("Failed to read clipboard");
+                                                }
+                                            }}
+                                            title="Paste & parse numbered list"
                                         >
-                                            Clear
+                                            <ClipboardCheck className="h-3.5 w-3.5" />
                                         </Button>
-                                    )}
-                                </div>
-                                {editFixedPrizes.trim() && (() => {
-                                    const amounts = editFixedPrizes.split(",").map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
-                                    if (amounts.length === 0) return null;
-                                    const medals = ["🥇", "🥈", "🥉", "🏅"];
-                                    return (
-                                        <p className="text-xs text-foreground/50">
-                                            {amounts.map((a, i) => `${medals[Math.min(i, 3)]} ${a}`).join(" · ")} = {amounts.reduce((s, n) => s + n, 0)} total
-                                        </p>
-                                    );
-                                })()}
-                                {!editFixedPrizes.trim() && (
-                                    <p className="text-xs text-foreground/40">Auto-calculated prizes</p>
-                                )}
+                                    }
+                                />
                             </div>
 
                             {/* Org Cut — visible when fixed prizes are set */}

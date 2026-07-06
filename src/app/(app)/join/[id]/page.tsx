@@ -81,9 +81,10 @@ export default function JoinPage() {
     const inputRef = useRef<HTMLInputElement>(null);
     const [showNewForm, setShowNewForm] = useState(false);
     const [quickCreating, setQuickCreating] = useState(false);
+    const [removedRosterIds, setRemovedRosterIds] = useState<Set<string>>(new Set());
 
-    // Guest form state
-    const [guestMode, setGuestMode] = useState(!isSignedIn);
+    // Guest form state — default false; useEffect syncs once auth loads
+    const [guestMode, setGuestMode] = useState(false);
     const [captainName, setCaptainName] = useState("");
     const [captainPhone, setCaptainPhone] = useState("");
     const totalSlots = GAME.maxSquadSize - 1; // 5 for BGMI
@@ -91,9 +92,10 @@ export default function JoinPage() {
     const [guestSubmitting, setGuestSubmitting] = useState(false);
     const [showGhostPrompt, setShowGhostPrompt] = useState(false);
 
-    // Auto-enable guest mode when not signed in
+    // Sync guest mode with auth status
     useEffect(() => {
-        if (!isSignedIn) setGuestMode(true);
+        if (isSignedIn) setGuestMode(false);
+        else if (isSignedIn === false) setGuestMode(true);
     }, [isSignedIn]);
 
     // Fetch tournament info
@@ -141,7 +143,9 @@ export default function JoinPage() {
             const newSquadId = result.data?.id;
             if (!newSquadId) throw new Error("Failed to create squad");
 
-            const availableIds = previousRoster.members.filter(m => m.available).map(m => m.playerId);
+            const availableIds = previousRoster.members
+                .filter(m => m.available && !removedRosterIds.has(m.playerId))
+                .map(m => m.playerId);
             if (availableIds.length > 0) {
                 await importRosterMutation.mutateAsync({
                     squadId: newSquadId,
@@ -584,26 +588,37 @@ export default function JoinPage() {
                                 {/* Members */}
                                 <div className="space-y-1.5">
                                     <p className="text-xs font-medium text-foreground/50 px-1">
-                                        Roster ({previousRoster!.members.filter(m => m.available).length} available)
+                                        Roster ({previousRoster!.members.filter(m => m.available && !removedRosterIds.has(m.playerId)).length} selected)
                                     </p>
-                                    {previousRoster!.members.map((m) => (
+                                    {previousRoster!.members.map((m) => {
+                                        const isRemoved = removedRosterIds.has(m.playerId);
+                                        const isUnavailable = !m.available;
+                                        return (
                                         <div
                                             key={m.playerId}
-                                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${
-                                                m.available
-                                                    ? 'bg-foreground/[0.03] border border-foreground/5'
-                                                    : 'opacity-40 line-through'
-                                            }`}
+                                            onClick={() => {
+                                                if (isUnavailable) return;
+                                                setRemovedRosterIds(prev => {
+                                                    const next = new Set(prev);
+                                                    if (next.has(m.playerId)) next.delete(m.playerId);
+                                                    else next.add(m.playerId);
+                                                    return next;
+                                                });
+                                            }}
+                                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors ${isUnavailable ? 'opacity-40 line-through' : isRemoved ? 'opacity-40 cursor-pointer hover:opacity-60' : 'bg-foreground/[0.03] border border-foreground/5 cursor-pointer hover:bg-foreground/[0.06]'}`}
                                         >
                                             <PlayerAvatar src={m.imageUrl} playerId={m.playerId} playerName={m.displayName} size="sm" className="w-7 h-7 shrink-0" />
-                                            <span className="text-sm font-medium flex-1 truncate">{m.displayName}</span>
-                                            {m.available ? (
-                                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                            ) : (
+                                            <span className={`text-sm font-medium flex-1 truncate ${isRemoved ? 'line-through' : ''}`}>{m.displayName}</span>
+                                            {isUnavailable ? (
                                                 <X className="w-3.5 h-3.5 text-foreground/30 shrink-0" />
+                                            ) : isRemoved ? (
+                                                <Plus className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
+                                            ) : (
+                                                <X className="w-3.5 h-3.5 text-foreground/30 shrink-0 hover:text-danger" />
                                             )}
                                         </div>
-                                    ))}
+                                    );
+                                    })}
                                 </div>
 
                                 {/* Actions */}
