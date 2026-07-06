@@ -281,8 +281,8 @@ export function BulkEditStatsModal({
 
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => e.target.select();
 
-    // ── Copy Setup Prompt (Step 1: player list + wait for images) ──
-    const copySetupPrompt = useCallback(() => {
+    // ── Copy Prompt (single prompt: player list + rules + output format) ──
+    const copyPrompt = useCallback(() => {
         if (matchDataList.length === 0) { toast.error("No teams loaded"); return; }
 
         // Collect players from all selected matches
@@ -301,37 +301,24 @@ export function BulkEditStatsModal({
         const totalPlayers = new Set(matchDataList.flatMap(md => md.teams.flatMap(t => t.players.map(p => p.playerId)))).size;
         const totalTeams = allTeams.size;
         const numMatches = matchDataList.length;
+        const isSingle = numMatches === 1;
 
         const prompt = `I need you to extract stats from ${numMatches} BGMI (Battlegrounds Mobile India) match scoreboard screenshots.
 
 Each match has ~5 scrollable screenshots. I'll upload them in batches (max 10 images per message).
 
-DO NOT analyze yet — just acknowledge and wait until I send the "Analyze" prompt.
+DO NOT analyze yet — just acknowledge. I will upload all images first, then say "ok" to start analysis.
 
 ═══════════════════════════════════════
 REGISTERED PLAYERS (${totalTeams} teams, ${totalPlayers} players)
 ═══════════════════════════════════════
 ${Array.from(allTeams.entries()).map(([name, players]) => `• ${name}: ${players.join(", ")}`).join("\n")}
 
-I'll upload images now. Wait for my "Analyze" command.`;
-
-        navigator.clipboard.writeText(prompt);
-        toast.success("Setup prompt copied! Paste in Gemini, then upload images.", { duration: 1500 });
-    }, [matchDataList]);
-
-    // ── Copy Analyze Prompt (Step 2: rules + output format) ──
-    const copyAnalyzePrompt = useCallback(() => {
-        if (matchDataList.length === 0) { toast.error("No teams loaded"); return; }
-
-        const totalPlayers = new Set(matchDataList.flatMap(md => md.teams.flatMap(t => t.players.map(p => p.playerId)))).size;
-        const numMatches = matchDataList.length;
-        const isSingle = numMatches === 1;
-
-        const prompt = `Now analyze ALL the screenshots I uploaded. Here are the rules:
-
 ═══════════════════════════════════════
-1. SCOREBOARD LAYOUT (HOW TO READ)
+ANALYSIS RULES (apply when I say "ok")
 ═══════════════════════════════════════
+
+── 1. SCOREBOARD LAYOUT (HOW TO READ) ──
 Each scoreboard has TWO panels:
 
 LEFT PANEL: Shows #1 and #2 teams
@@ -345,18 +332,14 @@ RIGHT PANEL: Shows positions #3 through #14 (scrollable)
 
 MULTIPLE IMAGES per match: The scoreboard scrolls, so one match may have 2-5 screenshots. Images showing the SAME #1 and #2 teams (same players, same kills) belong to the SAME match.
 
-═══════════════════════════════════════
-2. HOW TO READ KILLS (VERY IMPORTANT)
-═══════════════════════════════════════
+── 2. HOW TO READ KILLS (VERY IMPORTANT) ──
 - Look at the RIGHT side of each player row
 - You will see: "N finishes" or "N finish" (where N is a number)
 - The number N = kills for that player
 - "0 finishes" means the player played but got 0 kills
 - Common misread: the stylized font can make numbers hard to read. Double-check each one.
 
-═══════════════════════════════════════
-3. NAME MATCHING RULES
-═══════════════════════════════════════
+── 3. NAME MATCHING RULES ──
 BGMI names use heavy Unicode decoration. Strip these when matching:
 - Japanese/Chinese chars: 乂 乙 々 戦 威 挨 ツ り ﾑ 尺 ズ 亗 모
 - Symbols: £ ✓ ◈ ★ ꧁ ꧂ 乄
@@ -373,9 +356,7 @@ multiple players from different teams:
 - Do NOT just pick the first name match — verify by teammate grouping
 - BGMI has max 4 players per team in a match, so a position group has at most 4 players
 
-═══════════════════════════════════════
-4. NULL vs 0 — CRITICAL DISTINCTION
-═══════════════════════════════════════
+── 4. NULL vs 0 — CRITICAL DISTINCTION ──
 - kills: 0 → Player IS VISIBLE in the scoreboard showing "0 finishes" (PRESENT)
 - kills: null → Player is NOT in ANY screenshot for this match (ABSENT/didn't play)
 
@@ -383,9 +364,7 @@ multiple players from different teams:
 ✅ RIGHT: {"kills": 0} ONLY if you physically see them with "0 finishes"
 ✅ RIGHT: {"kills": null} if you searched all images and didn't find them
 
-═══════════════════════════════════════
-5. STEP-BY-STEP WORKFLOW
-═══════════════════════════════════════
+── 5. STEP-BY-STEP WORKFLOW ──
 ${isSingle
     ? `  a) Read EVERY player visible in the images, noting: name, kills (N finishes), position (#)
   b) Match each scoreboard name to my player list
@@ -400,9 +379,7 @@ ${isSingle
   e) For scoreboard players NOT matching anyone in my list → add with isUnknown: true
   f) VERIFY: count how many players you marked present vs absent`}
 
-═══════════════════════════════════════
-6. OUTPUT FORMAT
-═══════════════════════════════════════
+── 6. OUTPUT FORMAT ──
 ${isSingle
     ? `[
   {"name": "exact_name_from_my_list", "kills": 5, "position": 1},
@@ -425,15 +402,11 @@ ${isSingle
   ]
 }`}
 
-═══════════════════════════════════════
-7. UNKNOWN PLAYERS (DO NOT SKIP)
-═══════════════════════════════════════
+── 7. UNKNOWN PLAYERS (DO NOT SKIP) ──
 After matching all my players, check for ANY remaining scoreboard players you couldn't match.
 - Add each with "isUnknown": true and their EXACT scoreboard name
 
-═══════════════════════════════════════
-8. FINAL CHECKLIST
-═══════════════════════════════════════
+── 8. FINAL CHECKLIST ──
 □ ${isSingle ? `All ${totalPlayers} players` : `Each match has ALL ${totalPlayers} players`} from my list are included
 □ Absent players have kills: null (NOT 0)
 □ Present players with "0 finishes" have kills: 0
@@ -447,10 +420,13 @@ ${isSingle
     ? `Found: X/${totalPlayers} | Absent: Y | Unknown: Z
 ⚠️ Uncertain matches: scoreboard_name → matched_name`
     : `Match A: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z
-Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`}`;
+Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`}
+
+═══════════════════════════════════════
+I'll upload images now. When I say "ok", analyze them using the rules above.`;
 
         navigator.clipboard.writeText(prompt);
-        toast.success("Analyze prompt copied! Paste in Gemini after uploading all images.", { duration: 1500 });
+        toast.success("Prompt copied! Paste in AI, upload images, then say \"ok\".", { duration: 2000 });
     }, [matchDataList]);
 
     // ── Process AI JSON (single array or multi-match {matches:[...]}) ──
@@ -637,11 +613,8 @@ Match B: #1 team, #2 team | Found: X, Absent: Y, Unknown: Z`}`;
                     </div>
                     {!showMatchSelector && (
                         <div className="flex gap-1.5 flex-wrap">
-                            <Button size="sm" variant="flat" startContent={<Clipboard className="h-3.5 w-3.5" />} onPress={copySetupPrompt}>
-                                ① Setup
-                            </Button>
-                            <Button size="sm" variant="flat" color="primary" startContent={<Send className="h-3.5 w-3.5" />} onPress={copyAnalyzePrompt}>
-                                ② Analyze
+                            <Button size="sm" variant="flat" color="primary" startContent={<Clipboard className="h-3.5 w-3.5" />} onPress={copyPrompt}>
+                                Copy Prompt
                             </Button>
                             <Button
                                 size="sm" variant="flat" color="secondary"
