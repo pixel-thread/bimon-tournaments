@@ -118,6 +118,7 @@ function PlayerSearchInput({
     const [searching, setSearching] = useState(false);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [showResults, setShowResults] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     const doSearch = useCallback((q: string) => {
         if (timerRef.current) clearTimeout(timerRef.current);
@@ -159,7 +160,7 @@ function PlayerSearchInput({
                         doSearch(v);
                     }}
                     onFocus={() => { if (query.length >= 2) setShowResults(true); }}
-                    onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                    onBlur={() => setTimeout(() => setShowResults(false), 300)}
                     maxLength={20}
                     className="w-full bg-foreground/5 rounded-lg px-3 py-2 text-sm outline-none placeholder:text-foreground/30"
                 />
@@ -176,22 +177,27 @@ function PlayerSearchInput({
                     }}
                     onFocus={() => { if (query.length >= 2) setShowResults(true); }}
                     // @ts-ignore
-                    onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                    onBlur={() => setTimeout(() => setShowResults(false), 300)}
                     size="sm"
                     maxLength={20}
                     startContent={<Search className="w-3 h-3 text-default-400" />}
                 />
             )}
             {showResults && query.length >= 2 && (results.length > 0 || searching) && (
-                <div className="absolute z-50 left-0 right-0 top-full mt-1 rounded-xl border border-divider bg-content1 shadow-lg overflow-hidden max-h-40 overflow-y-auto">
+                <div
+                    ref={dropdownRef}
+                    className="absolute z-50 left-0 right-0 top-full mt-1 rounded-xl border border-divider bg-content1 shadow-lg max-h-64 overflow-y-auto overscroll-contain"
+                    onTouchStart={e => e.stopPropagation()}
+                    onTouchMove={e => e.stopPropagation()}
+                >
                     {searching && results.length === 0 ? (
-                        <div className="px-3 py-2 text-xs text-foreground/50">Searching...</div>
+                        <div className="px-3 py-3 text-xs text-foreground/50">Searching...</div>
                     ) : (
                         results.map(p => (
                             <button
                                 key={p.id}
                                 type="button"
-                                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-primary/10 transition-colors text-left cursor-pointer"
+                                className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-primary/10 active:bg-primary/15 transition-colors text-left cursor-pointer"
                                 onMouseDown={e => {
                                     e.preventDefault(); // prevent blur
                                     onSelectPlayer(p);
@@ -199,11 +205,18 @@ function PlayerSearchInput({
                                     setShowResults(false);
                                     setResults([]);
                                 }}
+                                onTouchEnd={e => {
+                                    e.preventDefault(); // prevent blur on touch
+                                    onSelectPlayer(p);
+                                    onChange(p.displayName || p.username);
+                                    setShowResults(false);
+                                    setResults([]);
+                                }}
                             >
-                                <Avatar src={p.imageUrl} name={p.displayName || p.username} size="sm" className="w-6 h-6 shrink-0" />
+                                <Avatar src={p.imageUrl} name={p.displayName || p.username} size="sm" className="w-7 h-7 shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium truncate">{p.displayName || p.username}</p>
-                                    <p className="text-[9px] text-foreground/40 truncate">{p.email}</p>
+                                    <p className="text-sm font-medium truncate">{p.displayName || p.username}</p>
+                                    <p className="text-[10px] text-foreground/40 truncate">{p.email}</p>
                                 </div>
                             </button>
                         ))
