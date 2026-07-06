@@ -60,12 +60,7 @@ export function ActionCenter() {
     const queryClient = useQueryClient();
     const [dismissed, setDismissed] = useState(false);
     const [processingId, setProcessingId] = useState<string | null>(null);
-    const [completedIds, setCompletedIds] = useState<Set<string>>(() => {
-        try {
-            const skipped = JSON.parse(sessionStorage.getItem("ac-skipped") || "[]");
-            return new Set(skipped);
-        } catch { return new Set(); }
-    });
+    const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
     // Refetch on route change (page navigation) — no polling needed
     const pathname = usePathname();
@@ -186,11 +181,6 @@ export function ActionCenter() {
     // ── Skip squad invite ──
     const handleSkipInvite = useCallback((id: string) => {
         markCompleted(id);
-        try {
-            const skipped = JSON.parse(sessionStorage.getItem("ac-skipped") || "[]");
-            skipped.push(id);
-            sessionStorage.setItem("ac-skipped", JSON.stringify(skipped));
-        } catch {}
     }, [markCompleted]);
 
     if (!session?.user || totalActions === 0 || dismissed) return null;

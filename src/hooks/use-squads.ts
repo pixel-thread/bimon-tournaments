@@ -557,13 +557,46 @@ export function useRespondToRequest() {
             }
             return res.json();
         },
+        onMutate: async ({ inviteId, action }) => {
+            await queryClient.cancelQueries({ queryKey: ["squads"] });
+            const prev = queryClient.getQueriesData({ queryKey: ["squads"] });
+            queryClient.setQueriesData({ queryKey: ["squads"] }, (old: any) => {
+                if (!old?.squads) return old;
+                return {
+                    ...old,
+                    squads: old.squads.map((s: any) => {
+                        const member = s.members?.find((m: any) => m.inviteId === inviteId);
+                        if (!member) return s;
+                        if (action === "ACCEPT") {
+                            return {
+                                ...s,
+                                members: s.members.map((m: any) =>
+                                    m.inviteId === inviteId ? { ...m, status: "ACCEPTED" } : m
+                                ),
+                            };
+                        } else {
+                            return {
+                                ...s,
+                                members: s.members.filter((m: any) => m.inviteId !== inviteId),
+                            };
+                        }
+                    }),
+                };
+            });
+            return { prev };
+        },
         onSuccess: (data) => {
             toast.success(data.message || "Done!");
             queryClient.invalidateQueries({ queryKey: ["squads"] });
             queryClient.invalidateQueries({ queryKey: ["notifications"] });
         },
-        onError: (err) => {
+        onError: (err, _vars, context) => {
             toast.error(err instanceof Error ? err.message : "Failed to respond");
+            if (context?.prev) {
+                for (const [key, data] of context.prev) {
+                    queryClient.setQueryData(key, data);
+                }
+            }
         },
     });
 }
