@@ -251,8 +251,6 @@ export default function AdminSquadsPage() {
     );
     const [ghostCreating, setGhostCreating] = useState(false);
     const [chargeEntryFee, setChargeEntryFee] = useState(false);
-    const [showPasteRoster, setShowPasteRoster] = useState(false);
-    const [pasteText, setPasteText] = useState("");
 
     /** Parse pasted roster text and auto-fill the form */
     function parsePastedRoster(text: string) {
@@ -335,8 +333,6 @@ export default function AdminSquadsPage() {
             setGhostMembers(newMembers);
         }
 
-        setShowPasteRoster(false);
-        setPasteText("");
         toast.success(`Parsed: ${teamName ? `"${teamName}"` : "no team"} + ${allNames.length} player(s)`);
     }
 
@@ -762,24 +758,42 @@ export default function AdminSquadsPage() {
 
             {/* Stats bar */}
             {pollId && squads.length > 0 && (
-                <div className="flex gap-3 text-xs">
-                    <Chip size="sm" variant="flat" color="success">{squads.filter(s => s.status === "FULL").length} Full</Chip>
-                    <Chip size="sm" variant="flat" color="warning">{squads.filter(s => s.status === "FORMING").length} Forming</Chip>
-                    <Chip size="sm" variant="flat" color="danger">{squads.filter(s => s.status === "CANCELLED").length} Cancelled</Chip>
+                <div className="flex gap-3 text-xs flex-wrap">
+                    <Chip size="sm" variant="flat" color="success">{squads.filter(s => s.status !== "CANCELLED" && s.confirmedAt).length} Confirmed</Chip>
+                    <Chip size="sm" variant="flat" color="danger">{squads.filter(s => s.status !== "CANCELLED" && !s.confirmedAt).length} Unconfirmed</Chip>
+                    <Chip size="sm" variant="flat">{squads.filter(s => s.status === "CANCELLED").length} Cancelled</Chip>
                     <Chip size="sm" variant="flat">{squads.length} Total</Chip>
                 </div>
             )}
 
             {/* Squad cards */}
-            {pollId && !isLoading && (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredSquads.length === 0 ? (
-                        <div className="col-span-full flex flex-col items-center gap-3 rounded-xl bg-default-100 py-12 text-center">
+            {pollId && !isLoading && (() => {
+                const confirmed = filteredSquads.filter(s => s.status !== "CANCELLED" && s.confirmedAt);
+                const unconfirmed = filteredSquads.filter(s => s.status !== "CANCELLED" && !s.confirmedAt);
+                const cancelled = filteredSquads.filter(s => s.status === "CANCELLED");
+
+                const groups = [
+                    { label: "✅ Confirmed", squads: confirmed, color: "text-success" },
+                    { label: "⚠️ Unconfirmed", squads: unconfirmed, color: "text-danger" },
+                    { label: "❌ Cancelled", squads: cancelled, color: "text-foreground/40" },
+                ].filter(g => g.squads.length > 0);
+
+                if (filteredSquads.length === 0) {
+                    return (
+                        <div className="flex flex-col items-center gap-3 rounded-xl bg-default-100 py-12 text-center">
                             <Users className="w-10 h-10 text-foreground/20" />
                             <p className="text-sm text-foreground/50">No squads found</p>
                         </div>
-                    ) : (
-                        filteredSquads.map((squad, i) => (
+                    );
+                }
+
+                return groups.map(group => (
+                    <div key={group.label} className="space-y-2">
+                        <p className={`text-xs font-bold uppercase tracking-wider ${group.color}`}>
+                            {group.label} · {group.squads.length}
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {group.squads.map((squad, i) => (
                             <motion.div
                                 key={squad.id}
                                 initial={{ opacity: 0, y: 8 }}
@@ -801,13 +815,13 @@ export default function AdminSquadsPage() {
                                                     size="sm"
                                                     variant="flat"
                                                     color={
-                                                        squad.status === "FULL" ? "success" :
-                                                        squad.status === "FORMING" ? "warning" :
-                                                        squad.status === "CANCELLED" ? "danger" : "primary"
+                                                        squad.status === "CANCELLED" ? "danger" :
+                                                        squad.confirmedAt ? "success" : "danger"
                                                     }
                                                     className="text-[10px]"
                                                 >
-                                                    {squad.status}
+                                                    {squad.status === "CANCELLED" ? "CANCELLED" :
+                                                     squad.confirmedAt ? "CONFIRMED" : "UNCONFIRMED"}
                                                 </Chip>
                                                 {squad.status !== "CANCELLED" && (
                                                     <Dropdown>
@@ -902,10 +916,11 @@ export default function AdminSquadsPage() {
                                     </CardBody>
                                 </Card>
                             </motion.div>
-                        ))
-                    )}
-                </div>
-            )}
+                        ))}
+                        </div>
+                    </div>
+                ));
+            })()}
 
             {/* ─── Register Team Modal ─── */}
             <Modal
@@ -928,40 +943,26 @@ export default function AdminSquadsPage() {
                             </p>
                             <Button
                                 size="sm"
-                                variant={showPasteRoster ? "flat" : "bordered"}
-                                color={showPasteRoster ? "danger" : "secondary"}
+                                variant="bordered"
+                                color="secondary"
                                 className="text-[11px] h-7 font-semibold shrink-0"
-                                startContent={showPasteRoster ? <X className="w-3 h-3" /> : <ClipboardPaste className="w-3 h-3" />}
-                                onPress={() => { setShowPasteRoster(!showPasteRoster); setPasteText(""); }}
+                                startContent={<ClipboardPaste className="w-3 h-3" />}
+                                onPress={async () => {
+                                    try {
+                                        const text = await navigator.clipboard.readText();
+                                        if (!text.trim()) {
+                                            toast.error("Clipboard is empty");
+                                            return;
+                                        }
+                                        parsePastedRoster(text);
+                                    } catch {
+                                        toast.error("Clipboard access denied — copy text first");
+                                    }
+                                }}
                             >
-                                {showPasteRoster ? "Cancel" : "Paste Roster"}
+                                Paste Roster
                             </Button>
                         </div>
-
-                        {showPasteRoster && (
-                            <div className="rounded-xl border border-secondary/30 bg-secondary/5 p-3 space-y-2 mb-3">
-                                <p className="text-[11px] text-foreground/50">
-                                    Paste team info — auto-fills team name, captain & members.
-                                </p>
-                                <textarea
-                                    className="w-full bg-foreground/5 rounded-lg px-3 py-2 text-sm outline-none placeholder:text-foreground/30 min-h-[120px] resize-y font-mono"
-                                    placeholder={`Team TSMent\nPlayers\n1. Player1\n2. Player2\n3. Player3\n4. Player4\nSubstitute\n1. Sub1`}
-                                    value={pasteText}
-                                    onChange={e => setPasteText(e.target.value)}
-                                    autoFocus
-                                />
-                                <Button
-                                    size="sm"
-                                    color="secondary"
-                                    className="w-full font-semibold text-xs"
-                                    isDisabled={!pasteText.trim()}
-                                    onPress={() => parsePastedRoster(pasteText)}
-                                    startContent={<Check className="w-3 h-3" />}
-                                >
-                                    Parse & Fill Form
-                                </Button>
-                            </div>
-                        )}
 
                         <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-2">

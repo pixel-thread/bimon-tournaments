@@ -5,9 +5,9 @@ import { playerSearchFilter } from "@/lib/player-search";
 import { type NextRequest } from "next/server";
 
 /**
- * GET /api/players/search?q=xxx
+ * GET /api/players/search?q=xxx&skip=0
  * Admin-only: Search players by displayName, username, or email.
- * Returns a lightweight list for autocomplete.
+ * Returns a lightweight list for autocomplete with pagination.
  */
 export async function GET(request: NextRequest) {
     try {
@@ -18,8 +18,11 @@ export async function GET(request: NextRequest) {
 
         const q = request.nextUrl.searchParams.get("q")?.trim();
         if (!q || q.length < 2) {
-            return SuccessResponse({ data: [] });
+            return SuccessResponse({ data: [], hasMore: false });
         }
+
+        const skip = parseInt(request.nextUrl.searchParams.get("skip") || "0", 10);
+        const take = 15;
 
         const players = await prisma.player.findMany({
             where: {
@@ -36,10 +39,12 @@ export async function GET(request: NextRequest) {
                     },
                 },
             },
-            take: 8,
+            skip,
+            take: take + 1, // fetch 1 extra to check if there's more
         });
 
-        const data = players.map((p) => ({
+        const hasMore = players.length > take;
+        const data = players.slice(0, take).map((p) => ({
             id: p.id,
             displayName: p.displayName,
             username: p.user.username,
@@ -47,7 +52,7 @@ export async function GET(request: NextRequest) {
             imageUrl: p.user.imageUrl,
         }));
 
-        return SuccessResponse({ data });
+        return SuccessResponse({ data, hasMore });
     } catch (error) {
         return ErrorResponse({ message: "Search failed", error });
     }
