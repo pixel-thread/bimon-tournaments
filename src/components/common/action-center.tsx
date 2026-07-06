@@ -185,10 +185,10 @@ export function ActionCenter() {
         }
     }, [markCompleted, refreshCaches]);
 
-    // ── Skip squad invite ──
-    const handleSkipInvite = useCallback((id: string) => {
-        markCompleted(id);
-    }, [markCompleted]);
+    // ── Skip (just close overlay — card reappears on next navigation) ──
+    const handleSkip = useCallback(() => {
+        setIsOpen(false);
+    }, []);
 
     // Close overlay when all actions are completed
     useEffect(() => {
@@ -263,7 +263,7 @@ export function ActionCenter() {
                                 </div>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => handleSkipInvite(invite.id)}
+                                        onClick={handleSkip}
                                         className="flex-1 py-3 rounded-xl text-sm font-semibold text-foreground/50 bg-foreground/[0.05] hover:bg-foreground/[0.1] active:scale-[0.97] transition-all"
                                     >
                                         Later
