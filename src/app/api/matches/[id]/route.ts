@@ -44,8 +44,12 @@ export async function DELETE(
                 select: {
                     name: true,
                     matches: { select: { id: true, matchNumber: true } },
-                    poll: { select: { id: true } },
-                    squads: { where: { status: "REGISTERED" }, select: { id: true } },
+                    poll: {
+                        select: {
+                            id: true,
+                            squads: { where: { status: "REGISTERED" }, select: { id: true } },
+                        },
+                    },
                 },
             });
 
@@ -168,9 +172,10 @@ export async function DELETE(
                     }
 
                     // 10. Reset REGISTERED squads back to FULL + clear confirmedAt (fees were refunded)
-                    if (tournament.squads.length > 0) {
+                    const registeredSquads = tournament.poll?.squads ?? [];
+                    if (registeredSquads.length > 0) {
                         await tx.squad.updateMany({
-                            where: { id: { in: tournament.squads.map(s => s.id) } },
+                            where: { id: { in: registeredSquads.map(s => s.id) } },
                             data: { status: "FULL", confirmedAt: null },
                         });
                     }
