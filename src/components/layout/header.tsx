@@ -140,8 +140,8 @@ export function Header() {
             };
         },
         enabled: isSignedIn,
-        staleTime: Infinity,
-        refetchOnWindowFocus: "always", // refetch when user returns to tab
+        refetchOnMount: "always",
+        refetchOnWindowFocus: "always",
     });
     const unreadCount = notifData?.unreadCount ?? 0;
     const unclaimedRewardCount = notifData?.unclaimedRewardCount ?? 0;

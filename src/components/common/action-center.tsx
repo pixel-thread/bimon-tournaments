@@ -85,7 +85,6 @@ export function ActionCenter() {
             };
         },
         enabled: !!session?.user,
-        staleTime: 30_000, // Refetch every 30s so new actions appear promptly
         refetchOnMount: "always",
         refetchOnWindowFocus: "always",
     });
@@ -137,7 +136,8 @@ export function ActionCenter() {
 
     // ── Accept squad invite (player accepting captain's invite) ──
     const handleAcceptInvite = useCallback(async (invite: SquadInvite) => {
-        setProcessingId(invite.id);
+        // Optimistic: remove card immediately
+        markCompleted(invite.id);
         try {
             const res = await fetch("/api/squads/respond", {
                 method: "POST",
@@ -147,17 +147,19 @@ export function ActionCenter() {
             const json = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(json.message || "Failed to accept");
             toast.success(json.message || `Joined "${invite.squad.name}"!`);
-            markCompleted(invite.id);
             refreshCaches();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to accept invite");
-            setProcessingId(null);
+            // Roll back: remove from completed so card reappears
+            setCompletedIds(prev => { const next = new Set(prev); next.delete(invite.id); return next; });
         }
     }, [markCompleted, refreshCaches]);
 
     // ── Respond to squad join request (captain accepting/declining player's request) ──
     const handleRespondRequest = useCallback(async (req: SquadJoinRequest, action: "ACCEPT" | "DECLINE") => {
-        setProcessingId(`${req.id}-${action}`);
+        // Optimistic: remove card immediately
+        markCompleted(req.id);
+        const playerName = req.player.displayName ?? req.player.user.username;
         try {
             const res = await fetch("/api/squads/respond-request", {
                 method: "POST",
@@ -166,16 +168,15 @@ export function ActionCenter() {
             });
             const json = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(json.message || "Failed to respond");
-            const playerName = req.player.displayName ?? req.player.user.username;
             toast.success(action === "ACCEPT"
                 ? `✅ ${playerName} added to ${req.squad.name}!`
                 : `${playerName} declined`
             );
-            markCompleted(req.id);
             refreshCaches();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to respond");
-            setProcessingId(null);
+            // Roll back: remove from completed so card reappears
+            setCompletedIds(prev => { const next = new Set(prev); next.delete(req.id); return next; });
         }
     }, [markCompleted, refreshCaches]);
 

@@ -28,7 +28,6 @@ export function useSquadInviteCount(): number {
             };
         },
         enabled: GAME.features.hasSquads && !!session?.user,
-        staleTime: Infinity, // Match header's staleTime — only fetches once per session
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
