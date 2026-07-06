@@ -39,6 +39,7 @@ import {
     Trash2,
     X,
     Share2,
+    ClipboardPaste,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -250,6 +251,94 @@ export default function AdminSquadsPage() {
     );
     const [ghostCreating, setGhostCreating] = useState(false);
     const [chargeEntryFee, setChargeEntryFee] = useState(false);
+    const [showPasteRoster, setShowPasteRoster] = useState(false);
+    const [pasteText, setPasteText] = useState("");
+
+    /** Parse pasted roster text and auto-fill the form */
+    function parsePastedRoster(text: string) {
+        const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length === 0) return;
+
+        let teamName = "";
+        const players: string[] = [];
+        const subs: string[] = [];
+        let section: "none" | "players" | "subs" = "none";
+
+        for (const line of lines) {
+            // Team line: "Team TSMent" or "Team-khorlih" or "Team - khorlih"
+            const teamMatch = line.match(/^team[\s\-:]+(.+)$/i);
+            if (teamMatch) {
+                teamName = teamMatch[1].trim();
+                continue;
+            }
+
+            // Section headers
+            if (/^players?$/i.test(line)) {
+                section = "players";
+                continue;
+            }
+            if (/^substitut(e|es|ion|ions)?$/i.test(line)) {
+                section = "subs";
+                continue;
+            }
+
+            // "Players 1 NAME" — header + first player on same line
+            const playersInline = line.match(/^players?\s+\d+[.\s)\-]*(.+)$/i);
+            if (playersInline) {
+                section = "players";
+                players.push(playersInline[1].trim());
+                continue;
+            }
+
+            // Numbered line: "1. Name" or "1 Name" or "1.Name" or "1)Name"
+            const numMatch = line.match(/^\d+[.)\s\-]+(.+)$/);
+            if (numMatch) {
+                const name = numMatch[1].trim();
+                if (name) {
+                    if (section === "subs") subs.push(name);
+                    else players.push(name);
+                }
+                continue;
+            }
+
+            // Bare numbered: "2TSM×SORRYbro" (digit directly followed by non-digit)
+            const bareNum = line.match(/^\d+([^\d.\s].*)$/);
+            if (bareNum) {
+                const name = bareNum[1].trim();
+                if (name) {
+                    if (section === "subs") subs.push(name);
+                    else players.push(name);
+                }
+                continue;
+            }
+        }
+
+        // Apply parsed data
+        if (teamName) {
+            setGhostTeamName(teamName.slice(0, 7));
+            if (teamName.length > 7) setGhostTeamFullName(teamName);
+        }
+
+        const allNames = [...players, ...subs];
+        if (allNames.length > 0) {
+            // First player = captain
+            setGhostCaptainName(allNames[0]);
+            setGhostCaptainPlayer(null);
+
+            // Rest = members
+            const memberNames = allNames.slice(1);
+            const minSlots = Math.max(GAME.squadSize - 1, memberNames.length);
+            const newMembers = Array.from({ length: minSlots }, (_, i) => ({
+                name: memberNames[i] || "",
+                player: null,
+            }));
+            setGhostMembers(newMembers);
+        }
+
+        setShowPasteRoster(false);
+        setPasteText("");
+        toast.success(`Parsed: ${teamName ? `"${teamName}"` : "no team"} + ${allNames.length} player(s)`);
+    }
 
     // Past roster for selected captain
     interface PastRosterMember {
@@ -832,10 +921,47 @@ export default function AdminSquadsPage() {
                         Register Team
                     </ModalHeader>
                     <ModalBody className="pb-5">
-                        <p className="text-xs text-foreground/50 mb-3">
-                            {!ghostCaptainPlayer && "Captain phone is required for prize payouts via GPay."}
-                            {ghostCaptainPlayer && "Existing player selected — no phone needed."}
-                        </p>
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-xs text-foreground/50">
+                                {!ghostCaptainPlayer && "Captain phone is required for prize payouts via GPay."}
+                                {ghostCaptainPlayer && "Existing player selected — no phone needed."}
+                            </p>
+                            <Button
+                                size="sm"
+                                variant={showPasteRoster ? "flat" : "bordered"}
+                                color={showPasteRoster ? "danger" : "secondary"}
+                                className="text-[11px] h-7 font-semibold shrink-0"
+                                startContent={showPasteRoster ? <X className="w-3 h-3" /> : <ClipboardPaste className="w-3 h-3" />}
+                                onPress={() => { setShowPasteRoster(!showPasteRoster); setPasteText(""); }}
+                            >
+                                {showPasteRoster ? "Cancel" : "Paste Roster"}
+                            </Button>
+                        </div>
+
+                        {showPasteRoster && (
+                            <div className="rounded-xl border border-secondary/30 bg-secondary/5 p-3 space-y-2 mb-3">
+                                <p className="text-[11px] text-foreground/50">
+                                    Paste team info — auto-fills team name, captain & members.
+                                </p>
+                                <textarea
+                                    className="w-full bg-foreground/5 rounded-lg px-3 py-2 text-sm outline-none placeholder:text-foreground/30 min-h-[120px] resize-y font-mono"
+                                    placeholder={`Team TSMent\nPlayers\n1. Player1\n2. Player2\n3. Player3\n4. Player4\nSubstitute\n1. Sub1`}
+                                    value={pasteText}
+                                    onChange={e => setPasteText(e.target.value)}
+                                    autoFocus
+                                />
+                                <Button
+                                    size="sm"
+                                    color="secondary"
+                                    className="w-full font-semibold text-xs"
+                                    isDisabled={!pasteText.trim()}
+                                    onPress={() => parsePastedRoster(pasteText)}
+                                    startContent={<Check className="w-3 h-3" />}
+                                >
+                                    Parse & Fill Form
+                                </Button>
+                            </div>
+                        )}
 
                         <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-2">
