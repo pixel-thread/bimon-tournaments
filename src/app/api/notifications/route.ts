@@ -83,6 +83,7 @@ export async function GET() {
                         squad: {
                             captainId: user.player.id,
                             status: { in: ["FORMING", "FULL"] },
+                            poll: { isActive: true },
                         },
                     },
                     include: {

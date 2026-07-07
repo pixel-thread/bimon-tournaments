@@ -34,6 +34,7 @@ import {
     UserPlus,
     Heart,
     Shield,
+    Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
@@ -101,6 +102,8 @@ interface NotificationsData {
     pendingRequests: PendingRequest[];
     unclaimedRewards: UnclaimedReward[];
     pendingSquadRequests: PendingSquadRequest[];
+    pendingSquadInvites?: { id: string; squad: { id: string; name: string; captain: { displayName: string | null }; poll: { tournament: { name: string } | null } | null } }[];
+    hasUnclaimedStreakReward?: boolean;
 }
 
 const typeIcons: Record<string, typeof Bell> = {
@@ -376,7 +379,10 @@ export default function NotificationsPage() {
         return notification.type === "squad_request" && !notification.isRead;
     };
 
-    const hasActionItems = unclaimedRewards.length > 0 || pendingRequests.length > 0 || pendingSquadRequests.length > 0;
+    // Match the Action Center's items: unclaimed rewards + squad invites + squad requests + streak
+    const pendingSquadInvites = data?.pendingSquadInvites ?? [];
+    const hasUnclaimedStreak = data?.hasUnclaimedStreakReward ?? false;
+    const hasActionItems = unclaimedRewards.length > 0 || pendingSquadInvites.length > 0 || pendingSquadRequests.length > 0 || hasUnclaimedStreak;
 
     return (
         <div className="mx-auto max-w-xl px-4 py-6 sm:px-6">
@@ -424,13 +430,12 @@ export default function NotificationsPage() {
                     >
                         <button
                             onClick={() => window.dispatchEvent(new Event("open-action-center"))}
-                            className="w-full relative flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-3 text-left transition-colors hover:bg-primary/[0.08] active:scale-[0.98]"
-                            style={{ animation: "action-pulse 2s ease-in-out infinite" }}
+                            className="w-full relative flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-3 text-left transition-colors hover:bg-primary/[0.08] active:scale-[0.98] overflow-hidden"
                         >
                             {/* Pulsing ring */}
-                            <span className="absolute inset-0 rounded-xl border-2 border-primary/40 animate-ping opacity-30 pointer-events-none" />
+                            <span className="absolute inset-0 rounded-xl border-2 border-primary/40 animate-ping opacity-20 pointer-events-none" />
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 shrink-0">
-                                <Gift className="h-4 w-4 text-primary" />
+                                <Zap className="h-4 w-4 text-primary" />
                             </div>
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-semibold">Action Center</p>

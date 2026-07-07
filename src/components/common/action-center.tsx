@@ -190,12 +190,18 @@ export function ActionCenter() {
         setIsOpen(false);
     }, []);
 
-    // Close overlay when all actions are completed
+    // Don't auto-close — let user dismiss manually. Only auto-close after completing the LAST action.
+    const prevTotalRef = useRef(totalActions);
     useEffect(() => {
-        if (totalActions === 0 && isOpen) setIsOpen(false);
+        // If user just completed an action (prev > 0, now 0), auto-close after a brief moment
+        if (prevTotalRef.current > 0 && totalActions === 0 && isOpen) {
+            const t = setTimeout(() => setIsOpen(false), 600);
+            return () => clearTimeout(t);
+        }
+        prevTotalRef.current = totalActions;
     }, [totalActions, isOpen]);
 
-    if (!session?.user || !isOpen || totalActions === 0) return null;
+    if (!session?.user || !isOpen) return null;
 
     return (
         <AnimatePresence>
@@ -206,6 +212,7 @@ export function ActionCenter() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                onClick={() => setIsOpen(false)}
             >
                 {/* ── Centered card ── */}
                 <motion.div
@@ -215,21 +222,26 @@ export function ActionCenter() {
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     transition={{ type: "spring", damping: 22, stiffness: 300 }}
                     className="w-full max-w-sm rounded-3xl bg-background border border-divider shadow-2xl overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
                 >
                     {/* Header */}
                     <div className="relative px-5 pt-5 pb-3">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
-                                <span className="relative flex h-3 w-3">
-                                    <span className="absolute inset-0 rounded-full bg-danger animate-ping opacity-75" />
-                                    <span className="relative inline-flex h-3 w-3 rounded-full bg-danger" />
-                                </span>
+                                {totalActions > 0 ? (
+                                    <span className="relative flex h-3 w-3">
+                                        <span className="absolute inset-0 rounded-full bg-danger animate-ping opacity-75" />
+                                        <span className="relative inline-flex h-3 w-3 rounded-full bg-danger" />
+                                    </span>
+                                ) : (
+                                    <span className="relative inline-flex h-3 w-3 rounded-full bg-success" />
+                                )}
                                 <h2 className="text-base font-extrabold tracking-tight">
-                                    ⚡ Action Required
+                                    {totalActions > 0 ? "⚡ Action Required" : "⚡ Action Center"}
                                 </h2>
                             </div>
                             <button
-                        onClick={() => setIsOpen(false)}
+                                onClick={() => setIsOpen(false)}
                                 className="p-2 -mr-1 rounded-xl hover:bg-default-100 transition-colors text-foreground/30 hover:text-foreground/60"
                                 aria-label="Dismiss"
                             >
@@ -237,12 +249,26 @@ export function ActionCenter() {
                             </button>
                         </div>
                         <p className="text-xs text-foreground/40 mt-1">
-                            You have {totalActions} pending {totalActions === 1 ? "item" : "items"}
+                            {totalActions > 0
+                                ? `You have ${totalActions} pending ${totalActions === 1 ? "item" : "items"}`
+                                : "You're all caught up!"}
                         </p>
                     </div>
 
-                    {/* Action items */}
+                    {/* Action items or empty state */}
                     <div className="px-4 pb-4 space-y-3 max-h-[60vh] overflow-y-auto">
+
+                        {totalActions === 0 && (
+                            <div className="flex flex-col items-center justify-center py-8 text-center">
+                                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/10 mb-4">
+                                    <Check className="h-8 w-8 text-success" />
+                                </div>
+                                <p className="text-sm font-semibold text-foreground/70">Nothing to claim or act on</p>
+                                <p className="text-xs text-foreground/40 mt-1 max-w-[200px]">
+                                    All rewards claimed, no pending invites or requests
+                                </p>
+                            </div>
+                        )}
 
                         {/* ── Squad invites (player got invited to a team) ── */}
                         {squadInvites.map((invite) => (
@@ -391,10 +417,11 @@ export function ActionCenter() {
                         onClick={() => setIsOpen(false)}
                         className="w-full py-3 text-xs font-medium text-foreground/30 hover:text-foreground/50 transition-colors border-t border-divider"
                     >
-                        Dismiss all
+                        {totalActions > 0 ? "Dismiss all" : "Close"}
                     </button>
                 </motion.div>
             </motion.div>
         </AnimatePresence>
     );
 }
+
