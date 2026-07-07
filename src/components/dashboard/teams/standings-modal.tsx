@@ -1125,7 +1125,7 @@ Make it look premium and professional — suitable for posting on a tournament w
                                     {/* Bottom branding */}
                                     <div style={{ position: "absolute", bottom: "16px", display: "flex", alignItems: "center", gap: "6px" }}>
                                         <div style={{ height: "1px", width: "20px", background: "linear-gradient(to right, transparent, rgba(251,146,60,0.3))" }} />
-                                        <span style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em" }}>bimon.club</span>
+                                        <span style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em" }}>Bimon Tournament</span>
                                         <div style={{ height: "1px", width: "20px", background: "linear-gradient(to left, transparent, rgba(251,146,60,0.3))" }} />
                                     </div>
                                 </div>
