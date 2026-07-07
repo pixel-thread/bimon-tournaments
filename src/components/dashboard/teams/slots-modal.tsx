@@ -375,7 +375,7 @@ export function SlotsModal({
                     style={{ textShadow }}
                 >
                     <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm font-bold ${textColor}`}>
-                        {index + 2}
+                        {index + 3}
                     </td>
                     {showSquad && (
                         <td className={`px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[11px] sm:text-sm font-bold whitespace-nowrap ${textColor}`}>
