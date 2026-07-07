@@ -1036,97 +1036,98 @@ Make it look premium and professional — suitable for posting on a tournament w
                                 style={{
                                     width: "100%",
                                     aspectRatio: "1/1",
-                                    backgroundImage: `url(${backgroundImage})`,
-                                    backgroundSize: "cover",
-                                    backgroundPosition: "center",
                                     position: "relative",
                                     overflow: "hidden",
                                     borderRadius: "16px",
                                     fontFamily: "system-ui, -apple-system, sans-serif",
+                                    background: "linear-gradient(145deg, #f5f0e8 0%, #ede6d8 30%, #f0ebe3 60%, #e8e1d5 100%)",
                                 }}
                             >
-                                {/* Dark overlay */}
-                                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(0,0,0,0.88) 0%, rgba(15,10,25,0.92) 50%, rgba(0,0,0,0.88) 100%)" }} />
+                                {/* Decorative red triangles — top left */}
+                                <div style={{ position: "absolute", top: "20px", left: "20px" }}>
+                                    {[0, 12, 24].map(i => (
+                                        <div key={i} style={{ width: 0, height: 0, borderLeft: "10px solid #c0392b", borderTop: "10px solid transparent", borderBottom: "10px solid transparent", marginBottom: "4px", marginLeft: `${i}px` }} />
+                                    ))}
+                                </div>
 
-                                {/* Decorative corner accents */}
-                                <div style={{ position: "absolute", top: 0, left: 0, width: "120px", height: "120px", borderTop: "2px solid rgba(251,146,60,0.4)", borderLeft: "2px solid rgba(251,146,60,0.4)", borderRadius: "16px 0 0 0" }} />
-                                <div style={{ position: "absolute", bottom: 0, right: 0, width: "120px", height: "120px", borderBottom: "2px solid rgba(251,146,60,0.4)", borderRight: "2px solid rgba(251,146,60,0.4)", borderRadius: "0 0 16px 0" }} />
+                                {/* Decorative red triangles — bottom right */}
+                                <div style={{ position: "absolute", bottom: "20px", right: "20px", transform: "rotate(180deg)" }}>
+                                    {[0, 12, 24].map(i => (
+                                        <div key={i} style={{ width: 0, height: 0, borderLeft: "10px solid #c0392b", borderTop: "10px solid transparent", borderBottom: "10px solid transparent", marginBottom: "4px", marginLeft: `${i}px` }} />
+                                    ))}
+                                </div>
+
+                                {/* Inner border frame */}
+                                <div style={{ position: "absolute", top: "16px", left: "16px", right: "16px", bottom: "16px", border: "1px solid rgba(0,0,0,0.08)", borderRadius: "8px" }} />
 
                                 {/* Content */}
                                 <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: "40px 32px" }}>
 
-                                    {/* Top branding */}
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                                        <div style={{ height: "1px", width: "40px", background: "linear-gradient(to right, transparent, rgba(251,146,60,0.6))" }} />
-                                        <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(251,146,60,0.8)" }}>BIMON TOURNAMENTS</span>
-                                        <div style={{ height: "1px", width: "40px", background: "linear-gradient(to left, transparent, rgba(251,146,60,0.6))" }} />
+                                    {/* Tournament name — top */}
+                                    <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,0,0,0.4)", marginBottom: "12px" }}>
+                                        {tournamentTitle}{seasonName ? ` · ${seasonName}` : ""}
                                     </div>
 
-                                    <div style={{ fontSize: "13px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: "24px" }}>Certificate of Achievement</div>
-
-                                    {/* Rank */}
-                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "20px" }}>
-                                        <div style={{
-                                            fontSize: "64px",
-                                            fontWeight: 900,
-                                            lineHeight: 1,
-                                            backgroundImage: `linear-gradient(135deg, ${rankGradient.split(" ").filter(s => s.startsWith("from-") || s.startsWith("via-") || s.startsWith("to-")).map(s => {
-                                                const color = s.replace(/^(from-|via-|to-)/, "");
-                                                const colorMap: Record<string, string> = { "yellow-500": "#eab308", "amber-400": "#fbbf24", "yellow-600": "#ca8a04", "gray-300": "#d1d5db", "slate-200": "#e2e8f0", "gray-400": "#9ca3af", "orange-600": "#ea580c", "amber-500": "#f59e0b", "orange-700": "#c2410c", "zinc-500": "#71717a", "zinc-400": "#a1a1aa" };
-                                                return colorMap[color] || "#fff";
-                                            }).join(", ")})`,
-                                            WebkitBackgroundClip: "text",
-                                            WebkitTextFillColor: "transparent",
-                                            filter: `drop-shadow(0 0 20px ${rankGlow})`,
-                                        } as React.CSSProperties}>
-                                            #{rank}
-                                        </div>
-                                        {medal && <span style={{ fontSize: "32px", marginTop: "4px" }}>{medal}</span>}
+                                    {/* E-CERTIFICATE */}
+                                    <div style={{ fontSize: "42px", fontWeight: 900, color: "#c0392b", letterSpacing: "0.04em", lineHeight: 1, marginBottom: "4px", textTransform: "uppercase" }}>
+                                        E-Certificate
                                     </div>
 
-                                    {/* Team name */}
+                                    {/* Subtitle */}
+                                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "24px" }}>
+                                        <div style={{ height: "2px", width: "40px", background: "linear-gradient(to right, transparent, #c0392b)" }} />
+                                        <span style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(0,0,0,0.35)" }}>of Achievement Proudly Presented To</span>
+                                        <div style={{ height: "2px", width: "40px", background: "linear-gradient(to left, transparent, #c0392b)" }} />
+                                    </div>
+
+                                    {/* Team name — big and bold */}
+                                    <div style={{ fontSize: "36px", fontWeight: 900, color: "#1a1a1a", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "10px", textAlign: "center", lineHeight: 1.1 }}>
+                                        {row.teamName}
+                                    </div>
+
+                                    {/* Rank position */}
                                     <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "24px" }}>
-                                        <div style={{ height: "1px", width: "30px", background: "rgba(255,255,255,0.2)" }} />
-                                        <span style={{ fontSize: "22px", fontWeight: 800, color: "white", letterSpacing: "0.05em", textTransform: "uppercase" }}>{row.teamName}</span>
-                                        <div style={{ height: "1px", width: "30px", background: "rgba(255,255,255,0.2)" }} />
+                                        {medal && <span style={{ fontSize: "28px" }}>{medal}</span>}
+                                        <span style={{
+                                            fontSize: "28px",
+                                            fontWeight: 900,
+                                            backgroundImage: rank === 1 ? "linear-gradient(135deg, #eab308, #ca8a04)" : rank === 2 ? "linear-gradient(135deg, #9ca3af, #6b7280)" : rank === 3 ? "linear-gradient(135deg, #ea580c, #c2410c)" : "none",
+                                            color: rank > 3 ? "#555" : undefined,
+                                            WebkitBackgroundClip: rank <= 3 ? "text" : undefined,
+                                            WebkitTextFillColor: rank <= 3 ? "transparent" : undefined,
+                                        } as React.CSSProperties}>
+                                            {rank === 1 ? "CHAMPION" : rank === 2 ? "2nd PLACE" : rank === 3 ? "3rd PLACE" : `${rank}th PLACE`}
+                                        </span>
                                     </div>
 
                                     {/* Stats grid */}
-                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", width: "100%", maxWidth: "360px", marginBottom: "20px" }}>
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", width: "100%", maxWidth: "380px", marginBottom: "20px", padding: "14px 10px", borderRadius: "12px", border: "1px solid rgba(0,0,0,0.06)", background: "rgba(255,255,255,0.5)" }}>
                                         {[
-                                            { label: "KILLS", value: row.totalKills, color: "#ef4444" },
-                                            { label: "POINTS", value: row.totalPoints, color: "#fb923c" },
-                                            { label: "WINS", value: row.wins, color: "#facc15" },
-                                            { label: "PLACEMENT", value: row.placementPts, color: "#a78bfa" },
-                                            { label: "MATCHES", value: row.matchCount, color: "#60a5fa" },
-                                            { label: "BEST POS", value: `#${bestPos}`, color: "#34d399" },
+                                            { label: "KILLS", value: row.totalKills, color: "#c0392b" },
+                                            { label: "POINTS", value: row.totalPoints, color: "#e67e22" },
+                                            { label: "WINS", value: row.wins, color: "#d4a017" },
+                                            { label: "PLACEMENT", value: row.placementPts, color: "#8e44ad" },
+                                            { label: "MATCHES", value: row.matchCount, color: "#2980b9" },
+                                            { label: "BEST POS", value: `#${Math.min(...row.positions)}`, color: "#27ae60" },
                                         ].map(s => (
-                                            <div key={s.label} style={{ textAlign: "center", padding: "10px 6px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                                                <div style={{ fontSize: "22px", fontWeight: 900, color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
-                                                <div style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.4)", marginTop: "4px", textTransform: "uppercase" }}>{s.label}</div>
+                                            <div key={s.label} style={{ textAlign: "center", padding: "8px 2px" }}>
+                                                <div style={{ fontSize: "24px", fontWeight: 900, color: s.color, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{s.value}</div>
+                                                <div style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "0.1em", color: "rgba(0,0,0,0.3)", marginTop: "4px", textTransform: "uppercase" }}>{s.label}</div>
                                             </div>
                                         ))}
                                     </div>
 
-                                    {/* Players */}
-                                    <div style={{ textAlign: "center", marginBottom: "20px" }}>
-                                        <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", marginBottom: "4px" }}>ROSTER</div>
-                                        <div style={{ fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>{row.playerNames.join("  ·  ")}</div>
-                                    </div>
-
-                                    {/* Tournament info */}
-                                    <div style={{ textAlign: "center" }}>
-                                        <div style={{ fontSize: "14px", fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>{tournamentTitle}</div>
-                                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
-                                            {seasonName && `${seasonName}  ·  `}{new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
-                                        </div>
+                                    {/* Roster */}
+                                    <div style={{ textAlign: "center", marginBottom: "8px" }}>
+                                        <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(0,0,0,0.25)", textTransform: "uppercase", marginBottom: "4px" }}>ROSTER</div>
+                                        <div style={{ fontSize: "13px", fontWeight: 600, color: "rgba(0,0,0,0.5)", lineHeight: 1.4 }}>{row.playerNames.join("  ·  ")}</div>
                                     </div>
 
                                     {/* Bottom branding */}
-                                    <div style={{ position: "absolute", bottom: "16px", display: "flex", alignItems: "center", gap: "6px" }}>
-                                        <div style={{ height: "1px", width: "20px", background: "linear-gradient(to right, transparent, rgba(251,146,60,0.3))" }} />
-                                        <span style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em" }}>Bimon Tournament</span>
-                                        <div style={{ height: "1px", width: "20px", background: "linear-gradient(to left, transparent, rgba(251,146,60,0.3))" }} />
+                                    <div style={{ position: "absolute", bottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <div style={{ height: "2px", width: "24px", background: "linear-gradient(to right, transparent, rgba(192,57,43,0.4))" }} />
+                                        <span style={{ fontSize: "11px", fontWeight: 800, color: "rgba(0,0,0,0.25)", letterSpacing: "0.15em", textTransform: "uppercase" }}>Bimon Tournament</span>
+                                        <div style={{ height: "2px", width: "24px", background: "linear-gradient(to left, transparent, rgba(192,57,43,0.4))" }} />
                                     </div>
                                 </div>
                             </div>
