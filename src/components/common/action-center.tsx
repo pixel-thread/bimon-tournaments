@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
-import { Gift, X, Check, Crown, UserPlus } from "lucide-react";
+import { Gift, X, Check, Crown, UserPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
@@ -75,7 +75,7 @@ export function ActionCenter() {
         queryClient.invalidateQueries({ queryKey: ["notification-count"] });
     }, [pathname, queryClient]);
 
-    const { data: notifData } = useQuery<NotifData>({
+    const { data: notifData, isLoading: isLoadingActions } = useQuery<NotifData>({
         queryKey: ["notification-count"],
         queryFn: async () => {
             const res = await fetch("/api/notifications");
@@ -102,14 +102,9 @@ export function ActionCenter() {
     const hasUnclaimedStreak = !!(notifData?.hasUnclaimedStreak) && !completedIds.has("streak");
 
     const totalActions = rewards.length + squadInvites.length + squadRequests.length + (hasUnclaimedStreak ? 1 : 0);
+    const isDataReady = !isLoadingActions && notifData !== undefined;
 
-    // Auto-show only on page navigation or first visit — NOT on background refetches
-    useEffect(() => {
-        if (totalActions > 0 && lastAutoShownPath.current !== pathname) {
-            setIsOpen(true);
-            lastAutoShownPath.current = pathname;
-        }
-    }, [totalActions, pathname]);
+    // Badge count on ⚡ header icon grabs attention — user taps to open manually
 
     const markCompleted = useCallback((id: string) => {
         setCompletedIds(prev => new Set(prev).add(id));
@@ -193,13 +188,13 @@ export function ActionCenter() {
     // Don't auto-close — let user dismiss manually. Only auto-close after completing the LAST action.
     const prevTotalRef = useRef(totalActions);
     useEffect(() => {
-        // If user just completed an action (prev > 0, now 0), auto-close after a brief moment
-        if (prevTotalRef.current > 0 && totalActions === 0 && isOpen) {
+        // Only auto-close if data is loaded and user completed actions (prev > 0, now 0)
+        if (isDataReady && prevTotalRef.current > 0 && totalActions === 0 && isOpen) {
             const t = setTimeout(() => setIsOpen(false), 600);
             return () => clearTimeout(t);
         }
-        prevTotalRef.current = totalActions;
-    }, [totalActions, isOpen]);
+        if (isDataReady) prevTotalRef.current = totalActions;
+    }, [isDataReady, totalActions, isOpen]);
 
     if (!session?.user || !isOpen) return null;
 
@@ -228,7 +223,9 @@ export function ActionCenter() {
                     <div className="relative px-5 pt-5 pb-3">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
-                                {totalActions > 0 ? (
+                                {isLoadingActions ? (
+                                    <Loader2 className="h-3 w-3 animate-spin text-foreground/40" />
+                                ) : totalActions > 0 ? (
                                     <span className="relative flex h-3 w-3">
                                         <span className="absolute inset-0 rounded-full bg-danger animate-ping opacity-75" />
                                         <span className="relative inline-flex h-3 w-3 rounded-full bg-danger" />
@@ -237,7 +234,7 @@ export function ActionCenter() {
                                     <span className="relative inline-flex h-3 w-3 rounded-full bg-success" />
                                 )}
                                 <h2 className="text-base font-extrabold tracking-tight">
-                                    {totalActions > 0 ? "⚡ Action Required" : "⚡ Action Center"}
+                                    {isLoadingActions ? "⚡ Loading..." : totalActions > 0 ? "⚡ Action Required" : "⚡ Action Center"}
                                 </h2>
                             </div>
                             <button
@@ -249,16 +246,27 @@ export function ActionCenter() {
                             </button>
                         </div>
                         <p className="text-xs text-foreground/40 mt-1">
-                            {totalActions > 0
-                                ? `You have ${totalActions} pending ${totalActions === 1 ? "item" : "items"}`
-                                : "You're all caught up!"}
+                            {isLoadingActions
+                                ? "Checking for pending items..."
+                                : totalActions > 0
+                                    ? `You have ${totalActions} pending ${totalActions === 1 ? "item" : "items"}`
+                                    : "You're all caught up!"}
                         </p>
                     </div>
 
-                    {/* Action items or empty state */}
+                    {/* Action items or empty/loading state */}
                     <div className="px-4 pb-4 space-y-3 max-h-[60vh] overflow-y-auto">
 
-                        {totalActions === 0 && (
+                        {/* Loading state */}
+                        {isLoadingActions && (
+                            <div className="flex flex-col items-center justify-center py-8 text-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                                <p className="text-sm font-semibold text-foreground/50">Loading actions...</p>
+                            </div>
+                        )}
+
+                        {/* Empty state — only when data has loaded */}
+                        {isDataReady && totalActions === 0 && (
                             <div className="flex flex-col items-center justify-center py-8 text-center">
                                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/10 mb-4">
                                     <Check className="h-8 w-8 text-success" />

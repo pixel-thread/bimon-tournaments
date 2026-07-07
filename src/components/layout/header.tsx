@@ -382,11 +382,7 @@ export function Header() {
                                     className="relative flex items-center justify-center rounded-full p-1.5 transition-opacity hover:opacity-80 text-foreground/60"
                                     aria-label="Action Center"
                                 >
-                                    {isLoadingNotif ? (
-                                        <Loader2 className="h-5 w-5 animate-spin text-foreground/30" />
-                                    ) : (
                                         <Zap className="h-5 w-5" />
-                                    )}
                                     {actionCount > 0 && (
                                         <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white ring-2 ring-background px-0.5">
                                             <span className="absolute inset-0 rounded-full bg-danger animate-ping opacity-50" />
