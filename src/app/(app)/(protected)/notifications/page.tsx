@@ -424,8 +424,11 @@ export default function NotificationsPage() {
                     >
                         <button
                             onClick={() => window.dispatchEvent(new Event("open-action-center"))}
-                            className="w-full flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-3 text-left transition-colors hover:bg-primary/[0.08] active:scale-[0.98]"
+                            className="w-full relative flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-3 text-left transition-colors hover:bg-primary/[0.08] active:scale-[0.98]"
+                            style={{ animation: "action-pulse 2s ease-in-out infinite" }}
                         >
+                            {/* Pulsing ring */}
+                            <span className="absolute inset-0 rounded-xl border-2 border-primary/40 animate-ping opacity-30 pointer-events-none" />
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 shrink-0">
                                 <Gift className="h-4 w-4 text-primary" />
                             </div>
