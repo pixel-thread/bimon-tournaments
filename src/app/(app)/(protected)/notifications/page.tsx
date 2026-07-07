@@ -376,7 +376,7 @@ export default function NotificationsPage() {
         return notification.type === "squad_request" && !notification.isRead;
     };
 
-    const hasActionItems = unclaimedRewards.length > 0 || pendingRequests.length > 0;
+    const hasActionItems = unclaimedRewards.length > 0 || pendingRequests.length > 0 || pendingSquadRequests.length > 0;
 
     return (
         <div className="mx-auto max-w-xl px-4 py-6 sm:px-6">

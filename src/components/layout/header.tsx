@@ -138,6 +138,7 @@ export function Header() {
                 pendingSquadInviteCount: json.data?.pendingSquadInviteCount ?? 0,
                 pendingSquadInvites: json.data?.pendingSquadInvites ?? [],
                 pendingSquadRequests: json.data?.pendingSquadRequests ?? [],
+                pendingRequests: json.data?.pendingRequests ?? [],
             };
         },
         enabled: isSignedIn,
@@ -151,6 +152,7 @@ export function Header() {
     const actionCount = (notifData?.pendingSquadInvites?.length ?? 0)
         + (notifData?.pendingSquadRequests?.length ?? 0)
         + (notifData?.unclaimedRewards?.length ?? 0)
+        + (notifData?.pendingRequests?.length ?? 0)
         + (hasUnclaimedStreak ? 1 : 0);
 
     // Fetch unreviewed duplicate alerts count (admins only)
