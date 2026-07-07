@@ -19,6 +19,7 @@ import {
     RefreshCw,
     Sparkles,
     Download,
+    Award,
 } from "lucide-react";
 import { GAME } from "@/lib/game-config";
 
@@ -116,6 +117,10 @@ export function StandingsModal({
     const [champGroup, setChampGroup] = useState<"ALL" | "A" | "B" | "FINALS">(initialGroup ?? (championshipPhase === "FINALS" ? "FINALS" : "ALL"));
     const [showZones, setShowZones] = useState(false);
     const [promptCopied, setPromptCopied] = useState(false);
+
+    // Certificate state
+    const [certTeam, setCertTeam] = useState<{ row: StandingRow; rank: number } | null>(null);
+    const [certSharing, setCertSharing] = useState(false);
 
     // Fetch saved overlay settings from gallery
     const { data: overlaySettings, refetch: refetchOverlay, isFetching: isFetchingOverlay } = useQuery<{ overlayOpacity: number; cardTint: number; cardBlur: number; rowTint: number }>({
@@ -958,7 +963,7 @@ Make it look premium and professional — suitable for posting on a tournament w
                                     backgroundColor: `rgba(15,15,15,${Math.max(cardTint, 70) / 100})`,
                                 }}
                             >
-                                <StandingsTable standings={standings} allowSquads={allowSquads} isChampionship={detectedChampionship} champGroup={champGroup} showZones={showZones} rowTint={rowTint} />
+                                <StandingsTable standings={standings} allowSquads={allowSquads} isChampionship={detectedChampionship} champGroup={champGroup} showZones={showZones} rowTint={rowTint} onTeamClick={(row, rank) => setCertTeam({ row, rank })} />
                             </div>
                         )}
 
@@ -971,6 +976,180 @@ Make it look premium and professional — suitable for posting on a tournament w
                     </div>
                 </div>
             </div>
+
+            {/* ── Certificate Overlay ── */}
+            {certTeam && (() => {
+                const { row, rank } = certTeam;
+                const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
+                const bestPos = Math.min(...row.positions);
+                const rankGradient = rank === 1 ? "from-yellow-500 via-amber-400 to-yellow-600" : rank === 2 ? "from-gray-300 via-slate-200 to-gray-400" : rank === 3 ? "from-orange-600 via-amber-500 to-orange-700" : "from-zinc-500 via-zinc-400 to-zinc-500";
+                const rankGlow = rank === 1 ? "rgba(234,179,8,0.4)" : rank === 2 ? "rgba(156,163,175,0.3)" : rank === 3 ? "rgba(234,88,12,0.35)" : "rgba(161,161,170,0.2)";
+
+                const shareCert = async () => {
+                    setCertSharing(true);
+                    try {
+                        const el = document.getElementById("cert-capture");
+                        if (!el) return;
+                        const clone = el.cloneNode(true) as HTMLElement;
+                        clone.removeAttribute("id");
+                        clone.style.width = "1080px";
+                        clone.style.height = "1080px";
+                        const temp = document.createElement("div");
+                        temp.style.cssText = "position:absolute;left:-9999px;top:0;";
+                        temp.appendChild(clone);
+                        document.body.appendChild(temp);
+                        await new Promise(r => setTimeout(r, 200));
+                        const dataUrl = await toJpeg(clone, { width: 1080, height: 1080, pixelRatio: 2, quality: 0.95 });
+                        document.body.removeChild(temp);
+                        const res = await fetch(dataUrl);
+                        const blob = await res.blob();
+                        const file = new File([blob], `${row.teamName}-certificate.jpg`, { type: "image/jpeg" });
+                        if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                            await navigator.share({ files: [file], title: `${row.teamName} - ${tournamentTitle}` });
+                        } else if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
+                            await navigator.clipboard.write([new ClipboardItem({ "image/jpeg": blob })]);
+                            toast.success("Certificate copied!");
+                        } else {
+                            const link = document.createElement("a");
+                            link.download = `${row.teamName}-certificate.jpg`;
+                            link.href = dataUrl;
+                            link.click();
+                        }
+                    } catch (e: any) {
+                        if (e?.name !== "AbortError") toast.error("Failed to share certificate");
+                    } finally {
+                        setCertSharing(false);
+                    }
+                };
+
+                return (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setCertTeam(null)}>
+                        <div className="relative max-w-md w-full" onClick={e => e.stopPropagation()}>
+                            {/* Close */}
+                            <button onClick={() => setCertTeam(null)} className="absolute -top-3 -right-3 z-10 bg-black/80 border border-white/20 rounded-full p-1.5 text-white/70 hover:text-white">
+                                <X className="w-4 h-4" />
+                            </button>
+
+                            {/* Certificate Card (captured as image) */}
+                            <div
+                                id="cert-capture"
+                                style={{
+                                    width: "100%",
+                                    aspectRatio: "1/1",
+                                    backgroundImage: `url(${backgroundImage})`,
+                                    backgroundSize: "cover",
+                                    backgroundPosition: "center",
+                                    position: "relative",
+                                    overflow: "hidden",
+                                    borderRadius: "16px",
+                                    fontFamily: "system-ui, -apple-system, sans-serif",
+                                }}
+                            >
+                                {/* Dark overlay */}
+                                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(0,0,0,0.88) 0%, rgba(15,10,25,0.92) 50%, rgba(0,0,0,0.88) 100%)" }} />
+
+                                {/* Decorative corner accents */}
+                                <div style={{ position: "absolute", top: 0, left: 0, width: "120px", height: "120px", borderTop: "2px solid rgba(251,146,60,0.4)", borderLeft: "2px solid rgba(251,146,60,0.4)", borderRadius: "16px 0 0 0" }} />
+                                <div style={{ position: "absolute", bottom: 0, right: 0, width: "120px", height: "120px", borderBottom: "2px solid rgba(251,146,60,0.4)", borderRight: "2px solid rgba(251,146,60,0.4)", borderRadius: "0 0 16px 0" }} />
+
+                                {/* Content */}
+                                <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: "40px 32px" }}>
+
+                                    {/* Top branding */}
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                                        <div style={{ height: "1px", width: "40px", background: "linear-gradient(to right, transparent, rgba(251,146,60,0.6))" }} />
+                                        <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(251,146,60,0.8)" }}>BIMON TOURNAMENTS</span>
+                                        <div style={{ height: "1px", width: "40px", background: "linear-gradient(to left, transparent, rgba(251,146,60,0.6))" }} />
+                                    </div>
+
+                                    <div style={{ fontSize: "13px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: "24px" }}>Certificate of Achievement</div>
+
+                                    {/* Rank */}
+                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "20px" }}>
+                                        <div style={{
+                                            fontSize: "64px",
+                                            fontWeight: 900,
+                                            lineHeight: 1,
+                                            backgroundImage: `linear-gradient(135deg, ${rankGradient.split(" ").filter(s => s.startsWith("from-") || s.startsWith("via-") || s.startsWith("to-")).map(s => {
+                                                const color = s.replace(/^(from-|via-|to-)/, "");
+                                                const colorMap: Record<string, string> = { "yellow-500": "#eab308", "amber-400": "#fbbf24", "yellow-600": "#ca8a04", "gray-300": "#d1d5db", "slate-200": "#e2e8f0", "gray-400": "#9ca3af", "orange-600": "#ea580c", "amber-500": "#f59e0b", "orange-700": "#c2410c", "zinc-500": "#71717a", "zinc-400": "#a1a1aa" };
+                                                return colorMap[color] || "#fff";
+                                            }).join(", ")})`,
+                                            WebkitBackgroundClip: "text",
+                                            WebkitTextFillColor: "transparent",
+                                            filter: `drop-shadow(0 0 20px ${rankGlow})`,
+                                        } as React.CSSProperties}>
+                                            #{rank}
+                                        </div>
+                                        {medal && <span style={{ fontSize: "32px", marginTop: "4px" }}>{medal}</span>}
+                                    </div>
+
+                                    {/* Team name */}
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "24px" }}>
+                                        <div style={{ height: "1px", width: "30px", background: "rgba(255,255,255,0.2)" }} />
+                                        <span style={{ fontSize: "22px", fontWeight: 800, color: "white", letterSpacing: "0.05em", textTransform: "uppercase" }}>{row.teamName}</span>
+                                        <div style={{ height: "1px", width: "30px", background: "rgba(255,255,255,0.2)" }} />
+                                    </div>
+
+                                    {/* Stats grid */}
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", width: "100%", maxWidth: "360px", marginBottom: "20px" }}>
+                                        {[
+                                            { label: "KILLS", value: row.totalKills, color: "#ef4444" },
+                                            { label: "POINTS", value: row.totalPoints, color: "#fb923c" },
+                                            { label: "WINS", value: row.wins, color: "#facc15" },
+                                            { label: "PLACEMENT", value: row.placementPts, color: "#a78bfa" },
+                                            { label: "MATCHES", value: row.matchCount, color: "#60a5fa" },
+                                            { label: "BEST POS", value: `#${bestPos}`, color: "#34d399" },
+                                        ].map(s => (
+                                            <div key={s.label} style={{ textAlign: "center", padding: "10px 6px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                                                <div style={{ fontSize: "22px", fontWeight: 900, color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
+                                                <div style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.4)", marginTop: "4px", textTransform: "uppercase" }}>{s.label}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Players */}
+                                    <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                                        <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", marginBottom: "4px" }}>ROSTER</div>
+                                        <div style={{ fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>{row.playerNames.join("  ·  ")}</div>
+                                    </div>
+
+                                    {/* Tournament info */}
+                                    <div style={{ textAlign: "center" }}>
+                                        <div style={{ fontSize: "14px", fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>{tournamentTitle}</div>
+                                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
+                                            {seasonName && `${seasonName}  ·  `}{new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+                                        </div>
+                                    </div>
+
+                                    {/* Bottom branding */}
+                                    <div style={{ position: "absolute", bottom: "16px", display: "flex", alignItems: "center", gap: "6px" }}>
+                                        <div style={{ height: "1px", width: "20px", background: "linear-gradient(to right, transparent, rgba(251,146,60,0.3))" }} />
+                                        <span style={{ fontSize: "10px", fontWeight: 600, color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em" }}>bimon.club</span>
+                                        <div style={{ height: "1px", width: "20px", background: "linear-gradient(to left, transparent, rgba(251,146,60,0.3))" }} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="flex gap-2 mt-3 justify-center">
+                                <button
+                                    onClick={shareCert}
+                                    disabled={certSharing}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-400 hover:bg-orange-500/30 text-sm font-semibold transition-all"
+                                >
+                                    {certSharing ? (
+                                        <div className="h-4 w-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <Send className="w-4 h-4" />
+                                    )}
+                                    Share
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </>
     );
 }
@@ -1025,7 +1204,7 @@ function getChampionshipZone(rank: number, total: number): { zone: string; color
 
 // ── Standings Table — Podium Top 3 + Two-column rest ──────────
 
-function StandingsTable({ standings, allowSquads = false, isChampionship = false, champGroup = "ALL", showZones = false, rowTint = 5 }: { standings: StandingRow[]; allowSquads?: boolean; isChampionship?: boolean; champGroup?: string; showZones?: boolean; rowTint?: number }) {
+function StandingsTable({ standings, allowSquads = false, isChampionship = false, champGroup = "ALL", showZones = false, rowTint = 5, onTeamClick }: { standings: StandingRow[]; allowSquads?: boolean; isChampionship?: boolean; champGroup?: string; showZones?: boolean; rowTint?: number; onTeamClick?: (row: StandingRow, rank: number) => void }) {
     const hasSquadTeams = allowSquads;
 
     const renderTable = (slice: StandingRow[], startIndex: number) => {
@@ -1075,9 +1254,11 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                                     style={{
                                         backgroundColor: row.isDisqualified ? 'rgba(239,68,68,0.05)' : isEven ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)',
                                         borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                        cursor: onTeamClick ? 'pointer' : undefined,
                                         ...(zone ? { borderLeft: `2px solid ${zone.zone === 'QUALIFIED' ? '#10b981' : zone.zone === 'WILDCARD' ? '#f59e0b' : '#ef4444'}` } : {}),
                                     }}
                                     className={row.isDisqualified ? "opacity-40" : ""}
+                                    onClick={() => onTeamClick?.(row, rank)}
                                 >
                                     <td style={{ padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle', width: '32px' }}>
                                         <span className={`inline-flex items-center justify-center rounded-md font-black ${
@@ -1139,10 +1320,11 @@ function StandingsTable({ standings, allowSquads = false, isChampionship = false
                         const styles = getRankStyles(rank);
                         const zone = showZones ? getChampionshipZone(rank, standings.length) : null;
                         return (
-                            <div key={row.teamId} className={`rounded-lg border backdrop-blur-lg px-3 py-2.5 flex items-start gap-3 transition-all ${
+                            <div key={row.teamId} className={`rounded-lg border backdrop-blur-lg px-3 py-2.5 flex items-start gap-3 transition-all ${onTeamClick ? 'cursor-pointer active:scale-[0.98]' : ''} ${
                                 zone ? `border-l-2 ${zone.border} border-white/[0.12]` : `border-white/[0.12] ${styles.row}`
                             }`}
                             style={{ backgroundColor: `rgba(255,255,255,${rowTint / 100})` }}
+                            onClick={() => onTeamClick?.(row, rank)}
                             >
                                 <div className="flex flex-col items-center gap-0.5">
                                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
