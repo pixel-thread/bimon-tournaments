@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
                     fullName,
                     entryFee,
                     status: allCount >= GAME.maxSquadSize ? "FULL" : "FORMING",
-                    confirmedAt: insufficientBalance ? null : new Date(),
+                    confirmedAt: new Date(), // Admin-created squads are always confirmed
                 },
             });
 
