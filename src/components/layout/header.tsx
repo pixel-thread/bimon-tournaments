@@ -16,6 +16,7 @@ import { signOut, useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { notificationQueryOptions } from "@/lib/notification-query";
 import {
     Swords,
     Users,
@@ -125,24 +126,8 @@ export function Header() {
     }, [pathname]);
 
     const { data: notifData, isLoading: isLoadingNotif } = useQuery({
-        queryKey: ["notification-count"],
-        queryFn: async () => {
-            const res = await fetch("/api/notifications");
-            if (!res.ok) return { unreadCount: 0, unclaimedRewardCount: 0 };
-            const json = await res.json();
-            return {
-                unreadCount: json.data?.unreadCount ?? 0,
-                unclaimedRewardCount: json.data?.unclaimedRewards?.length ?? 0,
-                unclaimedRewards: json.data?.unclaimedRewards ?? [],
-                hasUnclaimedStreak: json.data?.hasUnclaimedStreakReward ?? false,
-                pendingSquadInviteCount: json.data?.pendingSquadInviteCount ?? 0,
-                pendingSquadInvites: json.data?.pendingSquadInvites ?? [],
-                pendingSquadRequests: json.data?.pendingSquadRequests ?? [],
-            };
-        },
+        ...notificationQueryOptions,
         enabled: isSignedIn,
-        refetchOnMount: "always",
-        refetchOnWindowFocus: "always",
     });
     const unreadCount = notifData?.unreadCount ?? 0;
     const unclaimedRewardCount = notifData?.unclaimedRewardCount ?? 0;
@@ -167,10 +152,11 @@ export function Header() {
     });
     const duplicateCount = dupData?.count ?? 0;
 
-    // Red dot on hamburger shows for ALL actionable items
-    const totalActionCount = unreadCount + unclaimedRewardCount + (isAdmin ? duplicateCount : 0);
-    // Badge on "Notifications" label only shows notification-related counts
-    const notifActionCount = unreadCount + unclaimedRewardCount;
+    // Red dot on hamburger shows for unread notifications + admin duplicates only
+    // (rewards/squad actions use the ⚡ badge exclusively)
+    const totalActionCount = unreadCount + (isAdmin ? duplicateCount : 0);
+    // Badge on "Notifications" label only shows unread count
+    const notifActionCount = unreadCount;
 
     // Fetch runtime settings (enableElitePass toggle from dashboard)
     const { data: publicSettings } = useQuery({
@@ -222,10 +208,7 @@ export function Header() {
                     <div className="relative lg:hidden">
                         <NavbarMenuToggle aria-label={isMenuOpen ? "Close menu" : "Open menu"} />
                         {totalActionCount > 0 && (
-                            <>
-                                {unreadCount > 0 && <span className="absolute right-0 top-0 z-10 h-2 w-2 rounded-full bg-danger pointer-events-none" />}
-                                {unclaimedRewardCount > 0 && !unreadCount && <span className="absolute right-0 top-0 z-10 h-2 w-2 rounded-full bg-amber-500 animate-pulse pointer-events-none" />}
-                            </>
+                            <span className="absolute right-0 top-0 z-10 h-2 w-2 rounded-full bg-danger pointer-events-none" />
                         )}
                     </div>
                     <NavbarBrand>
@@ -555,9 +538,7 @@ export function Header() {
                                                 {group.section === "Account" && unreadCount > 0 && (
                                                     <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
                                                 )}
-                                                {group.section === "Account" && unclaimedRewardCount > 0 && !unreadCount && (
-                                                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                                                )}
+
                                             </span>
                                             <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`} />
                                         </button>

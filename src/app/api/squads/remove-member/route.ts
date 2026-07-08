@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
             await tx.notification.create({
                 data: {
                     title: "🛡 Removed from Squad",
-                    message: `${captainName} removed you from "${squadName}" for ${tournamentName}. Your ${invite.squad.entryFee} ${GAME.currency} reservation has been released.`,
+                    message: `${captainName} removed you from "${squadName}" for ${tournamentName}.`,
                     type: "squad_removed",
                     userId: invite.player.user.id,
                     playerId: invite.playerId,
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
         // Push notification
         sendPush(invite.playerId, {
             title: "🛡 Removed from Squad",
-            body: `${captainName} removed you from "${squadName}" for ${tournamentName}. Your ${invite.squad.entryFee} ${GAME.currency} reservation has been released.`,
+            body: `${captainName} removed you from "${squadName}" for ${tournamentName}.`,
             url: "/vote",
         });
 

@@ -391,9 +391,9 @@ export default function NotificationsPage() {
                     <div className="flex items-center gap-2">
                         <Bell className="h-5 w-5 text-primary" />
                         <h1 className="text-lg font-bold">Notifications</h1>
-                        {(unreadCount > 0 || unclaimedRewards.length > 0) && (
+                        {unreadCount > 0 && (
                             <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-white">
-                                {unreadCount + unclaimedRewards.length}
+                                {unreadCount}
                             </span>
                         )}
                     </div>
@@ -422,47 +422,7 @@ export default function NotificationsPage() {
                     </Card>
                 )}
 
-                {/* Rewards and squad requests are now handled by the ⚡ Action Center */}
-                {!isLoading && hasActionItems && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                    >
-                        <button
-                            onClick={() => window.dispatchEvent(new Event("open-action-center"))}
-                            className="w-full relative flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-3 text-left transition-colors hover:bg-primary/[0.08] active:scale-[0.98] overflow-hidden"
-                        >
-                            {/* Pulsing ring */}
-                            <span className="absolute inset-0 rounded-xl border-2 border-primary/40 animate-ping opacity-20 pointer-events-none" />
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 shrink-0">
-                                <Zap className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold">Action Center</p>
-                                <p className="text-xs text-foreground/50">
-                                    You have pending items — tap ⚡ in the header
-                                </p>
-                            </div>
-                        </button>
-                    </motion.div>
-                )}
 
-                {/* Pending UC requests shown inline (if not already matched to a notification) */}
-                {!isLoading && pendingRequests.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: unclaimedRewards.length * 0.04 }}
-                        className="space-y-2"
-                    >
-                        {unclaimedRewards.length > 0 && (
-                            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/40 mt-2">
-                                <Clock className="h-3.5 w-3.5" />
-                                Pending Requests
-                            </p>
-                        )}
-                    </motion.div>
-                )}
 
                 {/* Divider between action items and regular notifications */}
                 {!isLoading && notifications.length > 0 && (

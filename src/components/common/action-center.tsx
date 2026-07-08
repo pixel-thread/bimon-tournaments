@@ -7,8 +7,9 @@ import { Gift, X, Check, Crown, UserPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
-import { useSession } from "next-auth/react";
+import { useAuthUser } from "@/hooks/use-auth-user";
 import { usePathname } from "next/navigation";
+import { notificationQueryOptions } from "@/lib/notification-query";
 
 interface SquadInvite {
     id: string;
@@ -16,7 +17,7 @@ interface SquadInvite {
         id: string;
         name: string;
         captain: { displayName: string | null };
-        poll: { tournament: { name: string } | null };
+        poll: { tournament: { name: string } | null } | null;
     };
 }
 
@@ -31,7 +32,7 @@ interface SquadJoinRequest {
     squad: {
         id: string;
         name: string;
-        poll: { tournament: { name: string } | null };
+        poll: { tournament: { name: string } | null } | null;
     };
 }
 
@@ -56,7 +57,7 @@ interface NotifData {
  * Triggered by the ⚡ header button or auto-shown on first load if actions exist.
  */
 export function ActionCenter() {
-    const { data: session } = useSession();
+    const { isSignedIn } = useAuthUser();
     const queryClient = useQueryClient();
     const [isOpen, setIsOpen] = useState(false);
     const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -75,25 +76,9 @@ export function ActionCenter() {
         queryClient.invalidateQueries({ queryKey: ["notification-count"] });
     }, [pathname, queryClient]);
 
-    const { data: notifData, isLoading: isLoadingActions } = useQuery<NotifData>({
-        queryKey: ["notification-count"],
-        queryFn: async () => {
-            const res = await fetch("/api/notifications");
-            if (!res.ok) return {};
-            const json = await res.json();
-            return {
-                unreadCount: json.data?.unreadCount ?? 0,
-                unclaimedRewardCount: json.data?.unclaimedRewards?.length ?? 0,
-                unclaimedRewards: json.data?.unclaimedRewards ?? [],
-                hasUnclaimedStreak: json.data?.hasUnclaimedStreakReward ?? false,
-                pendingSquadInviteCount: json.data?.pendingSquadInviteCount ?? 0,
-                pendingSquadInvites: json.data?.pendingSquadInvites ?? [],
-                pendingSquadRequests: json.data?.pendingSquadRequests ?? [],
-            };
-        },
-        enabled: !!session?.user,
-        refetchOnMount: "always",
-        refetchOnWindowFocus: "always",
+    const { data: notifData, isLoading: isLoadingActions } = useQuery({
+        ...notificationQueryOptions,
+        enabled: isSignedIn,
     });
 
     const rewards = (notifData?.unclaimedRewards ?? []).filter(r => !completedIds.has(r.id));
@@ -104,7 +89,6 @@ export function ActionCenter() {
     const totalActions = rewards.length + squadInvites.length + squadRequests.length + (hasUnclaimedStreak ? 1 : 0);
     const isDataReady = !isLoadingActions && notifData !== undefined;
 
-    // Badge count on ⚡ header icon grabs attention — user taps to open manually
 
     const markCompleted = useCallback((id: string) => {
         setCompletedIds(prev => new Set(prev).add(id));
@@ -196,7 +180,7 @@ export function ActionCenter() {
         if (isDataReady) prevTotalRef.current = totalActions;
     }, [isDataReady, totalActions, isOpen]);
 
-    if (!session?.user || !isOpen) return null;
+    if (!isSignedIn || !isOpen) return null;
 
     return (
         <AnimatePresence>
