@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Create everything in a transaction
+        // Create everything in a transaction (increased timeout for complex multi-step operation)
         const result = await prisma.$transaction(async (tx) => {
             // ─── Captain ───
             let captainPlayerId: string;
@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
                 captainName: existingPlayer?.displayName ?? cleanCaptainName,
                 memberCount: cleanMembers.length,
             };
-        });
+        }, { timeout: 15000 });
 
         const captainLabel = result.captainIsReal
             ? `${result.captainName} (linked)`
