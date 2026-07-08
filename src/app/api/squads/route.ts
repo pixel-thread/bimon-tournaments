@@ -171,8 +171,9 @@ export async function GET(request: NextRequest) {
 
             // needsPayment: captain has entryFee but insufficient balance
             // Ghost captains (admin-created teams) are always confirmed
+            // If confirmedAt is set (admin-created or previously confirmed), skip balance check
             let needsPayment = false;
-            if (squad.entryFee > 0 && squad.status !== "CANCELLED") {
+            if (squad.entryFee > 0 && squad.status !== "CANCELLED" && !squad.confirmedAt) {
                 const capInfo = captainMap.get(squad.captainId);
                 if (capInfo && !capInfo.isTrusted && !capInfo.isGhost) {
                     const bal = balanceMap.get(squad.captainId) ?? 0;

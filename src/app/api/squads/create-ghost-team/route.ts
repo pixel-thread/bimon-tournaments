@@ -250,6 +250,18 @@ export async function POST(request: NextRequest) {
                 },
             });
 
+            console.log("[GHOST TEAM] Created squad:", {
+                id: squad.id,
+                name: squad.name,
+                status: squad.status,
+                confirmedAt: squad.confirmedAt,
+                entryFee: squad.entryFee,
+                captainId: captainPlayerId,
+                captainIsReal: !!existingPlayer,
+                memberCount: cleanMembers.length,
+                totalPlayers: allCount,
+            });
+
             // Captain invite
             await tx.squadInvite.create({
                 data: {
