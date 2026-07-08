@@ -48,7 +48,7 @@ export async function DELETE(
                         select: {
                             id: true,
                             squads: {
-                                where: { status: "REGISTERED" },
+                                where: { status: "FORMING" },
                                 select: {
                                     id: true,
                                     invites: { where: { status: "ACCEPTED" }, select: { id: true } },
@@ -184,7 +184,7 @@ export async function DELETE(
                         await tx.squad.update({
                             where: { id: sq.id },
                             data: {
-                                status: acceptedCount >= GAME.maxSquadSize ? "FULL" : "FORMING",
+                                status: "FORMING",
                                 confirmedAt: null,
                             },
                         });

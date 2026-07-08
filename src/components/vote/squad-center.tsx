@@ -334,7 +334,7 @@ function SquadCard({
     // Can player request to join?
     const isGuest = !currentPlayerId;
     const isInThisSquad = isCaptain || myInvite?.status === "ACCEPTED" || myInvite?.status === "PENDING";
-    const isSquadActive = squad.status === "FORMING" || squad.status === "FULL";
+    const isSquadActive = squad.status !== "CANCELLED";
     const canRequestJoin = !isInThisSquad && !squad.isFull && isSquadActive && pollIsActive;
 
     // Pending join requests (player-initiated, for captain view)
@@ -1149,7 +1149,7 @@ function SquadCard({
                                                                                 acceptedCount,
                                                                                 activeCount: acceptedCount,
                                                                                 isFull: acceptedCount >= s.totalSlots,
-                                                                                status: acceptedCount >= GAME.maxSquadSize ? "FULL" : s.status,
+                                                                                status: s.status,
                                                                             };
                                                                         }),
                                                                     };
@@ -1285,7 +1285,7 @@ function SquadCard({
                                                                 acceptedCount,
                                                                 activeCount: acceptedCount,
                                                                 isFull: acceptedCount >= s.totalSlots,
-                                                                status: acceptedCount >= GAME.maxSquadSize ? "FULL" : s.status,
+                                                                status: s.status,
                                                             };
                                                         }),
                                                     };

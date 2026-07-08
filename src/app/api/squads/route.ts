@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
                     where: {
                         pollId: lastWinner.tournament.poll.id,
                         clanId: lastWinner.team.clanId,
-                        status: "REGISTERED",
+                        status: "FORMING",
                     },
                     select: { captain: { select: { displayName: true } } },
                 })
@@ -306,7 +306,7 @@ export async function POST(request: NextRequest) {
             // Auto-name: truncated clan name (max 5 chars)
             const baseName = clanInfo.name.slice(0, 7);
             const existingClanSquads = await prisma.squad.count({
-                where: { pollId, clanId, status: { in: ["FORMING", "FULL"] } },
+                where: { pollId, clanId, status: "FORMING" },
             });
             trimmedName = existingClanSquads === 0
                 ? baseName
@@ -386,7 +386,7 @@ export async function POST(request: NextRequest) {
         const activeSquadCount = await prisma.squad.count({
             where: {
                 pollId,
-                status: { in: ["FORMING", "FULL"] },
+                status: "FORMING",
             },
         });
         const maxSquads = getConfirmedSquadCap(activeSquadCount + 1, isMangoScrim); // +1 for the squad being created
@@ -402,7 +402,7 @@ export async function POST(request: NextRequest) {
         const existingSquad = await prisma.squad.findFirst({
             where: {
                 pollId,
-                status: { in: ["FORMING", "FULL"] },
+                status: "FORMING",
                 OR: [
                     { captainId: playerId },
                     { invites: { some: { playerId, status: { in: ["PENDING", "ACCEPTED"] } } } },

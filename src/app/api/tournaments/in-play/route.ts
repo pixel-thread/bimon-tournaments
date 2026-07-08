@@ -41,7 +41,7 @@ export async function GET() {
         const squadCounts = pollIds.length > 0
             ? await prisma.squad.groupBy({
                 by: ["pollId"],
-                where: { pollId: { in: pollIds }, status: { in: ["FORMING", "FULL", "REGISTERED"] } },
+                where: { pollId: { in: pollIds }, status: { not: "CANCELLED" } },
                 _count: { id: true },
             })
             : [];

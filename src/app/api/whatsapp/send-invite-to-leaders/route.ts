@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         const captainMap = new Map<string, boolean>();
         if (tournament.poll?.id && tournament.poll.allowSquads) {
             const squads = await prisma.squad.findMany({
-                where: { pollId: tournament.poll.id, status: "REGISTERED" },
+                where: { pollId: tournament.poll.id, status: "FORMING" },
                 select: { captainId: true },
             });
             for (const s of squads) {

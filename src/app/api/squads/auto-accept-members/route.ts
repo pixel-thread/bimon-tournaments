@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
                 status: { in: ["PENDING", "ACCEPTED"] },
                 squad: {
                     pollId: squad.pollId,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                     id: { not: squadId },
                 },
             },

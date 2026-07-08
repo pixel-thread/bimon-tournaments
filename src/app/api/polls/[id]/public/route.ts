@@ -46,7 +46,7 @@ export async function GET(
                 },
                 _count: {
                     select: {
-                        squads: { where: { status: { in: ["FORMING", "FULL"] } } },
+                        squads: { where: { status: "FORMING" } },
                     },
                 },
             },
@@ -66,7 +66,7 @@ export async function GET(
                 const existing = await prisma.squad.findFirst({
                     where: {
                         pollId,
-                        status: { in: ["FORMING", "FULL"] },
+                        status: "FORMING",
                         OR: [
                             { captainId: user.player.id },
                             { invites: { some: { playerId: user.player.id, status: { in: ["PENDING", "ACCEPTED"] } } } },

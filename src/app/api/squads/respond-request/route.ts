@@ -74,8 +74,8 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: `This request has already been ${invite.status.toLowerCase()}`, status: 400 });
         }
 
-        // Squad must be active (FORMING or FULL — FULL squads may still have sub slots)
-        if (!["FORMING", "FULL"].includes(invite.squad.status)) {
+        // Squad must not be cancelled
+        if (invite.squad.status === "CANCELLED") {
             return ErrorResponse({
                 message: "Squad is no longer active",
                 status: 400,
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
                 if (isFull) {
                     await tx.squad.update({
                         where: { id: invite.squadId },
-                        data: { status: "FULL" },
+                        data: { status: "FORMING" },
                     });
                 }
 
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
                         playerId: invite.playerId,
                         status: "PENDING",
                         id: { not: inviteId },
-                        squad: { pollId: invite.squad.poll.id, status: { in: ["FORMING", "FULL"] } },
+                        squad: { pollId: invite.squad.poll.id, status: "FORMING" },
                     },
                     select: { id: true, squadId: true },
                 });

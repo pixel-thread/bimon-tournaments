@@ -56,7 +56,7 @@ export async function POST(
             return ErrorResponse({ message: "Only the squad leader can cancel", status: 403 });
         }
 
-        if (squad.status === "CANCELLED" || squad.status === "REGISTERED") {
+        if (squad.status === "CANCELLED") {
             return ErrorResponse({
                 message: `Cannot cancel — squad is already ${squad.status.toLowerCase()}`,
                 status: 400,

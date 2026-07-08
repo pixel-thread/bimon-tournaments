@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
                 status: { in: ["PENDING", "ACCEPTED"] },
                 squad: {
                     pollId,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                 },
             },
             select: { playerId: true },

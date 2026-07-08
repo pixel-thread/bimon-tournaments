@@ -65,7 +65,6 @@ export async function POST(request: NextRequest) {
                 where: {
                     captainId: player.id,
                     pollId: { not: pollId },
-                    status: { in: ["FORMING", "FULL", "REGISTERED", "CANCELLED"] },
                 },
                 orderBy: { createdAt: "desc" },
                 select: {
@@ -101,7 +100,7 @@ export async function POST(request: NextRequest) {
                     where: {
                         playerId: { in: memberIds },
                         status: { in: ["PENDING", "ACCEPTED"] },
-                        squad: { pollId, status: { in: ["FORMING", "FULL"] } },
+                        squad: { pollId, status: "FORMING" },
                     },
                     select: { playerId: true, squad: { select: { name: true } } },
                 });

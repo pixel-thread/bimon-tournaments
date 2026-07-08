@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
         const squadFullNameMap = new Map<string, string>();
         if (poll?.allowSquads && poll.id) {
             const squads = await prisma.squad.findMany({
-                where: { pollId: poll.id, status: "REGISTERED" },
+                where: { pollId: poll.id, status: "FORMING" },
                 select: { name: true, fullName: true },
             });
             for (const sq of squads) {

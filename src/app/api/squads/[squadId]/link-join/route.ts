@@ -206,7 +206,7 @@ export async function POST(
             where: {
                 pollId: squad.poll.id,
                 id: { not: squadId }, // exclude this squad — we handle existing invites below
-                status: { in: ["FORMING", "FULL"] },
+                status: "FORMING",
                 invites: { some: { playerId, status: { in: ["PENDING", "ACCEPTED"] } } },
             },
             select: { id: true, name: true, captainId: true, status: true },
@@ -240,20 +240,13 @@ export async function POST(
                         where: { id: oldInvite.id },
                         data: { status: "DECLINED", respondedAt: new Date() },
                     });
-                    // If old squad was FULL, revert to FORMING
-                    if (existingSquad.status === "FULL") {
-                        await tx.squad.update({
-                            where: { id: existingSquad.id },
-                            data: { status: "FORMING" },
-                        });
-                    }
                 });
             }
         }
 
         // Check if squad is full
         const acceptedCount = squad.invites.filter((i) => i.status === "ACCEPTED").length;
-        if (acceptedCount >= GAME.maxSquadSize || squad.status === "FULL") {
+        if (acceptedCount >= GAME.maxSquadSize) {
             return ErrorResponse({ message: "This squad is full", status: 400 });
         }
 
@@ -289,7 +282,7 @@ export async function POST(
             if (isFull) {
                 await tx.squad.update({
                     where: { id: squadId },
-                    data: { status: "FULL" },
+                    data: { status: "FORMING" },
                 });
             }
 
@@ -303,7 +296,7 @@ export async function POST(
                 where: {
                     playerId,
                     status: "PENDING",
-                    squad: { pollId: squad.poll.id, status: { in: ["FORMING", "FULL"] } },
+                    squad: { pollId: squad.poll.id, status: "FORMING" },
                 },
                 select: { id: true, squadId: true },
             });

@@ -24,7 +24,7 @@ export interface SquadDTO {
     id: string;
     name: string;
     fullName: string | null;
-    status: "FORMING" | "FULL" | "CANCELLED" | "REGISTERED";
+    status: "FORMING" | "CANCELLED";
     entryFee: number;
     createdAt: string;
     confirmedAt: string | null;

@@ -78,7 +78,7 @@ export async function GET(
                 status: { in: ["ACCEPTED", "PENDING"] },
                 squad: {
                     pollId: squad.pollId,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                 },
             },
             select: { playerId: true },

@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
                     status: { in: ["PENDING", "ACCEPTED"] },
                     squad: {
                         pollId,
-                        status: { in: ["FORMING", "FULL"] },
+                        status: "FORMING",
                     },
                 },
                 include: { squad: { select: { captainId: true, name: true } } },
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
                     status: "ACCEPTED",
                     squad: {
                         pollId,
-                        status: { in: ["FORMING", "FULL"] },
+                        status: "FORMING",
                     },
                 },
                 include: { squad: { select: { name: true } } },

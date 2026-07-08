@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
                 status: { in: ["PENDING", "ACCEPTED"] },
                 squad: {
                     pollId: squad.pollId,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                 },
             },
             select: { playerId: true },
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
             if (totalAccepted >= GAME.maxSquadSize) {
                 await tx.squad.update({
                     where: { id: squadId, status: "FORMING" },
-                    data: { status: "FULL" },
+                    data: { status: "FORMING" },
                 });
             }
         }, { timeout: 15000 });

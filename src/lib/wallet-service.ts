@@ -80,7 +80,7 @@ export async function getReservedBalance(playerId: string): Promise<number> {
                 status: "ACCEPTED",
                 squad: {
                     captainId: playerId, // Only the captain's fee is reserved
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                     poll: {
                         isActive: true,
                         tournament: { status: "ACTIVE" },
@@ -189,7 +189,7 @@ async function checkAndConfirmSquads(playerId: string, newBalance: number) {
     const unconfirmedSquads = await prisma.squad.findMany({
         where: {
             captainId: playerId,
-            status: { in: ["FORMING", "FULL", "REGISTERED"] },
+            status: "FORMING",
             confirmedAt: null,
             entryFee: { gt: 0 },
         },

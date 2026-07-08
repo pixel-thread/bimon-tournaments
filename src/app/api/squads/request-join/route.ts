@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "Squads are not enabled for this tournament", status: 400 });
         }
 
-        // Squad must be active (FORMING or FULL — status can be stale after member leaves)
-        if (!["FORMING", "FULL"].includes(squad.status)) {
+        // Squad must not be cancelled
+        if (squad.status === "CANCELLED") {
             return ErrorResponse({
                 message: "This squad is no longer active",
                 status: 400,
@@ -111,12 +111,7 @@ export async function POST(request: NextRequest) {
                         data: { status: "ACCEPTED", respondedAt: new Date(), isSub: false },
                     });
 
-                    if (isFull) {
-                        await tx.squad.update({
-                            where: { id: squadId, status: "FORMING" },
-                            data: { status: "FULL" },
-                        });
-                    }
+                    // isFull used for notifications only — no status change needed
 
                     // Remove individual poll vote
                     await tx.playerPollVote.deleteMany({
@@ -128,7 +123,7 @@ export async function POST(request: NextRequest) {
                         where: {
                             playerId,
                             status: "PENDING",
-                            squad: { pollId: squad.poll.id, status: { in: ["FORMING", "FULL"] } },
+                            squad: { pollId: squad.poll.id, status: "FORMING" },
                         },
                         select: { id: true, squadId: true },
                     });
@@ -162,7 +157,7 @@ export async function POST(request: NextRequest) {
                 status: "ACCEPTED",
                 squad: {
                     pollId: squad.poll.id,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                     id: { not: squadId },
                 },
             },

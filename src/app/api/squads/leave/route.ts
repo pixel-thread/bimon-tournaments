@@ -86,13 +86,8 @@ export async function POST(request: NextRequest) {
 
             await logSquadEventTx(tx, { squadId, playerId, action: "MEMBER_LEFT", actorId: playerId });
 
-            // If squad was FULL, revert to FORMING
-            if (squad.status === "FULL") {
-                await tx.squad.update({
-                    where: { id: squadId },
-                    data: { status: "FORMING" },
-                });
-            }
+
+
 
             // Notify the leader
             await tx.notification.create({

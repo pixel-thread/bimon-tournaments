@@ -65,9 +65,8 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "Leaders cannot remove themselves — cancel the squad instead", status: 400 });
         }
 
-        // Squad must be active (FORMING or FULL) — admins can also modify REGISTERED squads
-        const allowedStatuses = isAdmin ? ["FORMING", "FULL", "REGISTERED"] : ["FORMING", "FULL"];
-        if (!allowedStatuses.includes(invite.squad.status)) {
+        // Squad must not be cancelled — admins can always modify
+        if (invite.squad.status === "CANCELLED" && !isAdmin) {
             return ErrorResponse({ message: "Cannot modify this squad", status: 400 });
         }
 
@@ -85,13 +84,7 @@ export async function POST(request: NextRequest) {
                 where: { id: inviteId },
             });
 
-            // If squad was FULL, set back to FORMING
-            if (invite.squad.status === "FULL") {
-                await tx.squad.update({
-                    where: { id: invite.squadId },
-                    data: { status: "FORMING" },
-                });
-            }
+
 
             // Notify the removed player
             await tx.notification.create({

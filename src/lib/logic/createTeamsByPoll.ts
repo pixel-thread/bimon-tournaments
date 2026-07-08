@@ -186,7 +186,7 @@ export async function createTeamsByPoll({
         const squads = await prisma.squad.findMany({
             where: {
                 pollId,
-                status: { in: ["FORMING", "FULL"] },
+                status: "FORMING",
             },
             include: {
                 captain: {
@@ -294,13 +294,7 @@ export async function createTeamsByPoll({
                     });
                 }
 
-                // Mark squad as REGISTERED (skip in dry run)
-                if (!dryRun) {
-                    await prisma.squad.update({
-                        where: { id: squad.id },
-                        data: { status: "REGISTERED" },
-                    });
-                }
+                // Squad status stays FORMING (no status change needed)
                 squadsRegistered++;
             } else {
                 // No accepted members — cancel the squad

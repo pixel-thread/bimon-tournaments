@@ -195,7 +195,7 @@ export default function OperationsPage() {
     // Auto-select first active tournament
     useEffect(() => {
         if (tournaments.length > 0) {
-            const active = tournaments.find((t) => t.status === "ACTIVE");
+            const active = tournaments.find((t) => t.status === "FORMING");
             setSelectedId(active?.id || tournaments[0].id);
         } else {
             setSelectedId("");
@@ -416,7 +416,7 @@ export default function OperationsPage() {
                             <div className="flex items-center gap-2">
                                 <span>{t.name}</span>
                                 <Chip size="sm" variant="dot" color={
-                                    t.status === "ACTIVE" ? "success" :
+                                    t.status === "FORMING" ? "success" :
                                         t.status === "INACTIVE" ? "warning" : "danger"
                                 }>
                                     {t.status}
@@ -470,7 +470,7 @@ export default function OperationsPage() {
                                                 size="sm"
                                                 variant="flat"
                                                 color={
-                                                    selected.status === "ACTIVE" ? "success" :
+                                                    selected.status === "FORMING" ? "success" :
                                                         selected.status === "INACTIVE" ? "warning" : "danger"
                                                 }
                                             >
@@ -1840,9 +1840,7 @@ function SquadAuditSection({ pollId }: { pollId: string }) {
                                         <div className="flex items-center gap-2">
                                             <span>{s.name}</span>
                                             <Chip size="sm" variant="dot" color={
-                                                s.status === "FULL" ? "success" :
-                                                s.status === "FORMING" ? "warning" :
-                                                s.status === "CANCELLED" ? "danger" : "default"
+                                                s.status === "CANCELLED" ? "danger" : "success"
                                             }>
                                                 {s.status}
                                             </Chip>

@@ -96,7 +96,7 @@ export async function POST(
                 status: { in: ["ACCEPTED", "PENDING"] },
                 squad: {
                     pollId: squad.pollId,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                     id: { not: squadId },
                 },
             },
@@ -129,7 +129,7 @@ export async function POST(
         if (updatedCount >= GAME.maxSquadSize) {
             await prisma.squad.update({
                 where: { id: squadId, status: "FORMING" },
-                data: { status: "FULL" },
+                data: { status: "FORMING" },
             });
         }
 

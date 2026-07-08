@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
         const squads = await prisma.squad.findMany({
             where: {
                 pollId: tournament.poll.id,
-                status: { in: ["FORMING", "FULL", "REGISTERED"] },
+                status: "FORMING",
             },
             select: {
                 name: true,
@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
     const captainFullNameMap = new Map<string, string>(); // captainId → fullName || name
     if (tournament.poll?.id && tournament.poll.allowSquads) {
         const squads = await prisma.squad.findMany({
-            where: { pollId: tournament.poll.id, status: "REGISTERED" },
+            where: { pollId: tournament.poll.id, status: "FORMING" },
             select: { captainId: true, name: true, fullName: true },
         });
         for (const s of squads) {
@@ -168,11 +168,11 @@ export async function GET(req: NextRequest) {
                 if (!entry) return false;
                 if (entry.status === "ELIMINATED" || entry.status === "STANDBY") return false;
                 if (currentPhase === "HEATS") {
-                    return entry.status === "ACTIVE";
+                    return entry.status === "FORMING";
                 } else if (currentPhase === "WILDCARD") {
-                    return entry.status === "WILDCARD" || entry.status === "ACTIVE" || entry.status === "QUALIFIED";
+                    return entry.status === "WILDCARD" || entry.status === "FORMING" || entry.status === "QUALIFIED";
                 } else if (currentPhase === "FINALS") {
-                    return entry.phase === "FINALS" && (entry.status === "ACTIVE" || entry.status === "QUALIFIED");
+                    return entry.phase === "FINALS" && (entry.status === "FORMING" || entry.status === "QUALIFIED");
                 }
             }
             return true;

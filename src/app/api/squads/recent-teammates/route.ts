@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
             where: {
                 pollId,
                 captainId: currentPlayerId,
-                status: { in: ["FORMING", "FULL"] },
+                status: "FORMING",
             },
             select: { id: true },
         });
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
                 status: { in: ["PENDING", "ACCEPTED"] },
                 squad: {
                     pollId,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                 },
             },
             select: {

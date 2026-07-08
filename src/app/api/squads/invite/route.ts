@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
                 status: { in: ["PENDING", "ACCEPTED"] },
                 squad: {
                     pollId: squad.pollId,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                 },
             },
         });
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
                 if (isFull) {
                     await tx.squad.update({
                         where: { id: squadId },
-                        data: { status: "FULL" },
+                        data: { status: "FORMING" },
                     });
                 }
 
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
                     where: {
                         playerId,
                         status: "PENDING",
-                        squad: { pollId: squad.pollId, status: { in: ["FORMING", "FULL"] } },
+                        squad: { pollId: squad.pollId, status: "FORMING" },
                     },
                     select: { id: true, squadId: true },
                 });

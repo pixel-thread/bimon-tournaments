@@ -264,7 +264,7 @@ function TeamList({
                             entry.status === "STANDBY" ? "text-foreground/25" :
                             "text-foreground/30"
                         }`}>
-                            {entry.status === "ACTIVE" ? "" : entry.status}
+                            {entry.status === "FORMING" ? "" : entry.status}
                         </span>
                     </div>
                 ))}

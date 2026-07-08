@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
                 where: {
                     pollId,
                     captainId: existingPlayer.id,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                 },
             });
             if (existingCaptainSquad) {
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
                 where: {
                     playerId: existingPlayer.id,
                     status: "ACCEPTED",
-                    squad: { pollId, status: { in: ["FORMING", "FULL"] } },
+                    squad: { pollId, status: "FORMING" },
                 },
             });
             if (existingSquadInvite) {
@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
                     name: trimmedName,
                     fullName,
                     entryFee,
-                    status: allCount >= GAME.maxSquadSize ? "FULL" : "FORMING",
+                    status: "FORMING",
                     confirmedAt: new Date(), // Admin-created squads are always confirmed
                 },
             });

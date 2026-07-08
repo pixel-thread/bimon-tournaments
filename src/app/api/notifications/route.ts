@@ -82,7 +82,7 @@ export async function GET() {
                         status: "PENDING",
                         squad: {
                             captainId: user.player.id,
-                            status: { in: ["FORMING", "FULL"] },
+                            status: "FORMING",
                             poll: { isActive: true },
                         },
                     },
@@ -118,7 +118,7 @@ export async function GET() {
                         initiatedBy: "CAPTAIN",
                         status: "PENDING",
                         squad: {
-                            status: { in: ["FORMING", "FULL"] },
+                            status: "FORMING",
                             poll: { isActive: true },
                         },
                     },

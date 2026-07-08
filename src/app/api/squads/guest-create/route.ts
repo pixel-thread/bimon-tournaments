@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         // Check registration cap
         const registrationCap = isMangoScrim ? 18 : 32;
         const activeSquadCount = await prisma.squad.count({
-            where: { pollId, status: { in: ["FORMING", "FULL"] } },
+            where: { pollId, status: "FORMING" },
         });
         if (activeSquadCount >= registrationCap) {
             return ErrorResponse({
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
             const existingSquad = await prisma.squad.findFirst({
                 where: {
                     pollId,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                     OR: [
                         { captainId: captainPlayer.id },
                         { invites: { some: { playerId: captainPlayer.id, status: { in: ["PENDING", "ACCEPTED"] } } } },
@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
                     where: {
                         playerId: memberPlayer.id,
                         status: { in: ["PENDING", "ACCEPTED"] },
-                        squad: { pollId, status: { in: ["FORMING", "FULL"] } },
+                        squad: { pollId, status: "FORMING" },
                     },
                 });
                 if (existing) continue;
@@ -314,7 +314,7 @@ export async function POST(request: NextRequest) {
             if (totalCount >= GAME.maxSquadSize) {
                 await tx.squad.update({
                     where: { id: newSquad.id, status: "FORMING" },
-                    data: { status: "FULL" },
+                    data: { status: "FORMING" },
                 });
             }
 

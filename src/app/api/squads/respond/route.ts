@@ -76,12 +76,9 @@ export async function POST(request: NextRequest) {
             return ErrorResponse({ message: "This poll is no longer active", status: 400 });
         }
 
-        // Squad must be in FORMING state
-        if (invite.squad.status !== "FORMING") {
-            return ErrorResponse({
-                message: invite.squad.status === "FULL" ? "This squad is already full" : "This squad is no longer active",
-                status: 400,
-            });
+        // Squad must not be cancelled
+        if (invite.squad.status === "CANCELLED") {
+            return ErrorResponse({ message: "This squad is no longer active", status: 400 });
         }
 
         const playerName = user.player.displayName;
@@ -108,12 +105,7 @@ export async function POST(request: NextRequest) {
                     data: { status: "ACCEPTED", respondedAt: new Date(), isSub: false },
                 });
 
-                if (isFull) {
-                    await tx.squad.update({
-                        where: { id: invite.squadId },
-                        data: { status: "FULL" },
-                    });
-                }
+                // isFull is kept for UI notification only — no status change needed
 
                 // Remove any existing poll vote — squad members are "on a team", not voters
                 await tx.playerPollVote.deleteMany({
@@ -126,7 +118,7 @@ export async function POST(request: NextRequest) {
                         playerId,
                         status: "PENDING",
                         id: { not: inviteId },
-                        squad: { pollId: invite.squad.poll.id, status: { in: ["FORMING", "FULL"] } },
+                        squad: { pollId: invite.squad.poll.id, status: "FORMING" },
                     },
                     select: { id: true, squadId: true },
                 });

@@ -68,7 +68,7 @@ export async function GET(request: Request) {
                 // Count active squads for prize pool display
                 _count: {
                     select: {
-                        squads: { where: { status: { in: ["FORMING", "FULL", "REGISTERED"] } } },
+                        squads: { where: { status: { not: "CANCELLED" } } },
                     },
                 },
             },
@@ -114,7 +114,7 @@ export async function GET(request: Request) {
         const confirmedCountByPoll = new Map<string, number>();
         if (squadPollIds.length > 0) {
             const allSquads = await prisma.squad.findMany({
-                where: { pollId: { in: squadPollIds }, status: { in: ["FORMING", "FULL", "REGISTERED"] } },
+                where: { pollId: { in: squadPollIds }, status: { not: "CANCELLED" } },
                 select: {
                     id: true,
                     pollId: true,

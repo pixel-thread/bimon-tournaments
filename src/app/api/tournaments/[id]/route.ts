@@ -51,7 +51,7 @@ export async function PUT(
             const unconfirmedSquads = await prisma.squad.findMany({
                 where: {
                     confirmedAt: null,
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                     poll: { tournamentId: id },
                 },
                 select: {
@@ -98,7 +98,7 @@ export async function PUT(
             await prisma.squad.updateMany({
                 where: {
                     confirmedAt: { not: null },
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                     poll: { tournamentId: id },
                 },
                 data: { entryFee: newFee },
@@ -107,7 +107,7 @@ export async function PUT(
             // Fee increased — update entryFee snapshot on all active squads
             await prisma.squad.updateMany({
                 where: {
-                    status: { in: ["FORMING", "FULL"] },
+                    status: "FORMING",
                     poll: { tournamentId: id },
                 },
                 data: { entryFee: newFee },

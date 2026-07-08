@@ -68,7 +68,7 @@ export async function POST(request: Request) {
             where: {
                 pollId,
                 captainId: playerId,
-                status: { in: ["FORMING", "FULL"] },
+                status: "FORMING",
             },
             select: { id: true },
         });

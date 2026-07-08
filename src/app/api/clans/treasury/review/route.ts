@@ -105,7 +105,7 @@ export async function POST(request: Request) {
                 const squad = await prisma.squad.findFirst({
                     where: {
                         captainId: withdrawRequest.playerId,
-                        status: { in: ["FORMING", "FULL"] },
+                        status: "FORMING",
                         pollId: { not: undefined },
                     },
                     orderBy: { createdAt: "desc" },
