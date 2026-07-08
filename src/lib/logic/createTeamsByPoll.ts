@@ -219,7 +219,7 @@ export async function createTeamsByPoll({
         if (entryFee > 0) {
             const unpaidSquadIds: string[] = [];
             for (const squad of squads) {
-                if (squad.captain.isTrusted || squad.captain.isGhost) continue; // trusted/ghost captains always pass
+                if (squad.captain.isTrusted || squad.captain.isGhost || squad.confirmedAt) continue; // trusted/ghost/admin-confirmed captains always pass
                 const captainEmail = squad.captain.user?.email;
                 if (!captainEmail) { unpaidSquadIds.push(squad.id); continue; }
                 try {
