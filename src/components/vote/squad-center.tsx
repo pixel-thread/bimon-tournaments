@@ -1742,7 +1742,8 @@ export function SquadCenter({
     const [showVoteWarning, setShowVoteWarning] = useState<{ action: "create" | "join"; squadId?: string } | null>(null);
     const [cancelConfirm, setCancelConfirm] = useState<{ squadId: string; isSameDay: boolean } | null>(null);
     const [showCreateChooser, setShowCreateChooser] = useState(false);
-    const { data: squadsResult, isLoading, refetch } = useSquads(pollId);
+    const { data: squadsResult, isLoading, isFetching, refetch } = useSquads(pollId);
+    const isRefetching = isFetching && !isLoading;
     const squads = squadsResult?.squads;
     const maxSquads = squadsResult?.maxSquads ?? GAME.maxSquadTeams;
     const isMangoScrim = squadsResult?.isMangoScrim ?? false;
@@ -2020,6 +2021,23 @@ export function SquadCenter({
 
 
                     <ModalBody>
+                        {/* Subtle refetching indicator */}
+                        <AnimatePresence>
+                            {isRefetching && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="flex items-center justify-center gap-2 py-1.5 mb-2 rounded-lg bg-primary/5 border border-primary/10">
+                                        <Spinner size="sm" classNames={{ circle1: "w-3 h-3", circle2: "w-3 h-3" }} />
+                                        <span className="text-[11px] font-medium text-primary/70">Updating…</span>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                         {isLoading ? (
                             <div className="flex items-center justify-center py-12">
                                 <Spinner size="lg" />

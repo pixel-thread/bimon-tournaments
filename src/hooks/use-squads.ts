@@ -291,23 +291,9 @@ export function useCreateSquad() {
             );
             return { prev };
         },
-        onSuccess: (data, variables) => {
-            // Replace temp squad with real data from API, then background refetch
-            queryClient.setQueryData(
-                ["squads", variables.pollId],
-                (old: { squads: SquadDTO[]; defendingChampion: DefendingChampion | null; maxSquads: number; maxSquadWaitlist: number; squadCount: number; isChampionship: boolean; isMangoScrim: boolean } | undefined) => {
-                    if (!old) return old;
-                    return {
-                        ...old,
-                        squads: old.squads.map((s) =>
-                            s.id.startsWith("temp-")
-                                ? { ...s, id: data.data?.id ?? s.id, name: data.data?.name ?? s.name, entryFee: data.data?.entryFee ?? 0 }
-                                : s
-                        ),
-                    };
-                }
-            );
-            queryClient.invalidateQueries({ queryKey: ["squads"] });
+        onSuccess: (_data, variables) => {
+            // Hard refetch squads to replace optimistic temp squad with real server data
+            queryClient.refetchQueries({ queryKey: ["squads", variables.pollId] });
         },
         onError: (err, variables, ctx) => {
             // Rollback optimistic update

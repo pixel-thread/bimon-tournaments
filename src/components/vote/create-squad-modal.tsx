@@ -14,7 +14,7 @@ import {
 import { Shield, AlertTriangle, X, Ghost, Users } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCreateSquad, useRecentTeammates, useImportRoster, type PreviousRoster } from "@/hooks/use-squads";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GAME } from "@/lib/game-config";
 import { CurrencyIcon } from "@/components/common/CurrencyIcon";
 import { containsProfanity } from "@/lib/profanity";
@@ -105,6 +105,7 @@ export function CreateSquadModal({
 
     const createMutation = useCreateSquad();
     const importRosterMutation = useImportRoster();
+    const queryClient = useQueryClient();
     // const { openDiscordModal, DiscordCompareModal } = useDiscordCompareModal(); // Discord disabled
 
     // Import mode: track selected member IDs
@@ -219,6 +220,8 @@ export function CreateSquadModal({
                                 if (invited > 0) parts.push(`${invited} invite${invited > 1 ? 's' : ''} sent`);
                                 toast.success(`Past roster imported: ${parts.join(", ")}`);
                             }
+                            // Refetch squads to show imported members
+                            queryClient.refetchQueries({ queryKey: ["squads", pollId] });
                         } catch {
                             toast.error("Failed to import some teammates");
                         }
@@ -236,7 +239,7 @@ export function CreateSquadModal({
                 },
             }
         );
-    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, importRosterMutation, whatsappGroupLink, tournamentName, handleClose, hasSubscribers, captainInfo, myClan, isLeaderOrCoLeader, useClanTreasury, importRoster, selectedMembers]);
+    }, [pollId, squadName, squadFullName, useClan, hasClan, createMutation, importRosterMutation, queryClient, whatsappGroupLink, tournamentName, handleClose, hasSubscribers, captainInfo, myClan, isLeaderOrCoLeader, useClanTreasury, importRoster, selectedMembers]);
 
     const canSubmit = (useClan && hasClan) || !!squadName.trim();
 
